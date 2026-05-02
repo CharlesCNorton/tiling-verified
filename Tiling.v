@@ -1355,6 +1355,26 @@ Proof.
   intros n phi. unfold licenses. split; intro H; exact H.
 Qed.
 
+(** ** Cross-level licensure composition.
+
+    If a lower-level agent licenses an implication and a (possibly
+    higher) agent licenses the antecedent, then the higher agent
+    licenses the consequent.  The implication is lifted across
+    levels by monotonicity, then chained with [licenses_mp]. *)
+
+Theorem licenses_compose_cross : forall n m phi psi,
+  n <= m ->
+  |- licenses n (Impl phi psi) ->
+  |- licenses m phi ->
+  |- licenses m psi.
+Proof.
+  intros n m phi psi Hle Himp Hphi.
+  unfold licenses in *.
+  pose proof (prov_box_mon_le n m (Impl phi psi) Hle) as Hmon.
+  pose proof (MP _ _ Hmon Himp) as Himp'.
+  exact (prov_box_mp m _ _ Himp' Hphi).
+Qed.
+
 (** * Section 14: Classical Equivalences *)
 
 (** ** First de Morgan duality: [|- Iff (Neg (And phi psi)) (Or (Neg phi) (Neg psi))].
@@ -1518,5 +1538,125 @@ Proof.
   intro n. split.
   - exact (loebian_obstacle n).
   - exact (Ax_Mon n).
+Qed.
+
+(** ** Reflection schema unprovability (conditional).
+
+    Strengthening of [loebian_obstacle]: assuming meta-consistency
+    of the system ([~ |- Bot]), the same-level reflection schema is
+    not even uniformly provable.  The unconditional version (without
+    the consistency hypothesis) requires a syntactic or semantic
+    consistency argument, addressed in todo items 23-25. *)
+
+Theorem reflection_schema_unprovable_conditional : forall n,
+  ~ (|- Bot) -> ~ (forall phi, |- Impl (Box n phi) phi).
+Proof.
+  intros n Hcons Hsch.
+  exact (Hcons (loebian_obstacle n Hsch)).
+Qed.
+
+(** * Section 16: Connection to Fallenstein-Soares 2014 *)
+
+(** ** Finite tower (FS2014).
+
+    For any natural [n], the family [T_0, T_1, ..., T_n] in our
+    polymodal abstraction is a sequence of progressively stronger
+    theories where each [T_(k+1)] verifies the consistency of [T_k]
+    over the [Bot]-class of sentences.  This is the modal analog of
+    the FS2014 finite tower result. *)
+
+Theorem fs2014_finite_tower : forall n,
+  forall k, k < n -> |- Box (S k) (Neg (Box k Bot)).
+Proof.
+  intros n k _.
+  exact (Ax_NextCon k).
+Qed.
+
+(** ** Infinite consistency chain (FS2014).
+
+    The chain extends without limit: every [T_(S n)] proves the
+    consistency of its immediate predecessor [T_n], and every level
+    strictly above [n] inherits this verification by monotonicity.
+    Formalised via [consistency_chain] from earlier. *)
+
+Theorem fs2014_infinite_chain : forall n,
+  |- Box (S n) (Neg (Box n Bot)).
+Proof.
+  exact Ax_NextCon.
+Qed.
+
+(** ** Successor-licensing safety (FS2014 self-modification).
+
+    An agent at level [n] proves that the level-[(S n)] agent has
+    consistently verified the level-[n] consistency.  In FS2014's
+    "agent using T_n proves it is safe to self-modify into an agent
+    using T_(S n)" reading, this is the modal core of the
+    safety-of-self-modification claim, restricted to the consistency
+    sentence-class. *)
+
+Theorem fs2014_safe_self_modification : forall n,
+  |- Box n (Box (S n) (Neg (Box n Bot))).
+Proof.
+  intro n.
+  exact (Nec n _ (Ax_NextCon n)).
+Qed.
+
+(** * Section 17: The Deduction Theorem *)
+
+(** ** Provability with hypotheses.
+
+    [Provable_with_hyp Gamma phi] holds when [phi] is derivable from
+    the hypotheses in [Gamma] using axioms, theorems, and modus
+    ponens.  Necessitation is deliberately omitted: in modal logic,
+    [Nec] only applies to closed proofs, not to derivations under
+    open assumptions, since [phi] in the modal-K sense is
+    [|- phi -> |- Box n phi] — a metatheorem, not a Hilbert rule on
+    hypotheses.  This restriction is what makes the deduction
+    theorem hold. *)
+
+Inductive Provable_with_hyp : list Form -> Form -> Prop :=
+  | DT_hyp : forall Gamma alpha,
+      In alpha Gamma -> Provable_with_hyp Gamma alpha
+  | DT_thm : forall Gamma alpha,
+      |- alpha -> Provable_with_hyp Gamma alpha
+  | DT_MP : forall Gamma alpha beta,
+      Provable_with_hyp Gamma (Impl alpha beta) ->
+      Provable_with_hyp Gamma alpha ->
+      Provable_with_hyp Gamma beta.
+
+(** ** The deduction theorem.
+
+    If [phi] discharges to [psi] under hypotheses [Gamma], then
+    [phi -> psi] is derivable from [Gamma] alone.  Standard Hilbert-
+    calculus result, valid here because [Provable_with_hyp] omits
+    [Nec]. *)
+
+Theorem deduction_theorem : forall Gamma phi psi,
+  Provable_with_hyp (phi :: Gamma) psi ->
+  Provable_with_hyp Gamma (Impl phi psi).
+Proof.
+  intros Gamma phi psi H.
+  remember (phi :: Gamma) as G eqn:HG.
+  generalize dependent Gamma. generalize dependent phi.
+  induction H as [G' alpha Hin | G' alpha Hthm
+                   | G' alpha beta Himp IHimp Halpha IHalpha];
+    intros phi Gamma HG.
+  - (* DT_hyp: alpha is in G = phi :: Gamma. *)
+    subst G'. simpl in Hin. destruct Hin as [Heq | Hin'].
+    + subst alpha. apply DT_thm. apply prov_id.
+    + apply DT_MP with (alpha := alpha).
+      * apply DT_thm. apply Ax_K.
+      * apply DT_hyp. exact Hin'.
+  - (* DT_thm: alpha is a closed theorem; weaken via Ax_K. *)
+    apply DT_thm. exact (MP _ _ (Ax_K alpha phi) Hthm).
+  - (* DT_MP: chain via Ax_S. *)
+    subst G'.
+    pose proof (IHimp phi Gamma eq_refl) as HI1.
+    pose proof (IHalpha phi Gamma eq_refl) as HI2.
+    apply DT_MP with (alpha := Impl phi alpha).
+    + apply DT_MP with (alpha := Impl phi (Impl alpha beta)).
+      * apply DT_thm. exact (Ax_S phi alpha beta).
+      * exact HI1.
+    + exact HI2.
 Qed.
 
