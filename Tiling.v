@@ -2040,6 +2040,27 @@ Proof.
   destruct Hfu as [Heq _]. discriminate.
 Qed.
 
+(** * Section 21: Concrete Fixed-Point Witness *)
+
+(** ** [Top] is a fixed point of [phi(p) := Box n p].
+
+    A trivial concrete fixed point: [|- Iff Top (Box n Top)].  Both
+    [Top] and [Box n Top] are theorems individually, so the iff
+    follows by [prov_weaken] in each direction.  The full de Jongh-
+    Sambin theorem (todo items 36-38) handles arbitrary modalized
+    [phi]; this is one of its simplest instances. *)
+
+Theorem fixedpoint_top_box : forall n,
+  |- Iff Top (Box n Top).
+Proof.
+  intro n.
+  unfold Iff.
+  apply prov_and_intro_meta.
+  - exact (prov_weaken _ Top (prov_box_top n)).
+  - unfold Top.
+    exact (prov_weaken _ (Box n (Impl Bot Bot)) (prov_id Bot)).
+Qed.
+
 (** * Section 16: Connection to Fallenstein-Soares 2014 *)
 
 (** ** Finite tower (FS2014).
