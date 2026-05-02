@@ -44,6 +44,18 @@ Definition And (phi psi : Form) : Form := Neg (Impl phi (Neg psi)).
 Definition Or (phi psi : Form) : Form := Impl (Neg phi) psi.
 Definition Iff (phi psi : Form) : Form := And (Impl phi psi) (Impl psi phi).
 
+(** ** Decidable equality on formulas.
+
+    Infrastructure needed for any decision procedure on the calculus.
+    Standard structural induction with [decide equality] on the
+    [Form] inductive (with [Nat.eq_dec] for the [Var] and [Box]
+    payloads). *)
+
+Lemma Form_eq_dec : forall (f g : Form), {f = g} + {f <> g}.
+Proof.
+  decide equality; apply Nat.eq_dec.
+Defined.
+
 (** * Section 2: The Polymodal Goedel-Loeb System GLP* *)
 
 (** GLP* is the Hilbert-style polymodal proof system used throughout.
