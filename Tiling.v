@@ -61,10 +61,12 @@ Definition Iff (phi psi : Form) : Form := And (Impl phi psi) (Impl psi phi).
     behaviour at every level; monotonicity and NextCon give the tower
     structure required by Yudkowsky-Herreshoff 2013.
 
-    Note that axiom 4 ([Box n phi -> Box n (Box n phi)]) is not listed:
-    it is derivable from K + Loeb (Boolos, *The Logic of Provability*,
-    1993, Theorem 11).  We do not include the derivation here because
-    axiom 4 is not used anywhere in this file. *)
+    Axiom 4 ([Box n phi -> Box n (Box n phi)]) is included primitively
+    below as [Ax_Box4].  Boolos, "The Logic of Provability", 1993,
+    Theorem 11, derives it from K + Loeb, but his proof routes through
+    the de Jongh-Sambin fixed-point theorem and is non-elementary.
+    Once a polymodal fixed-point theorem is added (todo item 36), the
+    primitive axiom can be promoted to a derived theorem. *)
 
 Inductive Provable : Form -> Prop :=
   (* Classical propositional axioms. *)
@@ -81,6 +83,8 @@ Inductive Provable : Form -> Prop :=
                      (Impl (Box n phi) (Box n psi)))
   | Ax_Loeb : forall n phi,
       Provable (Impl (Box n (Impl (Box n phi) phi)) (Box n phi))
+  | Ax_Box4 : forall n phi,
+      Provable (Impl (Box n phi) (Box n (Box n phi)))
   (* Polymodal axioms. *)
   | Ax_Mon  : forall n phi,
       Provable (Impl (Box n phi) (Box (S n) phi))
@@ -239,6 +243,16 @@ Proof.
   exact (prov_compose _ _ _ Hperm Hpi).
 Qed.
 
+(** ** And-introduction in metatheorem form: from [|- phi] and [|- psi]
+    derive [|- And phi psi].  Two MPs against [prov_and_intro]. *)
+
+Lemma prov_and_intro_meta : forall phi psi,
+  |- phi -> |- psi -> |- And phi psi.
+Proof.
+  intros phi psi Hphi Hpsi.
+  exact (MP _ _ (MP _ _ (prov_and_intro phi psi) Hphi) Hpsi).
+Qed.
+
 (** ** From a negation derive any implication landing in a negation:
     [Neg phi -> (phi -> Neg psi)].
 
@@ -308,6 +322,25 @@ Proof.
   exact (prov_compose _ _ _ Hstep1 HDN).
 Qed.
 
+(** ** And-elimination metatheorem (left): from [|- And phi psi]
+    derive [|- phi]. *)
+
+Lemma prov_and_elim_l_meta : forall phi psi,
+  |- And phi psi -> |- phi.
+Proof.
+  intros phi psi Hand.
+  exact (MP _ _ (prov_and_elim_l phi psi) Hand).
+Qed.
+
+(** ** And-elimination metatheorem (right). *)
+
+Lemma prov_and_elim_r_meta : forall phi psi,
+  |- And phi psi -> |- psi.
+Proof.
+  intros phi psi Hand.
+  exact (MP _ _ (prov_and_elim_r phi psi) Hand).
+Qed.
+
 (** ** Box-And-elimination (left): [|- Box n (phi /\ psi) -> Box n phi].
 
     Pure K-distribution: necessitate [prov_and_elim_l] and feed
@@ -354,6 +387,39 @@ Proof.
   exact (prov_compose _ _ _ Hstep1 HBK2).
 Qed.
 
+(** ** Box-And full distribution.
+
+    The converse of [prov_box_and_intro]:
+    [|- Box n (And phi psi) -> And (Box n phi) (Box n psi)].
+    Combined with [prov_box_and_intro] (in metatheorem MP-form) this
+    gives the full K-distribution-over-And biconditional. *)
+
+Lemma prov_box_and_distrib_fwd : forall n phi psi,
+  |- Impl (Box n (And phi psi)) (And (Box n phi) (Box n psi)).
+Proof.
+  intros n phi psi.
+  pose proof (prov_box_and_elim_l n phi psi) as HL.
+  pose proof (prov_box_and_elim_r n phi psi) as HR.
+  pose proof (prov_and_intro (Box n phi) (Box n psi)) as Hand.
+  (* Hand : |- Box n phi -> Box n psi -> And (Box n phi) (Box n psi). *)
+  pose proof (prov_compose_internal
+                (Box n (And phi psi))
+                (Box n phi)
+                (Impl (Box n psi) (And (Box n phi) (Box n psi)))) as Hci.
+  pose proof (MP _ _ Hci Hand) as Hstep1.
+  pose proof (MP _ _ Hstep1 HL) as Hstep2.
+  (* Hstep2 : |- Box n (And phi psi) ->
+                  (Box n psi -> And (Box n phi) (Box n psi)). *)
+  pose proof (Ax_S
+                (Box n (And phi psi))
+                (Box n psi)
+                (And (Box n phi) (Box n psi))) as Hs.
+  pose proof (MP _ _ Hs Hstep2) as Hstep3.
+  (* Hstep3 : |- (Box n (And phi psi) -> Box n psi) ->
+                 (Box n (And phi psi) -> And (Box n phi) (Box n psi)). *)
+  exact (MP _ _ Hstep3 HR).
+Qed.
+
 (** ** Contraposition (one direction): [(phi -> psi) -> (~psi -> ~phi)]. *)
 Lemma prov_contrapos : forall phi psi,
   |- Impl (Impl phi psi) (Impl (Neg psi) (Neg phi)).
@@ -364,6 +430,212 @@ Proof.
      (psi -> Bot) -> ((phi -> psi) -> (phi -> Bot)),
      and we need the perm of that. *)
   exact (prov_perm _ _ _ (prov_compose_internal phi psi Bot)).
+Qed.
+
+(** ** Contraposition (converse direction): [(~psi -> ~phi) -> (phi -> psi)].
+
+    Together with [prov_contrapos] this gives the full classical
+    contrapositive equivalence.  The proof uses double-negation
+    elimination: from [(psi -> Bot) -> (phi -> Bot)] and [phi],
+    derive [(psi -> Bot) -> Bot] (i.e., [Neg (Neg psi)]), then apply
+    [Ax_DN]. *)
+
+Lemma prov_contrapos_converse : forall phi psi,
+  |- Impl (Impl (Neg psi) (Neg phi)) (Impl phi psi).
+Proof.
+  intros phi psi.
+  unfold Neg.
+  (* H_perm : ((psi -> Bot) -> (phi -> Bot)) -> (phi -> ((psi -> Bot) -> Bot)). *)
+  pose proof (prov_perm_internal (Impl psi Bot) phi Bot) as H_perm.
+  (* HDN : ((psi -> Bot) -> Bot) -> psi. *)
+  pose proof (Ax_DN psi) as HDN.
+  (* Hci : (((psi -> Bot) -> Bot) -> psi) ->
+           ((phi -> ((psi -> Bot) -> Bot)) -> (phi -> psi)). *)
+  pose proof (prov_compose_internal phi
+                (Impl (Impl psi Bot) Bot) psi) as Hci.
+  pose proof (MP _ _ Hci HDN) as Hstep.
+  exact (prov_compose _ _ _ H_perm Hstep).
+Qed.
+
+(** ** Consequentia mirabilis: [(Neg chi -> chi) -> chi].
+
+    A classical principle equivalent to double-negation elimination
+    in the presence of [Ax_DN].  Used in the Or-elimination proof
+    below. *)
+
+Lemma prov_consequentia_mirabilis : forall chi,
+  |- Impl (Impl (Neg chi) chi) chi.
+Proof.
+  intro chi.
+  unfold Neg.
+  (* From prov_id (Impl chi Bot) and Ax_S, derive
+     (Impl (Impl chi Bot) chi) -> (Impl (Impl chi Bot) Bot),
+     i.e., (Neg chi -> chi) -> Neg (Neg chi).  Then apply Ax_DN. *)
+  pose proof (prov_id (Impl chi Bot)) as Hid.
+  pose proof (Ax_S (Impl chi Bot) chi Bot) as Hs.
+  pose proof (MP _ _ Hs Hid) as Hstep1.
+  pose proof (Ax_DN chi) as HDN.
+  exact (prov_compose _ _ _ Hstep1 HDN).
+Qed.
+
+(** ** Or-introduction (left): [|- phi -> Or phi psi].
+
+    Unfolds to [|- phi -> (Neg phi -> psi)].  Classical: from [phi]
+    and [Neg phi] derive [Bot] then anything. *)
+
+Lemma prov_or_intro_l : forall phi psi,
+  |- Impl phi (Or phi psi).
+Proof.
+  intros phi psi.
+  unfold Or.
+  pose proof (prov_explosion psi) as Hexp.
+  pose proof (prov_compose_internal (Neg phi) Bot psi) as Hci.
+  pose proof (MP _ _ Hci Hexp) as HX.
+  (* HX : |- (Neg phi -> Bot) -> (Neg phi -> psi). *)
+  pose proof (prov_DN_intro phi) as HDN.
+  (* HDN : |- phi -> (Neg phi -> Bot). *)
+  exact (prov_compose _ _ _ HDN HX).
+Qed.
+
+(** ** Or-introduction (right): [|- psi -> Or phi psi].
+
+    Trivial via [Ax_K]: [psi] implies [Neg phi -> psi]. *)
+
+Lemma prov_or_intro_r : forall phi psi,
+  |- Impl psi (Or phi psi).
+Proof.
+  intros phi psi.
+  unfold Or.
+  exact (Ax_K psi (Neg phi)).
+Qed.
+
+(** ** Apply-two-under-outer-impl.
+
+    From [|- A -> (B -> (C -> R))], [|- B], and [|- C], derive
+    [|- A -> R].  Used to plug constant arguments into a multi-arg
+    Hilbert formula while leaving an outer antecedent open. *)
+
+Lemma prov_apply2 : forall A B C R,
+  |- Impl A (Impl B (Impl C R)) -> |- B -> |- C -> |- Impl A R.
+Proof.
+  intros A B C R Hf Hb Hc.
+  pose proof (Ax_S A B (Impl C R)) as Hs1.
+  pose proof (MP _ _ Hs1 Hf) as Hstep1.
+  pose proof (Ax_K B A) as HK_b.
+  pose proof (MP _ _ HK_b Hb) as HAB.
+  pose proof (MP _ _ Hstep1 HAB) as Hstep2.
+  pose proof (Ax_S A C R) as Hs2.
+  pose proof (MP _ _ Hs2 Hstep2) as Hstep3.
+  pose proof (Ax_K C A) as HK_c.
+  pose proof (MP _ _ HK_c Hc) as HAC.
+  exact (MP _ _ Hstep3 HAC).
+Qed.
+
+(** ** Compose-under-shared-antecedent.
+
+    From [|- A -> (B -> C)] and [|- D -> B] derive [|- A -> (D -> C)].
+    Pre-composes with [g] under a shared outer antecedent [A]. *)
+
+Lemma prov_compose_under : forall A B C D,
+  |- Impl A (Impl B C) -> |- Impl D B -> |- Impl A (Impl D C).
+Proof.
+  intros A B C D Hf Hg.
+  pose proof (prov_compose_internal D B C) as HCI.
+  pose proof (prov_perm _ _ _ HCI) as HCI_perm.
+  (* HCI_perm : |- (D -> B) -> ((B -> C) -> (D -> C)). *)
+  pose proof (MP _ _ HCI_perm Hg) as HX.
+  (* HX : |- (B -> C) -> (D -> C). *)
+  exact (prov_compose _ _ _ Hf HX).
+Qed.
+
+(** ** Two-place forward chaining combinator.
+
+    From [A -> B -> C] and [C -> D], derive [A -> B -> D].
+    Equivalently as a single Hilbert formula:
+    [(A -> B -> C) -> (C -> D) -> (A -> B -> D)]. *)
+
+Lemma prov_chain_2 : forall A B C D,
+  |- Impl (Impl A (Impl B C))
+          (Impl (Impl C D) (Impl A (Impl B D))).
+Proof.
+  intros A B C D.
+  pose proof (prov_compose_internal B C D) as H1.
+  pose proof (prov_compose_internal A (Impl B C) (Impl B D)) as H2.
+  pose proof (prov_compose _ _ _ H1 H2) as H3.
+  exact (prov_perm _ _ _ H3).
+Qed.
+
+(** ** Or-elimination.
+
+    Classical disjunction elimination: from [Or phi psi], [phi -> chi],
+    and [psi -> chi], derive [chi].  In our system, [Or phi psi]
+    unfolds to [Neg phi -> psi], so the goal is
+
+      |- (Neg phi -> psi) -> (phi -> chi) -> (psi -> chi) -> chi.
+
+    Proof chain: from [phi -> chi] derive [Neg chi -> Neg phi] by
+    contrapos; compose with [Neg phi -> psi] to get [Neg chi -> psi];
+    compose with [psi -> chi] to get [Neg chi -> chi]; apply
+    consequentia mirabilis to get [chi]. *)
+
+Lemma prov_or_elim : forall phi psi chi,
+  |- Impl (Or phi psi)
+       (Impl (Impl phi chi) (Impl (Impl psi chi) chi)).
+Proof.
+  intros phi psi chi.
+  unfold Or.
+  pose proof (prov_contrapos phi chi) as HCP.
+  pose proof (prov_compose_internal (Neg chi) (Neg phi) psi) as HCI1.
+  pose proof (prov_compose_internal (Neg chi) psi chi) as HCI2.
+  pose proof (prov_consequentia_mirabilis chi) as HCM.
+  (* HA : (Neg phi -> psi) -> ((phi -> chi) -> (Neg chi -> psi)). *)
+  pose proof (prov_compose_under
+                (Impl (Neg phi) psi)
+                (Impl (Neg chi) (Neg phi))
+                (Impl (Neg chi) psi)
+                (Impl phi chi)
+                HCI1 HCP) as HA.
+  (* HCH : combine HCI2 and HCM via prov_chain_2 to derive
+     (psi -> chi) -> ((Neg chi -> psi) -> chi). *)
+  pose proof (prov_chain_2
+                (Impl psi chi)
+                (Impl (Neg chi) psi)
+                (Impl (Neg chi) chi)
+                chi) as HCH.
+  pose proof (MP _ _ HCH HCI2) as HCH1.
+  pose proof (MP _ _ HCH1 HCM) as HB.
+  (* HB : (psi -> chi) -> ((Neg chi -> psi) -> chi). *)
+  pose proof (prov_perm _ _ _ HB) as HB_perm.
+  (* HB_perm : (Neg chi -> psi) -> ((psi -> chi) -> chi). *)
+  pose proof (prov_chain_2
+                (Impl (Neg phi) psi)
+                (Impl phi chi)
+                (Impl (Neg chi) psi)
+                (Impl (Impl psi chi) chi)) as HCH2.
+  pose proof (MP _ _ HCH2 HA) as HCH2_1.
+  exact (MP _ _ HCH2_1 HB_perm).
+Qed.
+
+(** ** K-distribution over Or: [|- Or (Box n phi) (Box n psi) -> Box n (Or phi psi)].
+
+    Standard K-modal-logic theorem: from a (classical) disjunction
+    of boxed claims at level n, derive a box of the disjunction.
+    Proof by classical Or-elim with the two Box-friendly directions. *)
+
+Lemma prov_box_or_intro : forall n phi psi,
+  |- Impl (Or (Box n phi) (Box n psi)) (Box n (Or phi psi)).
+Proof.
+  intros n phi psi.
+  pose proof (prov_or_intro_l phi psi) as Holil.
+  pose proof (Nec n _ Holil) as HNl.
+  pose proof (Ax_BoxK n phi (Or phi psi)) as HBKl.
+  pose proof (MP _ _ HBKl HNl) as Hbol.
+  pose proof (prov_or_intro_r phi psi) as Holir.
+  pose proof (Nec n _ Holir) as HNr.
+  pose proof (Ax_BoxK n psi (Or phi psi)) as HBKr.
+  pose proof (MP _ _ HBKr HNr) as Hbor.
+  pose proof (prov_or_elim (Box n phi) (Box n psi) (Box n (Or phi psi))) as Hoe.
+  exact (prov_apply2 _ _ _ _ Hoe Hbol Hbor).
 Qed.
 
 (** ** Modus tollens (derived form): [phi -> psi] and [~psi] yield [~phi]. *)
@@ -449,6 +721,44 @@ Proof.
   exact (prov_compose _ _ _ Hstep1 HBK2).
 Qed.
 
+(** ** Box-Diamond duality (definitional).
+
+    By the very definition of [Diamond n phi := Neg (Box n (Neg phi))],
+    the iff holds by [prov_id] in both directions. *)
+
+Lemma prov_diamond_def : forall n phi,
+  |- Iff (Diamond n phi) (Neg (Box n (Neg phi))).
+Proof.
+  intros n phi.
+  unfold Iff, Diamond.
+  apply prov_and_intro_meta.
+  - exact (prov_id (Neg (Box n (Neg phi)))).
+  - exact (prov_id (Neg (Box n (Neg phi)))).
+Qed.
+
+(** ** Box-Diamond duality (DN form): [|- Iff (Box n phi) (Neg (Diamond n (Neg phi)))].
+
+    Standard classical-modal duality.  Both directions go through
+    classical double-negation lifted under [Box] via [prov_box_imp]. *)
+
+Lemma prov_box_neg_diamond : forall n phi,
+  |- Iff (Box n phi) (Neg (Diamond n (Neg phi))).
+Proof.
+  intros n phi.
+  unfold Iff, Diamond.
+  (* Direction 1: Box n phi -> Neg (Neg (Box n (Neg (Neg phi)))). *)
+  pose proof (prov_DN_intro phi) as Hdn1.
+  pose proof (prov_box_imp n _ _ Hdn1) as Hb1.
+  pose proof (prov_DN_intro (Box n (Neg (Neg phi)))) as Hdn2.
+  pose proof (prov_compose _ _ _ Hb1 Hdn2) as HD1.
+  (* Direction 2: Neg (Neg (Box n (Neg (Neg phi)))) -> Box n phi. *)
+  pose proof (Ax_DN (Box n (Neg (Neg phi)))) as Hdn3.
+  pose proof (Ax_DN phi) as Hdn4.
+  pose proof (prov_box_imp n _ _ Hdn4) as Hb2.
+  pose proof (prov_compose _ _ _ Hdn3 Hb2) as HD2.
+  exact (prov_and_intro_meta _ _ HD1 HD2).
+Qed.
+
 (** * Section 5: The Loeb Metatheorem *)
 
 (** Loeb's metatheorem.  This is the central derived rule of GL: if
@@ -474,12 +784,6 @@ Proof.
   exact (MP _ _ Hsound Hbox).
 Qed.
 
-(** Note on axiom 4.  The schema [Box n phi -> Box n (Box n phi)] is
-    derivable from K and Loeb (Boolos, *The Logic of Provability*,
-    Theorem 11).  The proof is a non-trivial Hilbert chain that we do
-    not reproduce here, since axiom 4 is not used by any subsequent
-    theorem in this file.  Adding it as a primitive axiom would be
-    harmless and keeps the system equivalent. *)
 
 (** * Section 6: The Loebian Obstacle *)
 
@@ -525,31 +829,6 @@ Proof.
                     (Impl (Box n (Neg phi)) (Box n Bot)). *)
   (* Compose Hstep1 and HBK2. *)
   exact (prov_compose _ _ _ Hstep1 HBK2).
-Qed.
-
-(** ** Two-place forward chaining combinator.
-
-    From [A -> B -> C] and [C -> D], derive [A -> B -> D].
-    Equivalently as a single Hilbert formula:
-    [(A -> B -> C) -> (C -> D) -> (A -> B -> D)].
-    We need this to combine [prov_box_n_contradiction] (which produces
-    [Box n Bot]) with [Ax_NextCon] (which converts [Box n Bot] to [Bot])
-    inside a [Box (S n)].
-*)
-
-Lemma prov_chain_2 : forall A B C D,
-  |- Impl (Impl A (Impl B C))
-          (Impl (Impl C D) (Impl A (Impl B D))).
-Proof.
-  intros A B C D.
-  (* H1 : (C -> D) -> ((B -> C) -> (B -> D)). *)
-  pose proof (prov_compose_internal B C D) as H1.
-  (* H2 : ((B -> C) -> (B -> D)) -> ((A -> (B -> C)) -> (A -> (B -> D))). *)
-  pose proof (prov_compose_internal A (Impl B C) (Impl B D)) as H2.
-  (* Compose: (C -> D) -> ((A -> (B -> C)) -> (A -> (B -> D))). *)
-  pose proof (prov_compose _ _ _ H1 H2) as H3.
-  (* Permute the outer two implications. *)
-  exact (prov_perm _ _ _ H3).
 Qed.
 
 (** * Section 8: The Tiling Theorem (Modal Form) *)
@@ -691,6 +970,80 @@ Proof.
   exact (tiling_consistency n phi).
 Qed.
 
+(** ** Licensure substitution congruence.
+
+    If two formulas are provably equivalent, then their licensures
+    at any level are also provably equivalent.  Internalises the
+    congruence rule that justifies treating the [licenses] layer as a
+    transparent abstraction over the modal calculus. *)
+
+Lemma licenses_subst : forall n phi psi,
+  |- Iff phi psi -> |- Iff (licenses n phi) (licenses n psi).
+Proof.
+  intros n phi psi Hiff.
+  unfold licenses, Iff in *.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+  pose proof (prov_and_elim_r_meta _ _ Hiff) as Hbwd.
+  pose proof (prov_box_imp n _ _ Hfwd) as Hbf.
+  pose proof (prov_box_imp n _ _ Hbwd) as Hbb.
+  exact (prov_and_intro_meta _ _ Hbf Hbb).
+Qed.
+
+(** ** Nested licensing transitivity (under reflection).
+
+    Two-level supervised licensure can collapse to one-level licensure
+    under a reflection hypothesis at the supervisor level.  This is
+    the conditional form: given an internal reflection axiom at level
+    [S (S n)] for level [S n], two-level nesting reduces.
+
+    Pure GLP* does not prove the reflection hypothesis (it would
+    collide with the Loebian obstacle).  But when explicitly assumed,
+    the collapse follows by [prov_box_mp]. *)
+
+Lemma nested_licensing_transitive : forall n phi,
+  |- Box (S (S n)) (Impl (Box (S n) (Box n phi)) (Box n phi)) ->
+  |- Box (S (S n)) (licenses (S n) (licenses n phi)) ->
+  |- Box (S (S n)) (licenses n phi).
+Proof.
+  intros n phi Href Hnested.
+  unfold licenses in *.
+  exact (prov_box_mp (S (S n)) _ _ Href Hnested).
+Qed.
+
+(** ** And-list: conjunction over a finite list of formulas. *)
+
+Fixpoint And_list (l : list Form) : Form :=
+  match l with
+  | nil => Top
+  | phi :: rest => And phi (And_list rest)
+  end.
+
+(** ** [|- Box n Top]. *)
+
+Lemma prov_box_top : forall n, |- Box n Top.
+Proof.
+  intro n.
+  unfold Top.
+  exact (Nec n _ (prov_id Bot)).
+Qed.
+
+(** ** Box-And-list intro: each entry boxed implies the conjunction boxed. *)
+
+Lemma prov_box_and_list_intro : forall n l,
+  Forall (fun phi => |- Box n phi) l ->
+  |- Box n (And_list l).
+Proof.
+  intros n l. induction l as [|phi rest IH]; intro H.
+  - simpl. exact (prov_box_top n).
+  - simpl.
+    pose proof (Forall_inv H) as Hphi.
+    pose proof (Forall_inv_tail H) as Hrest.
+    pose proof (IH Hrest) as IHrest.
+    pose proof (prov_box_and_intro n phi (And_list rest)) as Hbai.
+    exact (MP _ _ (MP _ _ Hbai Hphi) IHrest).
+Qed.
+
+
 (** ** Concrete licensing: if level n actually licenses [phi], then
     level (S n) proves licensing consistency for [phi].
 
@@ -748,6 +1101,21 @@ Proof.
   pose proof (prov_box_mon_le (S n) k
                 (Neg (Box n (Neg (And phi psi)))) Hlt) as Hmon.
   exact (MP _ _ Hmon Hjlc).
+Qed.
+
+(** ** Finitary joint licensing consistency.
+
+    If level [n] licenses every formula in a finite list, then level
+    [S n] verifies that level [n]'s licensing is consistent on the
+    conjunction.  An n-fold generalisation of [joint_licensing_consistency]. *)
+
+Theorem joint_licensing_consistency_list : forall n l,
+  Forall (fun phi => |- Box n phi) l ->
+  |- Box (S n) (Neg (Box n (Neg (And_list l)))).
+Proof.
+  intros n l Hall.
+  pose proof (prov_box_and_list_intro n l Hall) as Hbox.
+  exact (licensing_consistency_concrete n (And_list l) Hbox).
 Qed.
 
 (** ** Two-level supervision.
@@ -915,5 +1283,119 @@ Proof.
   - exact (loebian_obstacle n).
   - exact (tiling_consistency n).
   - exact (consistency_chain n).
+Qed.
+
+(** ** Internal YH bypass.
+
+    A single Form witnessing the bypass content at a single level:
+    the conjunction of consistency tiling for [phi] and consistency
+    of level [n] itself.  Provable at level [S n] inside the calculus,
+    not just at the meta-level. *)
+
+Definition yh_bypass_summary_internal (n : nat) (phi : Form) : Form :=
+  And (Impl (Box n phi) (Neg (Box n (Neg phi)))) (Neg (Box n Bot)).
+
+Theorem yh_bypass_internal : forall n phi,
+  |- Box (S n) (yh_bypass_summary_internal n phi).
+Proof.
+  intros n phi.
+  unfold yh_bypass_summary_internal.
+  pose proof (tiling_consistency n phi) as Htil.
+  pose proof (Ax_NextCon n) as Hncon.
+  pose proof (prov_box_and_intro (S n)
+                (Impl (Box n phi) (Neg (Box n (Neg phi))))
+                (Neg (Box n Bot))) as Hbai.
+  exact (MP _ _ (MP _ _ Hbai Htil) Hncon).
+Qed.
+
+(** ** Uniform bypass schema.
+
+    [tiling_consistency] as a uniform derivation, exposed as a single
+    proof term parameterised by [n] and [phi].  The Coq type itself
+    encodes the schematic nature: a single dependent term inhabits
+    [forall n phi, |- ...], so each [tiling_consistency n phi]
+    instance is obtained by parameter substitution into a fixed
+    derivation tree. *)
+
+Definition tiling_schema : forall n phi,
+  |- Box (S n) (Impl (Box n phi) (Neg (Box n (Neg phi))))
+  := tiling_consistency.
+
+(** ** Agent-theoretic properties of [licenses].
+
+    The licensure layer satisfies three agent-flavoured properties:
+
+    - Modus ponens for licensure: composing implication-licensure
+      with antecedent-licensure yields consequent-licensure.
+    - Nested licensure intro: licensure entails licensure-of-licensure
+      (axiom 4 in agent dress).
+    - Conservativity over the modal calculus: licensure is
+      definitionally equal to [Box n], so no theorem becomes provable
+      that wasn't already. *)
+
+Theorem licenses_mp : forall n phi psi,
+  |- licenses n (Impl phi psi) -> |- licenses n phi -> |- licenses n psi.
+Proof.
+  intros n phi psi Himp Hphi.
+  unfold licenses in *.
+  exact (prov_box_mp n _ _ Himp Hphi).
+Qed.
+
+Theorem licenses_nested_intro : forall n phi,
+  |- Impl (licenses n phi) (licenses n (licenses n phi)).
+Proof.
+  intros n phi.
+  unfold licenses.
+  exact (Ax_Box4 n phi).
+Qed.
+
+Theorem licenses_conservative : forall n phi,
+  |- licenses n phi <-> |- Box n phi.
+Proof.
+  intros n phi. unfold licenses. split; intro H; exact H.
+Qed.
+
+(** * Section 14: Classical Equivalences *)
+
+(** ** First de Morgan duality: [|- Iff (Neg (And phi psi)) (Or (Neg phi) (Neg psi))].
+
+    After unfolding, the iff reduces to
+    [Neg (Neg (Impl phi (Neg psi))) <-> (Neg (Neg phi) -> Neg psi)],
+    which holds by repeated [Ax_DN] and [prov_DN_intro] manipulations
+    on the antecedent and consequent of the inner implication. *)
+
+Lemma de_morgan_and : forall phi psi,
+  |- Iff (Neg (And phi psi)) (Or (Neg phi) (Neg psi)).
+Proof.
+  intros phi psi.
+  unfold Iff, And, Or.
+  (* Goal: Iff is And (...) (...).  We prove both implications. *)
+  (* Direction 1: Neg (Neg (Impl phi (Neg psi)))
+                     -> (Neg (Neg phi) -> Neg psi). *)
+  pose proof (Ax_DN (Impl phi (Neg psi))) as HDN1.
+  (* HDN1 : Neg (Neg (Impl phi (Neg psi))) -> (Impl phi (Neg psi)). *)
+  pose proof (prov_compose_internal (Neg (Neg phi)) phi (Neg psi)) as HCI1.
+  pose proof (prov_perm _ _ _ HCI1) as HCI1_perm.
+  (* HCI1_perm : (Neg (Neg phi) -> phi)
+                   -> ((phi -> Neg psi) -> (Neg (Neg phi) -> Neg psi)). *)
+  pose proof (Ax_DN phi) as HDN_phi.
+  pose proof (MP _ _ HCI1_perm HDN_phi) as Hbridge.
+  (* Hbridge : (phi -> Neg psi) -> (Neg (Neg phi) -> Neg psi). *)
+  pose proof (prov_compose _ _ _ HDN1 Hbridge) as Hd1.
+  (* Hd1 : Neg (Neg (Impl phi (Neg psi))) -> (Neg (Neg phi) -> Neg psi). *)
+  (* Direction 2: (Neg (Neg phi) -> Neg psi)
+                     -> Neg (Neg (Impl phi (Neg psi))). *)
+  pose proof (prov_compose_internal phi (Neg (Neg phi)) (Neg psi)) as HCI2.
+  pose proof (prov_perm _ _ _ HCI2) as HCI2_perm.
+  (* HCI2_perm : (phi -> Neg (Neg phi))
+                   -> ((Neg (Neg phi) -> Neg psi) -> (phi -> Neg psi)). *)
+  pose proof (prov_DN_intro phi) as HDN_intro_phi.
+  pose proof (MP _ _ HCI2_perm HDN_intro_phi) as Hbridge2.
+  (* Hbridge2 : (Neg (Neg phi) -> Neg psi) -> (phi -> Neg psi). *)
+  pose proof (prov_DN_intro (Impl phi (Neg psi))) as HDNI.
+  (* HDNI : (Impl phi (Neg psi)) -> Neg (Neg (Impl phi (Neg psi))). *)
+  pose proof (prov_compose _ _ _ Hbridge2 HDNI) as Hd2.
+  (* Hd2 : (Neg (Neg phi) -> Neg psi) -> Neg (Neg (Impl phi (Neg psi))). *)
+  exact (prov_and_intro_meta _ _ Hd1 Hd2).
 Qed.
 
