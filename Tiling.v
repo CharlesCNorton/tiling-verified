@@ -2061,6 +2061,44 @@ Proof.
     exact (prov_weaken _ (Box n (Impl Bot Bot)) (prov_id Bot)).
 Qed.
 
+(** * Section 22: Robustness *)
+
+(** ** Loeb metatheorem in the no-NextCon calculus.
+
+    The Loeb metatheorem and Loebian obstacle do not depend on
+    [Ax_NextCon]: they are preserved under dropping NextCon.  This
+    is one concrete instance of the YH bypass's robustness under
+    axiomatization perturbations (todo item 56). *)
+
+Theorem loeb_metatheorem_no_NC : forall n phi,
+  (|-no_nc Impl (Box n phi) phi) -> |-no_nc phi.
+Proof.
+  intros n phi Hsound.
+  pose proof (NC_Nec n _ Hsound) as Hnec.
+  pose proof (NC_Ax_Loeb n phi) as HLoeb.
+  pose proof (NC_MP _ _ HLoeb Hnec) as Hbox.
+  exact (NC_MP _ _ Hsound Hbox).
+Qed.
+
+Theorem loebian_obstacle_no_NC : forall n,
+  (forall phi, |-no_nc Impl (Box n phi) phi) -> |-no_nc Bot.
+Proof.
+  intros n Hsound.
+  exact (loeb_metatheorem_no_NC n Bot (Hsound Bot)).
+Qed.
+
+(** ** Cross-level monotonicity is preserved.
+
+    [Ax_Mon] is a constructor of [Provable_no_NC], so monotonicity
+    survives the perturbation. *)
+
+Theorem parametric_reflection_succeeds_no_NC : forall n phi,
+  |-no_nc Impl (Box n phi) (Box (S n) phi).
+Proof.
+  intros n phi.
+  exact (NC_Ax_Mon n phi).
+Qed.
+
 (** * Section 16: Connection to Fallenstein-Soares 2014 *)
 
 (** ** Finite tower (FS2014).
