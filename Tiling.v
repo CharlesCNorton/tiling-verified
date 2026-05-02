@@ -1889,6 +1889,157 @@ Proof.
   exact (meta_consistency_every_level (S n) HboxBot).
 Qed.
 
+(** * Section 20: Independence of Ax_NextCon *)
+
+(** ** GLP* without NextCon.
+
+    [Provable_no_NC] is the calculus with every GLP* axiom except
+    [Ax_NextCon].  Used below to show that consistency_chain at the
+    level-0/1 boundary is unprovable without [NextCon], exhibiting
+    the relative-consistency content of [NextCon]. *)
+
+Inductive Provable_no_NC : Form -> Prop :=
+  | NC_Ax_K : forall phi psi,
+      Provable_no_NC (Impl phi (Impl psi phi))
+  | NC_Ax_S : forall phi psi chi,
+      Provable_no_NC (Impl (Impl phi (Impl psi chi))
+                           (Impl (Impl phi psi) (Impl phi chi)))
+  | NC_Ax_DN : forall phi,
+      Provable_no_NC (Impl (Neg (Neg phi)) phi)
+  | NC_Ax_BoxK : forall n phi psi,
+      Provable_no_NC (Impl (Box n (Impl phi psi))
+                           (Impl (Box n phi) (Box n psi)))
+  | NC_Ax_Loeb : forall n phi,
+      Provable_no_NC (Impl (Box n (Impl (Box n phi) phi)) (Box n phi))
+  | NC_Ax_Box4 : forall n phi,
+      Provable_no_NC (Impl (Box n phi) (Box n (Box n phi)))
+  | NC_Ax_Mon : forall n phi,
+      Provable_no_NC (Impl (Box n phi) (Box (S n) phi))
+  | NC_MP : forall phi psi,
+      Provable_no_NC (Impl phi psi) -> Provable_no_NC phi -> Provable_no_NC psi
+  | NC_Nec : forall n phi,
+      Provable_no_NC phi -> Provable_no_NC (Box n phi).
+
+Notation "|-no_nc f" := (Provable_no_NC f) (at level 75, no associativity).
+
+Record Frame_no_NC : Type := mkFrame_no_NC {
+  fW_nc : Type;
+  fR_nc : nat -> fW_nc -> fW_nc -> Prop;
+  fR_nc_trans : forall n w v u, fR_nc n w v -> fR_nc n v u -> fR_nc n w u;
+  fR_nc_wf : forall n, well_founded (fun u v => fR_nc n v u);
+  fR_nc_mon : forall n w v, fR_nc (S n) w v -> fR_nc n w v
+}.
+
+Fixpoint forces_nc (F : Frame_no_NC) (V : fW_nc F -> nat -> bool)
+                   (w : fW_nc F) (phi : Form) : Prop :=
+  match phi with
+  | Var p => V w p = true
+  | Bot => False
+  | Impl X Y => forces_nc F V w X -> forces_nc F V w Y
+  | Box n psi => forall v, fR_nc F n w v -> forces_nc F V v psi
+  end.
+
+Theorem soundness_no_NC : forall phi, |-no_nc phi ->
+  forall F V w, forces_nc F V w phi.
+Proof.
+  intros phi H. induction H.
+  - intros F V w. simpl. intros Hphi _. exact Hphi.
+  - intros F V w. simpl. intros Hf Hg Hphi.
+    apply Hf; [exact Hphi | apply Hg; exact Hphi].
+  - intros F V w. simpl. intro Hnnp. apply NNPP. exact Hnnp.
+  - intros F V w. simpl. intros Himp Hphi v Hwv.
+    apply (Himp v Hwv). apply (Hphi v Hwv).
+  - intros F V w. simpl. intros Hbox v Hwv.
+    pose proof (fR_nc_wf F n) as Hwf.
+    set (P := fun u => fR_nc F n w u -> forces_nc F V u phi).
+    cut (P v); [intro Hpv; exact (Hpv Hwv) |].
+    apply (well_founded_ind Hwf P).
+    intros u IH. unfold P. intro Hwu.
+    apply (Hbox u Hwu).
+    intros u' Huu'.
+    apply (IH u' Huu' (fR_nc_trans F n w u u' Hwu Huu')).
+  - intros F V w. simpl. intros Hphi v Hwv u Hvu.
+    apply Hphi. apply (fR_nc_trans F n w v u Hwv Hvu).
+  - intros F V w. simpl. intros Hphi v Hwv.
+    apply Hphi. apply (fR_nc_mon F n w v Hwv).
+  - intros F V w. apply (IHProvable_no_NC1 F V w).
+    apply (IHProvable_no_NC2 F V w).
+  - intros F V w. simpl. intros v _.
+    apply (IHProvable_no_NC F V v).
+Qed.
+
+(** ** A frame violating NextCon at the 0/1 boundary.
+
+    Two worlds, with [R 0 = R 1 = {(true, false)}] and higher [R n]
+    empty.  Transitivity, well-foundedness, and monotonicity all hold
+    trivially.  [NextCon] fails: [false] has no [R 0]-successor while
+    being [R 1]-reachable from [true]. *)
+
+Definition F_no_NC_R (n : nat) (w v : bool) : Prop :=
+  match n with
+  | 0 => w = true /\ v = false
+  | 1 => w = true /\ v = false
+  | _ => False
+  end.
+
+Lemma F_no_NC_R_trans : forall n w v u,
+  F_no_NC_R n w v -> F_no_NC_R n v u -> F_no_NC_R n w u.
+Proof.
+  intros n w v u H1 H2.
+  destruct n as [|[|n']]; simpl in *.
+  - destruct H1 as [_ Hvf]. destruct H2 as [Hvt _]. subst v. discriminate.
+  - destruct H1 as [_ Hvf]. destruct H2 as [Hvt _]. subst v. discriminate.
+  - destruct H1.
+Qed.
+
+Lemma F_no_NC_R_wf : forall n, well_founded (fun u v => F_no_NC_R n v u).
+Proof.
+  intros n.
+  destruct n as [|[|n']]; intros w; destruct w; apply Acc_intro;
+    intros y Hy; simpl in Hy.
+  - destruct Hy as [_ Hyf]. subst y.
+    apply Acc_intro. intros z [Heq _]. discriminate.
+  - destruct Hy as [Heq _]. discriminate.
+  - destruct Hy as [_ Hyf]. subst y.
+    apply Acc_intro. intros z [Heq _]. discriminate.
+  - destruct Hy as [Heq _]. discriminate.
+  - destruct Hy.
+  - destruct Hy.
+Qed.
+
+Lemma F_no_NC_R_mon : forall n w v,
+  F_no_NC_R (S n) w v -> F_no_NC_R n w v.
+Proof.
+  intros [|n] w v H; simpl in *.
+  - exact H.
+  - destruct n; simpl; auto. destruct H.
+Qed.
+
+Definition F_no_NC : Frame_no_NC :=
+  mkFrame_no_NC bool F_no_NC_R F_no_NC_R_trans F_no_NC_R_wf F_no_NC_R_mon.
+
+(** ** Consistency-chain at level 0 requires NextCon.
+
+    [|- Box 1 (Neg (Box 0 Bot))] (which holds in full GLP* via
+    [Ax_NextCon]) is not derivable in [Provable_no_NC]: in [F_no_NC],
+    [false] has no [R 0]-successor, so [Box 0 Bot] is vacuously
+    forced at [false], making [Neg (Box 0 Bot)] fail there, and the
+    [Box 1] at [true] reaches [false]. *)
+
+Theorem consistency_chain_needs_NC :
+  ~ (|-no_nc Box 1 (Neg (Box 0 Bot))).
+Proof.
+  intro H.
+  pose proof (soundness_no_NC _ H F_no_NC (fun _ _ => true) true) as Hf.
+  simpl in Hf.
+  specialize (Hf false).
+  assert (HR : F_no_NC_R 1 true false) by (simpl; split; reflexivity).
+  specialize (Hf HR).
+  apply Hf.
+  intros u Hfu. simpl in Hfu.
+  destruct Hfu as [Heq _]. discriminate.
+Qed.
+
 (** * Section 16: Connection to Fallenstein-Soares 2014 *)
 
 (** ** Finite tower (FS2014).
