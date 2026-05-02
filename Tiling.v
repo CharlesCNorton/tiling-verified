@@ -15,8 +15,10 @@
 (******************************************************************************)
 
 From Stdlib Require Import Arith.Arith.
+From Stdlib Require Import Arith.Wf_nat.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import micromega.Lia.
+From Stdlib Require Import Logic.Classical.
 Import ListNotations.
 
 (** * Section 1: Modal Formulas *)
@@ -1565,6 +1567,308 @@ Theorem reflection_schema_unprovable_conditional : forall n,
 Proof.
   intros n Hcons Hsch.
   exact (Hcons (loebian_obstacle n Hsch)).
+Qed.
+
+(** * Section 18: Trivial Truth Assignment and System-Level Meta-Consistency *)
+
+(** ** Boolean evaluation that maps every box-formula to [true].
+
+    A simple semantic argument for system-level meta-consistency:
+    define [eval] mapping every [Box _ _] to [true] and propositional
+    structure to its classical truth-table.  Every axiom of GLP*
+    evaluates to [true] under this assignment, hence so does every
+    Provable formula.  Since [Bot] evaluates to [false], [Bot] is
+    not Provable. *)
+
+Fixpoint eval (val : nat -> bool) (phi : Form) : bool :=
+  match phi with
+  | Var p => val p
+  | Bot => false
+  | Impl X Y => orb (negb (eval val X)) (eval val Y)
+  | Box _ _ => true
+  end.
+
+Lemma eval_provable_true : forall val phi, |- phi -> eval val phi = true.
+Proof.
+  intros val phi H.
+  induction H; simpl in *.
+  - destruct (eval val phi); destruct (eval val psi); reflexivity.
+  - destruct (eval val phi); destruct (eval val psi); destruct (eval val chi);
+      reflexivity.
+  - destruct (eval val phi); reflexivity.
+  - reflexivity.
+  - reflexivity.
+  - reflexivity.
+  - reflexivity.
+  - reflexivity.
+  - destruct (eval val phi); simpl in IHProvable1.
+    + exact IHProvable1.
+    + discriminate IHProvable2.
+  - reflexivity.
+Qed.
+
+Theorem meta_consistency_system : ~ (|- Bot).
+Proof.
+  intro H.
+  pose proof (eval_provable_true (fun _ => true) Bot H) as Heval.
+  simpl in Heval.
+  discriminate.
+Qed.
+
+(** With system-level meta-consistency in hand, the conditional
+    [reflection_schema_unprovable_conditional] becomes unconditional. *)
+
+Theorem reflection_schema_unprovable : forall n,
+  ~ (forall phi, |- Impl (Box n phi) phi).
+Proof.
+  intros n.
+  exact (reflection_schema_unprovable_conditional n meta_consistency_system).
+Qed.
+
+(** * Section 19: Kripke Semantics for GLP* *)
+
+(** A Kripke frame for GLP* consists of a type of worlds, a family of
+    accessibility relations indexed by level, and four structural
+    conditions:
+
+    - Each [R n] is transitive.
+    - Each [R n] is converse-well-founded (Noetherian, validating Loeb).
+    - [R (S n)] is contained in [R n] (validating monotonicity).
+    - Every [R (S n)] successor has an [R n] successor (validating
+      [NextCon]).
+
+    Forcing is defined classically with [bool]-valued valuations. *)
+
+Record Frame : Type := mkFrame {
+  fW : Type;
+  fR : nat -> fW -> fW -> Prop;
+  fR_trans : forall n w v u, fR n w v -> fR n v u -> fR n w u;
+  fR_wf : forall n, well_founded (fun u v => fR n v u);
+  fR_mon : forall n w v, fR (S n) w v -> fR n w v;
+  fR_nextcon : forall n w v, fR (S n) w v -> exists u, fR n v u
+}.
+
+Fixpoint forces (F : Frame) (V : fW F -> nat -> bool)
+                (w : fW F) (phi : Form) : Prop :=
+  match phi with
+  | Var p => V w p = true
+  | Bot => False
+  | Impl X Y => forces F V w X -> forces F V w Y
+  | Box n psi => forall v, fR F n w v -> forces F V v psi
+  end.
+
+Definition Valid (phi : Form) : Prop :=
+  forall F V w, forces F V w phi.
+
+(** ** Soundness of GLP* with respect to Kripke semantics.
+
+    Every Provable formula is valid in every GLP*-frame.  The Loeb
+    axiom uses well-founded induction on the converse of [fR n] to
+    extract a witness; cross-level axioms use [fR_mon] and
+    [fR_nextcon] respectively. *)
+
+Theorem soundness : forall phi, |- phi -> Valid phi.
+Proof.
+  intros phi H. induction H.
+  - (* Ax_K *)
+    unfold Valid. intros F V w. simpl. intros Hphi _. exact Hphi.
+  - (* Ax_S *)
+    unfold Valid. intros F V w. simpl. intros Hf Hg Hphi.
+    apply Hf; [exact Hphi | apply Hg; exact Hphi].
+  - (* Ax_DN *)
+    unfold Valid. intros F V w. simpl. intro Hnnp.
+    apply NNPP. exact Hnnp.
+  - (* Ax_BoxK *)
+    unfold Valid. intros F V w. simpl. intros Himp Hphi v Hwv.
+    apply (Himp v Hwv). apply (Hphi v Hwv).
+  - (* Ax_Loeb *)
+    unfold Valid. intros F V w. simpl. intros Hbox v Hwv.
+    pose proof (fR_wf F n) as Hwf.
+    set (P := fun u => fR F n w u -> forces F V u phi).
+    cut (P v); [intro Hpv; exact (Hpv Hwv) |].
+    apply (well_founded_ind Hwf P).
+    intros u IH. unfold P. intro Hwu.
+    apply (Hbox u Hwu).
+    intros u' Huu'.
+    apply (IH u' Huu' (fR_trans F n w u u' Hwu Huu')).
+  - (* Ax_Box4 *)
+    unfold Valid. intros F V w. simpl. intros Hphi v Hwv u Hvu.
+    apply Hphi. apply (fR_trans F n w v u Hwv Hvu).
+  - (* Ax_Mon *)
+    unfold Valid. intros F V w. simpl. intros Hphi v Hwv.
+    apply Hphi. apply (fR_mon F n w v Hwv).
+  - (* Ax_NextCon *)
+    unfold Valid. intros F V w. simpl. intros v Hwv Hbox.
+    destruct (fR_nextcon F n w v Hwv) as [u Hvu].
+    exact (Hbox u Hvu).
+  - (* MP *)
+    unfold Valid. intros F V w.
+    apply (IHProvable1 F V w). apply (IHProvable2 F V w).
+  - (* Nec *)
+    unfold Valid. intros F V w. simpl.
+    intros v _. apply (IHProvable F V v).
+Qed.
+
+(** ** A two-world frame refuting [Box 0 Bot].
+
+    [F0] has [W := bool] (with [true] interpreted as the root and
+    [false] as a single [R 0]-successor), [R 0] = {(true, false)},
+    and all other [R n] empty.  All four frame conditions hold
+    vacuously or trivially, so [F0] is a GLP*-frame.  At the root
+    [true], [Box 0 Bot] forces to [False] because the successor
+    [false] forces [Bot] to [False]. *)
+
+Definition F0_R (n : nat) (w v : bool) : Prop :=
+  match n with O => w = true /\ v = false | _ => False end.
+
+Lemma F0_R_trans : forall n w v u,
+  F0_R n w v -> F0_R n v u -> F0_R n w u.
+Proof.
+  intros [|n] w v u; simpl; intros H1 H2; try contradiction.
+  destruct H1 as [_ Hvf]. destruct H2 as [Hvt _]. subst v. discriminate.
+Qed.
+
+Lemma F0_R_wf : forall n, well_founded (fun u v => F0_R n v u).
+Proof.
+  intros n w.
+  destruct n; destruct w; apply Acc_intro; intros y Hy; simpl in Hy.
+  - destruct Hy as [_ Hyf]. subst y.
+    apply Acc_intro. intros z Hz. simpl in Hz.
+    destruct Hz as [Heq _]. discriminate.
+  - destruct Hy as [Heq _]. discriminate.
+  - destruct Hy.
+  - destruct Hy.
+Qed.
+
+Lemma F0_R_mon : forall n w v, F0_R (S n) w v -> F0_R n w v.
+Proof. intros n w v H. simpl in H. destruct H. Qed.
+
+Lemma F0_R_nextcon : forall n w v,
+  F0_R (S n) w v -> exists u, F0_R n v u.
+Proof. intros n w v H. simpl in H. destruct H. Qed.
+
+Definition F0 : Frame :=
+  mkFrame bool F0_R F0_R_trans F0_R_wf F0_R_mon F0_R_nextcon.
+
+Theorem meta_consistency_box_0 : ~ (|- Box 0 Bot).
+Proof.
+  intro H.
+  pose proof (soundness _ H F0 (fun _ _ => true) true) as Hf.
+  simpl in Hf.
+  apply (Hf false).
+  split; reflexivity.
+Qed.
+
+(** ** A nat-indexed frame refuting [Box n Bot] uniformly.
+
+    [Fnat] takes [W := nat] and [R k w v := w > v /\ v >= k].  At
+    world [n+1], the world [n] witnesses an [R n]-successor with
+    [Bot] forced false.  All four frame conditions are direct
+    consequences of basic arithmetic. *)
+
+Definition Fnat_R (k : nat) (w v : nat) : Prop := w > v /\ v >= k.
+
+Lemma Fnat_R_trans : forall k w v u,
+  Fnat_R k w v -> Fnat_R k v u -> Fnat_R k w u.
+Proof.
+  intros k w v u [Hwv _] [Hvu Hun]. split; lia.
+Qed.
+
+Lemma Fnat_R_wf : forall k, well_founded (fun u v => Fnat_R k v u).
+Proof.
+  intros k x.
+  induction x as [x IH] using (well_founded_induction lt_wf).
+  apply Acc_intro. intros y Hy.
+  destruct Hy as [Hgt _].
+  apply IH. exact Hgt.
+Qed.
+
+Lemma Fnat_R_mon : forall k w v, Fnat_R (S k) w v -> Fnat_R k w v.
+Proof.
+  intros k w v [H1 H2]. split; lia.
+Qed.
+
+Lemma Fnat_R_nextcon : forall k w v,
+  Fnat_R (S k) w v -> exists u, Fnat_R k v u.
+Proof.
+  intros k w v [Hwv Hvk]. exists k.
+  unfold Fnat_R. split; lia.
+Qed.
+
+Definition Fnat : Frame :=
+  mkFrame nat Fnat_R Fnat_R_trans Fnat_R_wf Fnat_R_mon Fnat_R_nextcon.
+
+(** ** Meta-consistency at every level.
+
+    For any [n], evaluating in [Fnat] at world [S n] refutes [Box n
+    Bot], since the witness [n] satisfies [S n > n /\ n >= n]. *)
+
+Theorem meta_consistency_every_level : forall n, ~ (|- Box n Bot).
+Proof.
+  intros n H.
+  pose proof (soundness _ H Fnat (fun _ _ => true) (S n)) as Hf.
+  simpl in Hf.
+  apply (Hf n).
+  unfold Fnat_R. split; lia.
+Qed.
+
+(** ** Meta_consistency_no_contradiction unconditional. *)
+
+Theorem meta_no_contradiction : forall n phi,
+  ~ (|- Box n phi /\ |- Box n (Neg phi)).
+Proof.
+  intros n phi.
+  apply meta_consistency_no_contradiction.
+  exact (meta_consistency_every_level n).
+Qed.
+
+(** ** Monotonicity converse fails.
+
+    [|- Impl (Box (S n) phi) (Box n phi)] is not a theorem of GLP*
+    for [phi] a propositional variable.  Witnessed by [Fnat] at world
+    [S n] with valuation [V w 0 := S n <=? w]: in [Fnat], every
+    [R (S n)]-successor of [S n] is empty, so [Box (S n) (Var 0)]
+    holds vacuously, while [n] is an [R n]-successor of [S n] but
+    fails [Var 0]'s valuation.  Hence the implication fails at [S n]
+    in [Fnat], and by soundness it is not Provable. *)
+
+Theorem mon_converse_fails : forall n,
+  ~ (|- Impl (Box (S n) (Var 0)) (Box n (Var 0))).
+Proof.
+  intros n H.
+  pose (V := fun (w : nat) (p : nat) =>
+    match p with 0 => Nat.leb (S n) w | _ => false end).
+  pose proof (soundness _ H Fnat V (S n)) as Hf.
+  simpl in Hf.
+  assert (Hbox_Sn : forall v, Fnat_R (S n) (S n) v -> V v 0 = true).
+  { intros v [Hlt Hge]. exfalso. lia. }
+  pose proof (Hf Hbox_Sn n) as HboxN.
+  assert (Hrn : Fnat_R n (S n) n).
+  { unfold Fnat_R. split; lia. }
+  specialize (HboxN Hrn).
+  change (V n 0 = true) in HboxN.
+  unfold V in HboxN.
+  change (Nat.leb (S n) n = true) in HboxN.
+  apply Nat.leb_le in HboxN. lia.
+Qed.
+
+(** ** Strict extension at every level.
+
+    For each [n], the formula [Neg (Box n Bot)] (the consistency
+    sentence for level [n]) is provable at level [S n] but not at
+    level [n] itself.  This witnesses genuine ascent: each level of
+    the tower proves something its predecessor cannot. *)
+
+Theorem strict_extension_at_each_level : forall n,
+  exists phi, (|- Box (S n) phi) /\ ~ (|- Box n phi).
+Proof.
+  intro n.
+  exists (Neg (Box n Bot)).
+  split.
+  - exact (Ax_NextCon n).
+  - intro H.
+    apply (meta_consistency_every_level n).
+    exact (MP _ _ (godel_second n) H).
 Qed.
 
 (** * Section 16: Connection to Fallenstein-Soares 2014 *)
