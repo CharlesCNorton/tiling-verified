@@ -1871,6 +1871,24 @@ Proof.
     exact (MP _ _ (godel_second n) H).
 Qed.
 
+(** ** Same-level boxed reflection schema is unprovable uniformly.
+
+    A "level-[S n] internalisation" of [loebian_obstacle]: if level
+    [S n] uniformly proves [Box (S n) phi -> phi] (its own-level
+    reflection schema), then by [Ax_Loeb] specialised at [Bot],
+    [|- Box (S n) Bot] follows, contradicting
+    [meta_consistency_every_level]. *)
+
+Theorem reflection_at_same_level_unprovable_uniformly : forall n,
+  ~ (forall phi, |- Box (S n) (Impl (Box (S n) phi) phi)).
+Proof.
+  intros n Hsch.
+  pose proof (Hsch Bot) as Hbot.
+  pose proof (Ax_Loeb (S n) Bot) as HLoeb.
+  pose proof (MP _ _ HLoeb Hbot) as HboxBot.
+  exact (meta_consistency_every_level (S n) HboxBot).
+Qed.
+
 (** * Section 16: Connection to Fallenstein-Soares 2014 *)
 
 (** ** Finite tower (FS2014).
