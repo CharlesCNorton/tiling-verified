@@ -2099,6 +2099,32 @@ Proof.
   exact (NC_Ax_Mon n phi).
 Qed.
 
+(** ** Reverse direction of [licensing_consistency_concrete].
+
+    If level [S n] verifies that level [n] doesn't license [Neg phi]
+    ([|- Box (S n) (Neg (Box n (Neg phi)))]), then level [n] really
+    doesn't license [Neg phi] meta-level ([~ |- Box n (Neg phi)]).
+
+    Proof: from the hypothesis [|- Box n (Neg phi)] for contradiction,
+    Nec at level [S n] gives [|- Box (S n) (Box n (Neg phi))], which
+    combined with the hypothesis via [prov_box_mp] yields
+    [|- Box (S n) Bot], contradicting [meta_consistency_every_level].
+
+    This is the meta-level converse of [licensing_consistency_concrete]:
+    the cross-level consistency verification at level [S n] is sound
+    with respect to actual licensing decisions at level [n].  This
+    addresses todo item 12 in a precise form. *)
+
+Theorem licensing_consistency_concrete_converse : forall n phi,
+  |- Box (S n) (Neg (Box n (Neg phi))) ->
+  ~ |- Box n (Neg phi).
+Proof.
+  intros n phi HSn Hn.
+  pose proof (Nec (S n) _ Hn) as HnBox.
+  pose proof (prov_box_mp (S n) _ _ HSn HnBox) as HBoxBot.
+  exact (meta_consistency_every_level (S n) HBoxBot).
+Qed.
+
 (** * Section 16: Connection to Fallenstein-Soares 2014 *)
 
 (** ** Finite tower (FS2014).
