@@ -1399,3 +1399,124 @@ Proof.
   exact (prov_and_intro_meta _ _ Hd1 Hd2).
 Qed.
 
+(** ** Second de Morgan duality: [|- Iff (Neg (Or phi psi)) (And (Neg phi) (Neg psi))]. *)
+
+Lemma de_morgan_or : forall phi psi,
+  |- Iff (Neg (Or phi psi)) (And (Neg phi) (Neg psi)).
+Proof.
+  intros phi psi.
+  unfold Iff, And, Or.
+  (* Direction 1: ((Neg phi -> psi) -> Bot) -> ((Neg phi -> Neg (Neg psi)) -> Bot). *)
+  pose proof (prov_compose_internal (Neg phi) (Neg (Neg psi)) psi) as HC1.
+  pose proof (Ax_DN psi) as HDN_psi.
+  pose proof (MP _ _ HC1 HDN_psi) as HX1.
+  (* HX1 : (Neg phi -> Neg (Neg psi)) -> (Neg phi -> psi). *)
+  pose proof (prov_compose_internal
+                (Impl (Neg phi) (Neg (Neg psi)))
+                (Impl (Neg phi) psi)
+                Bot) as HC2.
+  pose proof (prov_perm _ _ _ HC2) as HC2_perm.
+  pose proof (MP _ _ HC2_perm HX1) as Hd1.
+  (* Direction 2: ((Neg phi -> Neg (Neg psi)) -> Bot) -> ((Neg phi -> psi) -> Bot). *)
+  pose proof (prov_compose_internal (Neg phi) psi (Neg (Neg psi))) as HC3.
+  pose proof (prov_DN_intro psi) as HDNI_psi.
+  pose proof (MP _ _ HC3 HDNI_psi) as HX2.
+  (* HX2 : (Neg phi -> psi) -> (Neg phi -> Neg (Neg psi)). *)
+  pose proof (prov_compose_internal
+                (Impl (Neg phi) psi)
+                (Impl (Neg phi) (Neg (Neg psi)))
+                Bot) as HC4.
+  pose proof (prov_perm _ _ _ HC4) as HC4_perm.
+  pose proof (MP _ _ HC4_perm HX2) as Hd2.
+  exact (prov_and_intro_meta _ _ Hd1 Hd2).
+Qed.
+
+(** ** Third de Morgan duality:
+    [|- Iff (And phi psi) (Neg (Or (Neg phi) (Neg psi)))]. *)
+
+Lemma de_morgan_and_neg : forall phi psi,
+  |- Iff (And phi psi) (Neg (Or (Neg phi) (Neg psi))).
+Proof.
+  intros phi psi.
+  unfold Iff, And, Or.
+  (* Direction 1: ((phi -> Neg psi) -> Bot) -> ((Neg (Neg phi) -> Neg psi) -> Bot). *)
+  pose proof (prov_compose_internal phi (Neg (Neg phi)) (Neg psi)) as HC1.
+  pose proof (prov_perm _ _ _ HC1) as HC1_perm.
+  pose proof (prov_DN_intro phi) as HDNI_phi.
+  pose proof (MP _ _ HC1_perm HDNI_phi) as HX1.
+  pose proof (prov_compose_internal
+                (Impl (Neg (Neg phi)) (Neg psi))
+                (Impl phi (Neg psi))
+                Bot) as HC2.
+  pose proof (prov_perm _ _ _ HC2) as HC2_perm.
+  pose proof (MP _ _ HC2_perm HX1) as Hd1.
+  (* Direction 2: ((Neg (Neg phi) -> Neg psi) -> Bot) -> ((phi -> Neg psi) -> Bot). *)
+  pose proof (prov_compose_internal (Neg (Neg phi)) phi (Neg psi)) as HC3.
+  pose proof (prov_perm _ _ _ HC3) as HC3_perm.
+  pose proof (Ax_DN phi) as HDN_phi.
+  pose proof (MP _ _ HC3_perm HDN_phi) as HX2.
+  pose proof (prov_compose_internal
+                (Impl phi (Neg psi))
+                (Impl (Neg (Neg phi)) (Neg psi))
+                Bot) as HC4.
+  pose proof (prov_perm _ _ _ HC4) as HC4_perm.
+  pose proof (MP _ _ HC4_perm HX2) as Hd2.
+  exact (prov_and_intro_meta _ _ Hd1 Hd2).
+Qed.
+
+(** ** Fourth de Morgan duality:
+    [|- Iff (Or phi psi) (Neg (And (Neg phi) (Neg psi)))]. *)
+
+Lemma de_morgan_or_neg : forall phi psi,
+  |- Iff (Or phi psi) (Neg (And (Neg phi) (Neg psi))).
+Proof.
+  intros phi psi.
+  unfold Iff, And, Or.
+  (* Direction 1: (Neg phi -> psi) -> Neg (Neg (Impl (Neg phi) (Neg (Neg psi)))). *)
+  pose proof (prov_DN_intro psi) as HDNI_psi.
+  pose proof (prov_compose_internal (Neg phi) psi (Neg (Neg psi))) as HC1.
+  pose proof (MP _ _ HC1 HDNI_psi) as HX1.
+  pose proof (prov_DN_intro (Impl (Neg phi) (Neg (Neg psi)))) as HDNI.
+  pose proof (prov_compose _ _ _ HX1 HDNI) as Hd1.
+  (* Direction 2: Neg (Neg (Impl (Neg phi) (Neg (Neg psi)))) -> (Neg phi -> psi). *)
+  pose proof (Ax_DN (Impl (Neg phi) (Neg (Neg psi)))) as HDN1.
+  pose proof (Ax_DN psi) as HDN2.
+  pose proof (prov_compose_internal (Neg phi) (Neg (Neg psi)) psi) as HC2.
+  pose proof (MP _ _ HC2 HDN2) as HX2.
+  pose proof (prov_compose _ _ _ HDN1 HX2) as Hd2.
+  exact (prov_and_intro_meta _ _ Hd1 Hd2).
+Qed.
+
+(** * Section 15: Parametric Reflection vs Same-Level Reflection *)
+
+(** ** Cross-level reflection succeeds.
+
+    [Ax_Mon] internalised as a positive theorem: monotonicity of [Box]
+    across levels.  This is the "legitimate replacement" for the
+    same-level reflection schema [Box n phi -> phi] that fails by the
+    Loebian obstacle. *)
+
+Theorem parametric_reflection_succeeds : forall n phi,
+  |- Impl (Box n phi) (Box (S n) phi).
+Proof.
+  exact Ax_Mon.
+Qed.
+
+(** ** Same-level reflection collapses, cross-level does not.
+
+    A side-by-side packaging of the two scenarios.  The Loeb axiom
+    triggers a collapse when the reflection schema [Box n phi -> phi]
+    is universal at the same level; cross-level reflection
+    [Box n phi -> Box (S n) phi] survives because the conclusion
+    has strictly larger level than the hypothesis, breaking the
+    pattern that activates [Ax_Loeb]. *)
+
+Theorem same_level_vs_cross_level_reflection : forall n,
+  ((forall phi, |- Impl (Box n phi) phi) -> |- Bot) /\
+  (forall phi, |- Impl (Box n phi) (Box (S n) phi)).
+Proof.
+  intro n. split.
+  - exact (loebian_obstacle n).
+  - exact (Ax_Mon n).
+Qed.
+
