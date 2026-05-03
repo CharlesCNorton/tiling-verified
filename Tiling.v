@@ -10175,6 +10175,49 @@ Qed.
     [Box n psi] from [Box n X], then applies the assumed
     [Impl (Box n psi) X]. *)
 
+(** Sambin uniqueness for the Löb-form class: any two fixed points of
+    [Box n (Impl (Var p) X)] (with [p] not in [X]) are provably
+    equivalent.  Reduces to [fixed_point_unique_loeb_form] after
+    unfolding [Subst]. *)
+
+Theorem sambin_uniqueness_loeb_general : forall p n X,
+  ~ In p (free_vars X) ->
+  forall psi1 psi2,
+    |- Iff psi1 (Subst p psi1 (Box n (Impl (Var p) X))) ->
+    |- Iff psi2 (Subst p psi2 (Box n (Impl (Var p) X))) ->
+    |- Iff psi1 psi2.
+Proof.
+  intros p n X HnoX psi1 psi2 H1 H2.
+  assert (Hsub1 : Subst p psi1 (Box n (Impl (Var p) X)) = Box n (Impl psi1 X)).
+  { unfold Subst. cbn. rewrite Nat.eqb_refl.
+    pose proof (Subst_no_occurrence p psi1 X HnoX) as Heq.
+    unfold Subst in Heq. rewrite Heq. reflexivity. }
+  assert (Hsub2 : Subst p psi2 (Box n (Impl (Var p) X)) = Box n (Impl psi2 X)).
+  { unfold Subst. cbn. rewrite Nat.eqb_refl.
+    pose proof (Subst_no_occurrence p psi2 X HnoX) as Heq.
+    unfold Subst in Heq. rewrite Heq. reflexivity. }
+  rewrite Hsub1 in H1. rewrite Hsub2 in H2.
+  exact (fixed_point_unique_loeb_form n X psi1 psi2 H1 H2).
+Qed.
+
+(** Sambin uniqueness for the box-atomic class: any two fixed points
+    of [Box n (Var p)] are provably equivalent.  Reduces to
+    [same_level_fixed_point_uniqueness]. *)
+
+Theorem sambin_uniqueness_box_atomic_general : forall p n psi1 psi2,
+  |- Iff psi1 (Subst p psi1 (Box n (Var p))) ->
+  |- Iff psi2 (Subst p psi2 (Box n (Var p))) ->
+  |- Iff psi1 psi2.
+Proof.
+  intros p n psi1 psi2 H1 H2.
+  assert (Hsub1 : Subst p psi1 (Box n (Var p)) = Box n psi1).
+  { unfold Subst. cbn. rewrite Nat.eqb_refl. reflexivity. }
+  assert (Hsub2 : Subst p psi2 (Box n (Var p)) = Box n psi2).
+  { unfold Subst. cbn. rewrite Nat.eqb_refl. reflexivity. }
+  rewrite Hsub1 in H1. rewrite Hsub2 in H2.
+  exact (same_level_fixed_point_uniqueness n psi1 psi2 H1 H2).
+Qed.
+
 Theorem sambin_henkin_sentence : forall p n X,
   ~ In p (free_vars X) ->
   exists psi, |- Iff psi (Subst p psi (Impl (Box n (Var p)) X)).
