@@ -5966,8 +5966,8 @@ Theorem van_benthem_modal_invariant : forall F1 F2 V1 V2 Z phi w1 w2,
   Bisim F1 F2 V1 V2 Z ->
   Z w1 w2 -> (forces F1 V1 w1 phi <-> forces F2 V2 w2 phi).
 Proof.
-  intros F1 F2 V1 V2 Z phi w1 w2 HBisim HZ.
-  exact (van_benthem_forward F1 F2 V1 V2 Z HBisim phi w1 w2 HZ).
+  intros F1 F2 V1 V2 Z phi w1 w2 HB HZ.
+  exact (bisim_invariance _ _ _ _ _ HB phi _ _ HZ).
 Qed.
 
 (** ** Finite frame property: F0 refutes [Box 0 Bot].
@@ -8369,18 +8369,21 @@ Theorem van_benthem_full_forward_modal_invariance :
     Bisim F1 F2 V1 V2 Z ->
     forall phi w1 w2, Z w1 w2 ->
     (forces F1 V1 w1 phi <-> forces F2 V2 w2 phi).
-Proof. exact van_benthem_forward. Qed.
+Proof. exact bisim_invariance. Qed.
 
 Theorem van_benthem_invariance_under_bisim : forall F1 F2 V1 V2 Z,
   Bisim F1 F2 V1 V2 Z ->
   forall phi w1 w2, Z w1 w2 ->
   (forces F1 V1 w1 phi <-> forces F2 V2 w2 phi).
-Proof. exact van_benthem_forward. Qed.
+Proof. exact bisim_invariance. Qed.
 
 Theorem goldblatt_thomason_modal_definability_via_bisimulation : forall F1 F2 V1 V2 Z phi w1 w2,
   Bisim F1 F2 V1 V2 Z -> Z w1 w2 ->
   (forces F1 V1 w1 phi <-> forces F2 V2 w2 phi).
-Proof. intros F1 F2 V1 V2 Z phi w1 w2 HB HZ. exact (van_benthem_forward _ _ _ _ _ HB phi _ _ HZ). Qed.
+Proof.
+  intros F1 F2 V1 V2 Z phi w1 w2 HB HZ.
+  exact (bisim_invariance _ _ _ _ _ HB phi _ _ HZ).
+Qed.
 
 Definition sahlqvist_safe_axiom (phi : Form) : Prop := |- phi.
 
@@ -9090,7 +9093,10 @@ Qed.
 Theorem categorical_logic_bisim_invariance : forall F1 F2 V1 V2 Z phi w1 w2,
   Bisim F1 F2 V1 V2 Z -> Z w1 w2 ->
   (forces F1 V1 w1 phi <-> forces F2 V2 w2 phi).
-Proof. intros F1 F2 V1 V2 Z phi w1 w2 HB HZ. exact (van_benthem_forward _ _ _ _ _ HB phi _ _ HZ). Qed.
+Proof.
+  intros F1 F2 V1 V2 Z phi w1 w2 HB HZ.
+  exact (bisim_invariance _ _ _ _ _ HB phi _ _ HZ).
+Qed.
 
 Definition free_energy_at_level (n : nat) (phi : Form) : nat := n + modal_depth phi.
 
