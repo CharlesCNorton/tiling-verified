@@ -8976,9 +8976,13 @@ Proof. intro n. simpl. reflexivity. Qed.
 Theorem agent_modal_T_kappa_correspondence : forall A n phi,
   agent_tiling_consistency A n phi ->
   agent_tiling_consistency Provable_agent n phi ->
-  forall psi, |- Iff psi (T_kappa n psi) -> |- Iff psi (Box n psi).
+  A (S n) (Impl (T_kappa n phi) (Neg (T_kappa n (Neg phi)))) /\
+  |- Box (S n) (Impl (T_kappa n phi) (Neg (T_kappa n (Neg phi)))).
 Proof.
-  intros A n phi _ _ psi H. unfold T_kappa in H. exact H.
+  intros A n phi HA HP. unfold T_kappa.
+  unfold agent_tiling_consistency in HA, HP.
+  unfold Provable_agent in HP.
+  exact (conj HA HP).
 Qed.
 
 Theorem agent_modal_provable_agent_corresponds_to_T_kappa : forall n phi,
