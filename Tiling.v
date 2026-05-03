@@ -8447,17 +8447,15 @@ Qed.
 
 Theorem pi2_conservativity_over_predecessor_full : forall n phi,
   |- Box n phi -> |- Box (S n) phi.
-Proof.
-  intros n phi H. exact (MP _ _ (Ax_Mon n phi) H).
-Qed.
+Proof. exact pi2_conservativity_over_predecessor. Qed.
 
 Theorem pi2_strict_conservativity : forall n phi,
   |- Box n phi -> |- Box (S n) phi /\ |- Box (S (S n)) phi.
 Proof.
   intros n phi H. split.
-  - exact (pi2_conservativity_over_predecessor_full n phi H).
-  - exact (pi2_conservativity_over_predecessor_full (S n) phi
-            (pi2_conservativity_over_predecessor_full n phi H)).
+  - exact (pi2_conservativity_over_predecessor n phi H).
+  - exact (pi2_conservativity_over_predecessor (S n) phi
+            (pi2_conservativity_over_predecessor n phi H)).
 Qed.
 
 Theorem friedman_translation_classical_to_constructive_box_free : forall phi,
