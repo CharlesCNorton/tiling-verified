@@ -4306,6 +4306,114 @@ Theorem vingean_principle :
     forall n phi, pf n phi = tiling_consistency n phi.
 Proof. exact tiling_witness_pointed. Qed.
 
+Definition LevelBisim (k : nat) (F1 F2 : Frame)
+                       (V1 : fW F1 -> nat -> bool)
+                       (V2 : fW F2 -> nat -> bool)
+                       (Z : fW F1 -> fW F2 -> Prop) : Prop :=
+  forall w1 w2, Z w1 w2 ->
+    (forall p, V1 w1 p = V2 w2 p) /\
+    (forall v1, fR F1 k w1 v1 -> exists v2, fR F2 k w2 v2 /\ Z v1 v2) /\
+    (forall v2, fR F2 k w2 v2 -> exists v1, fR F1 k w1 v1 /\ Z v1 v2).
+
+Fixpoint level_k_only (k : nat) (phi : Form) : Prop :=
+  match phi with
+  | Var _ => True
+  | Bot => True
+  | Impl X Y => level_k_only k X /\ level_k_only k Y
+  | Box n psi => n = k /\ level_k_only k psi
+  end.
+
+Theorem level_bisim_invariance : forall k F1 F2 V1 V2 Z,
+  LevelBisim k F1 F2 V1 V2 Z ->
+  forall phi w1 w2, level_k_only k phi -> Z w1 w2 ->
+    (forces F1 V1 w1 phi <-> forces F2 V2 w2 phi).
+Proof.
+  intros k F1 F2 V1 V2 Z HBisim phi.
+  induction phi as [p | | X IHX Y IHY | n psi IHpsi];
+    intros w1 w2 Hlk HZ; simpl.
+  - destruct (HBisim w1 w2 HZ) as [Hval _].
+    rewrite (Hval p). reflexivity.
+  - reflexivity.
+  - simpl in Hlk. destruct Hlk as [HlX HlY].
+    rewrite (IHX w1 w2 HlX HZ), (IHY w1 w2 HlY HZ). reflexivity.
+  - simpl in Hlk. destruct Hlk as [Hnk Hlpsi]. subst n.
+    split.
+    + intros HBox v2 Hv2.
+      destruct (HBisim w1 w2 HZ) as [_ [_ Hback]].
+      destruct (Hback v2 Hv2) as [v1 [Hv1 HZ12]].
+      rewrite <- (IHpsi v1 v2 Hlpsi HZ12).
+      apply HBox. exact Hv1.
+    + intros HBox v1 Hv1.
+      destruct (HBisim w1 w2 HZ) as [_ [Hforth _]].
+      destruct (Hforth v1 Hv1) as [v2 [Hv2 HZ12]].
+      rewrite (IHpsi v1 v2 Hlpsi HZ12).
+      apply HBox. exact Hv2.
+Qed.
+
+Theorem level_bisim_id : forall k F V, LevelBisim k F F V V (@eq (fW F)).
+Proof.
+  intros k F V w1 w2 Heq. subst w2.
+  split; [reflexivity|]. split.
+  - intros v1 Hv1. exists v1. split; [exact Hv1|reflexivity].
+  - intros v2 Hv2. exists v2. split; [exact Hv2|reflexivity].
+Qed.
+
+Definition de_re_licensure (n m : nat) : Prop :=
+  exists phi, |- Box n (Box m phi).
+
+Definition de_dicto_licensure (n m : nat) : Prop :=
+  forall phi, |- Box n (Box m phi).
+
+Theorem de_re_holds : forall n m, de_re_licensure n m.
+Proof.
+  intros n m. unfold de_re_licensure. exists Top.
+  apply Nec. apply Nec. exact (prov_id Bot).
+Qed.
+
+Theorem de_dicto_collapses : forall n m, S m <= n ->
+  ~ de_dicto_licensure n m.
+Proof.
+  intros n m Hle Hsch.
+  apply (meta_no_contradiction n (Box m Bot)).
+  split.
+  - exact (Hsch Bot).
+  - pose proof (Ax_NextCon m) as Hnc.
+    pose proof (prov_box_mon_le (S m) n (Neg (Box m Bot)) Hle) as Hmon.
+    exact (MP _ _ Hmon Hnc).
+Qed.
+
+Theorem de_re_de_dicto_distinct : forall n m, S m <= n ->
+  de_re_licensure n m /\ ~ de_dicto_licensure n m.
+Proof.
+  intros n m Hle. split.
+  - apply de_re_holds.
+  - apply de_dicto_collapses. exact Hle.
+Qed.
+
+Theorem licensure_functor_identity : forall n phi,
+  |- Impl (Box n phi) (Box n phi).
+Proof. intros n phi. exact (prov_id (Box n phi)). Qed.
+
+Theorem licensure_functor_composition : forall n m k phi,
+  n <= m -> m <= k ->
+  |- Impl (Box n phi) (Box k phi).
+Proof.
+  intros n m k phi Hnm Hmk.
+  apply (prov_box_mon_le n k phi).
+  exact (Nat.le_trans n m k Hnm Hmk).
+Qed.
+
+Theorem licensure_functor_compose_via : forall n m k phi (Hnm : n <= m) (Hmk : m <= k),
+  let f := prov_box_mon_le n m phi Hnm in
+  let g := prov_box_mon_le m k phi Hmk in
+  |- Impl (Box n phi) (Box k phi).
+Proof.
+  intros n m k phi Hnm Hmk.
+  exact (prov_compose _ _ _
+          (prov_box_mon_le n m phi Hnm)
+          (prov_box_mon_le m k phi Hmk)).
+Qed.
+
 Theorem axioms_mutually_independent :
   (~ (|-no_loeb Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot))) /\
   (~ (|-no_mon Impl (Box 0 (Var 0)) (Box 1 (Var 0)))) /\
