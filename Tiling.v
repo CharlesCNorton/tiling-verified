@@ -10602,10 +10602,15 @@ Proof.
 Qed.
 
 Theorem sambin_uniqueness_at_higher_box_level : forall (p : nat) (phi : Form) psi1 psi2 n,
+  ~ In p (free_vars phi) ->
   |- Iff psi1 (Subst p psi1 phi) ->
   |- Iff psi2 (Subst p psi2 phi) ->
-  |- Box n (Iff psi1 psi2) -> |- Box n (Iff psi1 psi2).
-Proof. intros. exact H1. Qed.
+  |- Box n (Iff psi1 psi2).
+Proof.
+  intros p phi psi1 psi2 n Hno H1 H2.
+  apply Nec.
+  exact (sambin_uniqueness_via_no_occurrence p phi psi1 psi2 Hno H1 H2).
+Qed.
 
 Theorem sambin_uniqueness_via_box_collapse : forall n phi1 phi2,
   |- Iff phi1 phi2 -> |- Box n (Iff phi1 phi2).
