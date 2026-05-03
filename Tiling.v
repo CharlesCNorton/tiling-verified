@@ -5572,6 +5572,38 @@ Proof.
   unfold b. lia.
 Qed.
 
+(** [find_root n n] is the genuine root of the triangle inequality:
+    the unique [k] satisfying [to_triangle k <= n < to_triangle (S k)]. *)
+
+Theorem find_root_genuine_root : forall n,
+  to_triangle (find_root n n) <= n /\
+  to_triangle (S (find_root n n)) > n.
+Proof.
+  intro n. split.
+  - exact (find_root_correct n n).
+  - exact (find_root_succ_exceeds n).
+Qed.
+
+Theorem find_root_unique : forall n k,
+  to_triangle k <= n ->
+  to_triangle (S k) > n ->
+  k = find_root n n.
+Proof.
+  intros n k Hle Hgt.
+  pose proof (find_root_correct n n) as Hr_le.
+  pose proof (find_root_succ_exceeds n) as Hr_gt.
+  pose proof (triangle_bounded_below k) as Hk_n.
+  assert (Hk_le_n : k <= n) by lia.
+  pose proof (find_root_max n n k Hle Hk_le_n) as Hk_le_root.
+  destruct (Nat.lt_total k (find_root n n)) as [Hlt | [Heq | Hgt']].
+  - exfalso.
+    assert (Hmono : to_triangle (S k) <= to_triangle (find_root n n)).
+    { apply to_triangle_mono. lia. }
+    lia.
+  - exact Heq.
+  - lia.
+Qed.
+
 Fixpoint encode_form (phi : Form) : nat :=
   match phi with
   | Bot => 0
