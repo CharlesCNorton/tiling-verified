@@ -4003,6 +4003,92 @@ Proof.
     rewrite Nat.eqb_refl in Hcontra. simpl in Hcontra. discriminate.
 Qed.
 
+Theorem yh_bypass_robust_no_b4 : forall n,
+  ((forall phi, |-no_b4 Impl (Box n phi) phi) -> |-no_b4 Bot) /\
+  (forall phi, |-no_b4 Box (S n) (Impl (Box n phi) (Neg (Box n (Neg phi))))) /\
+  (forall k, n < k -> |-no_b4 Box k (Neg (Box n Bot))).
+Proof.
+  intro n. split; [|split].
+  - intros Hsch.
+    apply provable_to_no_b4.
+    apply (loebian_obstacle n).
+    intro phi.
+    apply no_b4_to_provable. apply Hsch.
+  - intro phi.
+    apply provable_to_no_b4. exact (tiling_consistency n phi).
+  - intros k Hlt.
+    apply provable_to_no_b4. exact (consistency_chain n k Hlt).
+Qed.
+
+Theorem yh_bypass_robust_summary :
+  forall n, (forall phi, |- Box n phi <-> |-no_b4 Box n phi).
+Proof.
+  intros n phi. exact (provable_iff_no_b4 (Box n phi)).
+Qed.
+
+Theorem tiling_strongest : forall n,
+  ~ (forall phi, |- Box (S n) (Box n phi)).
+Proof.
+  intros n Hsch.
+  apply (meta_no_contradiction (S n) (Box n Bot)).
+  split.
+  - exact (Hsch Bot).
+  - exact (Ax_NextCon n).
+Qed.
+
+Theorem tiling_strengthening_collapses : forall n psi,
+  (forall phi, |- Impl (psi n phi) (Box n phi)) ->
+  (forall phi, |- Box (S n) (psi n phi)) ->
+  |- Bot.
+Proof.
+  intros n psi Himp Hbox.
+  exfalso.
+  apply (meta_consistency_every_level (S n)).
+  pose proof (prov_box_imp (S n) _ _ (Himp Bot)) as Hlift.
+  pose proof (MP _ _ Hlift (Hbox Bot)) as HboxBoxNBot.
+  pose proof (Ax_NextCon n) as Hnc.
+  pose proof (prov_box_n_contradiction (S n) (Box n Bot)) as Hcon.
+  pose proof (MP _ _ Hcon HboxBoxNBot) as Hstep.
+  exact (MP _ _ Hstep Hnc).
+Qed.
+
+Inductive Provable_plus (Sax : Form -> Prop) : Form -> Prop :=
+  | PP_lift : forall phi, |- phi -> Provable_plus Sax phi
+  | PP_extra : forall phi, Sax phi -> Provable_plus Sax phi
+  | PP_MP_pp : forall phi psi,
+      Provable_plus Sax (Impl phi psi) ->
+      Provable_plus Sax phi ->
+      Provable_plus Sax psi
+  | PP_Nec_pp : forall n phi,
+      Provable_plus Sax phi -> Provable_plus Sax (Box n phi).
+
+Theorem no_go_reflection : forall Sax n,
+  (forall phi, Provable_plus Sax (Impl (Box n phi) phi)) ->
+  Provable_plus Sax Bot.
+Proof.
+  intros Sax n Hsch.
+  pose proof (Hsch Bot) as Hbot.
+  pose proof (PP_lift Sax _ (Ax_Loeb n Bot)) as HLoeb.
+  pose proof (PP_Nec_pp Sax n _ Hbot) as HnecBot.
+  pose proof (PP_MP_pp Sax _ _ HLoeb HnecBot) as HboxBot.
+  exact (PP_MP_pp Sax _ _ Hbot HboxBot).
+Qed.
+
+Theorem minimal_viable_bypass_mon : forall n,
+  ~ (forall phi, |-no_mon Impl (Box n phi) (Box (S n) phi)).
+Proof.
+  intros n Hsch.
+  pose proof (separation_Mon_at n) as [_ Hsep].
+  apply Hsep. apply (Hsch (Var 0)).
+Qed.
+
+Theorem minimal_viable_bypass_nc : forall n, 1 <= n ->
+  ~ (|-no_nc Box n (Neg (Box 0 Bot))).
+Proof.
+  intros n Hn.
+  pose proof (separation_NC_at n Hn) as [_ Hsep]. exact Hsep.
+Qed.
+
 (** ** Independence of Ax_Loeb.
 
     [Provable_no_Loeb] is GLP* with [Ax_Loeb] removed.  Loeb is sound
@@ -4102,6 +4188,10 @@ Qed.
     semantics and cannot be refuted by a frame, so its independence
     requires non-Kripke (e.g. neighborhood) semantics not developed
     here. *)
+
+Theorem minimal_viable_bypass_loeb :
+  ~ (|-no_loeb Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot)).
+Proof. exact loeb_axiom_needs_Loeb. Qed.
 
 Theorem axioms_mutually_independent :
   (~ (|-no_loeb Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot))) /\
