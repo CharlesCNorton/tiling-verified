@@ -5542,6 +5542,36 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma triangle_bounded_below : forall k, k <= to_triangle k.
+Proof. induction k; cbn; lia. Qed.
+
+Lemma find_root_succ_exceeds : forall n,
+  to_triangle (S (find_root n n)) > n.
+Proof.
+  intro n.
+  destruct (le_lt_dec (to_triangle (S (find_root n n))) n) as [Hle | Hgt]; [|exact Hgt].
+  exfalso.
+  pose proof (triangle_bounded_below (S (find_root n n))) as Hbound.
+  assert (HSk_le_n : S (find_root n n) <= n) by lia.
+  pose proof (find_root_max n n (S (find_root n n)) Hle HSk_le_n) as Hmax.
+  lia.
+Qed.
+
+Theorem cpair_cunpair : forall n,
+  cpair (fst (cunpair n)) (snd (cunpair n)) = n.
+Proof.
+  intro n. unfold cunpair, cpair. cbn.
+  set (k := find_root n n).
+  set (b := n - to_triangle k).
+  pose proof (find_root_correct n n) as Hcor.
+  pose proof (find_root_succ_exceeds n) as Hexc.
+  fold k in Hcor, Hexc.
+  assert (Hbk : b <= k).
+  { unfold b. cbn in Hexc. lia. }
+  replace (k - b + b) with k by lia.
+  unfold b. lia.
+Qed.
+
 Fixpoint encode_form (phi : Form) : nat :=
   match phi with
   | Bot => 0
