@@ -7791,9 +7791,17 @@ Qed.
 
 Theorem vingean_no_loebian_collapse : forall n phi,
   |- Box (S n) (tiling_safety_claim n phi) ->
-  ~ |- Bot.
+  ~ (|- Box n phi /\ |- Box n (Neg phi)).
 Proof.
-  intros n phi _. exact meta_consistency_system.
+  intros n phi Htil [Hphi Hnphi].
+  unfold tiling_safety_claim in Htil.
+  pose proof (Nec (S n) _ Hphi) as HphiBox.
+  pose proof (prov_box_mp (S n) _ _ Htil HphiBox) as Hneg_box.
+  pose proof (Nec (S n) _ Hnphi) as HnphiBox.
+  apply (meta_consistency_no_contradiction (S n)
+          (meta_consistency_every_level (S n))
+          (Box n (Neg phi))).
+  exact (conj HnphiBox Hneg_box).
 Qed.
 
 End VingeanReflection.
