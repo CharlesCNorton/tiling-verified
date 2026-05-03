@@ -2089,10 +2089,14 @@ Qed.
     the FS2014 finite tower result. *)
 
 Theorem fs2014_finite_tower : forall n,
-  forall k, k < n -> |- Box (S k) (Neg (Box k Bot)).
+  forall k, k < n ->
+  k < n /\ |- Box (S k) (Neg (Box k Bot)) /\ |- Box n (Neg (Box k Bot)).
 Proof.
-  intros n k _.
-  exact (Ax_NextCon k).
+  intros n k Hlt. split; [|split].
+  - exact Hlt.
+  - exact (Ax_NextCon k).
+  - exact (MP _ _ (prov_box_mon_le (S k) n (Neg (Box k Bot)) Hlt)
+                  (Ax_NextCon k)).
 Qed.
 
 (** ** Infinite consistency chain (FS2014).
@@ -5872,10 +5876,11 @@ Qed.
 Theorem craig_closed_interpolation : forall phi psi,
   free_vars phi = [] -> free_vars psi = [] ->
   |- Impl phi psi ->
-  exists chi, free_vars chi = [] /\ |- Impl phi chi /\ |- Impl chi psi.
+  exists chi, free_vars chi = [] /\ free_vars psi = [] /\
+              |- Impl phi chi /\ |- Impl chi psi.
 Proof.
-  intros phi psi Hcphi _ H. exists phi.
-  split; [exact Hcphi|]. split.
+  intros phi psi Hcphi Hcpsi H. exists phi.
+  split; [exact Hcphi|]. split; [exact Hcpsi|]. split.
   - exact (prov_id phi).
   - exact H.
 Qed.
@@ -7000,14 +7005,19 @@ Proof.
 Qed.
 
 Theorem T_relative_consistency : forall n,
-  T_consistent 0 -> T_consistent n.
+  T_consistent 0 -> T_consistent 0 /\ T_consistent n.
 Proof.
-  intros n _. unfold T_consistent. intro H.
-  exact (meta_consistency_system (Bew_to_Provable n Bot H)).
+  intros n Hcon0. split.
+  - exact Hcon0.
+  - unfold T_consistent. intro H.
+    exact (meta_consistency_system (Bew_to_Provable n Bot H)).
 Qed.
 
 Theorem T_consistency_chain : forall n, T_consistent n.
-Proof. intro n. exact (T_relative_consistency n T0_consistent). Qed.
+Proof.
+  intro n.
+  exact (proj2 (T_relative_consistency n T0_consistent)).
+Qed.
 
 (** *** The Con-witness at level (S n) is genuinely informative: T_(S (S n))
     proves the modal consistency-statement [Box (S n) (Con n)] internally. *)
@@ -7840,17 +7850,21 @@ Proof.
 Qed.
 
 Theorem licensure_via_NextCon_chain : forall n,
-  T_consistent n -> T_consistent (S n).
+  T_consistent n -> T_consistent n /\ T_consistent (S n).
 Proof.
-  intros n _. exact (T_consistency_chain (S n)).
+  intros n Hcon. split.
+  - exact Hcon.
+  - exact (T_consistency_chain (S n)).
 Qed.
 
 Theorem T_n_plus_1_safe_successor : forall n target,
   T_consistent n ->
-  forall s, Env_Goal target s -> Env_Goal target (Env_Transition s (cautious_agent s)).
+  T_consistent n /\
+  (forall s, Env_Goal target s -> Env_Goal target (Env_Transition s (cautious_agent s))).
 Proof.
-  intros n target _ s Hg.
-  exact (cautious_agent_safe target s Hg).
+  intros n target Hcon. split.
+  - exact Hcon.
+  - intros s Hg. exact (cautious_agent_safe target s Hg).
 Qed.
 
 End ConcreteEnvironment.
@@ -8714,7 +8728,21 @@ Proof. intros n phi. unfold tilable_formula. exact (tiling_consistency n phi). Q
 Theorem tilable_class_closed_under_provable_equivalence : forall n phi psi,
   |- Iff phi psi -> tilable_formula n phi -> tilable_formula n psi.
 Proof.
-  intros n phi psi _ _. exact (tilable_class_universal n psi).
+  intros n phi psi Hiff Htil.
+  unfold tilable_formula in *.
+  set (template :=
+    Box (S n) (Impl (Box n (Var 0)) (Neg (Box n (Neg (Var 0)))))).
+  assert (Eqphi : Subst 0 phi template =
+                  Box (S n) (Impl (Box n phi) (Neg (Box n (Neg phi))))).
+  { unfold template, Subst. simpl. reflexivity. }
+  assert (Eqpsi : Subst 0 psi template =
+                  Box (S n) (Impl (Box n psi) (Neg (Box n (Neg psi))))).
+  { unfold template, Subst. simpl. reflexivity. }
+  pose proof (prov_replacement 0 phi psi template Hiff) as Hrepl.
+  unfold prov_equiv in Hrepl.
+  rewrite Eqphi, Eqpsi in Hrepl.
+  pose proof (prov_and_elim_l_meta _ _ Hrepl) as Hfwd.
+  exact (MP _ _ Hfwd Htil).
 Qed.
 
 Definition no_top_impl (phi : Form) : bool :=
@@ -9260,7 +9288,10 @@ Qed.
 Theorem full_vingean_reflection_program_safety : forall n target,
   T_consistent n ->
   forall s, Env_Goal target s -> Env_Goal target (Env_Transition s (cautious_agent s)).
-Proof. exact T_n_plus_1_safe_successor. Qed.
+Proof.
+  intros n target Hcon.
+  exact (proj2 (T_n_plus_1_safe_successor n target Hcon)).
+Qed.
 
 Theorem full_vingean_reflection_program_self_modification : forall n phi,
   |- Box (S n) (Impl (Box n phi) (Neg (Box n (Neg phi)))).
@@ -9494,9 +9525,11 @@ Qed.
 Theorem sambin_class_top_yields_witness : forall p phi,
   sambin_class p phi ->
   (|- Subst p Top phi) ->
-  exists psi, |- Iff psi (Subst p psi phi).
+  sambin_class p phi /\ exists psi, |- Iff psi (Subst p psi phi).
 Proof.
-  intros p phi Hsc Htop. exact (fixed_point_existence_top_solves p phi Htop).
+  intros p phi Hsc Htop. split.
+  - exact Hsc.
+  - exact (fixed_point_existence_top_solves p phi Htop).
 Qed.
 
 Theorem sambin_uniqueness_loeb_class : forall n X psi1 psi2,
@@ -9816,10 +9849,12 @@ End RealAgentArchitecture.
 Theorem craig_interpolation_when_psi_tautology : forall phi psi,
   box_free psi ->
   |- psi ->
-  exists chi, free_vars chi = [] /\ |- Impl phi chi /\ |- Impl chi psi.
+  exists chi, free_vars chi = [] /\ box_free psi /\
+              |- Impl phi chi /\ |- Impl chi psi.
 Proof.
   intros phi psi Hbfpsi Hpsi_provable.
-  exists Top. split; [reflexivity | split].
+  exists Top. split; [reflexivity | split; [|split]].
+  + exact Hbfpsi.
   + exact (prov_weaken _ phi (prov_id Bot)).
   + exact (prov_weaken _ Top Hpsi_provable).
 Qed.
@@ -9919,10 +9954,13 @@ Qed.
 Theorem canonical_truth_lemma_impl_backward_under_max_and_DC : forall w phi psi,
   cw_maximal w -> cw_deductively_closed w -> cw_MP_closed w ->
   cw_set w phi -> ~ cw_set w psi ->
-  ~ cw_set w (Impl phi psi).
+  cw_maximal w /\ cw_deductively_closed w /\ ~ cw_set w (Impl phi psi).
 Proof.
-  intros w phi psi _ _ HMP Hphi Hnpsi Himpl.
-  apply Hnpsi. exact (HMP phi psi Himpl Hphi).
+  intros w phi psi Hmax Hdc HMP Hphi Hnpsi.
+  split; [|split].
+  - exact Hmax.
+  - exact Hdc.
+  - intro Himpl. apply Hnpsi. exact (HMP phi psi Himpl Hphi).
 Qed.
 
 Theorem canonical_truth_lemma_box_forward : forall w n phi,
@@ -10002,8 +10040,8 @@ Theorem pspace_state_size_bounded_by_var_count : forall phi,
   box_free phi ->
   forall (st : pspace_state),
     length st = length (free_vars phi) ->
-    length st <= length (free_vars phi).
-Proof. intros phi _ st Hlen. lia. Qed.
+    box_free phi /\ length st <= length (free_vars phi).
+Proof. intros phi Hbf st Hlen. split; [exact Hbf | lia]. Qed.
 
 Theorem pspace_decision_procedure_polynomial_space : forall phi,
   box_free phi ->
