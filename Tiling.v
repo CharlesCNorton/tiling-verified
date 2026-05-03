@@ -3291,6 +3291,338 @@ Proof.
   exact (nb4_prov_compose _ _ _ H9 H11).
 Qed.
 
+(** ** Independence of Ax_Loeb.
+
+    [Provable_no_Loeb] is GLP* with [Ax_Loeb] removed.  Loeb is sound
+    in any converse-well-founded frame; in [R_break_wf] (the strict
+    [<] relation on nat, which is transitive, monotone, and NextCon-
+    successor closed but not converse-WF) Löb fails.  A specific
+    instance of Löb at [Bot] is unprovable in [Provable_no_Loeb]. *)
+
+Inductive Provable_no_Loeb : Form -> Prop :=
+  | NL_Ax_K : forall phi psi,
+      Provable_no_Loeb (Impl phi (Impl psi phi))
+  | NL_Ax_S : forall phi psi chi,
+      Provable_no_Loeb (Impl (Impl phi (Impl psi chi))
+                             (Impl (Impl phi psi) (Impl phi chi)))
+  | NL_Ax_DN : forall phi,
+      Provable_no_Loeb (Impl (Neg (Neg phi)) phi)
+  | NL_Ax_BoxK : forall n phi psi,
+      Provable_no_Loeb (Impl (Box n (Impl phi psi))
+                             (Impl (Box n phi) (Box n psi)))
+  | NL_Ax_Box4 : forall n phi,
+      Provable_no_Loeb (Impl (Box n phi) (Box n (Box n phi)))
+  | NL_Ax_Mon : forall n phi,
+      Provable_no_Loeb (Impl (Box n phi) (Box (S n) phi))
+  | NL_Ax_NextCon : forall n,
+      Provable_no_Loeb (Box (S n) (Neg (Box n Bot)))
+  | NL_MP : forall phi psi,
+      Provable_no_Loeb (Impl phi psi) -> Provable_no_Loeb phi -> Provable_no_Loeb psi
+  | NL_Nec : forall n phi,
+      Provable_no_Loeb phi -> Provable_no_Loeb (Box n phi).
+
+Notation "|-no_loeb f" := (Provable_no_Loeb f) (at level 75, no associativity).
+
+Record Frame_no_Loeb : Type := mkFrame_no_Loeb {
+  fW_nl : Type;
+  fR_nl : nat -> fW_nl -> fW_nl -> Prop;
+  fR_nl_trans : forall n w v u, fR_nl n w v -> fR_nl n v u -> fR_nl n w u;
+  fR_nl_mon : forall n w v, fR_nl (S n) w v -> fR_nl n w v;
+  fR_nl_nextcon : forall n w v, fR_nl (S n) w v -> exists u, fR_nl n v u
+}.
+
+Fixpoint forces_nl (F : Frame_no_Loeb) (V : fW_nl F -> nat -> bool)
+                   (w : fW_nl F) (phi : Form) : Prop :=
+  match phi with
+  | Var p => V w p = true
+  | Bot => False
+  | Impl X Y => forces_nl F V w X -> forces_nl F V w Y
+  | Box n psi => forall v, fR_nl F n w v -> forces_nl F V v psi
+  end.
+
+Theorem soundness_no_Loeb : forall phi, |-no_loeb phi ->
+  forall F V w, forces_nl F V w phi.
+Proof.
+  intros phi H. induction H.
+  - intros F V w. simpl. intros Hphi _. exact Hphi.
+  - intros F V w. simpl. intros Hf Hg Hphi.
+    apply Hf; [exact Hphi | apply Hg; exact Hphi].
+  - intros F V w. simpl. intro Hnnp. apply NNPP. exact Hnnp.
+  - intros F V w. simpl. intros Himp Hphi v Hwv.
+    apply (Himp v Hwv). apply (Hphi v Hwv).
+  - intros F V w. simpl. intros Hphi v Hwv u Hvu.
+    apply Hphi. apply (fR_nl_trans F n w v u Hwv Hvu).
+  - intros F V w. simpl. intros Hphi v Hwv.
+    apply Hphi. apply (fR_nl_mon F n w v Hwv).
+  - intros F V w. simpl. intros v Hwv Hbox.
+    destruct (fR_nl_nextcon F n w v Hwv) as [u Hvu].
+    exact (Hbox u Hvu).
+  - intros F V w. apply (IHProvable_no_Loeb1 F V w).
+    apply (IHProvable_no_Loeb2 F V w).
+  - intros F V w. simpl. intros v _.
+    apply (IHProvable_no_Loeb F V v).
+Qed.
+
+Definition F_no_Loeb : Frame_no_Loeb :=
+  mkFrame_no_Loeb nat R_break_wf
+    R_break_wf_trans R_break_wf_mon R_break_wf_nextcon.
+
+Theorem loeb_axiom_needs_Loeb :
+  ~ (|-no_loeb Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot)).
+Proof.
+  intro H.
+  pose proof (soundness_no_Loeb _ H F_no_Loeb (fun _ _ => true) 0) as Hf.
+  simpl in Hf.
+  assert (HantBox : forall v, R_break_wf 0 0 v ->
+                    (forall u, R_break_wf 0 v u -> False) -> False).
+  { intros v _ Habs. apply (Habs (S v)). unfold R_break_wf. lia. }
+  pose proof (Hf HantBox) as HboxBot.
+  apply (HboxBot 1). unfold R_break_wf. lia.
+Qed.
+
+(** ** Mutual independence theorem.
+
+    Of the modal axioms {Ax_Loeb, Ax_Mon, Ax_NextCon, Ax_Box4}, the
+    first three are mutually independent: removing any one of them
+    leaves a strictly weaker calculus.  Ax_Box4 is in fact derivable
+    from K + Löb (see [nb4_axiom4]) and so is *not* independent.
+    The propositional [Ax_K] axiom is universal under Kripke
+    semantics and cannot be refuted by a frame, so its independence
+    requires non-Kripke (e.g. neighborhood) semantics not developed
+    here. *)
+
+Theorem axioms_mutually_independent :
+  (~ (|-no_loeb Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot))) /\
+  (~ (|-no_mon Impl (Box 0 (Var 0)) (Box 1 (Var 0)))) /\
+  (~ (|-no_nc Box 1 (Neg (Box 0 Bot)))) /\
+  (forall n A, |-no_b4 Impl (Box n A) (Box n (Box n A))).
+Proof.
+  split; [|split; [|split]].
+  - exact loeb_axiom_needs_Loeb.
+  - exact mon_axiom_needs_Mon.
+  - exact consistency_chain_needs_NC.
+  - exact nb4_axiom4.
+Qed.
+
+(** ** Failure catalog.
+
+    Packages the principal negative results of the calculus into a
+    single theorem: monotonicity converse fails, same-level
+    reflection schema fails uniformly, each level strictly extends
+    its predecessor, and the reflection schema fails at every level.
+    Each clause carries its own refuting frame inside the proof; the
+    catalog is the meta-level summary. *)
+
+Theorem failure_catalog :
+  (forall n, ~ (|- Impl (Box (S n) (Var 0)) (Box n (Var 0)))) /\
+  (forall n, ~ (forall phi, |- Box (S n) (Impl (Box (S n) phi) phi))) /\
+  (forall n, exists phi, (|- Box (S n) phi) /\ ~ (|- Box n phi)) /\
+  (forall n, ~ (forall phi, |- Impl (Box n phi) phi)).
+Proof.
+  split; [|split; [|split]].
+  - exact mon_converse_fails.
+  - exact reflection_at_same_level_unprovable_uniformly.
+  - exact strict_extension_at_each_level.
+  - exact reflection_schema_unprovable.
+Qed.
+
+(** ** Polymodal bisimulation and forces-invariance.
+
+    A bisimulation between [(F1, V1)] and [(F2, V2)] is a relation
+    [Z] over [fW F1 × fW F2] satisfying atomic agreement plus the
+    forth-and-back conditions for [fR] at every level.  [forces] is
+    invariant under bisimulation: bisimilar worlds satisfy the same
+    formulas. *)
+
+Definition Bisim (F1 F2 : Frame)
+                 (V1 : fW F1 -> nat -> bool)
+                 (V2 : fW F2 -> nat -> bool)
+                 (Z : fW F1 -> fW F2 -> Prop) : Prop :=
+  forall w1 w2, Z w1 w2 ->
+    (forall p, V1 w1 p = V2 w2 p) /\
+    (forall n v1, fR F1 n w1 v1 -> exists v2, fR F2 n w2 v2 /\ Z v1 v2) /\
+    (forall n v2, fR F2 n w2 v2 -> exists v1, fR F1 n w1 v1 /\ Z v1 v2).
+
+Theorem bisim_invariance : forall F1 F2 V1 V2 Z,
+  Bisim F1 F2 V1 V2 Z ->
+  forall phi w1 w2, Z w1 w2 ->
+    (forces F1 V1 w1 phi <-> forces F2 V2 w2 phi).
+Proof.
+  intros F1 F2 V1 V2 Z HBisim phi.
+  induction phi as [p | | X IHX Y IHY | n psi IHpsi];
+    intros w1 w2 HZ; simpl.
+  - destruct (HBisim w1 w2 HZ) as [Hval _].
+    rewrite (Hval p). reflexivity.
+  - reflexivity.
+  - rewrite (IHX w1 w2 HZ), (IHY w1 w2 HZ). reflexivity.
+  - split.
+    + intros HBox v2 Hv2.
+      destruct (HBisim w1 w2 HZ) as [_ [_ Hback]].
+      destruct (Hback n v2 Hv2) as [v1 [Hv1 HZ12]].
+      rewrite <- (IHpsi v1 v2 HZ12).
+      apply HBox. exact Hv1.
+    + intros HBox v1 Hv1.
+      destruct (HBisim w1 w2 HZ) as [_ [Hforth _]].
+      destruct (Hforth n v1 Hv1) as [v2 [Hv2 HZ12]].
+      rewrite (IHpsi v1 v2 HZ12).
+      apply HBox. exact Hv2.
+Qed.
+
+(** Identity bisimulation: every model is bisimilar to itself by [eq]. *)
+
+Theorem bisim_id : forall F V, Bisim F F V V (@eq (fW F)).
+Proof.
+  intros F V w1 w2 Heq. subst w2.
+  split; [reflexivity|]. split.
+  - intros n v1 Hv1. exists v1. split; [exact Hv1|reflexivity].
+  - intros n v2 Hv2. exists v2. split; [exact Hv2|reflexivity].
+Qed.
+
+(** ** Propositional fragment: box-freeness predicate and decidability
+    via truth-table evaluation.
+
+    For [box_free] formulas, [eval val phi] is a complete classical
+    truth-functional evaluator.  Soundness gives the easy direction:
+    every [|- phi] is true under every valuation.  Hence a non-tautology
+    is unprovable, decidable by computing [eval] on the [2^k]
+    assignments to the [k] free variables.  The converse direction
+    (every classical tautology is in [ProvableProp]) is the Kalmár
+    completeness theorem and is stated separately. *)
+
+Fixpoint box_free (phi : Form) : Prop :=
+  match phi with
+  | Var _ => True
+  | Bot => True
+  | Impl X Y => box_free X /\ box_free Y
+  | Box _ _ => False
+  end.
+
+Definition classical_valid (phi : Form) : Prop :=
+  forall val, eval val phi = true.
+
+Theorem provable_classically_valid : forall phi,
+  |- phi -> classical_valid phi.
+Proof.
+  intros phi H val. exact (eval_provable_true val phi H).
+Qed.
+
+(** Refutation procedure: a single valuation producing [false]
+    suffices to refute provability. *)
+
+Theorem refute_via_valuation : forall phi val,
+  eval val phi = false -> ~ (|- phi).
+Proof.
+  intros phi val Hval Hprov.
+  pose proof (provable_classically_valid phi Hprov val) as Hclaim.
+  rewrite Hclaim in Hval. discriminate.
+Qed.
+
+(** Box-free formulas have no [Box] sub-formula. *)
+
+Lemma box_free_eval_independent : forall phi,
+  box_free phi -> forall val1 val2,
+    (forall p, val1 p = val2 p) -> eval val1 phi = eval val2 phi.
+Proof.
+  intros phi Hbf val1 val2 Hext.
+  induction phi as [k | | X IHX Y IHY | n psi IHpsi]; simpl.
+  - apply Hext.
+  - reflexivity.
+  - simpl in Hbf. destruct Hbf as [HX HY].
+    rewrite (IHX HX), (IHY HY). reflexivity.
+  - simpl in Hbf. contradiction.
+Qed.
+
+(** Reflective refutation tactic.  Apply with a witness valuation:
+    [prop_refute val] closes a goal [~ (|- phi)] when [eval val phi]
+    reduces to [false]. *)
+
+Ltac prop_refute val :=
+  apply (refute_via_valuation _ val); cbn; try reflexivity.
+
+(** Demonstration: [Var 0] is not a theorem (refuted by the constant
+    [false] valuation). *)
+
+Example var_not_provable : ~ (|- Var 0).
+Proof. prop_refute (fun _ : nat => false). Qed.
+
+(** ** Compactness for Provable_with_hyp.
+
+    Lift hypotheses from finite lists to arbitrary predicates [Gamma]
+    on [Form], with [Provable_set Gamma phi] meaning "[phi] is
+    derivable from some finite [G] all of whose members lie in
+    [Gamma]".  Compactness is the equivalence between [Consistent
+    Gamma] and "every finite [G] in [Gamma] is consistent", which is
+    immediate from the definition since derivability uses only finitely
+    many hypotheses. *)
+
+Definition Provable_set (Gamma : Form -> Prop) (phi : Form) : Prop :=
+  exists G : list Form,
+    (forall psi, In psi G -> Gamma psi) /\ Provable_with_hyp G phi.
+
+Definition Consistent (Gamma : Form -> Prop) : Prop :=
+  ~ Provable_set Gamma Bot.
+
+Definition FinitelyConsistent (Gamma : Form -> Prop) : Prop :=
+  forall G : list Form,
+    (forall psi, In psi G -> Gamma psi) -> ~ Provable_with_hyp G Bot.
+
+Theorem compactness_forward : forall Gamma,
+  FinitelyConsistent Gamma -> Consistent Gamma.
+Proof.
+  intros Gamma Hfin Hcontra.
+  destruct Hcontra as [G [HG HBot]].
+  apply (Hfin G HG HBot).
+Qed.
+
+Theorem compactness_backward : forall Gamma,
+  Consistent Gamma -> FinitelyConsistent Gamma.
+Proof.
+  intros Gamma HCon G HG Hbot.
+  apply HCon. exists G. split; assumption.
+Qed.
+
+Theorem compactness : forall Gamma,
+  Consistent Gamma <-> FinitelyConsistent Gamma.
+Proof.
+  intro Gamma. split.
+  - apply compactness_backward.
+  - apply compactness_forward.
+Qed.
+
+(** ** Japaridze axiom and Provable_GLP.
+
+    The Japaridze axiom of standard polymodal provability logic GLP:
+    [Diamond n phi -> Box (S n) (Diamond n phi)].  Stated and shown
+    to fail under suitable Kripke counter-models (so it is not
+    derivable in [Provable]).  The full conservativity-into-GLP
+    embedding is a separate theorem that requires the Box4-derivability
+    transfer (item 12) and remains for the GLP-style calculus
+    [Provable_GLP], not built here. *)
+
+Definition Japaridze (n : nat) (phi : Form) : Form :=
+  Impl (Diamond n phi) (Box (S n) (Diamond n phi)).
+
+Theorem japaridze_unprovable_at_0 :
+  ~ (|- Japaridze 0 (Var 0)).
+Proof.
+  intro H.
+  pose (V := fun (w : nat) (p : nat) =>
+    match p with O => Nat.eqb w 4 | _ => false end).
+  pose proof (soundness _ H Fnat V 5) as Hf.
+  unfold Japaridze, Diamond in Hf. simpl in Hf.
+  assert (Hdia0 : (forall v : nat, Fnat_R 0 5 v -> V v 0 = true -> False) -> False).
+  { intro Habs.
+    apply (Habs 4).
+    - unfold Fnat_R. split; lia.
+    - unfold V. simpl. reflexivity. }
+  pose proof (Hf Hdia0) as HBox1.
+  apply (HBox1 1).
+  - unfold Fnat_R. split; lia.
+  - intros v Hv Hval. unfold Fnat_R in Hv. destruct Hv as [Hv1 Hv2].
+    assert (v = 0) by lia. subst v.
+    unfold V in Hval. simpl in Hval. discriminate.
+Qed.
+
 Theorem frame_conditions_independent :
   (exists Rt : nat -> nat -> nat -> Prop,
     (forall n, well_founded (fun u v => Rt n v u)) /\
