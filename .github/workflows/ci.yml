@@ -29,5 +29,5 @@ jobs:
               make -j 2
             endGroup
             startGroup "Kernel re-validation"
-              coqchk -silent -o Tiling
+              coqchk -silent -Q . Tiling Tiling.Tiling
             endGroup

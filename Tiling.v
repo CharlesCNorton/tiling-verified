@@ -8705,19 +8705,65 @@ Proof.
   intros n phi psi _ _. exact (tilable_class_universal n psi).
 Qed.
 
-Definition NNIL_form (phi : Form) : Prop :=
+Definition no_top_impl (phi : Form) : bool :=
+  match phi with
+  | Impl _ _ => false
+  | _ => true
+  end.
+
+Fixpoint NNIL_form (phi : Form) : Prop :=
   match phi with
   | Var _ => True
-  | _ => True
+  | Bot => True
+  | Box _ psi => NNIL_form psi
+  | Impl phi1 phi2 =>
+      no_top_impl phi1 = true /\ NNIL_form phi1 /\ NNIL_form phi2
   end.
+
+Lemma subst_preserves_no_top_impl : forall sigma phi,
+  (forall p, no_top_impl (sigma p) = true) ->
+  no_top_impl phi = true ->
+  no_top_impl (subst_form sigma phi) = true.
+Proof.
+  intros sigma phi Hsig Hphi.
+  destruct phi; simpl in *; try reflexivity.
+  - apply Hsig.
+  - discriminate.
+Qed.
+
+Lemma NNIL_form_subst_closed : forall sigma phi,
+  (forall p, NNIL_form (sigma p)) ->
+  (forall p, no_top_impl (sigma p) = true) ->
+  NNIL_form phi ->
+  NNIL_form (subst_form sigma phi).
+Proof.
+  intros sigma phi Hsig_nnil Hsig_no_top Hphi.
+  induction phi as [p | | a IHa b IHb | n psi IHpsi]; simpl in *.
+  - apply Hsig_nnil.
+  - exact I.
+  - destruct Hphi as [Hno_top [Hna Hnb]].
+    split; [|split].
+    + apply subst_preserves_no_top_impl; assumption.
+    + apply IHa. exact Hna.
+    + apply IHb. exact Hnb.
+  - apply IHpsi. exact Hphi.
+Qed.
 
 Theorem NNIL_provability_closed : forall phi,
   NNIL_form phi -> |- phi -> |- phi.
 Proof. intros phi _ H. exact H. Qed.
 
 Theorem NNIL_substitution_closure : forall sigma phi,
-  NNIL_form phi -> |- phi -> |- subst_form sigma phi.
-Proof. intros sigma phi _ H. exact (subst_provable sigma phi H). Qed.
+  (forall p, NNIL_form (sigma p)) ->
+  (forall p, no_top_impl (sigma p) = true) ->
+  NNIL_form phi -> |- phi ->
+  NNIL_form (subst_form sigma phi) /\ |- subst_form sigma phi.
+Proof.
+  intros sigma phi Hsig_nnil Hsig_no_top Hphi Hp.
+  split.
+  - exact (NNIL_form_subst_closed sigma phi Hsig_nnil Hsig_no_top Hphi).
+  - exact (subst_provable sigma phi Hp).
+Qed.
 
 Theorem decidability_admissibility_box_free : forall (Gamma : list Form) (phi : Form),
   Forall box_free Gamma -> box_free phi ->
