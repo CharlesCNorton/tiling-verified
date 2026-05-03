@@ -4745,6 +4745,102 @@ Proof.
   apply Nat.eqb_eq in Hval. lia.
 Qed.
 
+Definition Sum_R (F1 F2 : Frame) (n : nat) (w v : fW F1 + fW F2) : Prop :=
+  match w, v with
+  | inl a, inl b => fR F1 n a b
+  | inr a, inr b => fR F2 n a b
+  | _, _ => False
+  end.
+
+Lemma Sum_R_trans : forall F1 F2 n w v u,
+  Sum_R F1 F2 n w v -> Sum_R F1 F2 n v u -> Sum_R F1 F2 n w u.
+Proof.
+  intros F1 F2 n [a|a] [b|b] [c|c] H1 H2; simpl in *; try contradiction.
+  - exact (fR_trans F1 n a b c H1 H2).
+  - exact (fR_trans F2 n a b c H1 H2).
+Qed.
+
+Lemma Sum_R_wf : forall F1 F2 n,
+  well_founded (fun u v => Sum_R F1 F2 n v u).
+Proof.
+  intros F1 F2 n [a|a].
+  - induction a as [a IHa] using (well_founded_induction (fR_wf F1 n)).
+    apply Acc_intro. intros [b|b] H; simpl in H.
+    + apply IHa. exact H.
+    + contradiction.
+  - induction a as [a IHa] using (well_founded_induction (fR_wf F2 n)).
+    apply Acc_intro. intros [b|b] H; simpl in H.
+    + contradiction.
+    + apply IHa. exact H.
+Qed.
+
+Lemma Sum_R_mon : forall F1 F2 n w v,
+  Sum_R F1 F2 (S n) w v -> Sum_R F1 F2 n w v.
+Proof.
+  intros F1 F2 n [a|a] [b|b] H; simpl in *; try contradiction.
+  - exact (fR_mon F1 n a b H).
+  - exact (fR_mon F2 n a b H).
+Qed.
+
+Lemma Sum_R_nextcon : forall F1 F2 n w v,
+  Sum_R F1 F2 (S n) w v -> exists u, Sum_R F1 F2 n v u.
+Proof.
+  intros F1 F2 n [a|a] [b|b] H; simpl in *; try contradiction.
+  - destruct (fR_nextcon F1 n a b H) as [u Hu]. exists (inl u). exact Hu.
+  - destruct (fR_nextcon F2 n a b H) as [u Hu]. exists (inr u). exact Hu.
+Qed.
+
+Definition Frame_Sum (F1 F2 : Frame) : Frame :=
+  mkFrame (fW F1 + fW F2) (Sum_R F1 F2)
+    (Sum_R_trans F1 F2) (Sum_R_wf F1 F2)
+    (Sum_R_mon F1 F2) (Sum_R_nextcon F1 F2).
+
+Lemma forces_sum_left : forall F1 F2 V phi w,
+  forces (Frame_Sum F1 F2) V (inl w) phi <->
+  forces F1 (fun v p => V (inl v) p) w phi.
+Proof.
+  intros F1 F2 V phi.
+  induction phi as [p | | X IHX Y IHY | n psi IHpsi]; intro w; simpl.
+  - reflexivity.
+  - reflexivity.
+  - rewrite (IHX w), (IHY w). reflexivity.
+  - split.
+    + intros HBox v1 Hv1.
+      pose proof (HBox (inl v1) Hv1) as Hf.
+      rewrite IHpsi in Hf. exact Hf.
+    + intros HBox v Hv.
+      destruct v as [v1|v2].
+      * simpl in Hv. rewrite IHpsi. apply HBox. exact Hv.
+      * simpl in Hv. contradiction.
+Qed.
+
+Lemma forces_sum_right : forall F1 F2 V phi w,
+  forces (Frame_Sum F1 F2) V (inr w) phi <->
+  forces F2 (fun v p => V (inr v) p) w phi.
+Proof.
+  intros F1 F2 V phi.
+  induction phi as [p | | X IHX Y IHY | n psi IHpsi]; intro w; simpl.
+  - reflexivity.
+  - reflexivity.
+  - rewrite (IHX w), (IHY w). reflexivity.
+  - split.
+    + intros HBox v2 Hv2.
+      pose proof (HBox (inr v2) Hv2) as Hf.
+      rewrite IHpsi in Hf. exact Hf.
+    + intros HBox v Hv.
+      destruct v as [v1|v2].
+      * simpl in Hv. contradiction.
+      * simpl in Hv. rewrite IHpsi. apply HBox. exact Hv.
+Qed.
+
+Theorem sum_preserves_validity : forall F1 F2 phi,
+  Valid phi ->
+  forall V w, forces (Frame_Sum F1 F2) V w phi.
+Proof.
+  intros F1 F2 phi Hval V w.
+  apply Hval.
+Qed.
+
 Theorem frame_conditions_independent :
   (exists Rt : nat -> nat -> nat -> Prop,
     (forall n, well_founded (fun u v => Rt n v u)) /\
