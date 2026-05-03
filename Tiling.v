@@ -5054,6 +5054,52 @@ Proof.
   - exact (Nec _ _ IH).
 Qed.
 
+Theorem reflection_algebra :
+  (forall phi, prov_equiv phi phi) /\
+  (forall phi psi, prov_equiv phi psi -> prov_equiv psi phi) /\
+  (forall phi psi chi,
+     prov_equiv phi psi -> prov_equiv psi chi -> prov_equiv phi chi) /\
+  (forall phi1 phi2 psi1 psi2,
+     prov_equiv phi1 phi2 -> prov_equiv psi1 psi2 ->
+     prov_equiv (Impl phi1 psi1) (Impl phi2 psi2)) /\
+  (forall n phi psi,
+     prov_equiv phi psi -> prov_equiv (Box n phi) (Box n psi)) /\
+  ~ prov_equiv Top Bot.
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - apply prov_equiv_refl.
+  - apply prov_equiv_sym.
+  - apply prov_equiv_trans.
+  - apply prov_equiv_impl_cong.
+  - apply prov_equiv_box_cong.
+  - apply lindenbaum_tarski_non_degenerate.
+Qed.
+
+Theorem reflection_algebra_loeb_law : forall n phi,
+  prov_equiv (Box n (Impl (Box n phi) phi)) (Box n phi).
+Proof.
+  intros n phi. unfold prov_equiv.
+  apply prov_iff_sym. apply loeb_iff.
+Qed.
+
+Theorem reflection_algebra_box_distrib : forall n phi psi,
+  |- Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi)).
+Proof.
+  intros n phi psi. apply Ax_BoxK.
+Qed.
+
+Theorem reflection_algebra_mon : forall n phi,
+  |- Impl (Box n phi) (Box (S n) phi).
+Proof.
+  intros n phi. apply Ax_Mon.
+Qed.
+
+Theorem reflection_algebra_axiom4 : forall n phi,
+  |- Impl (Box n phi) (Box n (Box n phi)).
+Proof.
+  intros n phi. apply Ax_Box4.
+Qed.
+
 Theorem frame_conditions_independent :
   (exists Rt : nat -> nat -> nat -> Prop,
     (forall n, well_founded (fun u v => Rt n v u)) /\
