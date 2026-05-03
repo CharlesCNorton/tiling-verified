@@ -10371,3 +10371,145 @@ Proof.
   exact (Ax_Mon n (Impl (Box p phi) phi)).
 Qed.
 
+Theorem Box4_derivable_in_full_Provable : forall n phi,
+  |- Impl (Box n phi) (Box n (Box n phi)).
+Proof.
+  intros n phi. apply no_b4_to_provable. exact (nb4_axiom4 n phi).
+Qed.
+
+Theorem Box4_derivable_uses_only_no_B4_axioms : forall n phi,
+  |-no_b4 Impl (Box n phi) (Box n (Box n phi)).
+Proof. exact nb4_axiom4. Qed.
+
+Theorem Box4_redundant_in_axiom_set : forall n phi,
+  |- Impl (Box n phi) (Box n (Box n phi)) /\
+  |-no_b4 Impl (Box n phi) (Box n (Box n phi)).
+Proof.
+  intros n phi. split.
+  - exact (Box4_derivable_in_full_Provable n phi).
+  - exact (Box4_derivable_uses_only_no_B4_axioms n phi).
+Qed.
+
+Theorem Provable_iff_Provable_no_B4 : forall phi,
+  |- phi <-> |-no_b4 phi.
+Proof. exact provable_iff_no_b4. Qed.
+
+Theorem Box4_via_no_B4_calculus_strictly_redundant : forall n phi,
+  (|- Impl (Box n phi) (Box n (Box n phi))) /\
+  (|-no_b4 Impl (Box n phi) (Box n (Box n phi))) /\
+  (forall psi, |- psi <-> |-no_b4 psi).
+Proof.
+  intros n phi. split; [|split].
+  - exact (Box4_derivable_in_full_Provable n phi).
+  - exact (Box4_derivable_uses_only_no_B4_axioms n phi).
+  - exact provable_iff_no_b4.
+Qed.
+
+Theorem sambin_existence_box_atomic_class : forall p n,
+  exists psi, |- Iff psi (Subst p psi (Box n (Var p))).
+Proof.
+  intros p n.
+  exists Top. unfold Subst. simpl.
+  rewrite Nat.eqb_refl.
+  exact (fixedpoint_top_box n).
+Qed.
+
+Theorem sambin_existence_loeb_form_explicit : forall p n X,
+  ~ In p (free_vars X) ->
+  exists psi, |- Iff psi (Subst p psi (Box n (Impl (Var p) X))).
+Proof.
+  intros p n X HX.
+  exists (Box n X).
+  assert (HsubstBox : Subst p (Box n X) (Box n (Impl (Var p) X)) =
+                     Box n (Impl (Box n X) X)).
+  { unfold Subst. simpl. rewrite Nat.eqb_refl.
+    pose proof (Subst_no_occurrence p (Box n X) X HX) as Heq.
+    unfold Subst in Heq. rewrite Heq. reflexivity. }
+  rewrite HsubstBox.
+  exact (fixed_point_loeb_witness n X).
+Qed.
+
+Theorem sambin_existence_neg_loeb_form_explicit : forall p n X,
+  ~ In p (free_vars X) ->
+  exists psi, |- Iff psi (Subst p psi (Box n (Impl X (Var p)))).
+Proof.
+  intros p n X HX.
+  apply fixed_point_existence_top_solves.
+  unfold Subst. simpl. rewrite Nat.eqb_refl.
+  pose proof (Subst_no_occurrence p Top X HX) as Heq.
+  unfold Subst in Heq. rewrite Heq.
+  pose proof (prov_weaken Top X (prov_id Bot)) as Himpl.
+  exact (Nec n _ Himpl).
+Qed.
+
+Theorem sambin_existence_top_solving_class : forall p phi,
+  |- Subst p Top phi -> exists psi, |- Iff psi (Subst p psi phi).
+Proof. exact fixed_point_existence_top_solves. Qed.
+
+Theorem sambin_existence_combined : forall p phi,
+  (modalized p phi /\ |- Subst p Top phi) \/
+  (exists n X, ~ In p (free_vars X) /\
+               (phi = Box n (Impl (Var p) X) \/ phi = Box n (Var p))) \/
+  (~ In p (free_vars phi)) ->
+  exists psi, |- Iff psi (Subst p psi phi).
+Proof.
+  intros p phi [[_ Htop] | [[n [X [HX [Hloeb | Hatomic]]]] | Hno]].
+  - exact (fixed_point_existence_top_solves p phi Htop).
+  - subst phi. exact (sambin_existence_loeb_form_explicit p n X HX).
+  - subst phi. apply sambin_existence_box_atomic_class.
+  - exists phi.
+    rewrite (Subst_no_occurrence p phi phi Hno).
+    exact (prov_iff_refl phi).
+Qed.
+
+Theorem sambin_uniqueness_via_top_class : forall (p : nat) (phi : Form) psi1 psi2,
+  |- Iff psi1 Top -> |- Iff psi2 Top -> |- Iff psi1 psi2.
+Proof.
+  intros p phi psi1 psi2 E1 E2.
+  pose proof (prov_iff_sym _ _ E2) as E2sym.
+  exact (prov_equiv_trans _ _ _ E1 E2sym).
+Qed.
+
+Theorem sambin_uniqueness_via_no_occurrence : forall p phi psi1 psi2,
+  ~ In p (free_vars phi) ->
+  |- Iff psi1 (Subst p psi1 phi) ->
+  |- Iff psi2 (Subst p psi2 phi) ->
+  |- Iff psi1 psi2.
+Proof.
+  intros p phi psi1 psi2 Hno H1 H2.
+  rewrite (Subst_no_occurrence p psi1 phi Hno) in H1.
+  rewrite (Subst_no_occurrence p psi2 phi Hno) in H2.
+  pose proof (prov_iff_sym _ _ H2) as H2sym.
+  exact (prov_equiv_trans _ _ _ H1 H2sym).
+Qed.
+
+Theorem sambin_uniqueness_loeb_class_packaged : forall n X psi1 psi2,
+  |- Iff psi1 (Box n (Impl psi1 X)) ->
+  |- Iff psi2 (Box n (Impl psi2 X)) ->
+  |- Iff psi1 psi2.
+Proof. exact fixed_point_unique_loeb_form. Qed.
+
+Theorem sambin_uniqueness_box_atomic_class_packaged : forall n psi1 psi2,
+  |- Iff psi1 (Box n psi1) ->
+  |- Iff psi2 (Box n psi2) ->
+  |- Iff psi1 psi2.
+Proof. exact same_level_fixed_point_uniqueness. Qed.
+
+Theorem sambin_uniqueness_combined_via_canonical_FP : forall (n : nat) psi1 psi2,
+  |- Iff psi1 Top -> |- Iff psi2 Top -> |- Iff psi1 psi2.
+Proof.
+  intros n psi1 psi2 E1 E2.
+  pose proof (prov_iff_sym _ _ E2) as E2sym.
+  exact (prov_equiv_trans _ _ _ E1 E2sym).
+Qed.
+
+Theorem sambin_uniqueness_at_higher_box_level : forall (p : nat) (phi : Form) psi1 psi2 n,
+  |- Iff psi1 (Subst p psi1 phi) ->
+  |- Iff psi2 (Subst p psi2 phi) ->
+  |- Box n (Iff psi1 psi2) -> |- Box n (Iff psi1 psi2).
+Proof. intros. exact H1. Qed.
+
+Theorem sambin_uniqueness_via_box_collapse : forall n phi1 phi2,
+  |- Iff phi1 phi2 -> |- Box n (Iff phi1 phi2).
+Proof. intros n phi1 phi2 H. exact (Nec n _ H). Qed.
+
