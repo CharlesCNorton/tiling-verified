@@ -5605,6 +5605,100 @@ Fixpoint decode_form_bounded (depth n : nat) : Form :=
 
 Definition decode_form (n : nat) : Form := decode_form_bounded (S n) n.
 
+Lemma encode_Impl_bound_left : forall X Y,
+  encode_form X < encode_form (Impl X Y).
+Proof.
+  intros X Y. cbn. unfold cpair.
+  pose proof (triangle_bounded_below (encode_form X + encode_form Y)) as H1.
+  pose proof (triangle_bounded_below
+    (1 + (to_triangle (encode_form X + encode_form Y) + encode_form Y))) as H2.
+  lia.
+Qed.
+
+Lemma encode_Impl_bound_right : forall X Y,
+  encode_form Y < encode_form (Impl X Y).
+Proof.
+  intros X Y. cbn. unfold cpair.
+  pose proof (triangle_bounded_below (encode_form X + encode_form Y)) as H1.
+  pose proof (triangle_bounded_below
+    (1 + (to_triangle (encode_form X + encode_form Y) + encode_form Y))) as H2.
+  lia.
+Qed.
+
+Lemma encode_Box_bound : forall k psi,
+  encode_form psi < encode_form (Box k psi).
+Proof.
+  intros k psi. cbn. unfold cpair.
+  pose proof (triangle_bounded_below (k + encode_form psi)) as H1.
+  pose proof (triangle_bounded_below
+    (1 + (to_triangle (k + encode_form psi) + encode_form psi))) as H2.
+  lia.
+Qed.
+
+Lemma decode_step_var : forall p d',
+  decode_form_bounded (S d') (S (cpair 0 p)) = Var p.
+Proof.
+  intros p d'.
+  cbn [decode_form_bounded].
+  rewrite cunpair_cpair. cbn [fst snd]. reflexivity.
+Qed.
+
+Lemma decode_step_impl : forall a b d',
+  decode_form_bounded (S d') (S (cpair 1 (cpair a b))) =
+    Impl (decode_form_bounded d' a) (decode_form_bounded d' b).
+Proof.
+  intros a b d'.
+  cbn [decode_form_bounded].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. cbn [fst snd].
+  reflexivity.
+Qed.
+
+Lemma decode_step_box : forall k a d',
+  decode_form_bounded (S d') (S (cpair 2 (cpair k a))) =
+    Box k (decode_form_bounded d' a).
+Proof.
+  intros k a d'.
+  cbn [decode_form_bounded].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. cbn [fst snd].
+  reflexivity.
+Qed.
+
+Lemma decode_encode_with_depth : forall phi d,
+  encode_form phi < d ->
+  decode_form_bounded d (encode_form phi) = phi.
+Proof.
+  induction phi as [p | | X IHX Y IHY | k psi IHpsi]; intros d Hd.
+  - destruct d as [|d']; [lia|].
+    change (encode_form (Var p)) with (S (cpair 0 p)).
+    apply decode_step_var.
+  - destruct d as [|d']; [lia|]. cbn. reflexivity.
+  - destruct d as [|d']; [lia|].
+    change (encode_form (Impl X Y))
+      with (S (cpair 1 (cpair (encode_form X) (encode_form Y)))).
+    rewrite decode_step_impl.
+    pose proof (encode_Impl_bound_left X Y) as HX.
+    pose proof (encode_Impl_bound_right X Y) as HY.
+    rewrite IHX by lia.
+    rewrite IHY by lia.
+    reflexivity.
+  - destruct d as [|d']; [lia|].
+    change (encode_form (Box k psi))
+      with (S (cpair 2 (cpair k (encode_form psi)))).
+    rewrite decode_step_box.
+    pose proof (encode_Box_bound k psi) as HB.
+    rewrite IHpsi by lia.
+    reflexivity.
+Qed.
+
+Theorem decode_encode : forall phi,
+  decode_form (encode_form phi) = phi.
+Proof.
+  intro phi. unfold decode_form.
+  apply decode_encode_with_depth. lia.
+Qed.
+
 Definition enum_form (n : nat) : Form := decode_form n.
 
 Definition Form_seq : nat -> Form := enum_form.
