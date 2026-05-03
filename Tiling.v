@@ -7420,12 +7420,25 @@ Fixpoint omega_tower (n : nat) : epsilon_0_carrier :=
   | S m => OCons (omega_tower m) OZero
   end.
 
+Lemma ord_compare_OCons_OZero : forall a b,
+  ord_compare (OCons a OZero) (OCons b OZero) = ord_compare a b.
+Proof.
+  intros a b. cbn.
+  destruct (ord_compare a b); reflexivity.
+Qed.
+
 Theorem epsilon_0_contains_all_omega_towers : forall n,
-  exists o : epsilon_0_carrier, o = omega_tower n.
-Proof. intro n. exists (omega_tower n). reflexivity. Qed.
+  ord_compare (omega_tower n) (omega_tower (S n)) = Lt.
+Proof.
+  induction n as [|n IH].
+  - reflexivity.
+  - cbn [omega_tower].
+    rewrite ord_compare_OCons_OZero.
+    exact IH.
+Qed.
 
 Theorem proof_theoretic_ordinal_GLP_at_least_epsilon_0 :
-  forall n, exists o : epsilon_0_carrier, o = omega_tower n.
+  forall n, ord_compare (omega_tower n) (omega_tower (S n)) = Lt.
 Proof. exact epsilon_0_contains_all_omega_towers. Qed.
 
 Theorem worm_ordinal_embedding : forall w,
