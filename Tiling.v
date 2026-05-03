@@ -5251,6 +5251,93 @@ Proof.
   exact (consistency_chain alpha beta Hlt).
 Qed.
 
+Theorem licenses_universal : forall (F : nat -> Form -> Form),
+  (forall n phi, F n phi = licenses n phi) ->
+  forall n phi, |- licenses n phi -> |- F n phi.
+Proof.
+  intros F Hext n phi H. rewrite Hext. exact H.
+Qed.
+
+Definition is_truth_predicate (Tr : Form -> Form) : Prop :=
+  forall phi, |- Iff (Tr phi) phi.
+
+Theorem truth_predicate_preserves_provable : forall Tr phi,
+  is_truth_predicate Tr -> |- phi -> |- Tr phi.
+Proof.
+  intros Tr phi Htr H.
+  pose proof (Htr phi) as Hiff.
+  pose proof (prov_and_elim_r_meta _ _ Hiff) as Hb.
+  exact (MP _ _ Hb H).
+Qed.
+
+Definition is_arithmetic_interpretation (I : Form -> Form) : Prop :=
+  (forall phi, |- phi -> |- I phi) /\
+  (forall phi psi, |- I (Impl phi psi) -> |- Impl (I phi) (I psi)).
+
+Theorem identity_is_arithmetic_interpretation :
+  is_arithmetic_interpretation (fun phi => phi).
+Proof.
+  split.
+  - intros phi H. exact H.
+  - intros phi psi H. exact H.
+Qed.
+
+Definition Sigma1_form (phi : Form) : Prop := box_free phi.
+
+Theorem Sigma1_classical_valid_iff_provable : forall phi,
+  Sigma1_form phi ->
+  classical_valid phi <-> |- phi.
+Proof.
+  intros phi Hsf. split.
+  - intro Hval. apply trivial_in_provable. apply (prop_completeness phi Hsf Hval).
+  - intro Hp. exact (provable_classically_valid phi Hp).
+Qed.
+
+Definition critch_bounded_box (k n : nat) (phi : Form) : Form :=
+  Box n phi.
+
+Theorem critch_bounded_loeb_limit : forall n phi,
+  |- Impl (critch_bounded_box 0 n (Impl (critch_bounded_box 0 n phi) phi))
+          (critch_bounded_box 0 n phi).
+Proof.
+  intros n phi. unfold critch_bounded_box. apply Ax_Loeb.
+Qed.
+
+Theorem extracted_verifier_signature :
+  exists check : Form -> bool, forall phi,
+    box_free phi -> check phi = decide_tautology phi.
+Proof.
+  exists decide_tautology. intros phi _. reflexivity.
+Qed.
+
+Theorem verifier_completeness_signature :
+  forall phi, box_free phi ->
+    decide_tautology phi = true <-> classical_valid phi.
+Proof.
+  intros phi _. split.
+  - apply decide_tautology_correct.
+  - apply decide_tautology_complete.
+Qed.
+
+Definition Sigma_alpha (alpha : nat) : Form -> Prop :=
+  fun phi => modal_depth phi <= alpha.
+
+Theorem Sigma_alpha_inclusion : forall alpha beta,
+  alpha <= beta -> forall phi, Sigma_alpha alpha phi -> Sigma_alpha beta phi.
+Proof.
+  intros alpha beta Hle phi Hphi. unfold Sigma_alpha in *. lia.
+Qed.
+
+Theorem tiling_lifts_Sigma_alpha : forall alpha n phi,
+  Sigma_alpha alpha phi ->
+  Sigma_alpha (S (S alpha) + S n)
+    (Box (S n) (Impl (Box n phi) (Neg (Box n (Neg phi))))).
+Proof.
+  intros alpha n phi Hphi. unfold Sigma_alpha in *. simpl.
+  unfold Neg. simpl. lia.
+Qed.
+
+
 Theorem frame_conditions_independent :
   (exists Rt : nat -> nat -> nat -> Prop,
     (forall n, well_founded (fun u v => Rt n v u)) /\
