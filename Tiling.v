@@ -3689,6 +3689,48 @@ Fixpoint modalized (p : nat) (phi : Form) : Prop :=
   | Box _ _ => True
   end.
 
+(** [modalized p] is preserved under arbitrary substitution provided
+    the substituted formulas are themselves modalized in [p]. *)
+
+Lemma modalized_subst : forall p sigma phi,
+  modalized p phi ->
+  (forall k, modalized p (sigma k)) ->
+  modalized p (subst_form sigma phi).
+Proof.
+  intros p sigma phi.
+  induction phi as [k | | X IHX Y IHY | n psi IHpsi]; intros Hphi Hsig; cbn in *.
+  - apply Hsig.
+  - exact I.
+  - destruct Hphi as [HX HY]. split.
+    + exact (IHX HX Hsig).
+    + exact (IHY HY Hsig).
+  - exact I.
+Qed.
+
+(** Special case: substitution by a single formula at variable [p]
+    preserves [modalized p] regardless of the substituted formula —
+    because [modalized p phi] guarantees no top-level [Var p] in [phi],
+    so the substitution acts only inside [Box]-bodies which the
+    [modalized] predicate doesn't recurse into. *)
+
+Lemma modalized_subst_at_self : forall p phi psi,
+  modalized p phi ->
+  modalized p (Subst p psi phi).
+Proof.
+  intros p phi psi.
+  induction phi as [k | | X IHX Y IHY | n body IHbody]; intro Hphi.
+  - cbn in Hphi. unfold Subst. cbn.
+    destruct (Nat.eqb k p) eqn:E.
+    + apply Nat.eqb_eq in E. subst k. exfalso. apply Hphi. reflexivity.
+    + cbn. apply Nat.eqb_neq in E. exact E.
+  - cbn. exact I.
+  - cbn in Hphi. destruct Hphi as [HX HY].
+    cbn. split.
+    + exact (IHX HX).
+    + exact (IHY HY).
+  - cbn. exact I.
+Qed.
+
 (** *** Modal depth: maximum nesting of [Box]. *)
 
 Fixpoint modal_depth (phi : Form) : nat :=
