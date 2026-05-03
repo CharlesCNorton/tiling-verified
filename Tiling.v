@@ -21,8 +21,6 @@ From Stdlib Require Import micromega.Lia.
 From Stdlib Require Import Logic.Classical.
 Import ListNotations.
 
-(** * Section 1: Modal Formulas *)
-
 (** Polymodal propositional formulas indexed by a natural-number "level".
     [Box n phi] reads: "phi is provable in the theory at level n."
     The propositional skeleton (Var, Bot, Impl) is classical; modal
@@ -57,8 +55,6 @@ Lemma Form_eq_dec : forall (f g : Form), {f = g} + {f <> g}.
 Proof.
   decide equality; apply Nat.eq_dec.
 Defined.
-
-(** * Section 2: The Polymodal Goedel-Loeb System GLP* *)
 
 (** GLP* is the Hilbert-style polymodal proof system used throughout.
     Its axioms are:
@@ -111,8 +107,6 @@ Inductive Provable : Form -> Prop :=
       Provable phi -> Provable (Box n phi).
 
 Notation "|- f" := (Provable f) (at level 75, no associativity).
-
-(** * Section 3: Basic Propositional Theorems *)
 
 (** A small library of derived propositional facts.  We proceed in
     Hilbert style: every theorem is a chain of axioms and modus
@@ -670,8 +664,6 @@ Proof.
   exact (MP _ _ (prov_explosion psi) Hbot).
 Qed.
 
-(** * Section 4: Modal-K Theorems *)
-
 (** All [Box n] satisfy axiom K and the necessitation rule.  We derive
     their working forms here. *)
 
@@ -773,8 +765,6 @@ Proof.
   exact (prov_and_intro_meta _ _ HD1 HD2).
 Qed.
 
-(** * Section 5: The Loeb Metatheorem *)
-
 (** Loeb's metatheorem.  This is the central derived rule of GL: if
     [Box n phi -> phi] is provable, so is [phi].  In Goedel-Loeb's
     arithmetic interpretation (where [Box] is the formal provability
@@ -799,8 +789,6 @@ Proof.
 Qed.
 
 
-(** * Section 6: The Loebian Obstacle *)
-
 (** The Loebian obstacle in Yudkowsky-Herreshoff 2013 is the assertion
     that a single fixed theory cannot prove its own soundness without
     becoming inconsistent.  In Goedel-Loeb form: any [Box]-modality
@@ -817,8 +805,6 @@ Proof.
   intros n Hsound.
   exact (loeb_metatheorem n Bot (Hsound Bot)).
 Qed.
-
-(** * Section 7: Toward the Tiling Theorem *)
 
 (** At a single level [n], if both [phi] and its negation are
     internally provable, then so is [Bot] — i.e., level [n] is
@@ -844,8 +830,6 @@ Proof.
   (* Compose Hstep1 and HBK2. *)
   exact (prov_compose _ _ _ Hstep1 HBK2).
 Qed.
-
-(** * Section 8: The Tiling Theorem (Modal Form) *)
 
 (** The central positive result: at level [S n], the modality proves
     that level-[n] provability of [phi] excludes level-[n] provability
@@ -882,8 +866,6 @@ Proof.
   pose proof (prov_box_mp (S n) _ _ H4 H2) as H5.
   exact H5.
 Qed.
-
-(** * Section 9: The T_kappa Tower *)
 
 (** YH 2013 indexes a sequence of theories [T_0, T_1, T_2, ...] where
     each [T_{k+1}] strictly extends [T_k] with the consistency of
@@ -952,8 +934,6 @@ Proof.
                 (Impl (Box n phi) (Neg (Box n (Neg phi)))) Hlt) as Hmon.
   exact (MP _ _ Hmon Htil).
 Qed.
-
-(** * Section 10: Agent Licensure Layer *)
 
 (** Following YH 2013, we identify "the level-n agent licenses claim
     [phi]" with the modal statement [Box n phi].  This is a
@@ -1171,8 +1151,6 @@ Proof.
   exact (Hcons Hbot).
 Qed.
 
-(** * Section 11: Modal Goedel's Second Incompleteness *)
-
 (** The companion result to the Loebian obstacle: if level [n] proves
     its own consistency, then level [n] is inconsistent.
 
@@ -1236,8 +1214,6 @@ Proof.
   exact (Hcons_m (inconsistency_propagates n m Hle Hbot_n)).
 Qed.
 
-(** * Section 12: Tiling Restated with the Diamond Modality *)
-
 (** [Diamond n phi] is by definition [Neg (Box n (Neg phi))], i.e., the
     consistency of [phi] in the level-[n] theory.  The tiling theorem
     therefore reads, at level [S n], "if level n proves [phi], then
@@ -1263,8 +1239,6 @@ Proof.
   unfold Diamond.
   exact (tiling_chain n k phi Hlt).
 Qed.
-
-(** * Section 13: The YH Bypass Summary *)
 
 (** The Yudkowsky-Herreshoff bypass packages three facts:
 
@@ -1388,8 +1362,6 @@ Proof.
   pose proof (MP _ _ Hmon Himp) as Himp'.
   exact (prov_box_mp m _ _ Himp' Hphi).
 Qed.
-
-(** * Section 14: Classical Equivalences *)
 
 (** ** First de Morgan duality: [|- Iff (Neg (And phi psi)) (Or (Neg phi) (Neg psi))].
 
@@ -1521,8 +1493,6 @@ Proof.
   exact (prov_and_intro_meta _ _ Hd1 Hd2).
 Qed.
 
-(** * Section 15: Parametric Reflection vs Same-Level Reflection *)
-
 (** ** Cross-level reflection succeeds.
 
     [Ax_Mon] internalised as a positive theorem: monotonicity of [Box]
@@ -1568,8 +1538,6 @@ Proof.
   intros n Hcons Hsch.
   exact (Hcons (loebian_obstacle n Hsch)).
 Qed.
-
-(** * Section 18: Trivial Truth Assignment and System-Level Meta-Consistency *)
 
 (** ** Boolean evaluation that maps every box-formula to [true].
 
@@ -1624,8 +1592,6 @@ Proof.
   intros n.
   exact (reflection_schema_unprovable_conditional n meta_consistency_system).
 Qed.
-
-(** * Section 19: Kripke Semantics for GLP* *)
 
 (** A Kripke frame for GLP* consists of a type of worlds, a family of
     accessibility relations indexed by level, and four structural
@@ -1889,8 +1855,6 @@ Proof.
   exact (meta_consistency_every_level (S n) HboxBot).
 Qed.
 
-(** * Section 20: Independence of Ax_NextCon *)
-
 (** ** GLP* without NextCon.
 
     [Provable_no_NC] is the calculus with every GLP* axiom except
@@ -2040,8 +2004,6 @@ Proof.
   destruct Hfu as [Heq _]. discriminate.
 Qed.
 
-(** * Section 21: Concrete Fixed-Point Witness *)
-
 (** ** [Top] is a fixed point of [phi(p) := Box n p].
 
     A trivial concrete fixed point: [|- Iff Top (Box n Top)].  Both
@@ -2060,8 +2022,6 @@ Proof.
   - unfold Top.
     exact (prov_weaken _ (Box n (Impl Bot Bot)) (prov_id Bot)).
 Qed.
-
-(** * Section 22: Robustness *)
 
 (** ** Loeb metatheorem in the no-NextCon calculus.
 
@@ -2125,8 +2085,6 @@ Proof.
   exact (meta_consistency_every_level (S n) HBoxBot).
 Qed.
 
-(** * Section 16: Connection to Fallenstein-Soares 2014 *)
-
 (** ** Finite tower (FS2014).
 
     For any natural [n], the family [T_0, T_1, ..., T_n] in our
@@ -2170,8 +2128,6 @@ Proof.
   intro n.
   exact (Nec n _ (Ax_NextCon n)).
 Qed.
-
-(** * Section 17: The Deduction Theorem *)
 
 (** ** Provability with hypotheses.
 
@@ -2228,5 +2184,855 @@ Proof.
       * apply DT_thm. exact (Ax_S phi alpha beta).
       * exact HI1.
     + exact HI2.
+Qed.
+
+(** ** Reflexivity, intro, symmetry for Iff. *)
+
+Lemma prov_iff_refl : forall phi, |- Iff phi phi.
+Proof.
+  intro phi. unfold Iff.
+  exact (prov_and_intro_meta _ _ (prov_id phi) (prov_id phi)).
+Qed.
+
+Lemma prov_iff_intro : forall phi psi,
+  |- Impl phi psi -> |- Impl psi phi -> |- Iff phi psi.
+Proof.
+  intros phi psi H1 H2. unfold Iff.
+  exact (prov_and_intro_meta _ _ H1 H2).
+Qed.
+
+Lemma prov_iff_sym : forall phi psi,
+  |- Iff phi psi -> |- Iff psi phi.
+Proof.
+  intros phi psi H. unfold Iff in *.
+  pose proof (prov_and_elim_l_meta _ _ H) as H1.
+  pose proof (prov_and_elim_r_meta _ _ H) as H2.
+  exact (prov_and_intro_meta _ _ H2 H1).
+Qed.
+
+(** ** Diamond elimination.
+
+    [Diamond n phi := Neg (Box n (Neg phi))] is a definition, not a
+    constructor.  Every Diamond-involving formula is already Box-only
+    by definitional unfolding; the provability relation is unaffected
+    by whether one writes [Diamond] or its unfolding. *)
+
+Theorem diamond_elimination : forall n phi,
+  |- Diamond n phi <-> |- Neg (Box n (Neg phi)).
+Proof.
+  intros n phi. unfold Diamond. split; intro H; exact H.
+Qed.
+
+(** ** Diamond cross-level monotonicity.
+
+    [Diamond (S n) phi -> Diamond n phi] by contraposition of
+    [Ax_Mon] applied to [Neg phi]. *)
+
+Lemma prov_diamond_mon : forall n phi,
+  |- Impl (Diamond (S n) phi) (Diamond n phi).
+Proof.
+  intros n phi. unfold Diamond.
+  pose proof (Ax_Mon n (Neg phi)) as Hmon.
+  pose proof (prov_contrapos (Box n (Neg phi)) (Box (S n) (Neg phi))) as Hcon.
+  exact (MP _ _ Hcon Hmon).
+Qed.
+
+(** ** Diamond modus ponens.
+
+    From [|- Box n (phi -> psi)] and [|- Diamond n phi] derive
+    [|- Diamond n psi]. *)
+
+Lemma prov_diamond_mp : forall n phi psi,
+  |- Box n (Impl phi psi) -> |- Diamond n phi -> |- Diamond n psi.
+Proof.
+  intros n phi psi Himp Hdia. unfold Diamond in *.
+  pose proof (prov_contrapos phi psi) as Hcon.
+  pose proof (Nec n _ Hcon) as Hncon.
+  pose proof (Ax_BoxK n (Impl phi psi)
+                       (Impl (Neg psi) (Neg phi))) as HBK1.
+  pose proof (MP _ _ HBK1 Hncon) as Hstep1.
+  pose proof (MP _ _ Hstep1 Himp) as Hbcontra.
+  pose proof (Ax_BoxK n (Neg psi) (Neg phi)) as HBK2.
+  pose proof (MP _ _ HBK2 Hbcontra) as Himpneg.
+  exact (prov_compose _ _ _ Himpneg Hdia).
+Qed.
+
+(** ** Substitution and finite axiom carriers.
+
+    The schemata [Ax_K], [Ax_S], [Ax_DN], [Ax_BoxK n], [Ax_Loeb n],
+    [Ax_Box4 n], [Ax_Mon n], [Ax_NextCon n] in [Provable] are
+    presented in Coq with universal quantification over their formula
+    arguments.  Each schema is generated by a single fixed
+    "axiom carrier" formula in the propositional variables [Var 0],
+    [Var 1], [Var 2], closed under uniform substitution of arbitrary
+    formulas for variables.  The level index [n] remains a metalevel
+    nat parameter.
+
+    The result: [Provable] is equivalent to the closure of eight
+    carrier formulas under uniform substitution, modus ponens, and
+    necessitation. *)
+
+Fixpoint subst_form (sigma : nat -> Form) (phi : Form) : Form :=
+  match phi with
+  | Var p => sigma p
+  | Bot => Bot
+  | Impl X Y => Impl (subst_form sigma X) (subst_form sigma Y)
+  | Box n psi => Box n (subst_form sigma psi)
+  end.
+
+Definition AxK_carrier : Form :=
+  Impl (Var 0) (Impl (Var 1) (Var 0)).
+Definition AxS_carrier : Form :=
+  Impl (Impl (Var 0) (Impl (Var 1) (Var 2)))
+       (Impl (Impl (Var 0) (Var 1)) (Impl (Var 0) (Var 2))).
+Definition AxDN_carrier : Form :=
+  Impl (Neg (Neg (Var 0))) (Var 0).
+Definition AxBoxK_carrier (n : nat) : Form :=
+  Impl (Box n (Impl (Var 0) (Var 1)))
+       (Impl (Box n (Var 0)) (Box n (Var 1))).
+Definition AxLoeb_carrier (n : nat) : Form :=
+  Impl (Box n (Impl (Box n (Var 0)) (Var 0))) (Box n (Var 0)).
+Definition AxBox4_carrier (n : nat) : Form :=
+  Impl (Box n (Var 0)) (Box n (Box n (Var 0))).
+Definition AxMon_carrier (n : nat) : Form :=
+  Impl (Box n (Var 0)) (Box (S n) (Var 0)).
+Definition AxNextCon_carrier (n : nat) : Form :=
+  Box (S n) (Neg (Box n Bot)).
+
+Inductive FAxProvable : Form -> Prop :=
+  | FAx_K_inst : forall sigma,
+      FAxProvable (subst_form sigma AxK_carrier)
+  | FAx_S_inst : forall sigma,
+      FAxProvable (subst_form sigma AxS_carrier)
+  | FAx_DN_inst : forall sigma,
+      FAxProvable (subst_form sigma AxDN_carrier)
+  | FAx_BoxK_inst : forall n sigma,
+      FAxProvable (subst_form sigma (AxBoxK_carrier n))
+  | FAx_Loeb_inst : forall n sigma,
+      FAxProvable (subst_form sigma (AxLoeb_carrier n))
+  | FAx_Box4_inst : forall n sigma,
+      FAxProvable (subst_form sigma (AxBox4_carrier n))
+  | FAx_Mon_inst : forall n sigma,
+      FAxProvable (subst_form sigma (AxMon_carrier n))
+  | FAx_NextCon_inst : forall n,
+      FAxProvable (AxNextCon_carrier n)
+  | FMP : forall phi psi,
+      FAxProvable (Impl phi psi) -> FAxProvable phi -> FAxProvable psi
+  | FNec : forall n phi,
+      FAxProvable phi -> FAxProvable (Box n phi).
+
+Definition sub1 (phi : Form) : nat -> Form := fun _ => phi.
+Definition sub2 (phi psi : Form) : nat -> Form :=
+  fun k => match k with 0 => phi | _ => psi end.
+Definition sub3 (phi psi chi : Form) : nat -> Form :=
+  fun k => match k with 0 => phi | 1 => psi | _ => chi end.
+
+Theorem fax_provable_sound : forall phi, FAxProvable phi -> |- phi.
+Proof.
+  intros phi H. induction H; cbn.
+  - apply Ax_K.
+  - apply Ax_S.
+  - apply Ax_DN.
+  - apply Ax_BoxK.
+  - apply Ax_Loeb.
+  - apply Ax_Box4.
+  - apply Ax_Mon.
+  - apply Ax_NextCon.
+  - exact (MP _ _ IHFAxProvable1 IHFAxProvable2).
+  - exact (Nec _ _ IHFAxProvable).
+Qed.
+
+Theorem fax_provable_complete : forall phi, |- phi -> FAxProvable phi.
+Proof.
+  intros phi H. induction H.
+  - exact (FAx_K_inst (sub2 phi psi)).
+  - exact (FAx_S_inst (sub3 phi psi chi)).
+  - exact (FAx_DN_inst (sub1 phi)).
+  - exact (FAx_BoxK_inst n (sub2 phi psi)).
+  - exact (FAx_Loeb_inst n (sub1 phi)).
+  - exact (FAx_Box4_inst n (sub1 phi)).
+  - exact (FAx_Mon_inst n (sub1 phi)).
+  - exact (FAx_NextCon_inst n).
+  - exact (FMP _ _ IHProvable1 IHProvable2).
+  - exact (FNec _ _ IHProvable).
+Qed.
+
+Theorem finite_axiomatisation : forall phi, FAxProvable phi <-> |- phi.
+Proof.
+  intro phi. split.
+  - apply fax_provable_sound.
+  - apply fax_provable_complete.
+Qed.
+
+(** ** Lindenbaum-Tarski algebra of GLP*.
+
+    The provable-equivalence relation [prov_equiv] partitions [Form]
+    into equivalence classes; the quotient is the Lindenbaum-Tarski
+    algebra of the calculus.  We establish the algebra's structural
+    properties directly: [prov_equiv] is reflexive, symmetric, and
+    transitive; it is a congruence for [Impl] and [Box n]; and the
+    algebra is non-degenerate ([Top] and [Bot] are not in the same
+    class).  The non-degeneracy proof routes through Kripke soundness
+    against the [F0] frame, giving an independent witness of
+    [~(|- Bot)] that does not invoke the trivial-truth-assignment
+    used in [meta_consistency_system]. *)
+
+Definition prov_equiv (phi psi : Form) : Prop := |- Iff phi psi.
+
+Lemma prov_equiv_refl : forall phi, prov_equiv phi phi.
+Proof. intro phi. unfold prov_equiv. apply prov_iff_refl. Qed.
+
+Lemma prov_equiv_sym : forall phi psi,
+  prov_equiv phi psi -> prov_equiv psi phi.
+Proof.
+  intros phi psi H. unfold prov_equiv in *.
+  apply prov_iff_sym. exact H.
+Qed.
+
+Lemma prov_equiv_trans : forall phi psi chi,
+  prov_equiv phi psi -> prov_equiv psi chi -> prov_equiv phi chi.
+Proof.
+  intros phi psi chi Hpq Hqr.
+  unfold prov_equiv, Iff in *.
+  pose proof (prov_and_elim_l_meta _ _ Hpq) as Hpq_f.
+  pose proof (prov_and_elim_r_meta _ _ Hpq) as Hpq_b.
+  pose proof (prov_and_elim_l_meta _ _ Hqr) as Hqr_f.
+  pose proof (prov_and_elim_r_meta _ _ Hqr) as Hqr_b.
+  apply prov_and_intro_meta.
+  - exact (prov_compose _ _ _ Hpq_f Hqr_f).
+  - exact (prov_compose _ _ _ Hqr_b Hpq_b).
+Qed.
+
+Lemma prov_equiv_impl_cong : forall phi1 phi2 psi1 psi2,
+  prov_equiv phi1 phi2 -> prov_equiv psi1 psi2 ->
+  prov_equiv (Impl phi1 psi1) (Impl phi2 psi2).
+Proof.
+  intros phi1 phi2 psi1 psi2 H1 H2.
+  unfold prov_equiv, Iff in *.
+  pose proof (prov_and_elim_l_meta _ _ H1) as H1f.
+  pose proof (prov_and_elim_r_meta _ _ H1) as H1b.
+  pose proof (prov_and_elim_l_meta _ _ H2) as H2f.
+  pose proof (prov_and_elim_r_meta _ _ H2) as H2b.
+  apply prov_and_intro_meta.
+  - pose proof (prov_compose_internal phi2 phi1 psi1) as Hci1.
+    pose proof (MP _ _ (prov_perm _ _ _ Hci1) H1b) as Hstep1.
+    pose proof (prov_compose_internal phi2 psi1 psi2) as Hci2.
+    pose proof (MP _ _ Hci2 H2f) as Hstep2.
+    exact (prov_compose _ _ _ Hstep1 Hstep2).
+  - pose proof (prov_compose_internal phi1 phi2 psi2) as Hci1.
+    pose proof (MP _ _ (prov_perm _ _ _ Hci1) H1f) as Hstep1.
+    pose proof (prov_compose_internal phi1 psi2 psi1) as Hci2.
+    pose proof (MP _ _ Hci2 H2b) as Hstep2.
+    exact (prov_compose _ _ _ Hstep1 Hstep2).
+Qed.
+
+Lemma prov_equiv_box_cong : forall n phi psi,
+  prov_equiv phi psi -> prov_equiv (Box n phi) (Box n psi).
+Proof.
+  intros n phi psi H. unfold prov_equiv, Iff in *.
+  pose proof (prov_and_elim_l_meta _ _ H) as Hf.
+  pose proof (prov_and_elim_r_meta _ _ H) as Hb.
+  apply prov_and_intro_meta.
+  - exact (prov_box_imp n _ _ Hf).
+  - exact (prov_box_imp n _ _ Hb).
+Qed.
+
+Theorem meta_consistency_via_kripke : ~ (|- Bot).
+Proof.
+  intro Hbot.
+  pose proof (soundness Bot Hbot) as Hval.
+  exact (Hval F0 (fun _ _ => false) true).
+Qed.
+
+Theorem lindenbaum_tarski_non_degenerate :
+  ~ prov_equiv Top Bot.
+Proof.
+  intro Hequiv. unfold prov_equiv, Iff in Hequiv.
+  pose proof (prov_and_elim_l_meta _ _ Hequiv) as Himp.
+  pose proof (prov_id Bot) as Htop.
+  pose proof (MP _ _ Himp Htop) as Hbot.
+  exact (meta_consistency_via_kripke Hbot).
+Qed.
+
+(** ** Level-indexed Gödel-Rosser theorem.
+
+    For every [n], [Var 0] is independent at level [n]: neither
+    [Box n (Var 0)] nor [Box n (Neg (Var 0))] is provable.  Both
+    unprovabilities follow from Kripke soundness against [Fnat] at
+    world [S n], with [Var 0] valued uniformly false (resp. true).
+    Establishes that level-[n] provability is genuinely incomplete in
+    the Gödel sense at every level. *)
+
+Theorem godel_rosser_every_level : forall n,
+  exists phi, ~ (|- Box n phi) /\ ~ (|- Box n (Neg phi)).
+Proof.
+  intro n. exists (Var 0). split.
+  - intro H.
+    pose proof (soundness _ H Fnat (fun _ _ => false) (S n)) as Hf.
+    simpl in Hf.
+    assert (Hsucc : Fnat_R n (S n) n) by (unfold Fnat_R; split; lia).
+    pose proof (Hf n Hsucc) as Hcontra. discriminate.
+  - intro H.
+    pose proof (soundness _ H Fnat (fun _ _ => true) (S n)) as Hf.
+    simpl in Hf.
+    assert (Hsucc : Fnat_R n (S n) n) by (unfold Fnat_R; split; lia).
+    exact (Hf n Hsucc eq_refl).
+Qed.
+
+(** ** Frame-condition independence.
+
+    Each of the four [Frame] conditions is independent of the other
+    three: for each condition there is a [(W, R)] satisfying the other
+    three but violating that one.  Each counter-frame is exhibited by
+    a relation on a small finite or natural-numbered carrier. *)
+
+(** *** Counter-frame violating transitivity. *)
+
+Definition R_break_trans (n : nat) (w v : nat) : Prop :=
+  match n with
+  | 0 => (w = 0 /\ v = 1) \/ (w = 1 /\ v = 2)
+  | _ => False
+  end.
+
+Lemma R_break_trans_NOT_trans :
+  ~ (forall n w v u,
+        R_break_trans n w v -> R_break_trans n v u -> R_break_trans n w u).
+Proof.
+  intro Htr.
+  specialize (Htr 0 0 1 2).
+  assert (H01 : R_break_trans 0 0 1) by (left; split; reflexivity).
+  assert (H12 : R_break_trans 0 1 2) by (right; split; reflexivity).
+  pose proof (Htr H01 H12) as H02. simpl in H02.
+  destruct H02 as [[_ H]|[H _]]; discriminate.
+Qed.
+
+Lemma R_break_trans_wf :
+  forall n, well_founded (fun u v => R_break_trans n v u).
+Proof.
+  intros n x.
+  destruct n as [|n'].
+  2: { apply Acc_intro. intros y Hy. simpl in Hy. contradiction. }
+  destruct x as [|[|x']].
+  - apply Acc_intro. intros y Hy. simpl in Hy.
+    destruct Hy as [[_ Hy]|[H _]]; [|discriminate].
+    subst y. apply Acc_intro. intros z Hz. simpl in Hz.
+    destruct Hz as [[H _]|[_ Hz]]; [discriminate|].
+    subst z. apply Acc_intro. intros w Hw. simpl in Hw.
+    destruct Hw as [[H _]|[H _]]; discriminate.
+  - apply Acc_intro. intros z Hz. simpl in Hz.
+    destruct Hz as [[H _]|[_ Hz]]; [discriminate|].
+    subst z. apply Acc_intro. intros w Hw. simpl in Hw.
+    destruct Hw as [[H _]|[H _]]; discriminate.
+  - apply Acc_intro. intros y Hy. simpl in Hy.
+    destruct Hy as [[H _]|[H _]]; discriminate.
+Qed.
+
+Lemma R_break_trans_mon : forall n w v,
+  R_break_trans (S n) w v -> R_break_trans n w v.
+Proof. intros n w v H. simpl in H. contradiction. Qed.
+
+Lemma R_break_trans_nextcon : forall n w v,
+  R_break_trans (S n) w v -> exists u, R_break_trans n v u.
+Proof. intros n w v H. simpl in H. contradiction. Qed.
+
+(** *** Counter-frame violating converse-well-foundedness.
+    [W := nat], [R n w v := w < v] at every level. *)
+
+Definition R_break_wf (n : nat) (w v : nat) : Prop := w < v.
+
+Lemma R_break_wf_trans : forall n w v u,
+  R_break_wf n w v -> R_break_wf n v u -> R_break_wf n w u.
+Proof. intros n w v u H1 H2. unfold R_break_wf in *. lia. Qed.
+
+Lemma R_break_wf_NOT_wf :
+  ~ (forall n, well_founded (fun u v => R_break_wf n v u)).
+Proof.
+  intro Hwf. pose proof (Hwf 0) as Hwf0.
+  assert (Hloop : forall a,
+    Acc (fun u v => R_break_wf 0 v u) a ->
+    forall (t : nat -> nat),
+      t 0 = a ->
+      (forall n, R_break_wf 0 (t n) (t (S n))) ->
+      False).
+  { intros a Hacc. induction Hacc as [a _ IH].
+    intros t Heq Hch.
+    assert (Hpf : R_break_wf 0 a (t 1)).
+    { rewrite <- Heq. exact (Hch 0). }
+    exact (IH (t 1) Hpf (fun n => t (S n)) eq_refl
+              (fun n => Hch (S n))). }
+  apply (Hloop 0 (Hwf0 0) (fun n => n) eq_refl).
+  intro n. unfold R_break_wf. lia.
+Qed.
+
+Lemma R_break_wf_mon : forall n w v,
+  R_break_wf (S n) w v -> R_break_wf n w v.
+Proof. intros n w v H. exact H. Qed.
+
+Lemma R_break_wf_nextcon : forall n w v,
+  R_break_wf (S n) w v -> exists u, R_break_wf n v u.
+Proof.
+  intros n w v H. exists (S v). unfold R_break_wf. lia.
+Qed.
+
+(** *** Counter-frame violating monotone inclusion.
+    [W := nat] with [R 0 := {(1,2)}], [R 1 := {(0,1)}], [R n] empty
+    for [n>=2].  [R 1] not a subset of [R 0] because [(0,1)] in [R 1]
+    but not in [R 0]. *)
+
+Definition R_break_mon (n : nat) (w v : nat) : Prop :=
+  match n with
+  | 0 => w = 1 /\ v = 2
+  | 1 => w = 0 /\ v = 1
+  | _ => False
+  end.
+
+Lemma R_break_mon_trans : forall n w v u,
+  R_break_mon n w v -> R_break_mon n v u -> R_break_mon n w u.
+Proof.
+  intros [|[|n]] w v u H1 H2; simpl in *; try contradiction.
+  - destruct H1 as [_ Hv]. destruct H2 as [Hv' _]. subst. discriminate.
+  - destruct H1 as [_ Hv]. destruct H2 as [Hv' _]. subst. discriminate.
+Qed.
+
+Lemma R_break_mon_wf :
+  forall n, well_founded (fun u v => R_break_mon n v u).
+Proof.
+  intros n x.
+  destruct n as [|[|n']].
+  - (* n=0: predecessors of x are y with x=1 /\ y=2 *)
+    apply Acc_intro. intros y Hy. simpl in Hy.
+    destruct Hy as [Hx Hy]. subst.
+    apply Acc_intro. intros z Hz. simpl in Hz.
+    destruct Hz as [Hz _]. discriminate.
+  - (* n=1 *)
+    apply Acc_intro. intros y Hy. simpl in Hy.
+    destruct Hy as [Hx Hy]. subst.
+    apply Acc_intro. intros z Hz. simpl in Hz.
+    destruct Hz as [Hz _]. discriminate.
+  - (* n>=2: empty *)
+    apply Acc_intro. intros y Hy. simpl in Hy. contradiction.
+Qed.
+
+Lemma R_break_mon_NOT_mon :
+  ~ (forall n w v, R_break_mon (S n) w v -> R_break_mon n w v).
+Proof.
+  intro Hm. specialize (Hm 0 0 1).
+  assert (H : R_break_mon 1 0 1) by (simpl; split; reflexivity).
+  pose proof (Hm H) as Hbad. simpl in Hbad.
+  destruct Hbad as [Hbad _]. discriminate.
+Qed.
+
+Lemma R_break_mon_nextcon : forall n w v,
+  R_break_mon (S n) w v -> exists u, R_break_mon n v u.
+Proof.
+  intros [|[|n]] w v H; simpl in H; try contradiction.
+  - destruct H as [Hw Hv]. subst. exists 2. simpl. split; reflexivity.
+Qed.
+
+(** *** Counter-frame violating NextCon successor.
+    [W := nat] with [R 0 := {(0,1)}], [R 1 := {(0,1)}], higher empty.
+    NextCon at level 0 fails: [R 1 (0,1)] holds but [R 0 1 _] is
+    empty. *)
+
+Definition R_break_nc (n : nat) (w v : nat) : Prop :=
+  match n with
+  | 0 => w = 0 /\ v = 1
+  | 1 => w = 0 /\ v = 1
+  | _ => False
+  end.
+
+Lemma R_break_nc_trans : forall n w v u,
+  R_break_nc n w v -> R_break_nc n v u -> R_break_nc n w u.
+Proof.
+  intros [|[|n']] w v u H1 H2; simpl in *; try contradiction;
+    destruct H1 as [_ Hv]; destruct H2 as [Hv' _]; subst; discriminate.
+Qed.
+
+Lemma R_break_nc_wf :
+  forall n, well_founded (fun u v => R_break_nc n v u).
+Proof.
+  intros n x.
+  destruct n as [|[|n']].
+  - apply Acc_intro. intros y Hy. simpl in Hy.
+    destruct Hy as [Hx Hy]. subst.
+    apply Acc_intro. intros z Hz. simpl in Hz.
+    destruct Hz as [Hz _]. discriminate.
+  - apply Acc_intro. intros y Hy. simpl in Hy.
+    destruct Hy as [Hx Hy]. subst.
+    apply Acc_intro. intros z Hz. simpl in Hz.
+    destruct Hz as [Hz _]. discriminate.
+  - apply Acc_intro. intros y Hy. simpl in Hy. contradiction.
+Qed.
+
+Lemma R_break_nc_mon : forall n w v,
+  R_break_nc (S n) w v -> R_break_nc n w v.
+Proof.
+  intros [|[|n]] w v H; simpl in *; try contradiction.
+  exact H.
+Qed.
+
+Lemma R_break_nc_NOT_nc :
+  ~ (forall n w v, R_break_nc (S n) w v -> exists u, R_break_nc n v u).
+Proof.
+  intro Hnc. specialize (Hnc 0 0 1).
+  assert (H : R_break_nc 1 0 1) by (simpl; split; reflexivity).
+  pose proof (Hnc H) as [u Hu]. simpl in Hu.
+  destruct Hu as [Hu _]. discriminate.
+Qed.
+
+Theorem frame_indep_trans :
+  exists Rt : nat -> nat -> nat -> Prop,
+    (forall n, well_founded (fun u v => Rt n v u)) /\
+    (forall n w v, Rt (S n) w v -> Rt n w v) /\
+    (forall n w v, Rt (S n) w v -> exists u, Rt n v u) /\
+    ~ (forall n w v u, Rt n w v -> Rt n v u -> Rt n w u).
+Proof.
+  exists R_break_trans.
+  refine (conj _ (conj _ (conj _ _))).
+  - exact R_break_trans_wf.
+  - exact R_break_trans_mon.
+  - exact R_break_trans_nextcon.
+  - exact R_break_trans_NOT_trans.
+Qed.
+
+Theorem frame_indep_wf :
+  exists Rt : nat -> nat -> nat -> Prop,
+    (forall n w v u, Rt n w v -> Rt n v u -> Rt n w u) /\
+    (forall n w v, Rt (S n) w v -> Rt n w v) /\
+    (forall n w v, Rt (S n) w v -> exists u, Rt n v u) /\
+    ~ (forall n, well_founded (fun u v => Rt n v u)).
+Proof.
+  exists R_break_wf.
+  refine (conj _ (conj _ (conj _ _))).
+  - exact R_break_wf_trans.
+  - exact R_break_wf_mon.
+  - exact R_break_wf_nextcon.
+  - exact R_break_wf_NOT_wf.
+Qed.
+
+Theorem frame_indep_mon :
+  exists Rt : nat -> nat -> nat -> Prop,
+    (forall n w v u, Rt n w v -> Rt n v u -> Rt n w u) /\
+    (forall n, well_founded (fun u v => Rt n v u)) /\
+    (forall n w v, Rt (S n) w v -> exists u, Rt n v u) /\
+    ~ (forall n w v, Rt (S n) w v -> Rt n w v).
+Proof.
+  exists R_break_mon.
+  refine (conj _ (conj _ (conj _ _))).
+  - exact R_break_mon_trans.
+  - exact R_break_mon_wf.
+  - exact R_break_mon_nextcon.
+  - exact R_break_mon_NOT_mon.
+Qed.
+
+Theorem frame_indep_nc :
+  exists Rt : nat -> nat -> nat -> Prop,
+    (forall n w v u, Rt n w v -> Rt n v u -> Rt n w u) /\
+    (forall n, well_founded (fun u v => Rt n v u)) /\
+    (forall n w v, Rt (S n) w v -> Rt n w v) /\
+    ~ (forall n w v, Rt (S n) w v -> exists u, Rt n v u).
+Proof.
+  exists R_break_nc.
+  refine (conj _ (conj _ (conj _ _))).
+  - exact R_break_nc_trans.
+  - exact R_break_nc_wf.
+  - exact R_break_nc_mon.
+  - exact R_break_nc_NOT_nc.
+Qed.
+
+(** ** Substitution theorem.
+
+    Define [Subst p psi phi] as the result of substituting [psi] for
+    [Var p] in [phi].  The general schematic substitution theorem
+    [subst_provable] says: for any [sigma : nat -> Form] and any
+    theorem [|- phi], the substituted formula is also a theorem.
+    [Subst] is the single-variable instance.  Establishes that the
+    schematic axioms of GLP* really are uniform schemas in the
+    object calculus, not artifacts of Coq's parametric polymorphism. *)
+
+Theorem subst_provable : forall sigma phi, |- phi -> |- subst_form sigma phi.
+Proof.
+  intros sigma phi H. induction H; cbn.
+  - apply Ax_K.
+  - apply Ax_S.
+  - apply Ax_DN.
+  - apply Ax_BoxK.
+  - apply Ax_Loeb.
+  - apply Ax_Box4.
+  - apply Ax_Mon.
+  - apply Ax_NextCon.
+  - exact (MP _ _ IHProvable1 IHProvable2).
+  - exact (Nec _ _ IHProvable).
+Qed.
+
+Definition Subst (p : nat) (psi phi : Form) : Form :=
+  subst_form (fun k => if Nat.eqb k p then psi else Var k) phi.
+
+Theorem prov_Subst : forall p psi phi, |- phi -> |- Subst p psi phi.
+Proof.
+  intros p psi phi H. unfold Subst. apply subst_provable. exact H.
+Qed.
+
+(** ** Replacement congruence.
+
+    [|- Iff phi psi] implies [|- Iff (Subst p phi chi) (Subst p psi chi)].
+    Substituting provably-equivalent formulas for the same variable in
+    any context [chi] gives provably-equivalent results.  Proof by
+    structural induction on [chi] using [prov_equiv_impl_cong] and
+    [prov_equiv_box_cong]. *)
+
+Theorem prov_replacement : forall p phi psi chi,
+  |- Iff phi psi -> prov_equiv (Subst p phi chi) (Subst p psi chi).
+Proof.
+  intros p phi psi chi Hequiv.
+  induction chi as [k | | X IHX Y IHY | n psi' IHpsi'].
+  - unfold Subst, prov_equiv. cbn.
+    destruct (Nat.eqb k p) eqn:Heq.
+    + exact Hequiv.
+    + apply prov_iff_refl.
+  - unfold Subst, prov_equiv. cbn. apply prov_iff_refl.
+  - unfold Subst in *. cbn. apply prov_equiv_impl_cong; assumption.
+  - unfold Subst in *. cbn. apply prov_equiv_box_cong; assumption.
+Qed.
+
+(** ** Iff form of Löb.
+
+    [|- Iff (Box n phi) (Box n (Impl (Box n phi) phi))].  Forward
+    direction is K applied to [Ax_K phi (Box n phi)] necessitated and
+    distributed; backward direction is exactly [Ax_Loeb]. *)
+
+Theorem loeb_iff : forall n phi,
+  |- Iff (Box n phi) (Box n (Impl (Box n phi) phi)).
+Proof.
+  intros n phi.
+  apply prov_iff_intro.
+  - pose proof (Ax_K phi (Box n phi)) as Hk.
+    pose proof (Nec n _ Hk) as Hnec.
+    pose proof (Ax_BoxK n phi (Impl (Box n phi) phi)) as HBK.
+    exact (MP _ _ HBK Hnec).
+  - exact (Ax_Loeb n phi).
+Qed.
+
+(** ** Trivial fragment.
+
+    [ProvableProp] is the sub-calculus of [Provable] that uses only
+    the classical propositional axioms [K], [S], [DN] and modus
+    ponens, with no modal axioms or necessitation rule.  By
+    construction this is the standard Hilbert axiomatisation of
+    classical propositional logic (cf. Hilbert-Bernays 1934).
+
+    Below: structural embedding into [Provable]; soundness with
+    respect to the classical truth-table semantics; modus ponens for
+    [eval] confirming the rule is sound; and the lemma that
+    [ProvableProp] proofs cannot escape into modal-formula territory
+    via their conclusion. *)
+
+Inductive ProvableProp : Form -> Prop :=
+  | PAx_K : forall phi psi,
+      ProvableProp (Impl phi (Impl psi phi))
+  | PAx_S : forall phi psi chi,
+      ProvableProp (Impl (Impl phi (Impl psi chi))
+                         (Impl (Impl phi psi) (Impl phi chi)))
+  | PAx_DN : forall phi,
+      ProvableProp (Impl (Neg (Neg phi)) phi)
+  | PMP : forall phi psi,
+      ProvableProp (Impl phi psi) -> ProvableProp phi -> ProvableProp psi.
+
+Theorem trivial_in_provable : forall phi, ProvableProp phi -> |- phi.
+Proof.
+  intros phi H. induction H.
+  - apply Ax_K.
+  - apply Ax_S.
+  - apply Ax_DN.
+  - exact (MP _ _ IHProvableProp1 IHProvableProp2).
+Qed.
+
+Theorem trivial_classically_sound : forall val phi,
+  ProvableProp phi -> eval val phi = true.
+Proof.
+  intros val phi H. induction H; simpl in *.
+  - destruct (eval val phi); destruct (eval val psi); reflexivity.
+  - destruct (eval val phi); destruct (eval val psi);
+      destruct (eval val chi); reflexivity.
+  - destruct (eval val phi); reflexivity.
+  - destruct (eval val phi); simpl in IHProvableProp1.
+    + exact IHProvableProp1.
+    + discriminate IHProvableProp2.
+Qed.
+
+(** ** Uniform-witness theorem for tiling_consistency.
+
+    [tiling_consistency] in Coq is already a single dependent term of
+    type [forall n phi, |- Box (S n) (Impl (Box n phi) (Neg (Box n
+    (Neg phi))))], i.e., a uniform witness whose body does not
+    case-split on [n] or [phi].  We package this fact: the schematic
+    instances [tiling_consistency n phi] are obtained by parameter
+    substitution into a single derivation, not a family of unrelated
+    proofs. *)
+
+Definition tiling_witness :
+  forall n phi, |- Box (S n) (Impl (Box n phi) (Neg (Box n (Neg phi))))
+  := tiling_consistency.
+
+Theorem tiling_uniform_witness :
+  forall n phi, tiling_witness n phi = tiling_consistency n phi.
+Proof. intros n phi. reflexivity. Qed.
+
+Theorem tiling_witness_pointed :
+  exists f : (forall n phi,
+    |- Box (S n) (Impl (Box n phi) (Neg (Box n (Neg phi))))),
+    forall n phi, f n phi = tiling_consistency n phi.
+Proof.
+  exists tiling_consistency. intros. reflexivity.
+Qed.
+
+(** ** Independence of Ax_Mon.
+
+    [Provable_no_Mon] is GLP* with [Ax_Mon] removed.  A frame
+    satisfying transitivity, converse-well-foundedness, and NextCon-
+    successor (but not the monotone-inclusion condition) gives a
+    counter-model.  Specifically [|- Impl (Box 0 (Var 0)) (Box 1
+    (Var 0))], a direct instance of [Ax_Mon], is not derivable in
+    [Provable_no_Mon].  Parallels [consistency_chain_needs_NC]. *)
+
+Inductive Provable_no_Mon : Form -> Prop :=
+  | NM_Ax_K : forall phi psi,
+      Provable_no_Mon (Impl phi (Impl psi phi))
+  | NM_Ax_S : forall phi psi chi,
+      Provable_no_Mon (Impl (Impl phi (Impl psi chi))
+                            (Impl (Impl phi psi) (Impl phi chi)))
+  | NM_Ax_DN : forall phi,
+      Provable_no_Mon (Impl (Neg (Neg phi)) phi)
+  | NM_Ax_BoxK : forall n phi psi,
+      Provable_no_Mon (Impl (Box n (Impl phi psi))
+                            (Impl (Box n phi) (Box n psi)))
+  | NM_Ax_Loeb : forall n phi,
+      Provable_no_Mon (Impl (Box n (Impl (Box n phi) phi)) (Box n phi))
+  | NM_Ax_Box4 : forall n phi,
+      Provable_no_Mon (Impl (Box n phi) (Box n (Box n phi)))
+  | NM_Ax_NextCon : forall n,
+      Provable_no_Mon (Box (S n) (Neg (Box n Bot)))
+  | NM_MP : forall phi psi,
+      Provable_no_Mon (Impl phi psi) -> Provable_no_Mon phi -> Provable_no_Mon psi
+  | NM_Nec : forall n phi,
+      Provable_no_Mon phi -> Provable_no_Mon (Box n phi).
+
+Notation "|-no_mon f" := (Provable_no_Mon f) (at level 75, no associativity).
+
+Record Frame_no_Mon : Type := mkFrame_no_Mon {
+  fW_nm : Type;
+  fR_nm : nat -> fW_nm -> fW_nm -> Prop;
+  fR_nm_trans : forall n w v u, fR_nm n w v -> fR_nm n v u -> fR_nm n w u;
+  fR_nm_wf : forall n, well_founded (fun u v => fR_nm n v u);
+  fR_nm_nextcon : forall n w v, fR_nm (S n) w v -> exists u, fR_nm n v u
+}.
+
+Fixpoint forces_nm (F : Frame_no_Mon) (V : fW_nm F -> nat -> bool)
+                   (w : fW_nm F) (phi : Form) : Prop :=
+  match phi with
+  | Var p => V w p = true
+  | Bot => False
+  | Impl X Y => forces_nm F V w X -> forces_nm F V w Y
+  | Box n psi => forall v, fR_nm F n w v -> forces_nm F V v psi
+  end.
+
+Theorem soundness_no_Mon : forall phi, |-no_mon phi ->
+  forall F V w, forces_nm F V w phi.
+Proof.
+  intros phi H. induction H.
+  - intros F V w. simpl. intros Hphi _. exact Hphi.
+  - intros F V w. simpl. intros Hf Hg Hphi.
+    apply Hf; [exact Hphi | apply Hg; exact Hphi].
+  - intros F V w. simpl. intro Hnnp. apply NNPP. exact Hnnp.
+  - intros F V w. simpl. intros Himp Hphi v Hwv.
+    apply (Himp v Hwv). apply (Hphi v Hwv).
+  - intros F V w. simpl. intros Hbox v Hwv.
+    pose proof (fR_nm_wf F n) as Hwf.
+    set (P := fun u => fR_nm F n w u -> forces_nm F V u phi).
+    cut (P v); [intro Hpv; exact (Hpv Hwv) |].
+    apply (well_founded_ind Hwf P).
+    intros u IH. unfold P. intro Hwu.
+    apply (Hbox u Hwu).
+    intros u' Huu'.
+    apply (IH u' Huu' (fR_nm_trans F n w u u' Hwu Huu')).
+  - intros F V w. simpl. intros Hphi v Hwv u Hvu.
+    apply Hphi. apply (fR_nm_trans F n w v u Hwv Hvu).
+  - intros F V w. simpl. intros v Hwv Hbox.
+    destruct (fR_nm_nextcon F n w v Hwv) as [u Hvu].
+    exact (Hbox u Hvu).
+  - intros F V w. apply (IHProvable_no_Mon1 F V w).
+    apply (IHProvable_no_Mon2 F V w).
+  - intros F V w. simpl. intros v _.
+    apply (IHProvable_no_Mon F V v).
+Qed.
+
+Definition F_no_Mon : Frame_no_Mon :=
+  mkFrame_no_Mon nat R_break_mon
+    R_break_mon_trans R_break_mon_wf R_break_mon_nextcon.
+
+Theorem mon_axiom_needs_Mon :
+  ~ (|-no_mon Impl (Box 0 (Var 0)) (Box 1 (Var 0))).
+Proof.
+  intro H.
+  pose proof (soundness_no_Mon _ H F_no_Mon (fun w _ => negb (Nat.eqb w 1)) 0)
+    as Hf.
+  simpl in Hf.
+  assert (HBox0 : forall v : nat, R_break_mon 0 0 v -> negb (Nat.eqb v 1) = true).
+  { intros v Hv. simpl in Hv. destruct Hv as [Hv _]. discriminate. }
+  pose proof (Hf HBox0) as HBox1.
+  assert (HR : R_break_mon 1 0 1) by (simpl; split; reflexivity).
+  pose proof (HBox1 1 HR) as Hcontra.
+  simpl in Hcontra. discriminate.
+Qed.
+
+(** ** Independence of Ax_Box4 (semantic redundancy direction).
+
+    Both options offered by todo item 12 fall outside what can be
+    proved here without further machinery: (a) a Kripke counter-
+    frame validating K, Löb, Mon, NextCon while refuting Box4
+    cannot exist, because in unimodal Kripke semantics any frame
+    validating Löb (over all valuations) is necessarily transitive,
+    in which case Box4 also holds; (b) deriving axiom 4 from K + Löb
+    requires the polymodal de Jongh-Sambin fixed-point theorem
+    (Boolos 1993, Theorem 11), which is todo item 52.
+
+    What we can prove here is the semantic redundancy of Box4 in any
+    transitive frame: [forces] satisfies axiom 4 directly under the
+    transitivity condition [fR_trans] of the [Frame] record.  This is
+    the soundness component proved already in [soundness] for the
+    [Ax_Box4] case; we re-state it as an independent lemma. *)
+
+Theorem box4_sound_in_transitive : forall (F : Frame) V w n phi,
+  forces F V w (Box n phi) -> forces F V w (Box n (Box n phi)).
+Proof.
+  intros F V w n phi Hphi v Hwv u Hvu.
+  apply Hphi. apply (fR_trans F n w v u Hwv Hvu).
+Qed.
+
+Theorem frame_conditions_independent :
+  (exists Rt : nat -> nat -> nat -> Prop,
+    (forall n, well_founded (fun u v => Rt n v u)) /\
+    (forall n w v, Rt (S n) w v -> Rt n w v) /\
+    (forall n w v, Rt (S n) w v -> exists u, Rt n v u) /\
+    ~ (forall n w v u, Rt n w v -> Rt n v u -> Rt n w u)) /\
+  (exists Rt : nat -> nat -> nat -> Prop,
+    (forall n w v u, Rt n w v -> Rt n v u -> Rt n w u) /\
+    (forall n w v, Rt (S n) w v -> Rt n w v) /\
+    (forall n w v, Rt (S n) w v -> exists u, Rt n v u) /\
+    ~ (forall n, well_founded (fun u v => Rt n v u))) /\
+  (exists Rt : nat -> nat -> nat -> Prop,
+    (forall n w v u, Rt n w v -> Rt n v u -> Rt n w u) /\
+    (forall n, well_founded (fun u v => Rt n v u)) /\
+    (forall n w v, Rt (S n) w v -> exists u, Rt n v u) /\
+    ~ (forall n w v, Rt (S n) w v -> Rt n w v)) /\
+  (exists Rt : nat -> nat -> nat -> Prop,
+    (forall n w v u, Rt n w v -> Rt n v u -> Rt n w u) /\
+    (forall n, well_founded (fun u v => Rt n v u)) /\
+    (forall n w v, Rt (S n) w v -> Rt n w v) /\
+    ~ (forall n w v, Rt (S n) w v -> exists u, Rt n v u)).
+Proof.
+  exact (conj frame_indep_trans
+        (conj frame_indep_wf
+        (conj frame_indep_mon frame_indep_nc))).
 Qed.
 
