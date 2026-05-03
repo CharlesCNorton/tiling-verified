@@ -5456,6 +5456,92 @@ Proof.
     + exact IH.
 Qed.
 
+Lemma to_triangle_strict_mono : forall a b, a < b -> to_triangle a < to_triangle b.
+Proof.
+  intros a b H. induction H.
+  - cbn. lia.
+  - cbn. lia.
+Qed.
+
+Lemma to_triangle_pos_for_pos : forall n, 0 < n -> 0 < to_triangle n.
+Proof.
+  intros n H. destruct n; [lia|]. cbn. lia.
+Qed.
+
+Lemma find_root_max : forall n bound k,
+  to_triangle k <= n ->
+  k <= bound ->
+  k <= find_root n bound.
+Proof.
+  intros n bound. induction bound as [|b IH]; intros k Hle Hkb.
+  - assert (k = 0) by lia. subst k. cbn. lia.
+  - cbn [find_root].
+    destruct (Nat.leb (to_triangle (S (find_root n b))) n) eqn:Hcase.
+    + (* find_root n (S b) = S (find_root n b) *)
+      destruct (Nat.eq_dec k (S b)) as [Heq|Hne].
+      * subst k. apply le_n_S.
+        apply IH; [|lia].
+        apply Nat.leb_le in Hcase.
+        assert (Hmono : to_triangle b < to_triangle (S b)).
+        { apply to_triangle_strict_mono. lia. }
+        lia.
+      * assert (k <= b) by lia.
+        assert (k <= find_root n b) by exact (IH k Hle H).
+        lia.
+    + (* find_root n (S b) = find_root n b *)
+      destruct (Nat.eq_dec k (S b)) as [Heq|Hne].
+      * subst k. apply Nat.leb_nle in Hcase.
+        exfalso. apply Hcase.
+        assert (Hmono : to_triangle (S (find_root n b)) <= to_triangle (S b)).
+        { apply to_triangle_mono. pose proof (find_root_le n b). lia. }
+        lia.
+      * assert (k <= b) by lia.
+        exact (IH k Hle H).
+Qed.
+
+Lemma find_root_eq_when_bounds : forall n a,
+  to_triangle a <= n ->
+  to_triangle (S a) > n ->
+  a <= n ->
+  find_root n n = a.
+Proof.
+  intros n a Hle Hgt Han.
+  pose proof (find_root_correct n n) as Hroot_le.
+  pose proof (find_root_max n n a Hle Han) as Hmax.
+  destruct (le_lt_dec (find_root n n) a) as [HleR|HltR].
+  - lia.
+  - exfalso.
+    assert (to_triangle (S a) <= to_triangle (find_root n n)).
+    { apply to_triangle_mono. lia. }
+    lia.
+Qed.
+
+Lemma cpair_bound : forall a b, a + b <= cpair a b.
+Proof.
+  intros a b. unfold cpair.
+  assert (a + b <= to_triangle (a + b)).
+  { destruct (a + b) as [|m] eqn:E.
+    - lia.
+    - cbn. lia. }
+  lia.
+Qed.
+
+Theorem cunpair_cpair : forall a b, cunpair (cpair a b) = (a, b).
+Proof.
+  intros a b. unfold cunpair.
+  set (n := cpair a b).
+  assert (Hroot : find_root n n = a + b).
+  { apply find_root_eq_when_bounds.
+    - unfold n, cpair. lia.
+    - unfold n, cpair. cbn. lia.
+    - apply cpair_bound. }
+  rewrite Hroot.
+  unfold n, cpair.
+  replace (to_triangle (a + b) + b - to_triangle (a + b)) with b by lia.
+  replace (a + b - b) with a by lia.
+  reflexivity.
+Qed.
+
 Fixpoint encode_form (phi : Form) : nat :=
   match phi with
   | Bot => 0
