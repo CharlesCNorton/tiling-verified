@@ -10098,6 +10098,57 @@ Proof.
     apply prov_box_imp. exact (prov_explosion (Neg (Box n Bot))).
 Qed.
 
+(** Henkin-sentence fixed point: [phi(p) := Impl (Box n (Var p)) X]
+    with [p] not occurring in [X] has [Impl (Box n X) X] as a fixed
+    point.  Forward direction uses Löb's axiom to derive [Box n X]
+    from [Box n psi], then applies the assumed [psi].  Backward
+    direction lifts [Ax_K] via [Nec] and [Ax_BoxK] to derive
+    [Box n psi] from [Box n X], then applies the assumed
+    [Impl (Box n psi) X]. *)
+
+Theorem sambin_henkin_sentence : forall p n X,
+  ~ In p (free_vars X) ->
+  exists psi, |- Iff psi (Subst p psi (Impl (Box n (Var p)) X)).
+Proof.
+  intros p n X HnoX. exists (Impl (Box n X) X).
+  assert (Hsub : Subst p (Impl (Box n X) X) (Impl (Box n (Var p)) X) =
+                 Impl (Box n (Impl (Box n X) X)) X).
+  { unfold Subst. simpl. rewrite Nat.eqb_refl.
+    pose proof (Subst_no_occurrence p (Impl (Box n X) X) X HnoX) as Heq.
+    unfold Subst in Heq. rewrite Heq. reflexivity. }
+  rewrite Hsub.
+  apply prov_iff_intro.
+  - (* Forward: (Box n X -> X) -> (Box n (Box n X -> X) -> X) *)
+    pose proof (Ax_Loeb n X) as HLoeb.
+    (* HLoeb : Box n (Box n X -> X) -> Box n X *)
+    (* Goal: psi -> (Box n psi -> X), i.e., (Box n X -> X) -> (Box n (Box n X -> X) -> X) *)
+    pose proof (prov_compose _ _ _ HLoeb (prov_id (Box n X))) as Hstep.
+    (* Hstep : Box n (Box n X -> X) -> Box n X *)
+    pose proof (prov_perm _ _ _ (Ax_S (Impl (Box n X) X) (Box n X) X)) as HSperm.
+    (* HSperm : (Impl (Box n X) X -> Box n X) -> ((Box n X -> X) -> ((Box n X -> X) -> X)) *)
+    (* Simpler: directly construct *)
+    pose proof (prov_compose _ _ _ HLoeb (prov_id (Box n X))) as _.
+    (* Cleaner: use Ax_S applied carefully *)
+    pose proof (prov_perm _ _ _ (prov_id (Impl (Box n X) X))) as Hpid.
+    (* Hpid : Box n X -> ((Box n X -> X) -> X) *)
+    pose proof (prov_compose _ _ _ HLoeb Hpid) as Hchain.
+    (* Hchain : Box n (Box n X -> X) -> ((Box n X -> X) -> X) *)
+    exact (prov_perm _ _ _ Hchain).
+  - (* Backward: (Box n (Box n X -> X) -> X) -> (Box n X -> X) *)
+    pose proof (Ax_K X (Box n X)) as HK.
+    (* HK : X -> (Box n X -> X) *)
+    pose proof (Nec n _ HK) as HKnec.
+    (* HKnec : Box n (X -> (Box n X -> X)) *)
+    pose proof (Ax_BoxK n X (Impl (Box n X) X)) as HBK.
+    pose proof (MP _ _ HBK HKnec) as Hbridge.
+    (* Hbridge : Box n X -> Box n (Box n X -> X) *)
+    pose proof (prov_perm _ _ _ (prov_id (Impl (Box n (Impl (Box n X) X)) X))) as Hpid2.
+    (* Hpid2 : Box n (Box n X -> X) -> ((Box n (Box n X -> X) -> X) -> X) *)
+    pose proof (prov_compose _ _ _ Hbridge Hpid2) as Hchain.
+    (* Hchain : Box n X -> ((Box n (Box n X -> X) -> X) -> X) *)
+    exact (prov_perm _ _ _ Hchain).
+Qed.
+
 Theorem sambin_uniqueness_loeb_class : forall n X psi1 psi2,
   |- Iff psi1 (Box n (Impl psi1 X)) ->
   |- Iff psi2 (Box n (Impl psi2 X)) ->
