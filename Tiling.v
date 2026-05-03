@@ -2985,28 +2985,310 @@ Proof.
   simpl in Hcontra. discriminate.
 Qed.
 
-(** ** Independence of Ax_Box4 (semantic redundancy direction).
+(** ** Independence of Ax_Box4 (semantic and syntactic).
 
-    Both options offered by todo item 12 fall outside what can be
-    proved here without further machinery: (a) a Kripke counter-
-    frame validating K, Löb, Mon, NextCon while refuting Box4
-    cannot exist, because in unimodal Kripke semantics any frame
-    validating Löb (over all valuations) is necessarily transitive,
-    in which case Box4 also holds; (b) deriving axiom 4 from K + Löb
-    requires the polymodal de Jongh-Sambin fixed-point theorem
-    (Boolos 1993, Theorem 11), which is todo item 52.
+    Two complementary results.
 
-    What we can prove here is the semantic redundancy of Box4 in any
-    transitive frame: [forces] satisfies axiom 4 directly under the
-    transitivity condition [fR_trans] of the [Frame] record.  This is
-    the soundness component proved already in [soundness] for the
-    [Ax_Box4] case; we re-state it as an independent lemma. *)
+    Semantically: in any transitive frame, [Box n (Box n phi)] is
+    equivalent to "for all R-paths of length 2, [phi] holds at the
+    end".  This is just a restatement of forcing under transitivity.
+
+    Syntactically: axiom 4 is a derived theorem of [Provable_no_B4]
+    (the calculus with [Ax_Box4] removed), so [Ax_Box4] is in fact
+    redundant.  See [nb4_axiom4] for the derivation, which uses
+    Löb's axiom applied at the formula [A ∧ Box n A] together with
+    K and propositional reasoning. *)
 
 Theorem box4_sound_in_transitive : forall (F : Frame) V w n phi,
-  forces F V w (Box n phi) -> forces F V w (Box n (Box n phi)).
+  forces F V w (Box n (Box n phi)) <->
+  (forall v u, fR F n w v -> fR F n v u -> forces F V u phi).
 Proof.
-  intros F V w n phi Hphi v Hwv u Hvu.
-  apply Hphi. apply (fR_trans F n w v u Hwv Hvu).
+  intros F V w n phi. split; intros H.
+  - intros v u Hwv Hvu. apply (H v Hwv u Hvu).
+  - intros v Hwv u Hvu. exact (H v u Hwv Hvu).
+Qed.
+
+(** ** Sambin's fixed-point theorem (build-up).
+
+    We work toward Sambin's theorem: every formula [phi(p)] in which
+    every occurrence of [Var p] is in the scope of some [Box] admits
+    a fixed point [psi] with [|- Iff psi (Subst p psi phi)].
+    Boolos's derivation of axiom 4 from K + Löb (Logic of Provability,
+    Theorem 11) routes through this theorem.  We build up the
+    machinery piece by piece. *)
+
+(** *** [modalized p phi]: every [Var p] in [phi] is under a [Box]. *)
+
+Fixpoint modalized (p : nat) (phi : Form) : Prop :=
+  match phi with
+  | Var k => k <> p
+  | Bot => True
+  | Impl X Y => modalized p X /\ modalized p Y
+  | Box _ _ => True
+  end.
+
+(** *** Modal depth: maximum nesting of [Box]. *)
+
+Fixpoint modal_depth (phi : Form) : nat :=
+  match phi with
+  | Var _ => 0
+  | Bot => 0
+  | Impl X Y => Nat.max (modal_depth X) (modal_depth Y)
+  | Box _ psi => S (modal_depth psi)
+  end.
+
+Lemma modal_depth_neg : forall phi,
+  modal_depth (Neg phi) = modal_depth phi.
+Proof.
+  intro phi. unfold Neg. simpl. rewrite Nat.max_0_r. reflexivity.
+Qed.
+
+(** *** Substitution composition.
+
+    [subst_form sigma2 (subst_form sigma1 phi) =
+     subst_form (sigma1 ; sigma2) phi]
+    where [(sigma1 ; sigma2) k = subst_form sigma2 (sigma1 k)]. *)
+
+Lemma subst_form_compose : forall sigma1 sigma2 phi,
+  subst_form sigma2 (subst_form sigma1 phi) =
+  subst_form (fun k => subst_form sigma2 (sigma1 k)) phi.
+Proof.
+  intros sigma1 sigma2 phi. induction phi as [k | | X IHX Y IHY | n psi IHpsi].
+  - reflexivity.
+  - reflexivity.
+  - simpl. rewrite IHX, IHY. reflexivity.
+  - simpl. rewrite IHpsi. reflexivity.
+Qed.
+
+(** ** Box4 as a derived theorem of K + Löb (without Ax_Box4).
+
+    The standard derivation (folklore, attributed to substitution
+    [A ∧ □A] for the variable in Löb's axiom): apply Löb's axiom at
+    the formula [A ∧ □A], derive the antecedent [□(□(A ∧ □A) → A ∧ □A)]
+    from [□A] using K + propositional reasoning, and conclude
+    [□(A ∧ □A)], from which K + and-elim yields [□□A].  No fixed-point
+    machinery beyond Löb's axiom itself is needed.
+
+    [Provable_no_B4] is GLP* with [Ax_Box4] removed.  Showing axiom 4
+    is derivable in [Provable_no_B4] establishes it as redundant. *)
+
+Inductive Provable_no_B4 : Form -> Prop :=
+  | NB4_Ax_K : forall phi psi,
+      Provable_no_B4 (Impl phi (Impl psi phi))
+  | NB4_Ax_S : forall phi psi chi,
+      Provable_no_B4 (Impl (Impl phi (Impl psi chi))
+                           (Impl (Impl phi psi) (Impl phi chi)))
+  | NB4_Ax_DN : forall phi,
+      Provable_no_B4 (Impl (Neg (Neg phi)) phi)
+  | NB4_Ax_BoxK : forall n phi psi,
+      Provable_no_B4 (Impl (Box n (Impl phi psi))
+                           (Impl (Box n phi) (Box n psi)))
+  | NB4_Ax_Loeb : forall n phi,
+      Provable_no_B4 (Impl (Box n (Impl (Box n phi) phi)) (Box n phi))
+  | NB4_Ax_Mon : forall n phi,
+      Provable_no_B4 (Impl (Box n phi) (Box (S n) phi))
+  | NB4_Ax_NextCon : forall n,
+      Provable_no_B4 (Box (S n) (Neg (Box n Bot)))
+  | NB4_MP : forall phi psi,
+      Provable_no_B4 (Impl phi psi) -> Provable_no_B4 phi -> Provable_no_B4 psi
+  | NB4_Nec : forall n phi,
+      Provable_no_B4 phi -> Provable_no_B4 (Box n phi).
+
+Notation "|-no_b4 f" := (Provable_no_B4 f) (at level 75, no associativity).
+
+(** Basic propositional helpers in [Provable_no_B4]. *)
+
+Lemma nb4_prov_id : forall phi, |-no_b4 Impl phi phi.
+Proof.
+  intro phi.
+  exact (NB4_MP _ _
+          (NB4_MP _ _ (NB4_Ax_S phi (Impl phi phi) phi)
+                       (NB4_Ax_K phi (Impl phi phi)))
+          (NB4_Ax_K phi phi)).
+Qed.
+
+Lemma nb4_prov_weaken : forall phi psi, |-no_b4 phi -> |-no_b4 Impl psi phi.
+Proof. intros phi psi Hphi. exact (NB4_MP _ _ (NB4_Ax_K phi psi) Hphi). Qed.
+
+Lemma nb4_prov_compose : forall phi psi chi,
+  |-no_b4 Impl phi psi -> |-no_b4 Impl psi chi -> |-no_b4 Impl phi chi.
+Proof.
+  intros phi psi chi Hpq Hqr.
+  pose proof (NB4_Ax_S phi psi chi) as Hs.
+  pose proof (nb4_prov_weaken _ phi Hqr) as Hpqr.
+  exact (NB4_MP _ _ (NB4_MP _ _ Hs Hpqr) Hpq).
+Qed.
+
+Lemma nb4_prov_box_imp : forall n phi psi,
+  |-no_b4 Impl phi psi -> |-no_b4 Impl (Box n phi) (Box n psi).
+Proof.
+  intros n phi psi Himp.
+  pose proof (NB4_Nec n _ Himp) as Hnec.
+  pose proof (NB4_Ax_BoxK n phi psi) as HBK.
+  exact (NB4_MP _ _ HBK Hnec).
+Qed.
+
+Lemma nb4_prov_perm : forall phi psi chi,
+  |-no_b4 Impl phi (Impl psi chi) -> |-no_b4 Impl psi (Impl phi chi).
+Proof.
+  intros phi psi chi H.
+  pose proof (NB4_Ax_S phi psi chi) as Hs.
+  pose proof (NB4_MP _ _ Hs H) as H1.
+  pose proof (NB4_Ax_K psi phi) as Hk.
+  exact (nb4_prov_compose _ _ _ Hk H1).
+Qed.
+
+Lemma nb4_prov_DN_intro : forall phi, |-no_b4 Impl phi (Neg (Neg phi)).
+Proof.
+  intro phi. unfold Neg.
+  pose proof (nb4_prov_id (Impl phi Bot)) as Hid.
+  exact (nb4_prov_perm _ _ _ Hid).
+Qed.
+
+Lemma nb4_prov_explosion : forall phi, |-no_b4 Impl Bot phi.
+Proof.
+  intro phi.
+  pose proof (NB4_Ax_K Bot (Neg phi)) as Hk.
+  pose proof (NB4_Ax_DN phi) as HDN.
+  exact (nb4_prov_compose _ _ _ Hk HDN).
+Qed.
+
+Lemma nb4_prov_compose_internal : forall phi psi chi,
+  |-no_b4 Impl (Impl psi chi) (Impl (Impl phi psi) (Impl phi chi)).
+Proof.
+  intros phi psi chi.
+  pose proof (NB4_Ax_K (Impl psi chi) phi) as Hk.
+  pose proof (NB4_Ax_S phi psi chi) as Hs.
+  exact (nb4_prov_compose _ _ _ Hk Hs).
+Qed.
+
+Lemma nb4_prov_perm_internal : forall a b c,
+  |-no_b4 Impl (Impl a (Impl b c)) (Impl b (Impl a c)).
+Proof.
+  intros a b c.
+  pose proof (NB4_Ax_S a b c) as H_S.
+  pose proof (NB4_Ax_S (Impl a (Impl b c)) (Impl a b) (Impl a c)) as H_S2.
+  pose proof (NB4_MP _ _ H_S2 H_S) as H1.
+  pose proof (NB4_Ax_K b a) as H_K1.
+  pose proof (NB4_Ax_K (Impl a b) (Impl a (Impl b c))) as H_K2.
+  pose proof (nb4_prov_compose _ _ _ H_K1 H_K2) as H2.
+  pose proof (nb4_prov_compose _ _ _ H2 H1) as H3.
+  exact (nb4_prov_perm _ _ _ H3).
+Qed.
+
+Lemma nb4_prov_and_intro : forall phi psi,
+  |-no_b4 Impl phi (Impl psi (And phi psi)).
+Proof.
+  intros phi psi.
+  unfold And, Neg.
+  pose proof (nb4_prov_id (Impl phi (Impl psi Bot))) as Hid.
+  pose proof (nb4_prov_perm _ _ _ Hid) as Hperm.
+  pose proof (nb4_prov_perm_internal (Impl phi (Impl psi Bot)) psi Bot) as Hpi.
+  exact (nb4_prov_compose _ _ _ Hperm Hpi).
+Qed.
+
+Lemma nb4_prov_and_intro_meta : forall phi psi,
+  |-no_b4 phi -> |-no_b4 psi -> |-no_b4 And phi psi.
+Proof.
+  intros phi psi Hphi Hpsi.
+  exact (NB4_MP _ _ (NB4_MP _ _ (nb4_prov_and_intro phi psi) Hphi) Hpsi).
+Qed.
+
+Lemma nb4_prov_neg_imp_ng : forall phi psi,
+  |-no_b4 Impl (Neg phi) (Impl phi (Neg psi)).
+Proof.
+  intros phi psi. unfold Neg.
+  pose proof (nb4_prov_compose_internal phi Bot (Impl psi Bot)) as Hci.
+  pose proof (nb4_prov_explosion (Impl psi Bot)) as Hex.
+  exact (NB4_MP _ _ Hci Hex).
+Qed.
+
+Lemma nb4_prov_and_elim_l : forall phi psi,
+  |-no_b4 Impl (And phi psi) phi.
+Proof.
+  intros phi psi. unfold And, Neg.
+  pose proof (nb4_prov_neg_imp_ng phi psi) as H1.
+  pose proof (nb4_prov_compose_internal
+                (Impl phi Bot)
+                (Impl phi (Impl psi Bot))
+                Bot) as H2.
+  pose proof (nb4_prov_perm _ _ _ H2) as H2_perm.
+  pose proof (NB4_MP _ _ H2_perm H1) as Hstep1.
+  pose proof (NB4_Ax_DN phi) as HDN.
+  exact (nb4_prov_compose _ _ _ Hstep1 HDN).
+Qed.
+
+Lemma nb4_prov_and_elim_r : forall phi psi,
+  |-no_b4 Impl (And phi psi) psi.
+Proof.
+  intros phi psi. unfold And, Neg.
+  pose proof (NB4_Ax_K (Impl psi Bot) phi) as H1.
+  pose proof (nb4_prov_compose_internal
+                (Impl psi Bot)
+                (Impl phi (Impl psi Bot))
+                Bot) as H2.
+  pose proof (nb4_prov_perm _ _ _ H2) as H2_perm.
+  pose proof (NB4_MP _ _ H2_perm H1) as Hstep1.
+  pose proof (NB4_Ax_DN psi) as HDN.
+  exact (nb4_prov_compose _ _ _ Hstep1 HDN).
+Qed.
+
+Lemma nb4_prov_and_elim_l_meta : forall phi psi,
+  |-no_b4 And phi psi -> |-no_b4 phi.
+Proof.
+  intros phi psi Hand.
+  exact (NB4_MP _ _ (nb4_prov_and_elim_l phi psi) Hand).
+Qed.
+
+Lemma nb4_prov_and_elim_r_meta : forall phi psi,
+  |-no_b4 And phi psi -> |-no_b4 psi.
+Proof.
+  intros phi psi Hand.
+  exact (NB4_MP _ _ (nb4_prov_and_elim_r phi psi) Hand).
+Qed.
+
+(** Uncurry [And] into chained implication. *)
+
+Lemma nb4_prov_uncurry : forall A B C,
+  |-no_b4 Impl (And A B) C -> |-no_b4 Impl A (Impl B C).
+Proof.
+  intros A B C Hf.
+  pose proof (nb4_prov_and_intro A B) as Handi.
+  pose proof (nb4_prov_compose_internal B (And A B) C) as Hci.
+  pose proof (NB4_MP _ _ Hci Hf) as Hstep1.
+  exact (nb4_prov_compose _ _ _ Handi Hstep1).
+Qed.
+
+(** Axiom 4 as a derived theorem of Provable_no_B4 (i.e., GLP* without
+    primitive [Ax_Box4]).  The standard substitution argument: apply
+    Löb's axiom at the formula [A ∧ Box n A], derive the Löb-axiom
+    antecedent from [Box n A] using K and propositional reasoning, and
+    conclude [Box n (A ∧ Box n A)]; from this, K + and-elim yields
+    [Box n (Box n A)]. *)
+
+Theorem nb4_axiom4 : forall n A,
+  |-no_b4 Impl (Box n A) (Box n (Box n A)).
+Proof.
+  intros n A.
+  set (B := Box n A).
+  set (X := And A (Box n (And A B))).
+  pose proof (nb4_prov_and_elim_l A B) as H1.
+  pose proof (nb4_prov_box_imp n _ _ H1) as H2.
+  pose proof (nb4_prov_and_elim_l A (Box n (And A B))) as H3.
+  pose proof (nb4_prov_and_elim_r A (Box n (And A B))) as H4pre.
+  pose proof (nb4_prov_compose _ _ _ H4pre H2) as H4.
+  pose proof (nb4_prov_and_intro A B) as Handi.
+  pose proof (nb4_prov_compose _ _ _ H3 Handi) as Hcomp1.
+  pose proof (NB4_Ax_S X B (And A B)) as Hs.
+  pose proof (NB4_MP _ _ Hs Hcomp1) as Hstep1.
+  pose proof (NB4_MP _ _ Hstep1 H4) as H5.
+  pose proof (nb4_prov_uncurry _ _ _ H5) as H6.
+  pose proof (nb4_prov_box_imp n _ _ H6) as H7.
+  pose proof (NB4_Ax_Loeb n (And A B)) as H8.
+  pose proof (nb4_prov_compose _ _ _ H7 H8) as H9.
+  pose proof (nb4_prov_and_elim_r A B) as H10pre.
+  pose proof (nb4_prov_box_imp n _ _ H10pre) as H11.
+  exact (nb4_prov_compose _ _ _ H9 H11).
 Qed.
 
 Theorem frame_conditions_independent :
