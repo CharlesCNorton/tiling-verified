@@ -5100,6 +5100,44 @@ Proof.
   intros n phi. apply Ax_Box4.
 Qed.
 
+Theorem prov_equiv_subst_compat : forall sigma phi psi,
+  |- Iff phi psi -> |- Iff (subst_form sigma phi) (subst_form sigma psi).
+Proof.
+  intros sigma phi psi Hiff.
+  unfold Iff in *.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hf.
+  pose proof (prov_and_elim_r_meta _ _ Hiff) as Hb.
+  pose proof (subst_provable sigma _ Hf) as Hf'.
+  pose proof (subst_provable sigma _ Hb) as Hb'.
+  cbn in Hf'. cbn in Hb'.
+  apply prov_iff_intro; assumption.
+Qed.
+
+Theorem fixed_point_functoriality_subst : forall sigma p phi psi,
+  |- Iff psi (Subst p psi phi) ->
+  |- Iff (subst_form sigma psi) (subst_form sigma (Subst p psi phi)).
+Proof.
+  intros sigma p phi psi Hfp.
+  apply prov_equiv_subst_compat. exact Hfp.
+Qed.
+
+Theorem van_benthem_forward : forall F1 F2 V1 V2 Z,
+  Bisim F1 F2 V1 V2 Z ->
+  forall phi w1 w2, Z w1 w2 ->
+    (forces F1 V1 w1 phi <-> forces F2 V2 w2 phi).
+Proof. exact bisim_invariance. Qed.
+
+Definition Maximal_Consistent (Gamma : Form -> Prop) : Prop :=
+  Consistent Gamma /\ forall phi, Gamma phi \/ Gamma (Neg phi).
+
+Theorem maximal_consistent_consistent : forall Gamma,
+  Maximal_Consistent Gamma -> Consistent Gamma.
+Proof. intros Gamma [HC _]. exact HC. Qed.
+
+Theorem maximal_consistent_decides : forall Gamma,
+  Maximal_Consistent Gamma -> forall phi, Gamma phi \/ Gamma (Neg phi).
+Proof. intros Gamma [_ Hd] phi. apply Hd. Qed.
+
 Theorem frame_conditions_independent :
   (exists Rt : nat -> nat -> nat -> Prop,
     (forall n, well_founded (fun u v => Rt n v u)) /\
