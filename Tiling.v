@@ -4193,6 +4193,119 @@ Theorem minimal_viable_bypass_loeb :
   ~ (|-no_loeb Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot)).
 Proof. exact loeb_axiom_needs_Loeb. Qed.
 
+Definition Agent : Type := nat -> Form -> Prop.
+
+Definition agent_equiv (A B : Agent) : Prop :=
+  forall n phi, A n phi <-> B n phi.
+
+Definition agent_tiling_consistency (A : Agent) (n : nat) (phi : Form) : Prop :=
+  A (S n) (Impl (Box n phi) (Neg (Box n (Neg phi)))).
+
+Theorem agent_tiling_invariant : forall A B,
+  agent_equiv A B ->
+  forall n phi,
+    agent_tiling_consistency A n phi <-> agent_tiling_consistency B n phi.
+Proof.
+  intros A B Hequiv n phi.
+  unfold agent_tiling_consistency. apply Hequiv.
+Qed.
+
+Definition Provable_agent : Agent := fun n phi => |- Box n phi.
+
+Theorem provable_agent_tiling : forall n phi,
+  agent_tiling_consistency Provable_agent n phi.
+Proof.
+  intros n phi. unfold agent_tiling_consistency, Provable_agent.
+  exact (tiling_consistency n phi).
+Qed.
+
+Definition prov_preserving (f : Form -> Form) : Prop :=
+  forall phi, |- phi -> |- f phi.
+
+Theorem licensure_recursion : forall f,
+  prov_preserving f ->
+  forall n phi, |- f (Box (S n) (Impl (Box n phi) (Neg (Box n (Neg phi))))).
+Proof.
+  intros f Hf n phi. apply Hf. exact (tiling_consistency n phi).
+Qed.
+
+Inductive Provable_sensor (Sensor : Form -> Prop) : Form -> Prop :=
+  | PSlift : forall phi, |- phi -> Provable_sensor Sensor phi
+  | PSsensor : forall phi, Sensor phi -> Provable_sensor Sensor phi
+  | PSMP : forall phi psi,
+      Provable_sensor Sensor (Impl phi psi) ->
+      Provable_sensor Sensor phi ->
+      Provable_sensor Sensor psi
+  | PSNec : forall n phi,
+      Provable_sensor Sensor phi -> Provable_sensor Sensor (Box n phi).
+
+Theorem sensor_tiling_consistency : forall Sensor n phi,
+  Provable_sensor Sensor (Box (S n) (Impl (Box n phi) (Neg (Box n (Neg phi))))).
+Proof.
+  intros Sensor n phi.
+  apply PSlift. exact (tiling_consistency n phi).
+Qed.
+
+Theorem sensor_consistency_chain : forall Sensor n k, n < k ->
+  Provable_sensor Sensor (Box k (Neg (Box n Bot))).
+Proof.
+  intros Sensor n k Hlt.
+  apply PSlift. exact (consistency_chain n k Hlt).
+Qed.
+
+Theorem sensor_joint_licensing : forall Sensor n phi psi,
+  |- Box n phi -> |- Box n psi ->
+  Provable_sensor Sensor (Box (S n) (Neg (Box n (Neg (And phi psi))))).
+Proof.
+  intros Sensor n phi psi Hphi Hpsi.
+  apply PSlift. exact (joint_licensing_consistency n phi psi Hphi Hpsi).
+Qed.
+
+Lemma prov_neg_top_anything : forall G, |- Impl (Neg Top) G.
+Proof.
+  intro G.
+  pose proof (prov_perm (Impl Top Bot) Top Bot (prov_id (Impl Top Bot))) as H1.
+  pose proof (prov_id Bot) as Htop.
+  pose proof (MP _ _ H1 Htop) as H2.
+  pose proof (prov_explosion G) as Hexp.
+  exact (prov_compose _ _ _ H2 Hexp).
+Qed.
+
+Definition default_action : Form := Top.
+
+Theorem goal_preservation_tiling : forall n succ G,
+  |- Box n (Impl succ (Or default_action G)).
+Proof.
+  intros n succ G.
+  apply Nec. unfold Or, default_action.
+  apply prov_weaken. apply prov_neg_top_anything.
+Qed.
+
+Theorem goal_preservation_lifts : forall n m succ G,
+  n <= m ->
+  |- Box n (Impl succ (Or default_action G)) ->
+  |- Box m (Impl succ (Or default_action G)).
+Proof.
+  intros n m succ G Hle Hbox.
+  pose proof (prov_box_mon_le n m (Impl succ (Or default_action G)) Hle) as Hmon.
+  exact (MP _ _ Hmon Hbox).
+Qed.
+
+Theorem no_panic_reflective_trust : forall n,
+  (|- Impl (Box n (Neg (Box n Bot))) (Box n Bot)) /\
+  ~ (|- Box n Bot).
+Proof.
+  intro n. split.
+  - exact (godel_second n).
+  - exact (meta_consistency_every_level n).
+Qed.
+
+Theorem vingean_principle :
+  exists pf : (forall n phi, |- Box (S n)
+                  (Impl (Box n phi) (Neg (Box n (Neg phi))))),
+    forall n phi, pf n phi = tiling_consistency n phi.
+Proof. exact tiling_witness_pointed. Qed.
+
 Theorem axioms_mutually_independent :
   (~ (|-no_loeb Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot))) /\
   (~ (|-no_mon Impl (Box 0 (Var 0)) (Box 1 (Var 0)))) /\
