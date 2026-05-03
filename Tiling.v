@@ -3865,6 +3865,144 @@ Proof.
   exact (nb4_prov_compose _ _ _ H9 H11).
 Qed.
 
+Theorem provable_to_no_b4 : forall phi, |- phi -> |-no_b4 phi.
+Proof.
+  intros phi H. induction H.
+  - apply NB4_Ax_K.
+  - apply NB4_Ax_S.
+  - apply NB4_Ax_DN.
+  - apply NB4_Ax_BoxK.
+  - apply NB4_Ax_Loeb.
+  - apply nb4_axiom4.
+  - apply NB4_Ax_Mon.
+  - apply NB4_Ax_NextCon.
+  - exact (NB4_MP _ _ IHProvable1 IHProvable2).
+  - exact (NB4_Nec _ _ IHProvable).
+Qed.
+
+Theorem no_b4_to_provable : forall phi, |-no_b4 phi -> |- phi.
+Proof.
+  intros phi H. induction H as [| | | | | | | phi psi _ IH1 _ IH2 | n phi _ IH].
+  - apply Ax_K.
+  - apply Ax_S.
+  - apply Ax_DN.
+  - apply Ax_BoxK.
+  - apply Ax_Loeb.
+  - apply Ax_Mon.
+  - apply Ax_NextCon.
+  - exact (MP _ _ IH1 IH2).
+  - exact (Nec _ _ IH).
+Qed.
+
+Theorem provable_iff_no_b4 : forall phi, |- phi <-> |-no_b4 phi.
+Proof.
+  intro phi. split; [apply provable_to_no_b4 | apply no_b4_to_provable].
+Qed.
+
+Definition F_no_NC_m_R (m : nat) (k : nat) (w v : bool) : Prop :=
+  k <= m /\ w = true /\ v = false.
+
+Lemma F_no_NC_m_R_trans : forall m k w v u,
+  F_no_NC_m_R m k w v -> F_no_NC_m_R m k v u -> F_no_NC_m_R m k w u.
+Proof.
+  intros m k w v u [_ [_ Hvf]] [_ [Hvt _]]. subst v. discriminate.
+Qed.
+
+Lemma F_no_NC_m_R_wf : forall m k,
+  well_founded (fun u v => F_no_NC_m_R m k v u).
+Proof.
+  intros m k x.
+  apply Acc_intro. intros y [_ [_ Hyf]]. subst y.
+  apply Acc_intro. intros z [_ [Hzt _]]. discriminate.
+Qed.
+
+Lemma F_no_NC_m_R_mon : forall m k w v,
+  F_no_NC_m_R m (S k) w v -> F_no_NC_m_R m k w v.
+Proof.
+  intros m k w v [Hle [Hw Hv]]. split; [lia | split; assumption].
+Qed.
+
+Definition F_no_NC_m (m : nat) : Frame_no_NC :=
+  mkFrame_no_NC bool (F_no_NC_m_R m)
+    (F_no_NC_m_R_trans m) (F_no_NC_m_R_wf m) (F_no_NC_m_R_mon m).
+
+Lemma provable_higher_NC : forall n,
+  1 <= n -> |- Box n (Neg (Box 0 Bot)).
+Proof.
+  intros n Hn.
+  destruct n as [|n']; [lia|].
+  pose proof (Ax_NextCon 0) as H1.
+  pose proof (prov_box_mon_le 1 (S n') (Neg (Box 0 Bot)) Hn) as Hmon.
+  exact (MP _ _ Hmon H1).
+Qed.
+
+Theorem separation_NC_at : forall n, 1 <= n ->
+  (|- Box n (Neg (Box 0 Bot))) /\
+  ~ (|-no_nc Box n (Neg (Box 0 Bot))).
+Proof.
+  intros n Hn.
+  split.
+  - apply provable_higher_NC. exact Hn.
+  - intro Habs.
+    pose proof (soundness_no_NC _ Habs (F_no_NC_m n) (fun _ _ => true) true) as Hf.
+    simpl in Hf.
+    assert (Hwit : F_no_NC_m_R n n true false).
+    { unfold F_no_NC_m_R. split; [lia | split; reflexivity]. }
+    pose proof (Hf false Hwit) as Hnegbox.
+    apply Hnegbox.
+    intros u Hu.
+    unfold F_no_NC_m_R in Hu.
+    destruct Hu as [_ [Hbad _]]. discriminate.
+Qed.
+
+Definition F_no_Mon_n_R (k : nat) (w v : nat) : Prop :=
+  w = k + 1 /\ v = k.
+
+Lemma F_no_Mon_n_R_trans : forall k w v u,
+  F_no_Mon_n_R k w v -> F_no_Mon_n_R k v u -> F_no_Mon_n_R k w u.
+Proof.
+  intros k w v u [_ Hv] [Hv' _]. subst v. lia.
+Qed.
+
+Lemma F_no_Mon_n_R_wf : forall k,
+  well_founded (fun u v => F_no_Mon_n_R k v u).
+Proof.
+  intros k x.
+  apply Acc_intro. intros y [_ Hy]. subst y.
+  apply Acc_intro. intros z [Hz _]. lia.
+Qed.
+
+Lemma F_no_Mon_n_R_nextcon : forall k w v,
+  F_no_Mon_n_R (S k) w v -> exists u, F_no_Mon_n_R k v u.
+Proof.
+  intros k w v [Hw Hv]. exists k.
+  unfold F_no_Mon_n_R. split; lia.
+Qed.
+
+Definition F_no_Mon_n : Frame_no_Mon :=
+  mkFrame_no_Mon nat F_no_Mon_n_R
+    F_no_Mon_n_R_trans F_no_Mon_n_R_wf F_no_Mon_n_R_nextcon.
+
+Theorem separation_Mon_at : forall n,
+  (|- Impl (Box n (Var 0)) (Box (S n) (Var 0))) /\
+  ~ (|-no_mon Impl (Box n (Var 0)) (Box (S n) (Var 0))).
+Proof.
+  intro n.
+  split.
+  - exact (Ax_Mon n (Var 0)).
+  - intro Habs.
+    pose proof (soundness_no_Mon _ Habs F_no_Mon_n
+      (fun w _ => negb (Nat.eqb w (S n))) (n + 2)) as Hf.
+    simpl in Hf.
+    assert (HBoxN : forall v, F_no_Mon_n_R n (n+2) v -> negb (Nat.eqb v (S n)) = true).
+    { intros v [Hw _]. exfalso. lia. }
+    pose proof (Hf HBoxN) as HBoxSn.
+    assert (HR : F_no_Mon_n_R (S n) (n+2) (S n)).
+    { unfold F_no_Mon_n_R. split; lia. }
+    pose proof (HBoxSn (S n) HR) as Hcontra.
+    rewrite Nat.eqb_refl in Hcontra. simpl in Hcontra. discriminate.
+Qed.
+
 (** ** Independence of Ax_Loeb.
 
     [Provable_no_Loeb] is GLP* with [Ax_Loeb] removed.  Loeb is sound
