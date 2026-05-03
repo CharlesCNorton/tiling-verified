@@ -10155,9 +10155,28 @@ Proof.
   apply not_eq_sym. apply Veblen_phi_0_unequal.
 Qed.
 
-Theorem Gamma_0_approx_unbounded : forall n,
-  exists o : ord, o = Gamma_0_approx n.
-Proof. intro n. exists (Gamma_0_approx n). reflexivity. Qed.
+Lemma Gamma_0_approx_S : forall k,
+  Gamma_0_approx (S k) = OCons (Gamma_0_approx k) OZero.
+Proof. intro k. reflexivity. Qed.
+
+Lemma Gamma_0_approx_strictly_increasing : forall j,
+  ord_compare (Gamma_0_approx j) (Gamma_0_approx (S j)) = Lt.
+Proof.
+  induction j as [|j IH].
+  - reflexivity.
+  - rewrite (Gamma_0_approx_S (S j)).
+    rewrite (Gamma_0_approx_S j).
+    rewrite ord_compare_OCons_OZero.
+    rewrite <- (Gamma_0_approx_S j).
+    exact IH.
+Qed.
+
+Theorem Gamma_0_approx_unbounded : forall k,
+  exists o : ord, ord_compare (Gamma_0_approx k) o = Lt.
+Proof.
+  intro k. exists (Gamma_0_approx (S k)).
+  exact (Gamma_0_approx_strictly_increasing k).
+Qed.
 
 Theorem Gamma_0_bounds_predicative_strength_via_iteration : forall k,
   exists o : ord, o = Gamma_0_approx k /\
