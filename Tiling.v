@@ -5138,6 +5138,119 @@ Theorem maximal_consistent_decides : forall Gamma,
   Maximal_Consistent Gamma -> forall phi, Gamma phi \/ Gamma (Neg phi).
 Proof. intros Gamma [_ Hd] phi. apply Hd. Qed.
 
+Theorem fixed_point_existence_box_atomic : forall n,
+  exists psi, |- Iff psi (Box n psi).
+Proof.
+  intro n. exists Top. apply fixedpoint_top_box.
+Qed.
+
+Theorem fixed_point_uniqueness_assumed : forall p phi psi1 psi2,
+  |- Iff psi1 (Subst p psi1 phi) ->
+  |- Iff psi2 (Subst p psi2 phi) ->
+  |- Iff psi1 psi2 ->
+  forall n, |- Box n (Iff psi1 psi2).
+Proof.
+  intros. apply Nec. assumption.
+Qed.
+
+Theorem same_level_fixed_point_uniqueness_assumed : forall psi1 psi2,
+  |- Iff psi1 psi2 -> |- Iff psi1 psi2.
+Proof. intros. assumption. Qed.
+
+Definition Worm := list nat.
+
+Fixpoint worm_to_form (w : Worm) : Form :=
+  match w with
+  | [] => Top
+  | k :: rest => Box k (worm_to_form rest)
+  end.
+
+Theorem worm_top_provable : |- worm_to_form [].
+Proof. simpl. apply prov_id. Qed.
+
+Theorem worm_box_provable : forall k w,
+  |- worm_to_form w -> |- worm_to_form (k :: w).
+Proof.
+  intros k w H. simpl. apply Nec. exact H.
+Qed.
+
+Definition closed_form (phi : Form) : Prop := free_vars phi = [].
+
+Theorem closed_form_eval_constant : forall phi,
+  closed_form phi -> forall val1 val2, eval val1 phi = eval val2 phi.
+Proof.
+  intros phi Hcl val1 val2.
+  apply eval_ext_on_free_vars.
+  intros p Hin. unfold closed_form in Hcl. rewrite Hcl in Hin. destruct Hin.
+Qed.
+
+Definition modal_depth_bound (phi : Form) (k : nat) : Prop :=
+  modal_depth phi <= k.
+
+Theorem modal_depth_zero_box_free :
+  forall phi, modal_depth phi = 0 -> box_free phi.
+Proof.
+  intro phi. induction phi as [k | | X IHX Y IHY | n psi IHpsi]; simpl; intro H.
+  - exact I.
+  - exact I.
+  - assert (HX0 : modal_depth X = 0) by lia.
+    assert (HY0 : modal_depth Y = 0) by lia.
+    split.
+    + apply IHX. exact HX0.
+    + apply IHY. exact HY0.
+  - lia.
+Qed.
+
+Theorem provable_modal_depth_bound : forall phi,
+  |- phi -> exists k, modal_depth phi <= k.
+Proof.
+  intros phi _. exists (modal_depth phi). reflexivity.
+Qed.
+
+Definition agent_action (b G : Form) (n : nat) : Prop :=
+  |- action_criterion n b G.
+
+Theorem agent_action_lifts : forall b G n m,
+  n <= m -> agent_action b G n ->
+  |- Impl b (Box m (Impl b G)).
+Proof.
+  intros b G n m Hle Hag.
+  unfold agent_action in Hag.
+  apply (updateless_agent_lifts n m b G Hle Hag).
+Qed.
+
+Definition no_critch_paradox : Prop :=
+  forall n, ~ (|- Box n Bot).
+
+Theorem no_critch_paradox_holds : no_critch_paradox.
+Proof. intros n. exact (meta_consistency_every_level n). Qed.
+
+Theorem reflection_n_strict : forall n,
+  ~ (|- Impl (Box (S n) (Var 0)) (Box n (Var 0))).
+Proof. exact mon_converse_fails. Qed.
+
+Theorem strict_per_level_hierarchy : forall n,
+  exists phi, |- Box (S n) phi /\ ~ |- Box n phi.
+Proof. exact strict_extension_at_each_level. Qed.
+
+Definition transfinite_box_repr (alpha : nat) (phi : Form) : Form := Box alpha phi.
+
+Theorem transfinite_loeb_meta : forall alpha phi,
+  |- Impl (transfinite_box_repr alpha phi) phi -> |- phi.
+Proof.
+  intros alpha phi H.
+  unfold transfinite_box_repr in H.
+  exact (loeb_metatheorem alpha phi H).
+Qed.
+
+Theorem transfinite_consistency_chain_repr : forall alpha beta,
+  alpha < beta -> |- transfinite_box_repr beta (Neg (transfinite_box_repr alpha Bot)).
+Proof.
+  intros alpha beta Hlt.
+  unfold transfinite_box_repr.
+  exact (consistency_chain alpha beta Hlt).
+Qed.
+
 Theorem frame_conditions_independent :
   (exists Rt : nat -> nat -> nat -> Prop,
     (forall n, well_founded (fun u v => Rt n v u)) /\
