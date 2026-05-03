@@ -3722,6 +3722,33 @@ Proof.
   - simpl. rewrite IHpsi. reflexivity.
 Qed.
 
+Lemma subst_form_extensional : forall sigma1 sigma2 phi,
+  (forall k, In k (free_vars phi) -> sigma1 k = sigma2 k) ->
+  subst_form sigma1 phi = subst_form sigma2 phi.
+Proof.
+  intros sigma1 sigma2 phi.
+  induction phi as [k | | X IHX Y IHY | n psi IHpsi]; intro Hext; cbn.
+  - apply Hext. cbn. left. reflexivity.
+  - reflexivity.
+  - rewrite (IHX), (IHY).
+    + reflexivity.
+    + intros k Hk. apply Hext. cbn. apply in_or_app. right. exact Hk.
+    + intros k Hk. apply Hext. cbn. apply in_or_app. left. exact Hk.
+  - rewrite IHpsi.
+    + reflexivity.
+    + intros k Hk. apply Hext. cbn. exact Hk.
+Qed.
+
+Lemma subst_form_compose_converse : forall sigma1 sigma2 sigma3 phi,
+  (forall k, In k (free_vars phi) ->
+             sigma3 k = subst_form sigma2 (sigma1 k)) ->
+  subst_form sigma3 phi = subst_form sigma2 (subst_form sigma1 phi).
+Proof.
+  intros sigma1 sigma2 sigma3 phi Hagree.
+  rewrite subst_form_compose.
+  apply subst_form_extensional. exact Hagree.
+Qed.
+
 (** ** Box4 as a derived theorem of K + Löb (without Ax_Box4).
 
     The standard derivation (folklore, attributed to substitution
