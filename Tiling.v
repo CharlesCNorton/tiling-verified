@@ -7342,6 +7342,65 @@ Proof.
   intros a H. unfold ord_lt in H. rewrite ord_compare_refl in H. discriminate.
 Qed.
 
+Lemma ord_compare_eq_iff_eq : forall a b,
+  ord_compare a b = Eq <-> a = b.
+Proof.
+  induction a as [|e1 IHe t1 IHt]; intro b; destruct b as [|e2 t2];
+    cbn; try (split; [discriminate | discriminate]).
+  - split; [reflexivity | reflexivity].
+  - destruct (ord_compare e1 e2) eqn:Heq.
+    + apply IHe in Heq. subst e2. split.
+      * intro Ht. apply IHt in Ht. subst t2. reflexivity.
+      * intro H. injection H as Ht. subst t2. apply IHt. reflexivity.
+    + split; intros.
+      * discriminate.
+      * injection H as He Ht. subst e2 t2.
+        rewrite ord_compare_refl in Heq. discriminate.
+    + split; intros.
+      * discriminate.
+      * injection H as He Ht. subst e2 t2.
+        rewrite ord_compare_refl in Heq. discriminate.
+Qed.
+
+Lemma ord_lt_trans : forall a b c,
+  ord_lt a b -> ord_lt b c -> ord_lt a c.
+Proof.
+  unfold ord_lt.
+  induction a as [|e1 IHe t1 IHt]; intros b c Hab Hbc.
+  - destruct b as [|e2 t2]; destruct c as [|e3 t3];
+      cbn in *; try discriminate; try reflexivity.
+  - destruct b as [|e2 t2]; [discriminate Hab|].
+    destruct c as [|e3 t3]; [cbn in Hbc; discriminate|].
+    cbn in Hab, Hbc.
+    destruct (ord_compare e1 e2) eqn:H12; try discriminate Hab.
+    + apply ord_compare_eq_iff_eq in H12. subst e2.
+      destruct (ord_compare e1 e3) eqn:H13.
+      * apply ord_compare_eq_iff_eq in H13. subst e3.
+        cbn. rewrite ord_compare_refl. exact (IHt _ _ Hab Hbc).
+      * cbn. rewrite H13. reflexivity.
+      * discriminate Hbc.
+    + destruct (ord_compare e2 e3) eqn:H23; try discriminate Hbc.
+      * apply ord_compare_eq_iff_eq in H23. subst e3.
+        cbn. rewrite H12. reflexivity.
+      * assert (H13 : ord_compare e1 e3 = Lt) by exact (IHe _ _ H12 H23).
+        cbn. rewrite H13. reflexivity.
+Qed.
+
+Lemma ord_lt_total : forall a b,
+  ord_lt a b \/ a = b \/ ord_lt b a.
+Proof.
+  intros a b. unfold ord_lt.
+  destruct (ord_compare a b) eqn:H.
+  - right. left. apply ord_compare_eq_iff_eq. exact H.
+  - left. reflexivity.
+  - right. right.
+    rewrite ord_compare_antisym in H.
+    destruct (ord_compare b a) eqn:Hba; cbn in H.
+    + discriminate.
+    + reflexivity.
+    + discriminate.
+Qed.
+
 Fixpoint ord_size (o : ord) : nat :=
   match o with
   | OZero => 0
