@@ -4974,6 +4974,86 @@ Proof.
     + apply DTN_Nec. exact Hsub.
 Qed.
 
+Inductive Provable_GLP : Form -> Prop :=
+  | GLP_Ax_K : forall phi psi,
+      Provable_GLP (Impl phi (Impl psi phi))
+  | GLP_Ax_S : forall phi psi chi,
+      Provable_GLP (Impl (Impl phi (Impl psi chi))
+                         (Impl (Impl phi psi) (Impl phi chi)))
+  | GLP_Ax_DN : forall phi,
+      Provable_GLP (Impl (Neg (Neg phi)) phi)
+  | GLP_Ax_BoxK : forall n phi psi,
+      Provable_GLP (Impl (Box n (Impl phi psi))
+                         (Impl (Box n phi) (Box n psi)))
+  | GLP_Ax_Loeb : forall n phi,
+      Provable_GLP (Impl (Box n (Impl (Box n phi) phi)) (Box n phi))
+  | GLP_Ax_Box4 : forall n phi,
+      Provable_GLP (Impl (Box n phi) (Box n (Box n phi)))
+  | GLP_Ax_Mon : forall n phi,
+      Provable_GLP (Impl (Box n phi) (Box (S n) phi))
+  | GLP_Ax_Japaridze : forall n phi, Provable_GLP (Japaridze n phi)
+  | GLP_MP : forall phi psi,
+      Provable_GLP (Impl phi psi) -> Provable_GLP phi -> Provable_GLP psi
+  | GLP_Nec : forall n phi,
+      Provable_GLP phi -> Provable_GLP (Box n phi).
+
+Theorem provable_GLP_proves_japaridze : forall n phi,
+  Provable_GLP (Japaridze n phi).
+Proof. intros. apply GLP_Ax_Japaridze. Qed.
+
+Theorem provable_does_not_prove_japaridze :
+  ~ |- Japaridze 0 (Var 0).
+Proof. exact japaridze_unprovable_at_0. Qed.
+
+Theorem provable_GLP_incomparable_with_provable :
+  Provable_GLP (Japaridze 0 (Var 0)) /\ ~ |- Japaridze 0 (Var 0).
+Proof.
+  split.
+  - apply provable_GLP_proves_japaridze.
+  - exact provable_does_not_prove_japaridze.
+Qed.
+
+Inductive Provable_GL : Form -> Prop :=
+  | GL_Ax_K : forall phi psi,
+      Provable_GL (Impl phi (Impl psi phi))
+  | GL_Ax_S : forall phi psi chi,
+      Provable_GL (Impl (Impl phi (Impl psi chi))
+                        (Impl (Impl phi psi) (Impl phi chi)))
+  | GL_Ax_DN : forall phi,
+      Provable_GL (Impl (Neg (Neg phi)) phi)
+  | GL_Ax_BoxK : forall phi psi,
+      Provable_GL (Impl (Box 0 (Impl phi psi))
+                        (Impl (Box 0 phi) (Box 0 psi)))
+  | GL_Ax_Loeb : forall phi,
+      Provable_GL (Impl (Box 0 (Impl (Box 0 phi) phi)) (Box 0 phi))
+  | GL_Ax_Box4 : forall phi,
+      Provable_GL (Impl (Box 0 phi) (Box 0 (Box 0 phi)))
+  | GL_MP : forall phi psi,
+      Provable_GL (Impl phi psi) -> Provable_GL phi -> Provable_GL psi
+  | GL_Nec : forall phi,
+      Provable_GL phi -> Provable_GL (Box 0 phi).
+
+Fixpoint level_0_only (phi : Form) : Prop :=
+  match phi with
+  | Var _ => True
+  | Bot => True
+  | Impl X Y => level_0_only X /\ level_0_only Y
+  | Box n psi => n = 0 /\ level_0_only psi
+  end.
+
+Theorem GL_in_provable : forall phi, Provable_GL phi -> |- phi.
+Proof.
+  intros phi H. induction H as [| | | | | | phi psi _ IH1 _ IH2 | phi _ IH].
+  - apply Ax_K.
+  - apply Ax_S.
+  - apply Ax_DN.
+  - apply Ax_BoxK.
+  - apply Ax_Loeb.
+  - apply Ax_Box4.
+  - exact (MP _ _ IH1 IH2).
+  - exact (Nec _ _ IH).
+Qed.
+
 Theorem frame_conditions_independent :
   (exists Rt : nat -> nat -> nat -> Prop,
     (forall n, well_founded (fun u v => Rt n v u)) /\
