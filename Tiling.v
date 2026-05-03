@@ -7401,6 +7401,41 @@ Proof.
     + discriminate.
 Qed.
 
+(** Strict Cantor normal form for [ord]: an [OCons e t] is in CNF when
+    [e] and [t] are in CNF, and [t] is either [OZero] or its head
+    exponent is no larger than [e].  This excludes pathological trees
+    like [OCons OZero (OCons (OCons OZero OZero) OZero)] where the
+    tail has a strictly larger head exponent than the front. *)
+
+Fixpoint wf_ord (o : ord) : Prop :=
+  match o with
+  | OZero => True
+  | OCons e t =>
+      wf_ord e /\ wf_ord t /\
+      match t with
+      | OZero => True
+      | OCons e' _ => ord_compare e' e <> Gt
+      end
+  end.
+
+Lemma wf_ord_dec : forall o, {wf_ord o} + {~ wf_ord o}.
+Proof.
+  induction o as [|e IHe t IHt]; cbn.
+  - left. exact I.
+  - destruct IHe as [HE | HE].
+    + destruct IHt as [HT | HT].
+      * destruct t as [|e' t'].
+        -- left. split; [exact HE | split; [exact HT | exact I]].
+        -- destruct (ord_compare e' e) eqn:Hcmp.
+           ++ left. split; [exact HE | split; [exact HT |]].
+              intro Hbad; discriminate Hbad.
+           ++ left. split; [exact HE | split; [exact HT |]].
+              intro Hbad; discriminate Hbad.
+           ++ right. intros [_ [_ HG]]. exact (HG eq_refl).
+      * right. intros [_ [HT' _]]. exact (HT HT').
+    + right. intros [HE' _]. exact (HE HE').
+Qed.
+
 Fixpoint ord_size (o : ord) : nat :=
   match o with
   | OZero => 0
