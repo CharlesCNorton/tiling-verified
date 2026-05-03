@@ -4414,6 +4414,45 @@ Proof.
           (prov_box_mon_le m k phi Hmk)).
 Qed.
 
+Definition build_finite_frame
+  (W : Type)
+  (R : nat -> W -> W -> Prop)
+  (Htrans : forall n w v u, R n w v -> R n v u -> R n w u)
+  (Hwf : forall n, well_founded (fun u v => R n v u))
+  (Hmon : forall n w v, R (S n) w v -> R n w v)
+  (Hnextcon : forall n w v, R (S n) w v -> exists u, R n v u)
+  : Frame :=
+  mkFrame W R Htrans Hwf Hmon Hnextcon.
+
+Theorem build_finite_frame_correct : forall W R Htrans Hwf Hmon Hnextcon,
+  fW (build_finite_frame W R Htrans Hwf Hmon Hnextcon) = W /\
+  (forall n w v, fR (build_finite_frame W R Htrans Hwf Hmon Hnextcon) n w v <-> R n w v).
+Proof.
+  intros W R Htrans Hwf Hmon Hnextcon.
+  split.
+  - reflexivity.
+  - intros n w v. simpl. reflexivity.
+Qed.
+
+Definition F0_via_builder : Frame :=
+  build_finite_frame bool F0_R F0_R_trans F0_R_wf F0_R_mon F0_R_nextcon.
+
+Theorem F0_via_builder_eq_F0 : F0_via_builder = F0.
+Proof. unfold F0_via_builder, build_finite_frame, F0. reflexivity. Qed.
+
+Definition Fnat_via_builder : Frame :=
+  build_finite_frame nat Fnat_R
+    Fnat_R_trans Fnat_R_wf Fnat_R_mon Fnat_R_nextcon.
+
+Theorem Fnat_via_builder_eq_Fnat : Fnat_via_builder = Fnat.
+Proof. unfold Fnat_via_builder, build_finite_frame, Fnat. reflexivity. Qed.
+
+Theorem fixed_point_uniqueness_lifts : forall psi1 psi2 n,
+  |- Iff psi1 psi2 -> |- Box n (Iff psi1 psi2).
+Proof.
+  intros psi1 psi2 n Hiff. apply Nec. exact Hiff.
+Qed.
+
 Theorem axioms_mutually_independent :
   (~ (|-no_loeb Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot))) /\
   (~ (|-no_mon Impl (Box 0 (Var 0)) (Box 1 (Var 0)))) /\
