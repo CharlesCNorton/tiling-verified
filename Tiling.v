@@ -10042,6 +10042,41 @@ Proof.
   - exact (fixed_point_existence_top_solves p phi Htop).
 Qed.
 
+(** Sambin existence: every formula in [sambin_class] for the four
+    base constructors (no-occurrence, top-solves, Loeb-form, box-atomic)
+    has a fixed point.  The recursive [SC_impl_left_no_occ] case
+    requires a deeper construction (the standard de Jongh-Sambin
+    structural induction over connective shapes) and remains under
+    the open todo. *)
+
+Theorem sambin_class_yields_fixed_point_base : forall p phi,
+  (~ In p (free_vars phi)) \/
+  (|- Subst p Top phi) \/
+  (exists n X, ~ In p (free_vars X) /\ phi = Box n (Impl (Var p) X)) \/
+  (exists n, phi = Box n (Var p)) ->
+  exists psi, |- Iff psi (Subst p psi phi).
+Proof.
+  intros p phi [Hno | [Htop | [[n [X [HnoX Heq]]] | [n Heq]]]].
+  - (* No occurrence *)
+    exists phi. rewrite (Subst_no_occurrence p phi phi Hno).
+    exact (prov_iff_refl phi).
+  - (* Top solves *)
+    exact (fixed_point_existence_top_solves p phi Htop).
+  - (* Loeb form *)
+    subst phi. exists (Box n X).
+    assert (HsubstBox : Subst p (Box n X) (Box n (Impl (Var p) X)) =
+                       Box n (Impl (Box n X) X)).
+    { unfold Subst. simpl. rewrite Nat.eqb_refl.
+      pose proof (Subst_no_occurrence p (Box n X) X HnoX) as Heq.
+      unfold Subst in Heq. rewrite Heq. reflexivity. }
+    rewrite HsubstBox.
+    exact (fixed_point_loeb_witness n X).
+  - (* Box atomic *)
+    subst phi. exists Top.
+    unfold Subst. simpl. rewrite Nat.eqb_refl.
+    exact (fixedpoint_top_box n).
+Qed.
+
 Theorem sambin_uniqueness_loeb_class : forall n X psi1 psi2,
   |- Iff psi1 (Box n (Impl psi1 X)) ->
   |- Iff psi2 (Box n (Impl psi2 X)) ->
