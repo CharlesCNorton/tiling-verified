@@ -3305,6 +3305,135 @@ Proof.
   - exact Hk.
 Qed.
 
+Fixpoint all_bool_lists (n : nat) : list (list bool) :=
+  match n with
+  | O => [[]]
+  | S n' => let rest := all_bool_lists n' in
+            map (cons true) rest ++ map (cons false) rest
+  end.
+
+Fixpoint mk_assignment (vars : list nat) (bs : list bool) (p : nat) : bool :=
+  match vars, bs with
+  | [], _ => false
+  | v :: vs', b :: bs' => if Nat.eqb v p then b else mk_assignment vs' bs' p
+  | _, [] => false
+  end.
+
+Definition decide_tautology (phi : Form) : bool :=
+  let vars := nodup Nat.eq_dec (free_vars phi) in
+  forallb (fun bs => eval (mk_assignment vars bs) phi)
+          (all_bool_lists (length vars)).
+
+Lemma all_bool_lists_length : forall n bs,
+  In bs (all_bool_lists n) -> length bs = n.
+Proof.
+  intro n. induction n as [|n IH]; intros bs Hin.
+  - simpl in Hin. destruct Hin as [Heq|[]]. subst bs. reflexivity.
+  - simpl in Hin. apply in_app_or in Hin. destruct Hin as [Hin|Hin].
+    + apply in_map_iff in Hin. destruct Hin as [bs' [Heq Hin']].
+      subst bs. simpl. f_equal. apply IH. exact Hin'.
+    + apply in_map_iff in Hin. destruct Hin as [bs' [Heq Hin']].
+      subst bs. simpl. f_equal. apply IH. exact Hin'.
+Qed.
+
+Lemma all_bool_lists_complete : forall (vars : list nat) (val : nat -> bool),
+  exists bs, length bs = length vars /\
+             In bs (all_bool_lists (length vars)) /\
+             forall p, In p vars -> mk_assignment vars bs p = val p.
+Proof.
+  intros vars val. induction vars as [|v rest IH].
+  - exists []. split; [reflexivity|]. split.
+    + simpl. left. reflexivity.
+    + intros p Hin. destruct Hin.
+  - destruct IH as [bs [Hlen [Hin Hagree]]].
+    exists (val v :: bs). split; [simpl; f_equal; exact Hlen|]. split.
+    + simpl. apply in_or_app.
+      destruct (val v) eqn:Heq.
+      * left. apply in_map_iff. exists bs. split; [reflexivity|exact Hin].
+      * right. apply in_map_iff. exists bs. split; [reflexivity|exact Hin].
+    + intros p Hin'. simpl in Hin'.
+      simpl. destruct (Nat.eqb_spec v p).
+      * subst p. reflexivity.
+      * destruct Hin' as [Heq|Hin''].
+        -- subst v. exfalso. apply n. reflexivity.
+        -- apply Hagree. exact Hin''.
+Qed.
+
+Lemma free_vars_in_nodup : forall phi p,
+  In p (free_vars phi) -> In p (nodup Nat.eq_dec (free_vars phi)).
+Proof.
+  intros phi p Hin. apply nodup_In. exact Hin.
+Qed.
+
+Lemma forallb_forall : forall A (f : A -> bool) (l : list A),
+  forallb f l = true <-> forall x, In x l -> f x = true.
+Proof.
+  intros A f l. induction l as [|y l IH]; simpl.
+  - split; intros _; [intros x H; destruct H | reflexivity].
+  - rewrite Bool.andb_true_iff. split.
+    + intros [Hf Hr] x [Heq|Hin].
+      * subst y. exact Hf.
+      * apply IH; assumption.
+    + intro Hall. split.
+      * apply Hall. left. reflexivity.
+      * apply IH. intros x Hin. apply Hall. right. exact Hin.
+Qed.
+
+Lemma eval_ext_on_free_vars : forall phi val1 val2,
+  (forall p, In p (free_vars phi) -> val1 p = val2 p) ->
+  eval val1 phi = eval val2 phi.
+Proof.
+  intro phi. induction phi as [k | | X IHX Y IHY | n psi IHpsi];
+    intros val1 val2 Hext; simpl.
+  - apply Hext. simpl. left. reflexivity.
+  - reflexivity.
+  - rewrite (IHX val1 val2), (IHY val1 val2).
+    + reflexivity.
+    + intros p Hin. apply Hext. simpl. apply in_or_app. right. exact Hin.
+    + intros p Hin. apply Hext. simpl. apply in_or_app. left. exact Hin.
+  - reflexivity.
+Qed.
+
+Theorem decide_tautology_correct : forall phi,
+  decide_tautology phi = true -> classical_valid phi.
+Proof.
+  intros phi Hdec val.
+  unfold decide_tautology in Hdec.
+  set (vars := nodup Nat.eq_dec (free_vars phi)) in *.
+  rewrite forallb_forall in Hdec.
+  destruct (all_bool_lists_complete vars val) as [bs [Hlen [Hin Hagree]]].
+  pose proof (Hdec bs Hin) as Hf.
+  rewrite <- Hf.
+  apply eval_ext_on_free_vars.
+  intros p Hpin.
+  assert (Hin'' : In p vars).
+  { unfold vars. apply free_vars_in_nodup. exact Hpin. }
+  symmetry. apply Hagree. exact Hin''.
+Qed.
+
+Theorem decide_tautology_complete : forall phi,
+  classical_valid phi -> decide_tautology phi = true.
+Proof.
+  intros phi Hval.
+  unfold decide_tautology.
+  apply forallb_forall.
+  intros bs _.
+  apply Hval.
+Qed.
+
+Theorem prop_decide_correct : forall phi,
+  box_free phi -> decide_tautology phi = true -> ProvableProp phi.
+Proof.
+  intros phi Hbf Hdec.
+  apply prop_completeness; [exact Hbf|].
+  apply decide_tautology_correct. exact Hdec.
+Qed.
+
+Ltac prop_decide :=
+  apply prop_decide_correct;
+  [ cbn; repeat split; exact I
+  | cbv; reflexivity ].
+
 (** ** Uniform-witness theorem for tiling_consistency.
 
     [tiling_consistency] in Coq is already a single dependent term of
