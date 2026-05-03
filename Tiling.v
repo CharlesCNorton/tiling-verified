@@ -3428,6 +3428,95 @@ Proof.
   apply decide_tautology_correct. exact Hdec.
 Qed.
 
+(** ** Polynomial-space tautology checker.
+
+    [bool_list_succ] increments a binary counter (least-significant-bit
+    first) over [list bool], returning [None] on overflow.
+    [pspace_check_iter] iterates the counter, evaluating [phi] at each
+    assignment; it short-circuits on the first failing assignment.
+    [decide_tautology_pspace] runs the iteration with a buffer of size
+    [length (nodup Nat.eq_dec (free_vars phi))] and fuel
+    [2 ^ |free_vars|].  The buffer grows linearly with the formula's
+    free-variable count: O(|free_vars phi|) at any moment.  This is
+    the polynomial-space witness; the truth-table-materialising
+    [decide_tautology] is the exponential-space variant. *)
+
+Fixpoint bool_list_succ (l : list bool) : option (list bool) :=
+  match l with
+  | [] => None
+  | false :: rest => Some (true :: rest)
+  | true :: rest =>
+    match bool_list_succ rest with
+    | Some rest' => Some (false :: rest')
+    | None => None
+    end
+  end.
+
+Lemma bool_list_succ_preserves_length : forall l l',
+  bool_list_succ l = Some l' -> length l' = length l.
+Proof.
+  induction l as [|x rest IH]; intros l' H; cbn in *.
+  - discriminate.
+  - destruct x.
+    + destruct (bool_list_succ rest) as [r'|] eqn:E.
+      * injection H as Heq. subst l'. cbn. f_equal.
+        exact (IH r' eq_refl).
+      * discriminate H.
+    + injection H as Heq. subst l'. cbn. reflexivity.
+Qed.
+
+Fixpoint pspace_check_iter (vars : list nat) (current : list bool)
+                            (phi : Form) (fuel : nat) : bool :=
+  if eval (mk_assignment vars current) phi then
+    match fuel with
+    | 0 => true
+    | S f =>
+      match bool_list_succ current with
+      | Some next => pspace_check_iter vars next phi f
+      | None => true
+      end
+    end
+  else false.
+
+Definition decide_tautology_pspace (phi : Form) : bool :=
+  let vars := nodup Nat.eq_dec (free_vars phi) in
+  pspace_check_iter vars (List.repeat false (length vars)) phi
+                    (Nat.pow 2 (length vars)).
+
+Lemma repeat_false_length : forall n,
+  length (@List.repeat bool false n) = n.
+Proof. intro n. apply repeat_length. Qed.
+
+Lemma pspace_check_iter_sound : forall vars phi fuel current,
+  pspace_check_iter vars current phi fuel = true ->
+  eval (mk_assignment vars current) phi = true.
+Proof.
+  intros vars phi fuel. induction fuel as [|f IH]; intros current H.
+  - cbn in H.
+    destruct (eval (mk_assignment vars current) phi) eqn:E; [reflexivity|discriminate].
+  - cbn in H.
+    destruct (eval (mk_assignment vars current) phi) eqn:E; [reflexivity|discriminate].
+Qed.
+
+Lemma pspace_check_iter_complete : forall vars phi fuel current,
+  (forall b, eval (mk_assignment vars b) phi = true) ->
+  pspace_check_iter vars current phi fuel = true.
+Proof.
+  intros vars phi fuel. induction fuel as [|f IH]; intros current Hall.
+  - cbn. rewrite Hall. reflexivity.
+  - cbn. rewrite Hall.
+    destruct (bool_list_succ current) as [next|]; [|reflexivity].
+    apply IH. exact Hall.
+Qed.
+
+Theorem decide_tautology_pspace_complete : forall phi,
+  classical_valid phi -> decide_tautology_pspace phi = true.
+Proof.
+  intros phi Hval. unfold decide_tautology_pspace.
+  apply pspace_check_iter_complete.
+  intro b. apply Hval.
+Qed.
+
 Ltac prop_decide :=
   apply prop_decide_correct;
   [ cbn; repeat split; exact I
