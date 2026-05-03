@@ -4453,6 +4453,54 @@ Proof.
   intros psi1 psi2 n Hiff. apply Nec. exact Hiff.
 Qed.
 
+Record NeighFrame : Type := mkNeighFrame {
+  fW_neigh : Type;
+  fN : nat -> fW_neigh -> (fW_neigh -> Prop) -> Prop
+}.
+
+Fixpoint forces_neigh (F : NeighFrame) (V : fW_neigh F -> nat -> bool)
+                      (w : fW_neigh F) (phi : Form) : Prop :=
+  match phi with
+  | Var p => V w p = true
+  | Bot => False
+  | Impl X Y => forces_neigh F V w X -> forces_neigh F V w Y
+  | Box k psi => fN F k w (fun v => forces_neigh F V v psi)
+  end.
+
+Definition F_K_refuter_N (_ : nat) (_ : bool) (P : bool -> Prop) : Prop :=
+  (P true /\ ~ P false) \/ (~ P true /\ P false) \/ (P true /\ P false).
+
+Definition F_K_refuter : NeighFrame :=
+  mkNeighFrame bool F_K_refuter_N.
+
+Theorem K_refuted_in_neighborhood :
+  ~ forces_neigh F_K_refuter
+      (fun w (_ : nat) => if w then true else false) true
+      (Impl (Box 0 (Impl (Var 0) Bot))
+            (Impl (Box 0 (Var 0)) (Box 0 Bot))).
+Proof.
+  intro Habs.
+  assert (HboxImp : F_K_refuter_N 0 true
+            (fun v => forces_neigh F_K_refuter
+                        (fun w (_ : nat) => if w then true else false) v
+                        (Impl (Var 0) Bot))).
+  { unfold F_K_refuter_N. right. left. split.
+    - simpl. intro H. apply H. reflexivity.
+    - simpl. intro H. discriminate. }
+  pose proof (Habs HboxImp) as Habs2.
+  assert (HboxA : F_K_refuter_N 0 true
+            (fun v => forces_neigh F_K_refuter
+                        (fun w (_ : nat) => if w then true else false) v
+                        (Var 0))).
+  { unfold F_K_refuter_N. left. split.
+    - simpl. reflexivity.
+    - simpl. intro H. discriminate. }
+  pose proof (Habs2 HboxA) as HboxB.
+  unfold F_K_refuter_N in HboxB.
+  destruct HboxB as [[H _]|[[_ H]|[H _]]]; exact H.
+Qed.
+
+
 Theorem axioms_mutually_independent :
   (~ (|-no_loeb Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot))) /\
   (~ (|-no_mon Impl (Box 0 (Var 0)) (Box 1 (Var 0)))) /\
@@ -4673,6 +4721,28 @@ Proof.
   - intros v Hv Hval. unfold Fnat_R in Hv. destruct Hv as [Hv1 Hv2].
     assert (v = 0) by lia. subst v.
     unfold V in Hval. simpl in Hval. discriminate.
+Qed.
+
+Theorem japaridze_unprovable_family : forall n, ~ (|- Japaridze n (Var 0)).
+Proof.
+  intro n. intro H.
+  pose (V := fun (w : nat) (p : nat) =>
+    match p with O => Nat.eqb w (n+4) | _ => false end).
+  pose proof (soundness _ H Fnat V (n+5)) as Hf.
+  unfold Japaridze, Diamond in Hf. simpl in Hf.
+  assert (Hdia : (forall v : nat, Fnat_R n (n+5) v -> V v 0 = true -> False) -> False).
+  { intro Habs.
+    apply (Habs (n+4)).
+    - unfold Fnat_R. split; lia.
+    - unfold V. simpl. rewrite Nat.eqb_refl. reflexivity. }
+  pose proof (Hf Hdia) as HBoxSn.
+  specialize (HBoxSn (n+1) ltac:(unfold Fnat_R; split; lia)) as HD.
+  apply HD.
+  intros v Hv Hval.
+  unfold Fnat_R in Hv. destruct Hv as [Hv1 Hv2].
+  assert (Hve : v = n) by lia. subst v.
+  unfold V in Hval. simpl in Hval.
+  apply Nat.eqb_eq in Hval. lia.
 Qed.
 
 Theorem frame_conditions_independent :
