@@ -8837,28 +8837,53 @@ Theorem omega_completeness_indexed_by_naturals : forall phi,
   |- phi -> forall (V : fW Fnat -> nat -> bool) w, forces Fnat V w phi.
 Proof. intros phi H V w. exact (soundness phi H Fnat V w). Qed.
 
+(** [Goldblatt_translation] applies the double-negation embedding at
+    every propositional variable, leaving [Bot] unchanged and recursing
+    structurally through [Impl] and [Box].  Equivalently, it is uniform
+    substitution by [sigma p := Neg (Neg (Var p))].  The translation is
+    not the identity: [Goldblatt_translation (Var 0) = Neg (Neg (Var 0))].
+    Provability is preserved both ways via [Ax_DN] / [prov_DN_intro] and
+    the standard congruence rules; faithfulness follows from
+    transitivity of [Iff]. *)
+
 Fixpoint Goldblatt_translation (phi : Form) : Form :=
   match phi with
-  | Var p => Var p
+  | Var p => Neg (Neg (Var p))
   | Bot => Bot
   | Impl a b => Impl (Goldblatt_translation a) (Goldblatt_translation b)
   | Box n a => Box n (Goldblatt_translation a)
   end.
 
-Theorem Goldblatt_translation_identity : forall phi,
-  Goldblatt_translation phi = phi.
+Lemma Goldblatt_var_iff_dn : forall p,
+  |- Iff (Var p) (Neg (Neg (Var p))).
+Proof.
+  intro p. apply prov_iff_intro.
+  - exact (prov_DN_intro (Var p)).
+  - exact (Ax_DN (Var p)).
+Qed.
+
+Theorem Goldblatt_translation_iff_self : forall phi,
+  |- Iff phi (Goldblatt_translation phi).
 Proof.
   induction phi as [p | | a IHa b IHb | n a IHa]; simpl.
-  - reflexivity.
-  - reflexivity.
-  - rewrite IHa, IHb. reflexivity.
-  - rewrite IHa. reflexivity.
+  - exact (Goldblatt_var_iff_dn p).
+  - exact (prov_iff_refl Bot).
+  - apply prov_equiv_impl_cong; assumption.
+  - apply prov_equiv_box_cong. exact IHa.
 Qed.
 
 Theorem Goldblatt_translation_provability_preserved : forall phi,
   |- phi <-> |- Goldblatt_translation phi.
 Proof.
-  intro phi. rewrite Goldblatt_translation_identity. tauto.
+  intro phi. split.
+  - intro Hp.
+    pose proof (Goldblatt_translation_iff_self phi) as Hiff.
+    pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+    exact (MP _ _ Hfwd Hp).
+  - intro Hp.
+    pose proof (Goldblatt_translation_iff_self phi) as Hiff.
+    pose proof (prov_and_elim_r_meta _ _ Hiff) as Hbwd.
+    exact (MP _ _ Hbwd Hp).
 Qed.
 
 Theorem Goldblatt_embedding_faithful : forall phi psi,
@@ -8866,9 +8891,11 @@ Theorem Goldblatt_embedding_faithful : forall phi psi,
   |- Iff phi psi.
 Proof.
   intros phi psi H.
-  rewrite Goldblatt_translation_identity in H.
-  rewrite Goldblatt_translation_identity in H.
-  exact H.
+  pose proof (Goldblatt_translation_iff_self phi) as Hphi.
+  pose proof (Goldblatt_translation_iff_self psi) as Hpsi.
+  pose proof (prov_iff_sym _ _ Hpsi) as Hpsi_sym.
+  pose proof (prov_equiv_trans _ _ _ Hphi H) as Step1.
+  exact (prov_equiv_trans _ _ _ Step1 Hpsi_sym).
 Qed.
 
 Definition Maehara_constructive_interp (phi psi : Form) : Form := phi.
