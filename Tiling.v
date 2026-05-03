@@ -10077,6 +10077,27 @@ Proof.
     exact (fixedpoint_top_box n).
 Qed.
 
+(** Gödel-sentence fixed point: [phi(p) := Neg (Box n (Var p))] has
+    [Neg (Box n Bot)] as a fixed point.  The iff follows because
+    [Box n (Neg (Box n Bot))] and [Box n Bot] are provably equivalent:
+    forward by Gödel's second incompleteness ([Ax_Loeb] at [Bot]);
+    backward by ex-falso lifted via [Nec]. *)
+
+Theorem sambin_godel_sentence : forall p n,
+  exists psi, |- Iff psi (Subst p psi (Neg (Box n (Var p)))).
+Proof.
+  intros p n. exists (Neg (Box n Bot)).
+  unfold Subst. simpl. rewrite Nat.eqb_refl.
+  (* Goal: |- Iff (Neg (Box n Bot)) (Neg (Box n (Impl (Impl (Box n Bot) Bot) Bot))) *)
+  apply prov_iff_intro.
+  - (* Neg (Box n Bot) -> Neg (Box n (Neg (Box n Bot))) *)
+    apply (MP _ _ (prov_contrapos (Box n (Neg (Box n Bot))) (Box n Bot))).
+    exact (godel_second n).
+  - (* Neg (Box n (Neg (Box n Bot))) -> Neg (Box n Bot) *)
+    apply (MP _ _ (prov_contrapos (Box n Bot) (Box n (Neg (Box n Bot))))).
+    apply prov_box_imp. exact (prov_explosion (Neg (Box n Bot))).
+Qed.
+
 Theorem sambin_uniqueness_loeb_class : forall n X psi1 psi2,
   |- Iff psi1 (Box n (Impl psi1 X)) ->
   |- Iff psi2 (Box n (Impl psi2 X)) ->
