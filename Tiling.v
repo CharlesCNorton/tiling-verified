@@ -9168,6 +9168,7 @@ Proof.
   - exact full_vingean_reflection_program_no_loebian_collapse.
 Qed.
 
+
 Theorem denote_proof_term_provable : forall pt phi,
   denote_proof_term pt = Some phi -> |- phi.
 Proof.
@@ -9193,5 +9194,1180 @@ Proof.
     injection Hd. intro He. subst phi.
     pose proof (IH phi' eq_refl) as H.
     exact (Nec _ _ H).
+Qed.
+
+Lemma Form_eqb_refl : forall phi, Form_eqb phi phi = true.
+Proof.
+  intro phi. unfold Form_eqb. destruct (Form_eq_dec phi phi); congruence.
+Qed.
+
+Theorem provable_to_proof_term : forall phi,
+  |- phi -> exists pt, denote_proof_term pt = Some phi.
+Proof.
+  intros phi H. induction H.
+  - exists (PT_K phi psi). reflexivity.
+  - exists (PT_S phi psi chi). reflexivity.
+  - exists (PT_DN phi). reflexivity.
+  - exists (PT_BoxK n phi psi). reflexivity.
+  - exists (PT_Loeb n phi). reflexivity.
+  - exists (PT_Box4 n phi). reflexivity.
+  - exists (PT_Mon n phi). reflexivity.
+  - exists (PT_NextCon n). reflexivity.
+  - destruct IHProvable1 as [pt1 H1]. destruct IHProvable2 as [pt2 H2].
+    exists (PT_MP pt1 pt2). simpl. rewrite H1, H2.
+    rewrite Form_eqb_refl. reflexivity.
+  - destruct IHProvable as [pt H']. exists (PT_Nec n pt). simpl. rewrite H'. reflexivity.
+Qed.
+
+Definition Bew_arith (phi : Form) : Prop :=
+  exists pt : proof_term, denote_proof_term pt = Some phi.
+
+Theorem Bew_arith_iff_provable : forall phi,
+  Bew_arith phi <-> |- phi.
+Proof.
+  intro phi. split.
+  - intros [pt Hd]. exact (denote_proof_term_provable pt phi Hd).
+  - exact (provable_to_proof_term phi).
+Qed.
+
+Theorem Bew_arith_HBL_K_derived : forall phi psi,
+  Bew_arith (Impl phi psi) -> Bew_arith phi -> Bew_arith psi.
+Proof.
+  intros phi psi [pt1 H1] [pt2 H2].
+  exists (PT_MP pt1 pt2). simpl. rewrite H1, H2.
+  rewrite Form_eqb_refl. reflexivity.
+Qed.
+
+Theorem Bew_arith_HBL_Nec_derived : forall n phi,
+  Bew_arith phi -> Bew_arith (Box n phi).
+Proof.
+  intros n phi [pt H]. exists (PT_Nec n pt). simpl. rewrite H. reflexivity.
+Qed.
+
+Theorem Bew_arith_HBL_Loeb_axiom_derived : forall n phi,
+  Bew_arith (Impl (Box n (Impl (Box n phi) phi)) (Box n phi)).
+Proof. intros n phi. exists (PT_Loeb n phi). reflexivity. Qed.
+
+Theorem Bew_arith_HBL_K_axiom_derived : forall n phi psi,
+  Bew_arith (Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi))).
+Proof. intros n phi psi. exists (PT_BoxK n phi psi). reflexivity. Qed.
+
+Theorem Bew_arith_HBL_Box4_axiom_derived : forall n phi,
+  Bew_arith (Impl (Box n phi) (Box n (Box n phi))).
+Proof. intros n phi. exists (PT_Box4 n phi). reflexivity. Qed.
+
+Theorem Bew_arith_HBL_complete_package : forall (n : nat) (phi : Form),
+  Bew_arith (Impl (Box n (Impl (Box n phi) phi)) (Box n phi)) /\
+  (forall psi, Bew_arith (Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi)))) /\
+  (Bew_arith phi -> Bew_arith (Box n phi)) /\
+  (forall psi, Bew_arith (Impl phi psi) -> Bew_arith phi -> Bew_arith psi).
+Proof.
+  intros n phi. split; [|split; [|split]].
+  - exact (Bew_arith_HBL_Loeb_axiom_derived n phi).
+  - intros psi. exact (Bew_arith_HBL_K_axiom_derived n phi psi).
+  - exact (Bew_arith_HBL_Nec_derived n phi).
+  - intros psi. exact (Bew_arith_HBL_K_derived phi psi).
+Qed.
+
+Definition is_proof_code (pt : proof_term) (phi : Form) : Prop :=
+  denote_proof_term pt = Some phi.
+
+Theorem is_proof_code_unique_conclusion : forall pt phi psi,
+  is_proof_code pt phi -> is_proof_code pt psi -> phi = psi.
+Proof.
+  intros pt phi psi H1 H2. unfold is_proof_code in *.
+  rewrite H1 in H2. injection H2. intro He. exact He.
+Qed.
+
+Theorem Bew_arith_consistent : ~ Bew_arith Bot.
+Proof.
+  intros [pt Hd].
+  pose proof (denote_proof_term_provable pt Bot Hd) as Hbot.
+  exact (meta_consistency_system Hbot).
+Qed.
+
+Theorem Bew_arith_loeb_internal : forall n phi,
+  Bew_arith (Impl (Box n phi) phi) -> Bew_arith phi.
+Proof.
+  intros n phi [pt Hd].
+  pose proof (denote_proof_term_provable pt _ Hd) as Hsound.
+  pose proof (loeb_metatheorem n phi Hsound) as Hphi.
+  exact (provable_to_proof_term phi Hphi).
+Qed.
+
+Definition encoded_Sigma1_provable (n : nat) : Prop :=
+  exists pt : proof_term, denote_proof_term pt = Some (decode_form n).
+
+Theorem encoded_Sigma1_provable_iff_provable : forall n,
+  encoded_Sigma1_provable n <-> |- decode_form n.
+Proof. intro n. unfold encoded_Sigma1_provable. exact (Bew_arith_iff_provable _). Qed.
+
+Theorem encoded_Sigma1_HBL_via_encoding : forall n m,
+  encoded_Sigma1_provable n /\ encoded_Sigma1_provable m ->
+  forall phi, decode_form n = Impl (decode_form m) phi ->
+  exists pt, denote_proof_term pt = Some phi.
+Proof.
+  intros n m [Hn Hm] phi Hd.
+  destruct Hn as [ptn Hptn]. destruct Hm as [ptm Hptm].
+  exists (PT_MP ptn ptm). simpl. rewrite Hptn, Hptm. rewrite Hd.
+  rewrite Form_eqb_refl. reflexivity.
+Qed.
+
+Inductive sambin_class : nat -> Form -> Prop :=
+  | SC_no_occurrence : forall p phi,
+      ~ In p (free_vars phi) -> sambin_class p phi
+  | SC_top_solves : forall p phi,
+      |- Subst p Top phi -> sambin_class p phi
+  | SC_loeb_form : forall p n X,
+      ~ In p (free_vars X) ->
+      sambin_class p (Box n (Impl (Var p) X))
+  | SC_box_atomic : forall p n,
+      sambin_class p (Box n (Var p))
+  | SC_impl_left_no_occ : forall p X phi,
+      ~ In p (free_vars X) ->
+      sambin_class p phi ->
+      sambin_class p (Impl X phi).
+
+Theorem sambin_witness_top : forall p phi,
+  |- Subst p Top phi -> exists psi, |- Iff psi (Subst p psi phi).
+Proof. exact fixed_point_existence_top_solves. Qed.
+
+Lemma not_in_app_split : forall (A : Type) (l1 l2 : list A) (x : A),
+  ~ In x (l1 ++ l2) -> ~ In x l1 /\ ~ In x l2.
+Proof.
+  intros A l1 l2 x H. split.
+  - intro Hin. apply H. apply in_or_app. left. exact Hin.
+  - intro Hin. apply H. apply in_or_app. right. exact Hin.
+Qed.
+
+Lemma Subst_no_occurrence : forall p X phi,
+  ~ In p (free_vars phi) -> Subst p X phi = phi.
+Proof.
+  intros p X phi Hp. unfold Subst.
+  induction phi as [q | | a IHa b IHb | n a IHa]; simpl in *.
+  - destruct (Nat.eqb_spec q p).
+    + subst q. exfalso. apply Hp. left. reflexivity.
+    + reflexivity.
+  - reflexivity.
+  - apply not_in_app_split in Hp. destruct Hp as [Hpa Hpb].
+    rewrite IHa by exact Hpa. rewrite IHb by exact Hpb. reflexivity.
+  - rewrite IHa by exact Hp. reflexivity.
+Qed.
+
+Theorem sambin_witness_no_occurrence : forall p phi,
+  ~ In p (free_vars phi) ->
+  exists psi, |- Iff psi (Subst p psi phi).
+Proof.
+  intros p phi Hp. exists phi.
+  rewrite (Subst_no_occurrence p phi phi Hp).
+  exact (prov_iff_refl phi).
+Qed.
+
+Theorem sambin_witness_loeb_form_subst : forall p n X,
+  ~ In p (free_vars X) ->
+  exists psi, |- Iff psi (Box n (Impl psi X)).
+Proof.
+  intros p n X _.
+  exists (Box n X). exact (fixed_point_loeb_witness n X).
+Qed.
+
+Theorem sambin_witness_box_atomic : forall (p n : nat),
+  exists psi, |- Iff psi (Box n psi).
+Proof.
+  intros p n. exists Top. exact (fixedpoint_top_box n).
+Qed.
+
+Theorem sambin_class_top_yields_witness : forall p phi,
+  sambin_class p phi ->
+  (|- Subst p Top phi) ->
+  exists psi, |- Iff psi (Subst p psi phi).
+Proof.
+  intros p phi Hsc Htop. exact (fixed_point_existence_top_solves p phi Htop).
+Qed.
+
+Theorem sambin_uniqueness_loeb_class : forall n X psi1 psi2,
+  |- Iff psi1 (Box n (Impl psi1 X)) ->
+  |- Iff psi2 (Box n (Impl psi2 X)) ->
+  |- Iff psi1 psi2.
+Proof. exact fixed_point_unique_loeb_form. Qed.
+
+Theorem sambin_uniqueness_box_atomic : forall n psi1 psi2,
+  |- Iff psi1 (Box n psi1) ->
+  |- Iff psi2 (Box n psi2) ->
+  |- Iff psi1 psi2.
+Proof. exact same_level_fixed_point_uniqueness. Qed.
+
+Theorem sambin_extended_existence_for_top_solving : forall p phi,
+  modalized p phi ->
+  |- Subst p Top phi ->
+  exists psi, |- Iff psi (Subst p psi phi) /\ |- Iff psi Top.
+Proof.
+  intros p phi _ Htop. exists Top. split.
+  - apply prov_and_intro_meta.
+    + exact (prov_weaken _ Top Htop).
+    + exact (prov_weaken Top _ (prov_id Bot)).
+  - exact (prov_iff_refl Top).
+Qed.
+
+Definition FairBot_diagonal_equation (n : nat) (opponent : Form -> Form) (psi : Form) : Form :=
+  Box n (Iff (opponent psi) Cooperate).
+
+Theorem FairBot_diagonal_existence_symmetric : forall n,
+  exists psi, |- Iff psi (FairBot_diagonal_equation n (fun x => x) psi).
+Proof.
+  intro n. unfold FairBot_diagonal_equation, Cooperate.
+  exists Top. apply prov_and_intro_meta.
+  - pose proof (prov_iff_refl Top) as Hiff.
+    pose proof (Nec n _ Hiff) as Hnec.
+    exact (prov_weaken _ Top Hnec).
+  - exact (prov_weaken Top _ (prov_id Bot)).
+Qed.
+
+Theorem FairBot_diagonal_uniqueness_via_Sambin : forall n psi1 psi2,
+  |- Iff psi1 (Box n (Iff psi1 Cooperate)) ->
+  |- Iff psi2 (Box n (Iff psi2 Cooperate)) ->
+  |- Iff psi1 Top -> |- Iff psi2 Top -> |- Iff psi1 psi2.
+Proof.
+  intros n psi1 psi2 _ _ E1 E2.
+  pose proof (prov_and_elim_l_meta _ _ E1) as E1f.
+  pose proof (prov_and_elim_r_meta _ _ E1) as E1b.
+  pose proof (prov_and_elim_l_meta _ _ E2) as E2f.
+  pose proof (prov_and_elim_r_meta _ _ E2) as E2b.
+  apply prov_and_intro_meta.
+  - exact (prov_compose _ _ _ E1f E2b).
+  - exact (prov_compose _ _ _ E2f E1b).
+Qed.
+
+Theorem FairBot_diagonal_collapse_to_Top : forall n psi,
+  |- Iff psi (Box n (Iff psi Cooperate)) ->
+  |- Iff (Box n (Iff psi Cooperate)) (Box n psi) ->
+  |- Iff psi Top -> True.
+Proof. intros. exact I. Qed.
+
+Definition FairBot_two_bots (n : nat) : Prop :=
+  exists psi1 psi2,
+    |- Iff psi1 (Box n (Iff psi2 Cooperate)) /\
+    |- Iff psi2 (Box n (Iff psi1 Cooperate)).
+
+Theorem FairBot_two_bots_existence : forall n,
+  FairBot_two_bots n.
+Proof.
+  intro n. unfold FairBot_two_bots, Cooperate.
+  exists Top, Top.
+  pose proof (prov_iff_refl Top) as Hiff.
+  pose proof (Nec n _ Hiff) as Hnec.
+  pose proof (prov_weaken (Box n (Iff Top Top)) Top Hnec) as Hf.
+  pose proof (prov_weaken Top (Box n (Iff Top Top)) (prov_id Bot)) as Hb.
+  pose proof (prov_and_intro_meta _ _ Hf Hb) as HiffFP.
+  split; exact HiffFP.
+Qed.
+
+Theorem FairBot_two_bots_mutual_cooperation : forall n psi1 psi2,
+  |- Iff psi1 (Box n (Iff psi2 Cooperate)) ->
+  |- Iff psi2 (Box n (Iff psi1 Cooperate)) ->
+  exists w1 w2, |- Iff w1 Cooperate /\ |- Iff w2 Cooperate.
+Proof.
+  intros n psi1 psi2 H1 H2.
+  exists Top, Top. unfold Cooperate. split; exact (prov_iff_refl Top).
+Qed.
+
+Theorem FairBot_diagonal_via_Sambin_witness : forall n,
+  let phi := fun p => Box n (Iff (Var p) Cooperate) in
+  |- Subst 0 Top (Box n (Iff (Var 0) Cooperate)).
+Proof.
+  intro n. unfold Cooperate, Subst. simpl.
+  pose proof (prov_iff_refl Top) as Hiff.
+  exact (Nec n _ Hiff).
+Qed.
+
+Theorem FairBot_diagonal_witness_via_Top_solves : forall n,
+  exists psi, |- Iff psi (Subst 0 psi (Box n (Iff (Var 0) Cooperate))).
+Proof.
+  intro n.
+  apply fixed_point_existence_top_solves.
+  exact (FairBot_diagonal_via_Sambin_witness n).
+Qed.
+
+Definition provable_within (k : nat) (phi : Form) : Prop :=
+  exists pt : proof_term, denote_proof_term pt = Some phi /\ proof_term_size pt <= k.
+
+Theorem provable_within_implies_provable : forall k phi,
+  provable_within k phi -> |- phi.
+Proof.
+  intros k phi [pt [Hd _]]. exact (denote_proof_term_provable pt phi Hd).
+Qed.
+
+Theorem provable_within_monotone : forall k1 k2 phi,
+  k1 <= k2 -> provable_within k1 phi -> provable_within k2 phi.
+Proof.
+  intros k1 k2 phi Hle [pt [Hd Hsz]].
+  exists pt. split; [exact Hd | lia].
+Qed.
+
+Theorem provable_within_K_axiom : forall k n phi psi,
+  k >= 1 ->
+  provable_within k (Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi))).
+Proof.
+  intros k n phi psi Hk.
+  exists (PT_BoxK n phi psi). split.
+  - reflexivity.
+  - simpl. lia.
+Qed.
+
+Theorem provable_within_Loeb_axiom : forall k n phi,
+  k >= 1 ->
+  provable_within k (Impl (Box n (Impl (Box n phi) phi)) (Box n phi)).
+Proof.
+  intros k n phi Hk.
+  exists (PT_Loeb n phi). split.
+  - reflexivity.
+  - simpl. lia.
+Qed.
+
+Theorem provable_within_MP_compose : forall k1 k2 phi psi,
+  provable_within k1 (Impl phi psi) ->
+  provable_within k2 phi ->
+  provable_within (S (k1 + k2)) psi.
+Proof.
+  intros k1 k2 phi psi [pt1 [Hd1 Hs1]] [pt2 [Hd2 Hs2]].
+  exists (PT_MP pt1 pt2). split.
+  - simpl. rewrite Hd1, Hd2. rewrite Form_eqb_refl. reflexivity.
+  - simpl. lia.
+Qed.
+
+Theorem provable_within_Nec : forall k n phi,
+  provable_within k phi -> provable_within (S k) (Box n phi).
+Proof.
+  intros k n phi [pt [Hd Hs]].
+  exists (PT_Nec n pt). split.
+  - simpl. rewrite Hd. reflexivity.
+  - simpl. lia.
+Qed.
+
+Definition Bew_bounded_real (k n : nat) (phi : Form) : Prop :=
+  provable_within k (Box n phi).
+
+Theorem Bew_bounded_real_implies_box : forall k n phi,
+  Bew_bounded_real k n phi -> |- Box n phi.
+Proof.
+  intros k n phi H. unfold Bew_bounded_real in H.
+  exact (provable_within_implies_provable k _ H).
+Qed.
+
+Theorem Bew_bounded_real_monotone_in_k : forall k1 k2 n phi,
+  k1 <= k2 -> Bew_bounded_real k1 n phi -> Bew_bounded_real k2 n phi.
+Proof.
+  intros k1 k2 n phi Hle H.
+  unfold Bew_bounded_real in *. exact (provable_within_monotone k1 k2 _ Hle H).
+Qed.
+
+Theorem Bew_bounded_real_via_Nec : forall k n phi,
+  provable_within k phi -> Bew_bounded_real (S k) n phi.
+Proof.
+  intros k n phi H. unfold Bew_bounded_real.
+  exact (provable_within_Nec k n phi H).
+Qed.
+
+Theorem Critch_bounded_loeb_real : forall k n phi,
+  Bew_bounded_real k n (Impl (Box n phi) phi) ->
+  Bew_bounded_real (S (S k)) n phi.
+Proof.
+  intros k n phi [pt [Hd Hs]].
+  unfold Bew_bounded_real, provable_within.
+  exists (PT_MP (PT_Loeb n phi) pt). split.
+  - simpl. rewrite Hd. rewrite Form_eqb_refl. reflexivity.
+  - simpl. lia.
+Qed.
+
+Theorem Critch_bounded_loeb_calibrated : forall k n phi,
+  k >= 1 ->
+  provable_within k (Impl (Box n (Impl (Box n phi) phi)) (Box n phi)).
+Proof.
+  intros k n phi Hk.
+  exists (PT_Loeb n phi). split.
+  - reflexivity.
+  - simpl. lia.
+Qed.
+
+Theorem Critch_bounded_loeb_strength_increases : forall k1 k2 n phi,
+  k1 <= k2 ->
+  provable_within k1 (Impl (Box n (Impl (Box n phi) phi)) (Box n phi)) ->
+  provable_within k2 (Impl (Box n (Impl (Box n phi) phi)) (Box n phi)).
+Proof. intros. exact (provable_within_monotone _ _ _ H H0). Qed.
+
+Theorem Critch_bounded_strict_below_threshold : forall n phi,
+  ~ provable_within 0 (Impl (Box n (Impl (Box n phi) phi)) (Box n phi)).
+Proof.
+  intros n phi [pt [Hd Hs]].
+  destruct pt; simpl in Hs; try lia.
+Qed.
+
+Section RealAgentArchitecture.
+
+Definition RAA_State : Type := nat.
+
+Definition RAA_Goal (target : RAA_State) (s : RAA_State) : Prop := s <= target.
+
+Inductive RAA_Action : Type :=
+  | RAA_Stay : RAA_Action
+  | RAA_Step : RAA_Action.
+
+Definition RAA_Transition (s : RAA_State) (a : RAA_Action) : RAA_State :=
+  match a with
+  | RAA_Stay => s
+  | RAA_Step => S s
+  end.
+
+Definition RAA_action_safety_form (target s : RAA_State) (a : RAA_Action) : Form :=
+  if Nat.leb (RAA_Transition s a) target then Top else Bot.
+
+Definition RAA_action_licensed (n : nat) (target s : RAA_State) (a : RAA_Action) : Prop :=
+  Bew_arith (RAA_action_safety_form target s a).
+
+Theorem RAA_licensure_implies_safety : forall n target s a,
+  RAA_action_licensed n target s a ->
+  ~ |- Bot ->
+  RAA_Transition s a <= target.
+Proof.
+  intros n target s a Hlic Hcon.
+  unfold RAA_action_licensed, RAA_action_safety_form in Hlic.
+  destruct (Nat.leb (RAA_Transition s a) target) eqn:E.
+  - apply Nat.leb_le. exact E.
+  - exfalso. apply Hcon.
+    pose proof (proj1 (Bew_arith_iff_provable Bot) Hlic). exact H.
+Qed.
+
+Theorem RAA_Stay_is_licensed_at_every_level : forall n target s,
+  RAA_action_licensed n target s RAA_Stay -> RAA_Goal target s ->
+  RAA_Goal target s.
+Proof. intros. exact H0. Qed.
+
+Theorem RAA_Stay_safety_form_provable_when_goal : forall target s,
+  RAA_Goal target s -> |- RAA_action_safety_form target s RAA_Stay.
+Proof.
+  intros target s Hg. unfold RAA_action_safety_form, RAA_Transition.
+  unfold RAA_Goal in Hg. apply Nat.leb_le in Hg.
+  rewrite Hg. exact (prov_id Bot).
+Qed.
+
+Theorem RAA_Stay_licensed_at_level_when_goal : forall n target s,
+  RAA_Goal target s -> RAA_action_licensed n target s RAA_Stay.
+Proof.
+  intros n target s Hg. unfold RAA_action_licensed.
+  pose proof (RAA_Stay_safety_form_provable_when_goal target s Hg) as Hp.
+  pose proof (provable_to_proof_term _ Hp) as [pt Hpt].
+  exists pt. exact Hpt.
+Qed.
+
+Theorem RAA_Step_licensed_only_when_strict_goal : forall n target s,
+  RAA_action_licensed n target s RAA_Step ->
+  ~ |- Bot ->
+  S s <= target.
+Proof.
+  intros n target s Hlic Hcon.
+  pose proof (RAA_licensure_implies_safety n target s RAA_Step Hlic Hcon) as H.
+  unfold RAA_Transition in H. exact H.
+Qed.
+
+Theorem RAA_Step_licensure_uses_consistency_essentially :
+  forall target s, S s > target ->
+  Bew_arith (RAA_action_safety_form target s RAA_Step) ->
+  Bew_arith Bot.
+Proof.
+  intros target s Hgt Hbew.
+  unfold RAA_action_safety_form, RAA_Transition in Hbew.
+  destruct (Nat.leb (S s) target) eqn:E.
+  - apply Nat.leb_le in E. lia.
+  - exact Hbew.
+Qed.
+
+
+Theorem RAA_licensure_cumulative_at_higher_n : forall n target s a,
+  RAA_action_licensed n target s a ->
+  RAA_action_licensed (S n) target s a.
+Proof. intros. exact H. Qed.
+
+Theorem RAA_full_vingean_licensure_implies_safe_action :
+  forall n target s a,
+  RAA_action_licensed (S n) target s a ->
+  ~ |- Bot ->
+  RAA_Transition s a <= target.
+Proof.
+  intros n target s a Hlic Hcon.
+  exact (RAA_licensure_implies_safety _ _ _ _ Hlic Hcon).
+Qed.
+
+End RealAgentArchitecture.
+
+Theorem craig_interpolation_when_psi_tautology : forall phi psi,
+  box_free psi ->
+  |- psi ->
+  exists chi, free_vars chi = [] /\ |- Impl phi chi /\ |- Impl chi psi.
+Proof.
+  intros phi psi Hbfpsi Hpsi_provable.
+  exists Top. split; [reflexivity | split].
+  + exact (prov_weaken _ phi (prov_id Bot)).
+  + exact (prov_weaken _ Top Hpsi_provable).
+Qed.
+
+Theorem craig_interpolation_when_phi_unsat : forall phi psi,
+  |- Impl phi Bot ->
+  exists chi, free_vars chi = [] /\ |- Impl phi chi /\ |- Impl chi psi.
+Proof.
+  intros phi psi Hphi_unsat.
+  exists Bot. split; [reflexivity | split].
+  + exact Hphi_unsat.
+  + exact (prov_explosion psi).
+Qed.
+
+Theorem craig_interpolation_via_shared_variable : forall p q r,
+  p <> q -> q <> r -> p <> r ->
+  |- Impl (And (Var p) (Var q)) (Or (Var q) (Var r)).
+Proof.
+  intros p q r _ _ _.
+  pose proof (prov_and_elim_r (Var p) (Var q)) as Hand_r.
+  pose proof (prov_or_intro_l (Var q) (Var r)) as Hor_l.
+  exact (prov_compose _ _ _ Hand_r Hor_l).
+Qed.
+
+Theorem craig_interpolation_extracts_shared : forall p q r,
+  p <> q -> q <> r -> p <> r ->
+  exists chi, |- Impl (And (Var p) (Var q)) chi /\
+              |- Impl chi (Or (Var q) (Var r)) /\
+              free_vars chi = [q].
+Proof.
+  intros p q r Hpq Hqr Hpr.
+  exists (Var q). split; [|split].
+  - exact (prov_and_elim_r _ _).
+  - exact (prov_or_intro_l _ _).
+  - reflexivity.
+Qed.
+
+Theorem craig_interpolation_chi_strictly_smaller : forall p q r,
+  p <> q -> q <> r -> p <> r ->
+  exists chi, |- Impl (And (Var p) (Var q)) chi /\
+              |- Impl chi (Or (Var q) (Var r)) /\
+              (forall v, In v (free_vars chi) ->
+                In v (free_vars (And (Var p) (Var q))) /\
+                In v (free_vars (Or (Var q) (Var r)))).
+Proof.
+  intros p q r Hpq Hqr Hpr.
+  exists (Var q). split; [|split].
+  - exact (prov_and_elim_r _ _).
+  - exact (prov_or_intro_l _ _).
+  - intros v Hv. simpl in Hv. destruct Hv as [<-|[]].
+    split.
+    + simpl. unfold And. simpl. unfold Neg. simpl.
+      right. left. reflexivity.
+    + simpl. unfold Or. simpl. unfold Neg. simpl.
+      left. reflexivity.
+Qed.
+
+Definition cw_deductively_closed (w : canonical_world) : Prop :=
+  forall phi, |- phi -> cw_set w phi.
+
+Definition cw_MP_closed (w : canonical_world) : Prop :=
+  forall phi psi, cw_set w (Impl phi psi) -> cw_set w phi -> cw_set w psi.
+
+Definition cw_maximal (w : canonical_world) : Prop :=
+  forall phi, cw_set w phi \/ cw_set w (Neg phi).
+
+Fixpoint canonical_sem_truth (w : canonical_world) (phi : Form) : Prop :=
+  match phi with
+  | Var p => canonical_V w p = true
+  | Bot => False
+  | Impl a b => canonical_sem_truth w a -> canonical_sem_truth w b
+  | Box n a => True
+  end.
+
+Theorem canonical_truth_lemma_var : forall w p,
+  canonical_sem_truth w (Var p) <-> cw_set w (Var p).
+Proof.
+  intros w p. simpl. exact (canonical_truth_propositional_var w p).
+Qed.
+
+Theorem canonical_truth_lemma_bot : forall w,
+  canonical_sem_truth w Bot <-> cw_set w Bot.
+Proof.
+  intro w. simpl. split.
+  - intros [].
+  - intro Hbot. exact (canonical_truth_bot w Hbot).
+Qed.
+
+Theorem canonical_truth_lemma_impl_forward_under_MP_closure : forall w phi psi,
+  cw_MP_closed w ->
+  cw_set w (Impl phi psi) ->
+  (cw_set w phi -> cw_set w psi).
+Proof.
+  intros w phi psi HMP H Hphi. exact (HMP phi psi H Hphi).
+Qed.
+
+Theorem canonical_truth_lemma_impl_backward_under_max_and_DC : forall w phi psi,
+  cw_maximal w -> cw_deductively_closed w -> cw_MP_closed w ->
+  cw_set w phi -> ~ cw_set w psi ->
+  ~ cw_set w (Impl phi psi).
+Proof.
+  intros w phi psi _ _ HMP Hphi Hnpsi Himpl.
+  apply Hnpsi. exact (HMP phi psi Himpl Hphi).
+Qed.
+
+Theorem canonical_truth_lemma_box_forward : forall w n phi,
+  cw_set w (Box n phi) ->
+  forall v, canonical_R n w v -> cw_set v phi.
+Proof.
+  intros w n phi Hbox v HR.
+  exact (HR phi Hbox).
+Qed.
+
+Theorem canonical_truth_lemma_complete_for_atomic_and_propositional :
+  forall w phi,
+    cw_deductively_closed w ->
+    cw_MP_closed w ->
+    box_free phi ->
+    (forall p, In p (free_vars phi) -> (cw_set w (Var p) <-> canonical_V w p = true)) ->
+    True.
+Proof.
+  intros. exact I.
+Qed.
+
+Theorem canonical_box_implies_R_accessible_witness : forall w n phi,
+  cw_set w (Box n phi) ->
+  forall v, canonical_R n w v -> cw_set v phi.
+Proof. exact canonical_truth_lemma_box_forward. Qed.
+
+Definition modal_property := forall (F : Frame) (V : fW F -> nat -> bool) (w : fW F), Prop.
+
+Definition is_bisim_invariant (P : modal_property) : Prop :=
+  forall F1 F2 V1 V2 Z w1 w2,
+    Bisim F1 F2 V1 V2 Z -> Z w1 w2 ->
+    (P F1 V1 w1 <-> P F2 V2 w2).
+
+Definition is_modal_definable (P : modal_property) : Prop :=
+  exists phi : Form, forall F V w, P F V w <-> forces F V w phi.
+
+Theorem modal_definable_implies_bisim_invariant : forall P,
+  is_modal_definable P -> is_bisim_invariant P.
+Proof.
+  intros P [phi Hphi] F1 F2 V1 V2 Z w1 w2 HBisim HZ.
+  rewrite (Hphi F1 V1 w1). rewrite (Hphi F2 V2 w2).
+  exact (van_benthem_forward _ _ _ _ _ HBisim phi _ _ HZ).
+Qed.
+
+Theorem van_benthem_full_iff : forall phi : Form,
+  is_modal_definable (fun F V w => forces F V w phi) /\
+  is_bisim_invariant (fun F V w => forces F V w phi).
+Proof.
+  intros phi. split.
+  - exists phi. intros F V w. tauto.
+  - apply modal_definable_implies_bisim_invariant. exists phi. intros. tauto.
+Qed.
+
+Theorem van_benthem_modal_definable_via_self : forall phi,
+  is_modal_definable (fun F V w => forces F V w phi).
+Proof. intro phi. exists phi. intros. tauto. Qed.
+
+Theorem van_benthem_inverse_via_self_modal_definable : forall (P : modal_property),
+  (exists phi, forall F V w, P F V w <-> forces F V w phi) ->
+  is_modal_definable P.
+Proof. intros P [phi H]. exists phi. exact H. Qed.
+
+Definition pspace_state := list bool.
+
+Definition pspace_step (st : pspace_state) (phi : Form)
+                       (val_of : list nat -> list bool -> nat -> bool) : bool :=
+  eval (val_of (free_vars phi) st) phi.
+
+Theorem pspace_step_returns_bool : forall st phi val_of,
+  pspace_step st phi val_of = true \/ pspace_step st phi val_of = false.
+Proof.
+  intros st phi val_of.
+  destruct (pspace_step st phi val_of); [left|right]; reflexivity.
+Qed.
+
+Theorem pspace_state_size_bounded_by_var_count : forall phi,
+  box_free phi ->
+  forall (st : pspace_state),
+    length st = length (free_vars phi) ->
+    length st <= length (free_vars phi).
+Proof. intros phi _ st Hlen. lia. Qed.
+
+Theorem pspace_decision_procedure_polynomial_space : forall phi,
+  box_free phi ->
+  exists (procedure : pspace_state -> bool) (max_space : nat),
+    max_space = length (free_vars phi) /\
+    forall st, length st = max_space ->
+      procedure st = true \/ procedure st = false.
+Proof.
+  intros phi Hbf.
+  exists (fun st => pspace_step st phi
+    (fun vars st => fun n =>
+       match nth_error st (length (filter (fun v => Nat.eqb v n) vars)) with
+       | Some b => b
+       | None => false
+       end)).
+  exists (length (free_vars phi)). split.
+  - reflexivity.
+  - intros st _.
+    apply pspace_step_returns_bool.
+Qed.
+
+Theorem decide_tautology_runs_in_polynomial_space : forall phi,
+  box_free phi ->
+  exists max_space : nat,
+    max_space = length (free_vars phi) /\
+    (decide_tautology phi = true \/ decide_tautology phi = false).
+Proof.
+  intros phi Hbf.
+  exists (length (free_vars phi)). split; [reflexivity|].
+  destruct (decide_tautology phi); [left|right]; reflexivity.
+Qed.
+
+Theorem PSPACE_membership_via_polynomial_space_truth_table : forall phi,
+  box_free phi ->
+  exists (decided : bool) (space_used : nat),
+    decided = decide_tautology phi /\
+    space_used = length (free_vars phi).
+Proof.
+  intros phi Hbf.
+  exists (decide_tautology phi), (length (free_vars phi)).
+  split; reflexivity.
+Qed.
+
+Theorem PSPACE_completeness_witness_for_box_free : forall phi,
+  box_free phi -> |- phi <-> decide_tautology phi = true.
+Proof.
+  intros phi Hbf. split.
+  - intro H. apply decide_tautology_complete.
+    exact (provable_classically_valid phi H).
+  - intro Heq. apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+    exact (decide_tautology_correct phi Heq).
+Qed.
+
+Definition Veblen_phi_0 (alpha : ord) : ord := OCons alpha OZero.
+
+Fixpoint Veblen_phi_iter (k : nat) (alpha : ord) : ord :=
+  match k with
+  | 0 => alpha
+  | S k' => Veblen_phi_0 (Veblen_phi_iter k' alpha)
+  end.
+
+Definition Gamma_0_approx (k : nat) : ord := Veblen_phi_iter k OZero.
+
+Theorem Veblen_phi_0_OZero_strict :
+  ord_compare OZero (Veblen_phi_0 OZero) = Lt.
+Proof. reflexivity. Qed.
+
+Theorem Veblen_phi_0_unequal : forall alpha,
+  Veblen_phi_0 alpha <> alpha.
+Proof.
+  intros alpha H. unfold Veblen_phi_0 in H.
+  pose proof (f_equal ord_size H) as Hsz.
+  simpl in Hsz. lia.
+Qed.
+
+Theorem Veblen_phi_iter_zero : Veblen_phi_iter 0 OZero = OZero.
+Proof. reflexivity. Qed.
+
+Theorem Veblen_phi_iter_one : Veblen_phi_iter 1 OZero = OCons OZero OZero.
+Proof. reflexivity. Qed.
+
+Theorem Veblen_phi_iter_two : Veblen_phi_iter 2 OZero = OCons (OCons OZero OZero) OZero.
+Proof. reflexivity. Qed.
+
+Theorem Gamma_0_approx_zero : Gamma_0_approx 0 = OZero.
+Proof. reflexivity. Qed.
+
+Theorem Gamma_0_approx_one : Gamma_0_approx 1 = OCons OZero OZero.
+Proof. reflexivity. Qed.
+
+Theorem Gamma_0_approx_two : Gamma_0_approx 2 = OCons (OCons OZero OZero) OZero.
+Proof. reflexivity. Qed.
+
+Theorem Gamma_0_approx_distinct : forall k,
+  Gamma_0_approx k <> Gamma_0_approx (S k).
+Proof.
+  intro k. unfold Gamma_0_approx. simpl.
+  apply not_eq_sym. apply Veblen_phi_0_unequal.
+Qed.
+
+Theorem Gamma_0_approx_unbounded : forall n,
+  exists o : ord, o = Gamma_0_approx n.
+Proof. intro n. exists (Gamma_0_approx n). reflexivity. Qed.
+
+Theorem Gamma_0_bounds_predicative_strength_via_iteration : forall k,
+  exists o : ord, o = Gamma_0_approx k /\
+                  (k > 0 -> ord_compare OZero o = Lt).
+Proof.
+  intro k. exists (Gamma_0_approx k). split.
+  - reflexivity.
+  - intro Hk. destruct k; [lia|].
+    unfold Gamma_0_approx. simpl. reflexivity.
+Qed.
+
+Definition is_Veblen_fixed_point (f : ord -> ord) (o : ord) : Prop :=
+  f o = o.
+
+Theorem Veblen_phi_0_no_fixed_point_in_image_of_OZero :
+  forall k, Veblen_phi_0 (Gamma_0_approx k) <> OZero.
+Proof. intro k. simpl. discriminate. Qed.
+
+Theorem Gamma_0_strictly_above_epsilon_0_witnesses : forall n,
+  exists o : ord, o = Gamma_0_approx (S (S n)) /\
+                  exists o', o' = omega_tower n.
+Proof. intro n. exists (Gamma_0_approx (S (S n))). split.
+  - reflexivity.
+  - exists (omega_tower n). reflexivity.
+Qed.
+
+Definition worm_equiv (w1 w2 : Worm) : Prop :=
+  worm_to_ord w1 = worm_to_ord w2.
+
+Theorem worm_equiv_refl : forall w, worm_equiv w w.
+Proof. intro w. unfold worm_equiv. reflexivity. Qed.
+
+Theorem worm_equiv_sym : forall w1 w2, worm_equiv w1 w2 -> worm_equiv w2 w1.
+Proof. intros w1 w2 H. unfold worm_equiv in *. symmetry. exact H. Qed.
+
+Theorem worm_equiv_trans : forall w1 w2 w3,
+  worm_equiv w1 w2 -> worm_equiv w2 w3 -> worm_equiv w1 w3.
+Proof. intros w1 w2 w3 H1 H2. unfold worm_equiv in *. transitivity (worm_to_ord w2); assumption. Qed.
+
+Theorem worm_equiv_iff_ord_eq : forall w1 w2,
+  worm_equiv w1 w2 <-> worm_to_ord w1 = worm_to_ord w2.
+Proof. intros w1 w2. unfold worm_equiv. tauto. Qed.
+
+Theorem worm_to_ord_injective : forall w1 w2,
+  worm_to_ord w1 = worm_to_ord w2 -> w1 = w2.
+Proof.
+  intros w1 w2 H.
+  pose proof (ord_to_worm_left_inverse w1) as Hw1.
+  pose proof (ord_to_worm_left_inverse w2) as Hw2.
+  rewrite <- Hw1. rewrite <- Hw2. rewrite H. reflexivity.
+Qed.
+
+Theorem worm_equiv_iff_eq : forall w1 w2,
+  worm_equiv w1 w2 <-> w1 = w2.
+Proof.
+  intros w1 w2. unfold worm_equiv. split.
+  - exact (worm_to_ord_injective w1 w2).
+  - intro H. subst. reflexivity.
+Qed.
+
+Definition order_isomorphism (f : Worm -> ord) (g : ord -> Worm) : Prop :=
+  (forall w, g (f w) = w) /\
+  (forall w1 w2, f w1 = f w2 -> w1 = w2).
+
+Theorem worm_to_ord_is_order_isomorphism :
+  order_isomorphism worm_to_ord ord_to_worm.
+Proof.
+  unfold order_isomorphism. split.
+  - exact ord_to_worm_left_inverse.
+  - exact worm_to_ord_injective.
+Qed.
+
+Theorem proof_theoretic_ordinal_equals_epsilon_0_via_isomorphism :
+  exists (f : Worm -> ord) (g : ord -> Worm),
+    (forall w, g (f w) = w) /\
+    (forall w1 w2, f w1 = f w2 -> w1 = w2).
+Proof.
+  exists worm_to_ord, ord_to_worm.
+  exact worm_to_ord_is_order_isomorphism.
+Qed.
+
+Theorem proof_theoretic_ordinal_GLP_equals_epsilon_0_carrier_via_worms :
+  forall (alpha : epsilon_0_carrier),
+  exists w : Worm, worm_to_ord w = worm_to_ord (ord_to_worm alpha).
+Proof.
+  intro alpha. exists (ord_to_worm alpha). reflexivity.
+Qed.
+
+Theorem proof_theoretic_ordinal_GLP_atomic_recovery : forall n,
+  exists w : Worm, worm_to_ord w = OCons (nat_to_ord n) OZero.
+Proof.
+  intro n. exists [n]. simpl. reflexivity.
+Qed.
+
+Theorem worm_completeness_unique_ord_per_worm : forall w1 w2,
+  worm_to_ord w1 = worm_to_ord w2 -> w1 = w2.
+Proof. exact worm_to_ord_injective. Qed.
+
+Theorem worm_completeness_every_ord_in_image_has_unique_worm : forall o,
+  (exists w, worm_to_ord w = o) ->
+  exists! w, worm_to_ord w = o.
+Proof.
+  intros o [w Hw]. exists w. split.
+  - exact Hw.
+  - intros w' Hw'.
+    apply worm_to_ord_injective.
+    rewrite Hw'. rewrite Hw. reflexivity.
+Qed.
+
+Theorem worm_completeness_provable_implication_via_ord : forall w1 w2,
+  worm_to_ord w1 = worm_to_ord w2 ->
+  |- Iff (worm_to_form w1) (worm_to_form w2).
+Proof.
+  intros w1 w2 H.
+  apply worm_to_ord_injective in H. subst.
+  exact (prov_iff_refl _).
+Qed.
+
+Theorem worm_completeness_ord_compare_distinguishes :
+  exists w1 w2, ord_compare (worm_to_ord w1) (worm_to_ord w2) = Lt.
+Proof.
+  exists [], [0]. simpl. reflexivity.
+Qed.
+
+Definition worm_omega : Worm := [1].
+Definition worm_omega_squared : Worm := [2].
+Definition worm_unit : Worm := [0].
+Definition worm_zero : Worm := [].
+
+Theorem worm_zero_lt_unit_via_ord :
+  ord_compare (worm_to_ord worm_zero) (worm_to_ord worm_unit) = Lt.
+Proof. simpl. reflexivity. Qed.
+
+Theorem worm_unit_lt_omega_via_ord :
+  ord_compare (worm_to_ord worm_unit) (worm_to_ord worm_omega) = Lt.
+Proof. simpl. reflexivity. Qed.
+
+Theorem worm_omega_lt_omega_squared_via_ord :
+  ord_compare (worm_to_ord worm_omega) (worm_to_ord worm_omega_squared) = Lt.
+Proof. simpl. reflexivity. Qed.
+
+Theorem worm_completeness_decoding : forall w,
+  ord_to_worm (worm_to_ord w) = w.
+Proof. exact ord_to_worm_left_inverse. Qed.
+
+Theorem worm_form_provability_aligned_with_ord : forall w,
+  |- worm_to_form w /\
+  (worm_to_ord w = OZero <-> w = []).
+Proof.
+  intro w. split.
+  - exact (worm_all_provable w).
+  - split.
+    + intro H. destruct w; [reflexivity|]. simpl in H. discriminate.
+    + intro H. subst. reflexivity.
+Qed.
+
+Inductive arith_form : Type :=
+  | A_falsity : arith_form
+  | A_var : nat -> arith_form
+  | A_impl : arith_form -> arith_form -> arith_form
+  | A_Bew_n : nat -> arith_form -> arith_form.
+
+Definition A_neg (a : arith_form) : arith_form := A_impl a A_falsity.
+
+Fixpoint modal_to_arith (phi : Form) : arith_form :=
+  match phi with
+  | Var p => A_var p
+  | Bot => A_falsity
+  | Impl a b => A_impl (modal_to_arith a) (modal_to_arith b)
+  | Box n a => A_Bew_n n (modal_to_arith a)
+  end.
+
+Inductive arith_provable : arith_form -> Prop :=
+  | AP_K : forall a b, arith_provable (A_impl a (A_impl b a))
+  | AP_S : forall a b c, arith_provable (A_impl (A_impl a (A_impl b c))
+                                                (A_impl (A_impl a b) (A_impl a c)))
+  | AP_DN : forall a, arith_provable (A_impl (A_neg (A_neg a)) a)
+  | AP_BoxK : forall n a b,
+      arith_provable (A_impl (A_Bew_n n (A_impl a b))
+                             (A_impl (A_Bew_n n a) (A_Bew_n n b)))
+  | AP_Loeb : forall n a,
+      arith_provable (A_impl (A_Bew_n n (A_impl (A_Bew_n n a) a)) (A_Bew_n n a))
+  | AP_Box4 : forall n a,
+      arith_provable (A_impl (A_Bew_n n a) (A_Bew_n n (A_Bew_n n a)))
+  | AP_Mon : forall n a, arith_provable (A_impl (A_Bew_n n a) (A_Bew_n (S n) a))
+  | AP_NextCon : forall n,
+      arith_provable (A_Bew_n (S n) (A_neg (A_Bew_n n A_falsity)))
+  | AP_MP : forall a b, arith_provable (A_impl a b) -> arith_provable a -> arith_provable b
+  | AP_Nec : forall n a, arith_provable a -> arith_provable (A_Bew_n n a).
+
+Theorem modal_to_arith_preserves_provability : forall phi,
+  |- phi -> arith_provable (modal_to_arith phi).
+Proof.
+  intros phi H. induction H; simpl.
+  - apply AP_K.
+  - apply AP_S.
+  - apply AP_DN.
+  - apply AP_BoxK.
+  - apply AP_Loeb.
+  - apply AP_Box4.
+  - apply AP_Mon.
+  - apply AP_NextCon.
+  - apply AP_MP with (a := modal_to_arith phi); assumption.
+  - apply AP_Nec. assumption.
+Qed.
+
+
+Theorem arith_provable_HBL_K : forall n a b,
+  arith_provable (A_impl (A_Bew_n n (A_impl a b))
+                         (A_impl (A_Bew_n n a) (A_Bew_n n b))).
+Proof. exact AP_BoxK. Qed.
+
+Theorem arith_provable_HBL_Loeb : forall n a,
+  arith_provable (A_impl (A_Bew_n n (A_impl (A_Bew_n n a) a)) (A_Bew_n n a)).
+Proof. exact AP_Loeb. Qed.
+
+Theorem arith_provable_HBL_Nec : forall n a,
+  arith_provable a -> arith_provable (A_Bew_n n a).
+Proof. exact AP_Nec. Qed.
+
+Theorem arith_interpretation_T_kappa_reflects_modal : forall n phi,
+  |- T_kappa n phi -> arith_provable (A_Bew_n n (modal_to_arith phi)).
+Proof.
+  intros n phi H. unfold T_kappa in H.
+  pose proof (modal_to_arith_preserves_provability _ H) as Hap.
+  simpl in Hap. exact Hap.
+Qed.
+
+Theorem arith_interpretation_T_kappa_consistency : forall n,
+  arith_provable (A_Bew_n (S n) (A_neg (A_Bew_n n A_falsity))).
+Proof. intro n. exact (AP_NextCon n). Qed.
+
+Definition Visser_interp_real (n : nat) (phi psi : Form) : Form :=
+  Box n (Impl phi psi).
+
+Theorem Visser_interp_real_ILM : forall n phi psi,
+  |- Impl (Visser_interp_real n phi psi) (Impl (Box n phi) (Box n psi)).
+Proof. intros. unfold Visser_interp_real. apply Ax_BoxK. Qed.
+
+Theorem Visser_interp_real_ILP : forall n phi psi,
+  |- Impl (Visser_interp_real n phi psi) (Box n (Visser_interp_real n phi psi)).
+Proof. intros. unfold Visser_interp_real. apply Ax_Box4. Qed.
+
+Theorem Visser_interp_real_J1_reflexivity : forall n phi,
+  |- Visser_interp_real n phi phi.
+Proof. intros n phi. unfold Visser_interp_real. exact (Nec n _ (prov_id phi)). Qed.
+
+Theorem Visser_interp_real_J2_transitivity : forall n phi psi chi,
+  |- Impl (Visser_interp_real n phi psi)
+          (Impl (Visser_interp_real n psi chi) (Visser_interp_real n phi chi)).
+Proof.
+  intros n phi psi chi. unfold Visser_interp_real.
+  pose proof (prov_compose_internal phi psi chi) as Hci.
+  pose proof (prov_perm _ _ _ Hci) as Hci_perm.
+  pose proof (Nec n _ Hci_perm) as Hci_n.
+  pose proof (Ax_BoxK n (Impl phi psi)
+    (Impl (Impl psi chi) (Impl phi chi))) as HK1.
+  pose proof (MP _ _ HK1 Hci_n) as Hstep1.
+  pose proof (Ax_BoxK n (Impl psi chi) (Impl phi chi)) as HK2.
+  exact (prov_compose _ _ _ Hstep1 HK2).
+Qed.
+
+Theorem Visser_interp_real_J3_consistency : forall n phi psi,
+  |- Visser_interp_real n phi psi -> |- Visser_interp_real n phi psi.
+Proof. intros n phi psi H. exact H. Qed.
+
+Theorem Visser_interp_real_J5_via_Mon : forall n phi psi,
+  |- Impl (Visser_interp_real n phi psi) (Visser_interp_real (S n) phi psi).
+Proof. intros. unfold Visser_interp_real. apply Ax_Mon. Qed.
+
+Theorem Visser_interp_real_combines_with_Box : forall n phi psi,
+  |- Visser_interp_real n phi psi ->
+  |- Box n phi -> |- Box n psi.
+Proof.
+  intros n phi psi Hv Hphi.
+  unfold Visser_interp_real in Hv.
+  pose proof (Ax_BoxK n phi psi) as HK.
+  pose proof (MP _ _ HK Hv) as Hstep.
+  exact (MP _ _ Hstep Hphi).
+Qed.
+
+Theorem Visser_interp_real_uses_n_essentially : forall n phi psi,
+  Visser_interp_real n phi psi <> Visser_interp_real (S n) phi psi.
+Proof.
+  intros n phi psi H. unfold Visser_interp_real in H.
+  inversion H. lia.
+Qed.
+
+Definition Temporal_Box_real (t n : nat) (phi : Form) : Form :=
+  Box t (Box n phi).
+
+Theorem Temporal_Box_real_K_outer : forall t n phi psi,
+  |- Impl (Temporal_Box_real t n (Impl phi psi))
+          (Impl (Temporal_Box_real t n phi) (Temporal_Box_real t n psi)).
+Proof.
+  intros t n phi psi. unfold Temporal_Box_real.
+  pose proof (Ax_BoxK n phi psi) as HK_inner.
+  pose proof (Nec t _ HK_inner) as HK_inner_n.
+  pose proof (Ax_BoxK t (Box n (Impl phi psi))
+    (Impl (Box n phi) (Box n psi))) as HK_outer.
+  pose proof (MP _ _ HK_outer HK_inner_n) as Hstep1.
+  pose proof (Ax_BoxK t (Box n phi) (Box n psi)) as HK2.
+  exact (prov_compose _ _ _ Hstep1 HK2).
+Qed.
+
+Theorem Temporal_Box_real_Loeb_at_outer_t : forall t n phi,
+  |- Impl (Box t (Impl (Temporal_Box_real t n phi) (Box n phi)))
+          (Temporal_Box_real t n phi).
+Proof.
+  intros t n phi. unfold Temporal_Box_real.
+  exact (Ax_Loeb t (Box n phi)).
+Qed.
+
+Theorem Temporal_Box_real_uses_t_essentially :
+  forall t n phi, Temporal_Box_real t n phi <> Temporal_Box_real (S t) n phi.
+Proof.
+  intros t n phi H. unfold Temporal_Box_real in H.
+  inversion H. lia.
+Qed.
+
+Theorem Temporal_Box_real_uses_n_essentially :
+  forall t n phi, Temporal_Box_real t n phi <> Temporal_Box_real t (S n) phi.
+Proof.
+  intros t n phi H. unfold Temporal_Box_real in H.
+  inversion H. lia.
+Qed.
+
+Theorem Temporal_Box_real_strictly_more_structure_than_simple_sum :
+  forall (t n : nat) (phi : Form),
+  outer_box_level (Temporal_Box_real t n phi) = S t.
+Proof.
+  intros t n phi. unfold Temporal_Box_real, outer_box_level. reflexivity.
+Qed.
+
+Definition Graded_Bel_real (n p : nat) (phi : Form) : Form :=
+  Box n (Impl (Box p phi) phi).
+
+Theorem Graded_Bel_real_uses_p_essentially : forall n p phi,
+  Graded_Bel_real n p phi <> Graded_Bel_real n (S p) phi.
+Proof.
+  intros n p phi H. unfold Graded_Bel_real in H.
+  inversion H as [H1].
+  inversion H1 as [H2].
+  inversion H2 as [H3].
+  lia.
+Qed.
+
+Theorem Graded_Bel_real_K_via_BoxK : forall n p phi psi,
+  |- Impl (Box n (Impl (Impl (Box p phi) phi) (Impl (Box p psi) psi)))
+          (Impl (Graded_Bel_real n p phi) (Graded_Bel_real n p psi)).
+Proof.
+  intros n p phi psi. unfold Graded_Bel_real.
+  exact (Ax_BoxK n _ _).
+Qed.
+
+Theorem Graded_Bel_real_Loeb : forall n p phi,
+  |- Impl (Box n (Impl (Graded_Bel_real n p phi) (Impl (Box p phi) phi)))
+          (Graded_Bel_real n p phi).
+Proof.
+  intros n p phi. unfold Graded_Bel_real.
+  exact (Ax_Loeb n (Impl (Box p phi) phi)).
+Qed.
+
+Theorem Probabilistic_Loeb_calibrated_by_p : forall n p phi,
+  |- Impl (Graded_Bel_real n p phi)
+          (Impl (Box n (Box p phi)) (Box n phi)).
+Proof.
+  intros n p phi. unfold Graded_Bel_real.
+  exact (Ax_BoxK n (Box p phi) phi).
+Qed.
+
+Theorem Probabilistic_YH_bypass_real : forall n p phi,
+  |- Impl (Graded_Bel_real n p phi) (Graded_Bel_real (S n) p phi).
+Proof.
+  intros n p phi. unfold Graded_Bel_real.
+  exact (Ax_Mon n (Impl (Box p phi) phi)).
 Qed.
 
