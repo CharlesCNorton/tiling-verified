@@ -4841,6 +4841,139 @@ Proof.
   apply Hval.
 Qed.
 
+Fixpoint level_le_k (k : nat) (phi : Form) : Prop :=
+  match phi with
+  | Var _ => True
+  | Bot => True
+  | Impl X Y => level_le_k k X /\ level_le_k k Y
+  | Box n psi => n <= k /\ level_le_k k psi
+  end.
+
+Definition Provable_k (k : nat) (phi : Form) : Prop :=
+  level_le_k k phi /\ |- phi.
+
+Theorem provable_k_subset : forall k phi,
+  Provable_k k phi -> |- phi.
+Proof. intros k phi [_ H]. exact H. Qed.
+
+Theorem provable_k_box_lift : forall k n phi,
+  n <= k -> level_le_k k phi -> |- phi -> Provable_k k (Box n phi).
+Proof.
+  intros k n phi Hn Hbf Hp.
+  split.
+  - simpl. split. exact Hn. exact Hbf.
+  - apply Nec. exact Hp.
+Qed.
+
+Theorem provable_k_monotone : forall k k' phi,
+  k <= k' -> level_le_k k phi -> level_le_k k' phi.
+Proof.
+  intros k k' phi Hle. revert phi.
+  induction phi as [p | | X IHX Y IHY | n psi IHpsi]; simpl; intro H; trivial.
+  - destruct H as [HX HY]. split; auto.
+  - destruct H as [Hn Hpsi]. split; [lia | auto].
+Qed.
+
+Theorem naturalistic_trust : forall n phi psi,
+  |- Iff phi psi -> |- Iff (Box n phi) (Box n psi).
+Proof.
+  intros n phi psi Hiff.
+  unfold Iff in Hiff.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hf.
+  pose proof (prov_and_elim_r_meta _ _ Hiff) as Hb.
+  pose proof (prov_box_imp n _ _ Hf) as HBf.
+  pose proof (prov_box_imp n _ _ Hb) as HBb.
+  apply prov_iff_intro; assumption.
+Qed.
+
+Definition action_criterion (n : nat) (b G : Form) : Form :=
+  Impl b (Box n (Impl b G)).
+
+Theorem updateless_agent_tiling : forall n b G,
+  |- action_criterion n b G ->
+  |- Box (S n) (action_criterion n b G).
+Proof.
+  intros n b G Hcrit. apply Nec. exact Hcrit.
+Qed.
+
+Theorem updateless_agent_lifts : forall n m b G,
+  n <= m -> |- action_criterion n b G ->
+  |- Impl b (Box m (Impl b G)).
+Proof.
+  intros n m b G Hle Hcrit.
+  unfold action_criterion in Hcrit.
+  pose proof (prov_compose_internal b (Box n (Impl b G)) (Box m (Impl b G))) as Hci.
+  pose proof (prov_box_mon_le n m (Impl b G) Hle) as Hmon.
+  pose proof (MP _ _ Hci Hmon) as Hstep.
+  exact (MP _ _ Hstep Hcrit).
+Qed.
+
+Theorem updateless_agent_uniform : forall n m b G,
+  n <= m ->
+  |- Impl (Box n (Impl b G)) (Box m (Impl b G)).
+Proof.
+  intros n m b G Hle.
+  exact (prov_box_mon_le n m (Impl b G) Hle).
+Qed.
+
+Inductive Provable_with_hyp_Nec : list Form -> Form -> Prop :=
+  | DTN_hyp : forall G phi, In phi G -> Provable_with_hyp_Nec G phi
+  | DTN_thm : forall G phi, |- phi -> Provable_with_hyp_Nec G phi
+  | DTN_MP : forall G phi psi,
+      Provable_with_hyp_Nec G (Impl phi psi) ->
+      Provable_with_hyp_Nec G phi ->
+      Provable_with_hyp_Nec G psi
+  | DTN_Nec : forall G n phi,
+      Provable_with_hyp_Nec [] phi ->
+      Provable_with_hyp_Nec G (Box n phi).
+
+Lemma dtn_nohyp_provable : forall phi,
+  Provable_with_hyp_Nec [] phi -> |- phi.
+Proof.
+  intros phi H. remember (@nil Form) as G eqn:HG.
+  induction H as [G phi Hin | G phi Hp | G phi psi H1 IH1 H2 IH2 | G n phi Hsub IH].
+  - subst G. simpl in Hin. destruct Hin.
+  - exact Hp.
+  - exact (MP _ _ (IH1 HG) (IH2 HG)).
+  - apply Nec. apply IH. reflexivity.
+Qed.
+
+Lemma dtn_provable_nohyp : forall phi,
+  |- phi -> Provable_with_hyp_Nec [] phi.
+Proof.
+  intros phi H. apply DTN_thm. exact H.
+Qed.
+
+Theorem deduction_theorem_with_Nec : forall G phi psi,
+  Provable_with_hyp_Nec (phi :: G) psi ->
+  Provable_with_hyp_Nec G (Impl phi psi).
+Proof.
+  intros G phi psi H.
+  remember (phi :: G) as G' eqn:HG.
+  revert G phi HG.
+  induction H as [G' alpha Hin | G' alpha Hthm
+                  | G' alpha beta Himp IHimp Halpha IHalpha
+                  | G' n alpha Hsub _];
+    intros G phi' HG'.
+  - subst G'. simpl in Hin. destruct Hin as [Heq | Hin'].
+    + subst alpha. apply DTN_thm. apply prov_id.
+    + apply DTN_MP with alpha.
+      * apply DTN_thm. apply Ax_K.
+      * apply DTN_hyp. exact Hin'.
+  - apply DTN_thm. exact (MP _ _ (Ax_K alpha phi') Hthm).
+  - subst G'.
+    pose proof (IHimp G phi' eq_refl) as HI1.
+    pose proof (IHalpha G phi' eq_refl) as HI2.
+    apply DTN_MP with (Impl phi' alpha).
+    + apply DTN_MP with (Impl phi' (Impl alpha beta)).
+      * apply DTN_thm. exact (Ax_S phi' alpha beta).
+      * exact HI1.
+    + exact HI2.
+  - apply DTN_MP with (Box n alpha).
+    + apply DTN_thm. apply Ax_K.
+    + apply DTN_Nec. exact Hsub.
+Qed.
+
 Theorem frame_conditions_independent :
   (exists Rt : nat -> nat -> nat -> Prop,
     (forall n, well_founded (fun u v => Rt n v u)) /\
