@@ -19,6 +19,7 @@ From Stdlib Require Import Arith.Wf_nat.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import micromega.Lia.
 From Stdlib Require Import Logic.Classical.
+From Stdlib Require Import Logic.ClassicalEpsilon.
 Import ListNotations.
 
 (** Polymodal propositional formulas indexed by a natural-number "level".
@@ -5137,6 +5138,275 @@ Proof. intros Gamma [HC _]. exact HC. Qed.
 Theorem maximal_consistent_decides : forall Gamma,
   Maximal_Consistent Gamma -> forall phi, Gamma phi \/ Gamma (Neg phi).
 Proof. intros Gamma [_ Hd] phi. apply Hd. Qed.
+
+Definition lindenbaum_extend (Gamma : Form -> Prop) (phi : Form) : Form -> Prop :=
+  match excluded_middle_informative
+          (Consistent (fun psi => Gamma psi \/ psi = phi)) with
+  | left _ => fun psi => Gamma psi \/ psi = phi
+  | right _ => fun psi => Gamma psi \/ psi = Neg phi
+  end.
+
+Lemma lindenbaum_extend_extends : forall Gamma phi psi,
+  Gamma psi -> lindenbaum_extend Gamma phi psi.
+Proof.
+  intros Gamma phi psi Hg. unfold lindenbaum_extend.
+  destruct excluded_middle_informative; left; exact Hg.
+Qed.
+
+Lemma lindenbaum_extend_decides : forall Gamma phi,
+  lindenbaum_extend Gamma phi phi \/ lindenbaum_extend Gamma phi (Neg phi).
+Proof.
+  intros Gamma phi. unfold lindenbaum_extend.
+  destruct excluded_middle_informative.
+  - left. right. reflexivity.
+  - right. right. reflexivity.
+Qed.
+
+Lemma Provable_with_hyp_weaken : forall G G' phi,
+  (forall psi, In psi G -> In psi G') ->
+  Provable_with_hyp G phi -> Provable_with_hyp G' phi.
+Proof.
+  intros G G' phi Hsub H. revert G' Hsub.
+  induction H as [G alpha Hin | G alpha Hp | G alpha beta Himp IHimp Halpha IHalpha];
+    intros G' Hsub.
+  - apply DT_hyp. apply Hsub. exact Hin.
+  - apply DT_thm. exact Hp.
+  - apply DT_MP with alpha.
+    + apply IHimp. exact Hsub.
+    + apply IHalpha. exact Hsub.
+Qed.
+
+Definition Form_eqb (phi psi : Form) : bool :=
+  if Form_eq_dec phi psi then true else false.
+
+Lemma Form_eqb_eq : forall phi psi,
+  Form_eqb phi psi = true <-> phi = psi.
+Proof.
+  intros phi psi. unfold Form_eqb.
+  destruct (Form_eq_dec phi psi); split; intros; congruence.
+Qed.
+
+Lemma Form_eqb_neq : forall phi psi,
+  Form_eqb phi psi = false <-> phi <> psi.
+Proof.
+  intros phi psi. unfold Form_eqb.
+  destruct (Form_eq_dec phi psi); split; intros; congruence.
+Qed.
+
+Definition remove_form (phi : Form) (G : list Form) : list Form :=
+  filter (fun x => negb (Form_eqb x phi)) G.
+
+Lemma remove_form_in : forall phi G psi,
+  In psi (remove_form phi G) -> In psi G /\ psi <> phi.
+Proof.
+  intros phi G psi Hin. unfold remove_form in Hin.
+  apply filter_In in Hin. destruct Hin as [HinG Hneg].
+  split; [exact HinG|].
+  intro Heq. subst psi.
+  unfold Form_eqb in Hneg. destruct (Form_eq_dec phi phi); [discriminate|congruence].
+Qed.
+
+Lemma in_remove_or : forall phi G psi,
+  In psi G -> psi = phi \/ In psi (remove_form phi G).
+Proof.
+  intros phi G psi Hin.
+  destruct (Form_eq_dec psi phi) as [Heq|Hneq].
+  - left. exact Heq.
+  - right. unfold remove_form. apply filter_In. split; [exact Hin|].
+    unfold Form_eqb. destruct (Form_eq_dec psi phi); [contradiction|reflexivity].
+Qed.
+
+Lemma not_consistent_neg_extends : forall Gamma phi,
+  Consistent Gamma ->
+  ~ Consistent (fun psi => Gamma psi \/ psi = phi) ->
+  Consistent (fun psi => Gamma psi \/ psi = Neg phi).
+Proof.
+  intros Gamma phi HC Hnpos Hnneg.
+  apply NNPP in Hnpos.
+  destruct Hnpos as [G1 [HG1 Hbot1]].
+  destruct Hnneg as [G2 [HG2 Hbot2]].
+  set (Gp := remove_form phi G1).
+  set (Gn := remove_form (Neg phi) G2).
+  set (G := Gp ++ Gn).
+  assert (HG_in_Gamma : forall psi, In psi G -> Gamma psi).
+  { intros psi Hin. unfold G in Hin. apply in_app_or in Hin.
+    destruct Hin as [Hin|Hin].
+    - apply remove_form_in in Hin. destruct Hin as [HinG1 Hne].
+      pose proof (HG1 psi HinG1) as [HGam|Heq]; [exact HGam|congruence].
+    - apply remove_form_in in Hin. destruct Hin as [HinG2 Hne].
+      pose proof (HG2 psi HinG2) as [HGam|Heq]; [exact HGam|congruence]. }
+  assert (Hbot1' : Provable_with_hyp (phi :: G) Bot).
+  { apply (Provable_with_hyp_weaken G1).
+    - intros psi Hin. destruct (in_remove_or phi G1 psi Hin) as [Heq|Hin'].
+      + subst psi. left. reflexivity.
+      + right. unfold G. apply in_or_app. left. exact Hin'.
+    - exact Hbot1. }
+  assert (Hbot2' : Provable_with_hyp (Neg phi :: G) Bot).
+  { apply (Provable_with_hyp_weaken G2).
+    - intros psi Hin. destruct (in_remove_or (Neg phi) G2 psi Hin) as [Heq|Hin'].
+      + subst psi. left. reflexivity.
+      + right. unfold G. apply in_or_app. right. exact Hin'.
+    - exact Hbot2. }
+  pose proof (deduction_theorem G phi Bot Hbot1') as Hnphi.
+  pose proof (deduction_theorem G (Neg phi) Bot Hbot2') as Hnnphi.
+  apply HC. exists G. split; [exact HG_in_Gamma|].
+  apply DT_MP with (Neg phi).
+  - exact Hnnphi.
+  - exact Hnphi.
+Qed.
+
+Theorem lindenbaum_extend_consistent : forall Gamma phi,
+  Consistent Gamma ->
+  Consistent (lindenbaum_extend Gamma phi).
+Proof.
+  intros Gamma phi HC. unfold lindenbaum_extend.
+  destruct excluded_middle_informative as [HC'|HC'].
+  - exact HC'.
+  - apply not_consistent_neg_extends; assumption.
+Qed.
+
+Fixpoint to_triangle (n : nat) : nat :=
+  match n with
+  | O => 0
+  | S k => S k + to_triangle k
+  end.
+
+Definition cpair (a b : nat) : nat := to_triangle (a + b) + b.
+
+Fixpoint find_root (n bound : nat) : nat :=
+  match bound with
+  | O => 0
+  | S b => let prev := find_root n b in
+           if Nat.leb (to_triangle (S prev)) n then S prev else prev
+  end.
+
+Definition cunpair (n : nat) : nat * nat :=
+  let k := find_root n n in
+  let b := n - to_triangle k in
+  (k - b, b).
+
+Lemma to_triangle_mono : forall a b, a <= b -> to_triangle a <= to_triangle b.
+Proof.
+  intros a b. induction 1; simpl; lia.
+Qed.
+
+Lemma find_root_le : forall n b, find_root n b <= b.
+Proof.
+  intros n b. induction b as [|b' IH].
+  - apply Nat.le_refl.
+  - cbn [find_root].
+    destruct (Nat.leb (to_triangle (S (find_root n b'))) n).
+    + apply le_n_S. exact IH.
+    + apply Nat.le_le_succ_r. exact IH.
+Qed.
+
+Lemma find_root_correct : forall n b,
+  to_triangle (find_root n b) <= n.
+Proof.
+  intros n b. induction b as [|b' IH].
+  - apply Nat.le_0_l.
+  - cbn [find_root].
+    destruct (Nat.leb (to_triangle (S (find_root n b'))) n) eqn:Heq.
+    + apply Nat.leb_le in Heq. exact Heq.
+    + exact IH.
+Qed.
+
+Fixpoint encode_form (phi : Form) : nat :=
+  match phi with
+  | Bot => 0
+  | Var p => 1 + cpair 0 p
+  | Impl X Y => 1 + cpair 1 (cpair (encode_form X) (encode_form Y))
+  | Box k psi => 1 + cpair 2 (cpair k (encode_form psi))
+  end.
+
+Fixpoint decode_form_bounded (depth n : nat) : Form :=
+  match depth with
+  | O => Bot
+  | S d =>
+    match n with
+    | O => Bot
+    | S n' =>
+      let p := cunpair n' in
+      let tag := fst p in
+      let payload := snd p in
+      match tag with
+      | 0 => Var payload
+      | 1 =>
+        let q := cunpair payload in
+        Impl (decode_form_bounded d (fst q)) (decode_form_bounded d (snd q))
+      | 2 =>
+        let q := cunpair payload in
+        Box (fst q) (decode_form_bounded d (snd q))
+      | _ => Bot
+      end
+    end
+  end.
+
+Definition decode_form (n : nat) : Form := decode_form_bounded (S n) n.
+
+Definition enum_form (n : nat) : Form := decode_form n.
+
+Definition Form_seq : nat -> Form := enum_form.
+
+Fixpoint lindenbaum_iterate (Gamma : Form -> Prop) (n : nat) : Form -> Prop :=
+  match n with
+  | O => Gamma
+  | S n' => lindenbaum_extend (lindenbaum_iterate Gamma n') (Form_seq n')
+  end.
+
+Lemma lindenbaum_iterate_extends : forall Gamma n psi,
+  Gamma psi -> lindenbaum_iterate Gamma n psi.
+Proof.
+  intros Gamma n psi Hg. induction n as [|n IH]; simpl.
+  - exact Hg.
+  - apply lindenbaum_extend_extends. exact IH.
+Qed.
+
+Lemma lindenbaum_iterate_consistent : forall Gamma n,
+  Consistent Gamma -> Consistent (lindenbaum_iterate Gamma n).
+Proof.
+  intros Gamma n HC. induction n as [|n IH]; simpl.
+  - exact HC.
+  - apply lindenbaum_extend_consistent. exact IH.
+Qed.
+
+Lemma lindenbaum_iterate_monotone : forall Gamma n m psi,
+  n <= m -> lindenbaum_iterate Gamma n psi -> lindenbaum_iterate Gamma m psi.
+Proof.
+  intros Gamma n m psi Hle. induction Hle as [|m Hle IH]; intros H.
+  - exact H.
+  - simpl. apply lindenbaum_extend_extends. apply IH. exact H.
+Qed.
+
+Definition Lindenbaum_limit (Gamma : Form -> Prop) (psi : Form) : Prop :=
+  exists n, lindenbaum_iterate Gamma n psi.
+
+Theorem Lindenbaum_limit_extends : forall Gamma psi,
+  Gamma psi -> Lindenbaum_limit Gamma psi.
+Proof.
+  intros Gamma psi Hg. exists 0. exact Hg.
+Qed.
+
+Theorem Lindenbaum_limit_consistent : forall Gamma,
+  Consistent Gamma -> Consistent (Lindenbaum_limit Gamma).
+Proof.
+  intros Gamma HC Hcontra.
+  destruct Hcontra as [G [HG HBot]].
+  assert (Hbound : exists n, forall psi, In psi G -> lindenbaum_iterate Gamma n psi).
+  { clear HBot. revert HG. induction G as [|psi G' IH]; intros HG.
+    - exists 0. intros psi [].
+    - assert (HG' : forall psi0, In psi0 G' -> Lindenbaum_limit Gamma psi0).
+      { intros psi0 Hin. apply HG. right. exact Hin. }
+      destruct (IH HG') as [n Hn].
+      pose proof (HG psi (or_introl eq_refl)) as [m Hm].
+      exists (max n m). intros psi0 Hin. simpl in Hin. destruct Hin as [Heq|Hin'].
+      + subst psi0. apply (lindenbaum_iterate_monotone Gamma m (max n m)); [lia|exact Hm].
+      + apply (lindenbaum_iterate_monotone Gamma n (max n m)); [lia|apply Hn; exact Hin']. }
+  destruct Hbound as [n Hn].
+  apply (lindenbaum_iterate_consistent Gamma n HC).
+  exists G. split; assumption.
+Qed.
+
 
 Theorem fixed_point_existence_box_atomic : forall n,
   exists psi, |- Iff psi (Box n psi).
