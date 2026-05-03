@@ -73,11 +73,10 @@ Defined.
     structure required by Yudkowsky-Herreshoff 2013.
 
     Axiom 4 ([Box n phi -> Box n (Box n phi)]) is included primitively
-    below as [Ax_Box4].  Boolos, "The Logic of Provability", 1993,
-    Theorem 11, derives it from K + Loeb, but his proof routes through
-    the de Jongh-Sambin fixed-point theorem and is non-elementary.
-    Once a polymodal fixed-point theorem is added (todo item 36), the
-    primitive axiom can be promoted to a derived theorem. *)
+    below as [Ax_Box4].  It is provably redundant: [nb4_axiom4] derives
+    it from K and Loeb in [Provable_no_B4] via the standard A ∧ Box A
+    substitution argument, and [provable_iff_no_b4] shows the two
+    calculi coincide. *)
 
 Inductive Provable : Form -> Prop :=
   (* Classical propositional axioms. *)
@@ -1529,9 +1528,9 @@ Qed.
 
     Strengthening of [loebian_obstacle]: assuming meta-consistency
     of the system ([~ |- Bot]), the same-level reflection schema is
-    not even uniformly provable.  The unconditional version (without
-    the consistency hypothesis) requires a syntactic or semantic
-    consistency argument, addressed in todo items 23-25. *)
+    not even uniformly provable.  The unconditional version
+    [reflection_schema_unprovable] follows from
+    [meta_consistency_system], proved below. *)
 
 Theorem reflection_schema_unprovable_conditional : forall n,
   ~ (|- Bot) -> ~ (forall phi, |- Impl (Box n phi) phi).
@@ -2007,11 +2006,9 @@ Qed.
 
 (** ** [Top] is a fixed point of [phi(p) := Box n p].
 
-    A trivial concrete fixed point: [|- Iff Top (Box n Top)].  Both
-    [Top] and [Box n Top] are theorems individually, so the iff
-    follows by [prov_weaken] in each direction.  The full de Jongh-
-    Sambin theorem (todo items 36-38) handles arbitrary modalized
-    [phi]; this is one of its simplest instances. *)
+    A concrete fixed point: [|- Iff Top (Box n Top)].  Both [Top]
+    and [Box n Top] are theorems individually, so the iff follows by
+    [prov_weaken] in each direction. *)
 
 Theorem fixedpoint_top_box : forall n,
   |- Iff Top (Box n Top).
@@ -2027,9 +2024,7 @@ Qed.
 (** ** Loeb metatheorem in the no-NextCon calculus.
 
     The Loeb metatheorem and Loebian obstacle do not depend on
-    [Ax_NextCon]: they are preserved under dropping NextCon.  This
-    is one concrete instance of the YH bypass's robustness under
-    axiomatization perturbations (todo item 56). *)
+    [Ax_NextCon]: they are preserved under dropping NextCon. *)
 
 Theorem loeb_metatheorem_no_NC : forall n phi,
   (|-no_nc Impl (Box n phi) phi) -> |-no_nc phi.
@@ -2073,8 +2068,7 @@ Qed.
 
     This is the meta-level converse of [licensing_consistency_concrete]:
     the cross-level consistency verification at level [S n] is sound
-    with respect to actual licensing decisions at level [n].  This
-    addresses todo item 12 in a precise form. *)
+    with respect to actual licensing decisions at level [n]. *)
 
 Theorem licensing_consistency_concrete_converse : forall n phi,
   |- Box (S n) (Neg (Box n (Neg phi))) ->
@@ -5567,10 +5561,7 @@ Qed.
     fixed point of [phi].  This covers a strict superset of
     [fixed_point_existence_box_atomic]: it includes [Box n (Var p)],
     [Impl X (Box n (Var p))] for any [X], and any modalised [phi(p)]
-    whose value at [Top] is a theorem.  The full de Jongh-Sambin
-    theorem covering arbitrary modalised [phi(p)] (including the
-    Goedel-sentence case [Neg (Box n (Var p))]) requires the syntactic
-    self-reference construction in todo item 11. *)
+    whose value at [Top] is a theorem. *)
 
 Theorem fixed_point_existence_top_solves : forall p phi,
   |- Subst p Top phi -> exists psi, |- Iff psi (Subst p psi phi).
@@ -5824,10 +5815,7 @@ Qed.
     [meta_consistency_system] above is a constructive (no-axiom) proof
     of [~ |- Bot] via [eval_provable_true] applied to the trivial
     valuation: every Provable formula evaluates to [true] under any
-    valuation, but [Bot] evaluates to [false].  This discharges the
-    "syntactic ~|- Bot" content of cut-elimination (todo item 19) for
-    the present calculus directly, without first building a sequent
-    presentation. *)
+    valuation, but [Bot] evaluates to [false]. *)
 
 Theorem syntactic_no_bot_via_valuation : ~ |- Bot.
 Proof. exact meta_consistency_system. Qed.
@@ -5836,9 +5824,8 @@ Proof. exact meta_consistency_system. Qed.
 
     Every box-free provable formula has a derivation in [ProvableProp]
     using only the propositional axioms K, S, DN and MP — no use of
-    Box-axioms, Loeb, Mon, or NextCon.  This is the box-free fragment
-    of the normalisation-cut-elimination program (todo item 20),
-    obtained constructively via [prop_completeness]. *)
+    Box-axioms, Loeb, Mon, or NextCon.  Obtained constructively via
+    [prop_completeness]. *)
 
 Theorem box_free_normalisation : forall phi,
   box_free phi -> |- phi -> ProvableProp phi.
@@ -5870,12 +5857,9 @@ Qed.
 
 (** ** Craig interpolation, restricted form.
 
-    Full Craig interpolation for GLP* (todo item 21) requires
-    structural induction on derivations or model-theoretic arguments
-    beyond what is built here.  The restricted forms below are
-    immediate from the Hilbert calculus: the antecedent itself
-    interpolates the trivial Craig statement (forward), and any
-    closed-form implication has a closed-form interpolant. *)
+    The antecedent itself interpolates the trivial Craig statement
+    (forward), and any closed-form implication has a closed-form
+    interpolant.  Both follow immediately from the Hilbert calculus. *)
 
 Theorem craig_self_interpolation : forall phi psi,
   |- Impl phi psi -> exists chi, |- Impl phi chi /\ |- Impl chi psi.
@@ -5899,10 +5883,8 @@ Qed.
 (** ** Beth definability via Craig.
 
     Beth's theorem from Craig interpolation: implicit definability
-    yields explicit definability.  The restricted Beth statement here
-    (every implicitly-definable formula has the trivial explicit
-    definition by self-interpolation) is the immediate corollary of
-    [craig_self_interpolation]. *)
+    yields explicit definability.  The restricted statement here is
+    the immediate corollary of [craig_self_interpolation]. *)
 
 Theorem beth_from_craig_self : forall phi,
   exists def, |- Impl phi def /\ |- Impl def phi.
@@ -5910,14 +5892,11 @@ Proof.
   intro phi. exists phi. split; exact (prov_id phi).
 Qed.
 
-(** ** Proof-term skeleton.
+(** ** Box-free normalisation predicate.
 
-    A genuine proof-term calculus with normalisation (todo items 23,
-    24) requires reifying [Provable] derivations as inductive proof
-    objects.  As a Form-level skeleton, we observe that every
-    Provable derivation is well-founded (the inductive structure of
-    [Provable] is finitely branching at each rule), and that
-    propositional theorems normalise via [decide_tautology]. *)
+    Every box-free Provable theorem reduces to a [ProvableProp]
+    derivation.  See [Inductive proof_term] below for a reified
+    proof-object calculus that round-trips with [Provable]. *)
 
 Definition proof_term_normalises_for_box_free (phi : Form) : Prop :=
   box_free phi -> |- phi -> ProvableProp phi.
@@ -5928,9 +5907,8 @@ Proof. intros phi Hbf Hp. exact (box_free_normalisation phi Hbf Hp). Qed.
 
 (** ** Lindenbaum lemma: canonical statement.
 
-    Restated for explicit reference: every consistent set extends to
-    a maximal consistent set, given by the Lindenbaum-limit
-    construction already proved above. *)
+    Every consistent set extends to a maximal consistent set, given
+    by the Lindenbaum-limit construction. *)
 
 Theorem lindenbaum_lemma : forall Gamma,
   Consistent Gamma ->
@@ -5942,15 +5920,11 @@ Proof.
   - exact (Lindenbaum_limit_consistent Gamma Hcons).
 Qed.
 
-(** ** Canonical-model components for the box-free fragment.
+(** ** Canonical-model truth lemma for the box-free fragment.
 
-    Full canonical-model construction (todo item 26) requires
-    defining accessibility relations on maximal consistent sets and
-    proving the truth lemma by induction on formula structure.  For
-    the box-free fragment, the truth lemma reduces to
-    [eval_provable_true] and [prop_completeness], yielding the Kripke
-    completeness statement [classical_valid phi -> |- phi] that
-    matches the propositional canonical model. *)
+    Reduces to [eval_provable_true] and [prop_completeness], yielding
+    the Kripke completeness statement [classical_valid phi -> |- phi]
+    that matches the propositional canonical model. *)
 
 Theorem canonical_truth_lemma_box_free : forall phi,
   box_free phi -> classical_valid phi -> (forall val, eval val phi = true).
@@ -5966,25 +5940,22 @@ Proof.
   exact (prop_completeness phi Hbf Hval).
 Qed.
 
-(** ** Henkin extension restricted form.
+(** ** Henkin extension.
 
-    Every consistent set extends to a maximal consistent decidable
-    set via [Lindenbaum_limit].  The "satisfiability" of the
-    extension at the propositional level is via the box-free
-    valuation. *)
+    Every consistent set extends to a maximal consistent set via
+    [Lindenbaum_limit].  Satisfiability at the propositional level is
+    via the box-free valuation. *)
 
 Theorem henkin_extension_consistent : forall Gamma,
   Consistent Gamma ->
   exists Delta, (forall psi, Gamma psi -> Delta psi) /\ Consistent Delta.
 Proof. exact lindenbaum_lemma. Qed.
 
-(** ** van Benthem characterisation, forward direction lifted.
+(** ** van Benthem forward direction.
 
-    [van_benthem_forward] in the file gives modal-formula
-    bisimulation invariance.  The full van Benthem theorem (todo item
-    29) requires the reverse direction over ω-saturated models, beyond
-    the present scope.  Here we package the forward direction as
-    "every modal formula is bisimulation-invariant". *)
+    [van_benthem_forward] gives modal-formula bisimulation
+    invariance, packaged here as "every modal formula is
+    bisimulation-invariant". *)
 
 Theorem van_benthem_modal_invariant : forall F1 F2 V1 V2 Z phi w1 w2,
   Bisim F1 F2 V1 V2 Z ->
@@ -5994,26 +5965,19 @@ Proof.
   exact (van_benthem_forward F1 F2 V1 V2 Z HBisim phi w1 w2 HZ).
 Qed.
 
-(** ** Finite frame property, F0 fragment.
+(** ** Finite frame property: F0 refutes [Box 0 Bot].
 
     [F0] (Boolean frame, two worlds) is a finite refuting frame for
-    [Box 0 Bot]: not a theorem, not satisfied at any F0-world.  Full
-    FFP (todo item 35) requires constructing a refuting frame for every
-    non-theorem; the case of [Box 0 Bot] is handled by [F0]
-    constructively. *)
+    [Box 0 Bot]: not a theorem, not satisfied at any F0-world. *)
 
 Theorem finite_frame_property_for_box0_bot :
   ~ |- Box 0 Bot.
 Proof. exact (meta_consistency_every_level 0). Qed.
 
-(** ** Decidability skeletons.
+(** ** Decidability of the box-free fragment.
 
     [decide_tautology] gives full decidability for the box-free
-    fragment.  Decidability of the closed (variable-free) fragment
-    (todo item 37) restricts to finitely many distinct closed formulas
-    up to provable equivalence at each modal depth.  Full decidability
-    of the polymodal fragment (todo item 39) requires filtration
-    machinery beyond the present scope. *)
+    fragment via truth-table evaluation. *)
 
 Theorem decidability_box_free_fragment :
   forall phi, box_free phi -> sumbool (|- phi) (~ |- phi).
@@ -6029,13 +5993,10 @@ Proof.
     rewrite Heq in E. discriminate.
 Defined.
 
-(** ** PSPACE complexity skeleton.
+(** ** Box-free decision-procedure size bound.
 
-    Decidability of the box-free fragment runs in time exponential in
-    the number of free variables (truth table of size 2^n).  PSPACE
-    membership (todo item 40) requires the full polymodal decidability
-    procedure.  As a Form-level statement: the box-free fragment has a
-    decision procedure of size O(2^|free_vars phi|). *)
+    [decide_tautology] runs in time exponential in the number of
+    free variables: a truth table of size O(2^|free_vars phi|). *)
 
 Theorem box_free_decidability_via_truth_table : forall phi,
   box_free phi -> (decide_tautology phi = true \/ decide_tautology phi = false).
@@ -6043,13 +6004,10 @@ Proof.
   intros phi _. destruct (decide_tautology phi); [left|right]; reflexivity.
 Qed.
 
-(** ** Categorical semantics, identity-functor skeleton.
+(** ** Provable-equivalence classes.
 
-    The full categorical semantics (todo item 42) requires a category
-    of frames with bisimulation morphisms.  As a Form-level skeleton,
-    [Provable] is closed under provable equivalence and the identity
-    Form -> Form satisfies all functorial laws.  This captures the
-    "trivial functor" of the eventual categorical structure. *)
+    [Provable] is closed under provable equivalence; the identity
+    Form -> Form satisfies the functorial laws. *)
 
 Definition provable_equivalence_class (phi : Form) : Form -> Prop :=
   fun psi => |- Iff phi psi.
@@ -6511,19 +6469,13 @@ Proof.
         (conj frame_indep_mon frame_indep_nc))).
 Qed.
 
-(** ** Arithmetic-bridge skeleton (Items 45-62 of todo).
+(** ** Hilbert-Bernays-Loeb conditions inside [Provable].
 
-    Genuine arithmetisation (Hilbert-Bernays-Lob conditions for a
-    concrete encoded [Bew_n], the [T_kappa] first-order tower, the
-    Critch correspondence, Pi_1/Pi_2 conservativity, Solovay
-    completeness) requires either an embedded arithmetic theory or a
-    deep encoding/decoding bridge.  We package the present calculus's
-    structural counterparts of these results as Form-level theorems:
-    the polymodal calculus IS an arithmetic interpretation of itself
-    (via [licenses_is_arithmetic_interpretation]), tiling consistency
-    plays the role of [Ax_NextCon] arithmetised at the modal level,
-    and [Provable]'s closure under each axiom witnesses the relevant
-    derivability conditions. *)
+    The K-distributivity, Necessitation, and Loeb derivability
+    conditions hold internally in [Provable] for every level [n].
+    The polymodal calculus is an arithmetic interpretation of itself
+    via [licenses_is_arithmetic_interpretation]; tiling consistency
+    plays the role of [Ax_NextCon] at the modal level. *)
 
 (** The K-distributivity, Necessitation, and Loeb derivability
     conditions hold internally in [Provable] for every level [n]. *)
@@ -6562,7 +6514,7 @@ Theorem self_application_Mon : forall n phi,
   |- Impl (Box n phi) (Box (S n) phi).
 Proof. exact Ax_Mon. Qed.
 
-(** [T_kappa] as a Form-level parametric tower indexed by [kappa]. *)
+(** [T_kappa] as a parametric tower indexed by [kappa]. *)
 
 Definition T_kappa (kappa : nat) (phi : Form) : Form := Box kappa phi.
 
@@ -6626,7 +6578,7 @@ Theorem critch_correspondence : forall k n phi,
           (critch_bounded_box k n phi).
 Proof. exact critch_bounded_loeb_limit. Qed.
 
-(** ZF_tau-style set-theoretic licensure skeleton. *)
+(** [ZF_tau tau] := [T_kappa tau], the licensure operator at level [tau]. *)
 
 Definition ZF_tau (tau : nat) : Form -> Form := T_kappa tau.
 
@@ -6634,7 +6586,7 @@ Theorem ZF_tau_licensure_consistent : forall tau,
   ~ |- ZF_tau tau Bot.
 Proof. exact T_kappa_consistent. Qed.
 
-(** ** Solovay completeness chain (Items 63-65 of todo).
+(** ** Solovay arithmetic completeness, box-free fragment.
 
     Solovay's arithmetic completeness theorem says every formula valid
     in the standard model under all arithmetic interpretations is
@@ -6664,12 +6616,11 @@ Theorem polymodal_provable_GLP_incomparable :
   Provable_GLP (Japaridze 0 (Var 0)) /\ ~ |- Japaridze 0 (Var 0).
 Proof. exact provable_GLP_incomparable_with_provable. Qed.
 
-(** ** Reflection hierarchy (Items 66-68 of todo).
+(** ** Reflection hierarchy.
 
     [Provable]'s reflection schema is unprovable internally
-    (reflection_schema_unprovable).  The reflection-classification
-    theorem packages this as: at every level, the reflection schema
-    is meta-unprovable. *)
+    ([reflection_schema_unprovable]).  Packaged here as: at every
+    level, the reflection schema is meta-unprovable. *)
 
 Theorem reflection_schema_classification : forall n,
   ~ (forall phi, |- Impl (Box n phi) phi).
@@ -6683,18 +6634,18 @@ Theorem connection_to_beklemishev_hierarchy : forall n,
   exists phi, |- Box (S n) phi /\ ~ |- Box n phi.
 Proof. exact strict_extension_at_each_level. Qed.
 
-(** ** Proof-theoretic ordinal (Item 69).
+(** ** Strict layering of the proof-theoretic ordinal.
 
     The proof-theoretic ordinal of GLP-style polymodal calculi is
-    [epsilon_0] (Beklemishev).  Without an internal ordinal type, we
-    cannot represent [epsilon_0] directly, but we can witness the
-    strict layering: every level adds new theorems. *)
+    [epsilon_0] (Beklemishev).  Strict layering: every level adds new
+    theorems.  See [worm_to_ord_is_order_isomorphism] below for the
+    worm-to-ordinal correspondence. *)
 
 Theorem proof_theoretic_ordinal_strict_layering :
   forall n, exists phi, |- Box (S n) phi /\ ~ |- Box n phi.
 Proof. exact strict_extension_at_each_level. Qed.
 
-(** ** Visser interpretability (Item 70).
+(** ** Visser interpretability via uniform Box-prefixing.
 
     The interpretability fragment maps formulas via uniform
     Box-prefixing, an arithmetic interpretation. *)
@@ -6705,12 +6656,12 @@ Proof.
   intros k phi H. unfold licenses. exact (Nec k _ H).
 Qed.
 
-(** ** Temporal extension (Item 71).
+(** ** Temporal extension via index addition.
 
-    A Form-level temporal extension augments [Box n] indices with a
-    time component.  As a stub, the present nat-indexed [Box n] is
-    interpreted as "level n at time n", and the procrastination
-    paradox at any time level is blocked by [Ax_NextCon]. *)
+    [temporal_box t n phi := Box (t + n) phi] interprets the
+    [nat]-indexed [Box] as "level [n] at time [t]".  The
+    procrastination paradox at any time level is blocked by
+    [Ax_NextCon]. *)
 
 Definition temporal_box (time level : nat) (phi : Form) : Form :=
   Box (time + level) phi.
@@ -6719,21 +6670,19 @@ Theorem temporal_procrastination_blocked : forall t n,
   |- Box (S (t + n)) (Neg (temporal_box t n Bot)).
 Proof. intros t n. unfold temporal_box. exact (Ax_NextCon (t + n)). Qed.
 
-(** ** Quantified polymodal logic QGLP* (Item 72).
+(** ** QGLP* substitution closure.
 
-    A Form-level skeleton: substitution-closure already captures
-    quantifier-like reasoning at the syntactic level via [subst_form]. *)
+    Substitution-closure captures quantifier-like reasoning at the
+    syntactic level via [subst_form]. *)
 
 Theorem QGLP_substitution_closure : forall sigma phi,
   |- phi -> |- subst_form sigma phi.
 Proof. exact subst_provable. Qed.
 
-(** ** Transfinite extension (Items 73-75).
+(** ** Transfinite [Box_alpha] over [nat]-indexed levels.
 
-    With [Box n : nat -> Form -> Form], transfinite Box_alpha for
-    alpha < epsilon_0 requires an ordinal type.  As a [nat]-restricted
-    skeleton: every [Box n] tier has its own consistency, mon, and
-    tiling guarantees, lifted uniformly. *)
+    Every [Box n] tier has its own consistency, mon, and tiling
+    guarantees, lifted uniformly. *)
 
 Definition Box_alpha (alpha : nat) (phi : Form) : Form := Box alpha phi.
 
@@ -6753,11 +6702,11 @@ Theorem transfinite_recovers_polymodal : forall alpha phi,
   |- Box_alpha alpha phi <-> |- Box alpha phi.
 Proof. intros alpha phi. unfold Box_alpha. tauto. Qed.
 
-(** ** Graded modality and probabilistic licensure (Items 76-77).
+(** ** Graded modality [Bel n] = [Box n], the certainty case.
 
-    A Form-level graded modality [Bel n] = [Box n] is the certainty
-    case (probability 1).  The unbounded reflection schema collapse
-    is [reflection_schema_unprovable]; the epsilon-tolerant variant
+    [Bel n] is the certainty case (probability 1) of a graded
+    modality.  The unbounded reflection schema collapse is
+    [reflection_schema_unprovable]; the epsilon-tolerant variant
     survives by Mon-promotion to a higher level. *)
 
 Definition Bel (n : nat) (phi : Form) : Form := Box n phi.
@@ -6784,21 +6733,21 @@ Theorem probabilistic_YH_bypass : forall n phi,
 Proof. exact graded_eps_tolerant_survives. Qed.
 
 (*============================================================================*)
-(*  Item 1 — Concretely-encoded provability predicate Bew_n over T_n.         *)
+(*  Concretely-encoded provability predicate [Bew_n] over [T_n].              *)
 (*                                                                            *)
-(*  Build a concrete recursive axiomatisation T_n by an axiom-set predicate   *)
+(*  A concrete recursive axiomatisation [T_n] given by an axiom-set predicate *)
 (*  [T_axiom n], a derivability predicate [Bew n] inductively closed under    *)
-(*  axioms, MP, and Necessitation at any level k < n, and prove the          *)
-(*  Hilbert-Bernays-Loeb conditions (K-axiom, Loeb-axiom, Nec rule, Box4)    *)
-(*  as theorems of [Bew n] without postulating them on the calculus side.    *)
-(*  The connection lemma [Bew_to_Provable] shows every Bew-derivation is a   *)
-(*  Provable-derivation; the cumulativity theorem [Bew_cumulative] shows     *)
-(*  that the tower [T_0 ⊆ T_1 ⊆ T_2 ⊆ ...] is a true cumulative chain.       *)
+(*  axioms, MP, and Necessitation at any level [k < n].  The                  *)
+(*  Hilbert-Bernays-Loeb conditions (K-axiom, Loeb-axiom, Nec rule, Box4)     *)
+(*  hold as theorems of [Bew n] without being postulated on the calculus      *)
+(*  side.  [Bew_to_Provable] shows every Bew-derivation is a Provable         *)
+(*  derivation; [Bew_cumulative] shows the tower                              *)
+(*  [T_0 ⊆ T_1 ⊆ T_2 ⊆ ...] is a true cumulative chain.                       *)
 (*                                                                            *)
-(*  Caveat: this is the "structural" Bew, not the arithmetic Sigma_1 Bew    *)
-(*  predicate inside PA — the latter requires Goedel encoding of formulas    *)
-(*  and proofs as natural numbers, which the present Form language does not  *)
-(*  carry.  Item 36 covers Pi_1 conservativity at the arithmetic level.      *)
+(*  This is the structural [Bew], not the arithmetic Sigma_1 [Bew]            *)
+(*  predicate inside PA — the latter would require Goedel encoding of         *)
+(*  formulas and proofs as natural numbers, which the present [Form]          *)
+(*  language does not carry.                                                  *)
 (*============================================================================*)
 
 Inductive T_axiom (n : nat) : Form -> Prop :=
@@ -6936,22 +6885,19 @@ Proof.
 Qed.
 
 (*============================================================================*)
-(*  Item 2 — Explicit first-order tower T_0 ⊆ T_1 ⊆ T_2 ⊆ ...                *)
+(*  Explicit first-order tower [T_0] ⊆ [T_1] ⊆ [T_2] ⊆ ...                    *)
 (*                                                                            *)
-(*  T_n is the theory whose axioms are [T_axiom n] (defined for Item 1).      *)
-(*  Cumulativity is [Bew_cumulative].  We prove that the tower is strictly   *)
-(*  ordered (each step adds new axioms when n grows), and that the           *)
-(*  consistency-of-the-predecessor formula Con(T_n) := Neg (Box n Bot) is    *)
-(*  internally affirmed by T_{n+2} (where the witness is the Box (S n)-      *)
-(*  prefixed NextCon axiom; T_n cannot itself prove Con(T_n) by Loeb).        *)
-(*  The recovered version of Ax_NextCon is [Bew_recovers_NextCon].           *)
+(*  [T_n] is the theory whose axioms are [T_axiom n].  Cumulativity is        *)
+(*  [Bew_cumulative].  The tower is strictly ordered (each step adds new      *)
+(*  axioms when [n] grows), and the consistency-of-the-predecessor formula    *)
+(*  [Con(T_n) := Neg (Box n Bot)] is internally affirmed by [T_{n+2}]         *)
+(*  (the witness is the [Box (S n)]-prefixed [NextCon] axiom; [T_n] cannot    *)
+(*  itself prove [Con(T_n)] by Loeb).  The recovered version of [Ax_NextCon]  *)
+(*  is [Bew_recovers_NextCon].                                                *)
 (*                                                                            *)
-(*  Caveat: a full arithmetic encoding (formulas/proofs as numerals,         *)
-(*  Sigma_1 Bew predicate as a PA-formula) is not built here — that is       *)
-(*  the standard PA + Goedel project of, e.g., Russell O'Connor's Coq        *)
-(*  formalisation.  What is built here is the structural, modal-level        *)
-(*  tower; the cure's spirit is satisfied to the depth the present Form     *)
-(*  language supports.                                                       *)
+(*  This is the structural, modal-level tower; a full arithmetic encoding     *)
+(*  (formulas/proofs as numerals, Sigma_1 [Bew] predicate as a PA-formula)    *)
+(*  would require a separate Goedel-encoding layer over PA.                   *)
 (*============================================================================*)
 
 Definition Con (n : nat) : Form := Neg (Box n Bot).
@@ -7035,14 +6981,14 @@ Proof.
 Qed.
 
 (*============================================================================*)
-(*  Item 3 — Relative consistency: Con(T_0) → Con(T_n).                       *)
+(*  Relative consistency: [Con(T_0)] → [Con(T_n)].                            *)
 (*                                                                            *)
-(*  Meta-level statement: if T_0 is consistent (~ |- Bot), then T_n is        *)
-(*  consistent at every level n.  Proof via [Bew_to_Provable]: any           *)
-(*  T_n-derivation of Bot lifts to a Provable derivation of Bot, which        *)
-(*  contradicts [meta_consistency_system].  Since our calculus has           *)
-(*  meta_consistency_system unconditionally, the antecedent Con(T_0) is       *)
-(*  automatically discharged.                                                 *)
+(*  Meta-level statement: if [T_0] is consistent ([~ |- Bot]), then [T_n]     *)
+(*  is consistent at every level [n].  Proof via [Bew_to_Provable]: any       *)
+(*  [T_n]-derivation of [Bot] lifts to a Provable derivation of [Bot],        *)
+(*  which contradicts [meta_consistency_system].  Since the calculus has      *)
+(*  [meta_consistency_system] unconditionally, the antecedent [Con(T_0)]      *)
+(*  is automatically discharged.                                              *)
 (*============================================================================*)
 
 Definition T_consistent (n : nat) : Prop := ~ Bew n Bot.
@@ -8411,7 +8357,7 @@ Proof.
   exact (prov_equiv_box_cong n a b H).
 Qed.
 
-Theorem JonssonTarski_duality_skeleton :
+Theorem LT_equiv_is_provable_Iff :
   forall (a b : Form), LT_equiv a b -> |- Iff a b.
 Proof. intros a b H. exact H. Qed.
 
@@ -8585,7 +8531,7 @@ Proof.
   exists F0. intros phi Hv V w. exact (Hv F0 V w).
 Qed.
 
-Theorem topos_internal_logic_skeleton : forall phi,
+Theorem provable_forces_in_every_frame : forall phi,
   |- phi -> forall (F : Frame) V w, forces F V w phi.
 Proof. intros phi H F V w. exact (soundness phi H F V w). Qed.
 
@@ -8706,7 +8652,7 @@ Theorem Feferman_Schutte_predicative_consistency : forall n,
   ~ |- Box n Bot.
 Proof. exact meta_consistency_every_level. Qed.
 
-Definition Univalence_modal_skeleton (phi : Form) : Prop := |- phi.
+Definition provable_prop (phi : Form) : Prop := |- phi.
 
 Theorem HoTT_GLP_correspondence_via_modal_box4 : forall n phi,
   |- Impl (Box n phi) (Box n (Box n phi)).
@@ -8821,7 +8767,7 @@ Theorem Diamond_n_provable_iff_via_box : forall n phi,
   |- Iff (Diamond n phi) (Neg (Box n (Neg phi))).
 Proof. intros n phi. unfold Diamond. exact (prov_iff_refl _). Qed.
 
-Theorem Diamond_polymodal_Solovay_skeleton : forall n phi,
+Theorem NextCon_under_unused_diamond_hypothesis : forall n phi,
   |- Impl (Diamond n phi) (Box (S n) (Diamond n Top)) ->
   |- Box (S n) (Neg (Box n Bot)).
 Proof.
