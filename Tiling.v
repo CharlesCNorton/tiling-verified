@@ -7828,11 +7828,15 @@ Definition T_n_plus_1_licenses (n : nat) (action_witness : Form) : Prop :=
 Theorem licensure_implies_goal_preservation_for_cautious : forall n target witness,
   T_n_plus_1_licenses n witness ->
   T_consistent n ->
-  forall s, Env_Goal target s ->
-  Env_Goal target (Env_Transition s (cautious_agent s)).
+  T_consistent n /\
+  Bew (S n) witness /\
+  (forall s, Env_Goal target s ->
+   Env_Goal target (Env_Transition s (cautious_agent s))).
 Proof.
-  intros n target witness Hlic Hcon s Hg.
-  exact (cautious_agent_safe target s Hg).
+  intros n target witness Hlic Hcon. split; [|split].
+  - exact Hcon.
+  - exact Hlic.
+  - intros s Hg. exact (cautious_agent_safe target s Hg).
 Qed.
 
 Theorem licensure_via_NextCon_chain : forall n,
