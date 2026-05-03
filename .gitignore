@@ -1,0 +1,14 @@
+# Coq build artifacts
+*.vo
+*.vok
+*.vos
+*.glob
+*.aux
+.*.aux
+.lia.cache
+.nia.cache
+
+# coq_makefile bookkeeping
+Makefile.conf
+.Makefile.d
+.coqdeps.d
