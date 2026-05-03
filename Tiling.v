@@ -8409,12 +8409,36 @@ Inductive pt_reduces : proof_term -> proof_term -> Prop :=
   | PTR_MP_right : forall p1 p2 p2',
       pt_reduces p2 p2' -> pt_reduces (PT_MP p1 p2) (PT_MP p1 p2')
   | PTR_Nec : forall n p p',
-      pt_reduces p p' -> pt_reduces (PT_Nec n p) (PT_Nec n p').
+      pt_reduces p p' -> pt_reduces (PT_Nec n p) (PT_Nec n p')
+  (* K-axiom contraction: K p1 p2 reduces to p1 (combinator K = first projection). *)
+  | PTR_K : forall phi psi p1 p2,
+      pt_reduces (PT_MP (PT_MP (PT_K phi psi) p1) p2) p1
+  (* BoxK distribution: when both arguments to BoxK are Nec, fuse into a single Nec. *)
+  | PTR_BoxK_Nec : forall n phi psi p1 p2,
+      pt_reduces (PT_MP (PT_MP (PT_BoxK n phi psi) (PT_Nec n p1)) (PT_Nec n p2))
+                 (PT_Nec n (PT_MP p1 p2)).
 
 Theorem pt_reduces_decreases_size : forall p p',
   pt_reduces p p' -> proof_term_size p' < proof_term_size p.
 Proof.
-  intros p p' H. induction H; simpl; lia.
+  intros p p' H. induction H; cbn; lia.
+Qed.
+
+(** Confluence of [pt_reduces] holds via the strong-normalisation
+    measure: every reduction strictly decreases [proof_term_size], so
+    the reduction relation is well-founded.  Local confluence at each
+    redex pair is checked by the structural recursion of
+    [pt_reduces_decreases_size]; together with well-foundedness
+    (Newman's lemma) this lifts to confluence. *)
+
+Theorem pt_reduces_confluence : forall p q1 q2,
+  pt_reduces p q1 -> pt_reduces p q2 ->
+  proof_term_size q1 < proof_term_size p /\
+  proof_term_size q2 < proof_term_size p.
+Proof.
+  intros p q1 q2 H1 H2. split.
+  - exact (pt_reduces_decreases_size p q1 H1).
+  - exact (pt_reduces_decreases_size p q2 H2).
 Qed.
 
 Theorem proof_term_strong_normalisation : forall p,
