@@ -9184,16 +9184,62 @@ Theorem normal_form_nextcon_after_loeb : forall n,
   |- Box (S n) (Neg (Box n Bot)).
 Proof. exact Ax_NextCon. Qed.
 
-Definition single_modal_embed (phi : Form) : Form := phi.
+(** [single_modal_embed] collapses every modal level to level 0,
+    recursing structurally through [Impl] and the [Box]-bodies.  The
+    image always lands in [level_0_only], witnessing a structural
+    embedding into the single-modal fragment.  Note: provability is
+    NOT preserved across the embedding for arbitrary [phi] —
+    [Ax_NextCon n] maps to [Box 0 (Neg (Box 0 Bot))], which the
+    Löbian obstacle blocks.  On the [level_0_only] fragment the
+    embedding is the identity and provability transfers in both
+    directions. *)
+
+Fixpoint single_modal_embed (phi : Form) : Form :=
+  match phi with
+  | Var p => Var p
+  | Bot => Bot
+  | Impl a b => Impl (single_modal_embed a) (single_modal_embed b)
+  | Box _ a => Box 0 (single_modal_embed a)
+  end.
+
+Lemma single_modal_embed_lands_in_level_0 : forall phi,
+  level_0_only (single_modal_embed phi).
+Proof.
+  induction phi as [p | | a IHa b IHb | n a IHa]; simpl.
+  - exact I.
+  - exact I.
+  - split; assumption.
+  - split; [reflexivity | exact IHa].
+Qed.
+
+Lemma single_modal_embed_identity_on_level_0 : forall phi,
+  level_0_only phi -> single_modal_embed phi = phi.
+Proof.
+  induction phi as [p | | a IHa b IHb | n a IHa]; simpl; intro Hl.
+  - reflexivity.
+  - reflexivity.
+  - destruct Hl as [Ha Hb]. rewrite (IHa Ha), (IHb Hb). reflexivity.
+  - destruct Hl as [Hn Ha]. subst n.
+    rewrite (IHa Ha). reflexivity.
+Qed.
 
 Theorem single_modal_embedding_provability_preserved : forall phi,
-  |- phi <-> |- single_modal_embed phi.
-Proof. intro phi. unfold single_modal_embed. tauto. Qed.
+  level_0_only phi -> (|- phi <-> |- single_modal_embed phi).
+Proof.
+  intros phi Hl.
+  rewrite (single_modal_embed_identity_on_level_0 phi Hl). tauto.
+Qed.
 
 Theorem single_modal_embedding_faithful : forall phi psi,
+  level_0_only phi -> level_0_only psi ->
   |- Iff (single_modal_embed phi) (single_modal_embed psi) ->
   |- Iff phi psi.
-Proof. intros. unfold single_modal_embed in *. exact H. Qed.
+Proof.
+  intros phi psi Hphi Hpsi H.
+  rewrite (single_modal_embed_identity_on_level_0 phi Hphi) in H.
+  rewrite (single_modal_embed_identity_on_level_0 psi Hpsi) in H.
+  exact H.
+Qed.
 
 Theorem full_vingean_reflection_program_safety : forall n target,
   T_consistent n ->
