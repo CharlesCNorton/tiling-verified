@@ -2364,6 +2364,83 @@ Proof.
   - apply fax_provable_complete.
 Qed.
 
+Fixpoint level_lift (k : nat) (phi : Form) : Form :=
+  match phi with
+  | Var p => Var p
+  | Bot => Bot
+  | Impl X Y => Impl (level_lift k X) (level_lift k Y)
+  | Box n psi => Box (n + k) (level_lift k psi)
+  end.
+
+Definition AxBoxK_carrier_base : Form :=
+  Impl (Box 0 (Impl (Var 0) (Var 1)))
+       (Impl (Box 0 (Var 0)) (Box 0 (Var 1))).
+Definition AxLoeb_carrier_base : Form :=
+  Impl (Box 0 (Impl (Box 0 (Var 0)) (Var 0))) (Box 0 (Var 0)).
+Definition AxBox4_carrier_base : Form :=
+  Impl (Box 0 (Var 0)) (Box 0 (Box 0 (Var 0))).
+Definition AxMon_carrier_base : Form :=
+  Impl (Box 0 (Var 0)) (Box 1 (Var 0)).
+Definition AxNextCon_carrier_base : Form :=
+  Box 1 (Neg (Box 0 Bot)).
+
+Inductive FAx2Provable : Form -> Prop :=
+  | F2_AxK_inst : forall sigma k,
+      FAx2Provable (subst_form sigma (level_lift k AxK_carrier))
+  | F2_AxS_inst : forall sigma k,
+      FAx2Provable (subst_form sigma (level_lift k AxS_carrier))
+  | F2_AxDN_inst : forall sigma k,
+      FAx2Provable (subst_form sigma (level_lift k AxDN_carrier))
+  | F2_AxBoxK_inst : forall sigma k,
+      FAx2Provable (subst_form sigma (level_lift k AxBoxK_carrier_base))
+  | F2_AxLoeb_inst : forall sigma k,
+      FAx2Provable (subst_form sigma (level_lift k AxLoeb_carrier_base))
+  | F2_AxBox4_inst : forall sigma k,
+      FAx2Provable (subst_form sigma (level_lift k AxBox4_carrier_base))
+  | F2_AxMon_inst : forall sigma k,
+      FAx2Provable (subst_form sigma (level_lift k AxMon_carrier_base))
+  | F2_AxNextCon_inst : forall k,
+      FAx2Provable (level_lift k AxNextCon_carrier_base)
+  | F2_MP : forall phi psi,
+      FAx2Provable (Impl phi psi) -> FAx2Provable phi -> FAx2Provable psi
+  | F2_Nec : forall n phi,
+      FAx2Provable phi -> FAx2Provable (Box n phi).
+
+Theorem fax2_to_provable : forall phi, FAx2Provable phi -> |- phi.
+Proof.
+  intros phi H. induction H; cbn in *.
+  - apply Ax_K.
+  - apply Ax_S.
+  - apply Ax_DN.
+  - apply Ax_BoxK.
+  - apply Ax_Loeb.
+  - apply Ax_Box4.
+  - apply Ax_Mon.
+  - apply Ax_NextCon.
+  - exact (MP _ _ IHFAx2Provable1 IHFAx2Provable2).
+  - exact (Nec _ _ IHFAx2Provable).
+Qed.
+
+Theorem provable_to_fax2 : forall phi, |- phi -> FAx2Provable phi.
+Proof.
+  intros phi H. induction H.
+  - exact (F2_AxK_inst (sub2 phi psi) 0).
+  - exact (F2_AxS_inst (sub3 phi psi chi) 0).
+  - exact (F2_AxDN_inst (sub1 phi) 0).
+  - exact (F2_AxBoxK_inst (sub2 phi psi) n).
+  - exact (F2_AxLoeb_inst (sub1 phi) n).
+  - exact (F2_AxBox4_inst (sub1 phi) n).
+  - exact (F2_AxMon_inst (sub1 phi) n).
+  - exact (F2_AxNextCon_inst n).
+  - exact (F2_MP _ _ IHProvable1 IHProvable2).
+  - exact (F2_Nec _ _ IHProvable).
+Qed.
+
+Theorem finite_axiomatisation_levelsubst : forall phi, FAx2Provable phi <-> |- phi.
+Proof.
+  intro phi. split; [apply fax2_to_provable | apply provable_to_fax2].
+Qed.
+
 (** ** Lindenbaum-Tarski algebra of GLP*.
 
     The provable-equivalence relation [prov_equiv] partitions [Form]
@@ -2858,6 +2935,374 @@ Proof.
   - destruct (eval val phi); simpl in IHProvableProp1.
     + exact IHProvableProp1.
     + discriminate IHProvableProp2.
+Qed.
+
+Lemma PP_id : forall phi, ProvableProp (Impl phi phi).
+Proof.
+  intro phi.
+  exact (PMP _ _
+          (PMP _ _ (PAx_S phi (Impl phi phi) phi)
+                       (PAx_K phi (Impl phi phi)))
+          (PAx_K phi phi)).
+Qed.
+
+Lemma PP_weaken : forall phi psi,
+  ProvableProp phi -> ProvableProp (Impl psi phi).
+Proof. intros phi psi Hphi. exact (PMP _ _ (PAx_K phi psi) Hphi). Qed.
+
+Lemma PP_compose : forall phi psi chi,
+  ProvableProp (Impl phi psi) ->
+  ProvableProp (Impl psi chi) ->
+  ProvableProp (Impl phi chi).
+Proof.
+  intros phi psi chi Hpq Hqr.
+  pose proof (PAx_S phi psi chi) as Hs.
+  pose proof (PP_weaken _ phi Hqr) as Hpqr.
+  exact (PMP _ _ (PMP _ _ Hs Hpqr) Hpq).
+Qed.
+
+Lemma PP_perm : forall phi psi chi,
+  ProvableProp (Impl phi (Impl psi chi)) ->
+  ProvableProp (Impl psi (Impl phi chi)).
+Proof.
+  intros phi psi chi H.
+  pose proof (PAx_S phi psi chi) as Hs.
+  pose proof (PMP _ _ Hs H) as H1.
+  pose proof (PAx_K psi phi) as Hk.
+  exact (PP_compose _ _ _ Hk H1).
+Qed.
+
+Lemma PP_DN_intro : forall phi, ProvableProp (Impl phi (Neg (Neg phi))).
+Proof.
+  intro phi. unfold Neg.
+  pose proof (PP_id (Impl phi Bot)) as Hid.
+  exact (PP_perm _ _ _ Hid).
+Qed.
+
+Lemma PP_explosion : forall phi, ProvableProp (Impl Bot phi).
+Proof.
+  intro phi.
+  pose proof (PAx_K Bot (Neg phi)) as Hk.
+  pose proof (PAx_DN phi) as HDN.
+  exact (PP_compose _ _ _ Hk HDN).
+Qed.
+
+Lemma PP_compose_internal : forall phi psi chi,
+  ProvableProp (Impl (Impl psi chi) (Impl (Impl phi psi) (Impl phi chi))).
+Proof.
+  intros phi psi chi.
+  pose proof (PAx_K (Impl psi chi) phi) as Hk.
+  pose proof (PAx_S phi psi chi) as Hs.
+  exact (PP_compose _ _ _ Hk Hs).
+Qed.
+
+Lemma PP_perm_internal : forall a b c,
+  ProvableProp (Impl (Impl a (Impl b c)) (Impl b (Impl a c))).
+Proof.
+  intros a b c.
+  pose proof (PAx_S a b c) as H_S.
+  pose proof (PAx_S (Impl a (Impl b c)) (Impl a b) (Impl a c)) as H_S2.
+  pose proof (PMP _ _ H_S2 H_S) as H1.
+  pose proof (PAx_K b a) as H_K1.
+  pose proof (PAx_K (Impl a b) (Impl a (Impl b c))) as H_K2.
+  pose proof (PP_compose _ _ _ H_K1 H_K2) as H2.
+  pose proof (PP_compose _ _ _ H2 H1) as H3.
+  exact (PP_perm _ _ _ H3).
+Qed.
+
+Lemma PP_contrapos : forall phi psi,
+  ProvableProp (Impl (Impl phi psi) (Impl (Neg psi) (Neg phi))).
+Proof.
+  intros phi psi. unfold Neg.
+  exact (PP_perm _ _ _ (PP_compose_internal phi psi Bot)).
+Qed.
+
+Lemma PP_neg_to_anything : forall phi psi,
+  ProvableProp (Impl (Neg phi) (Impl phi psi)).
+Proof.
+  intros phi psi. unfold Neg.
+  pose proof (PP_compose_internal phi Bot psi) as Hci.
+  pose proof (PP_explosion psi) as Hex.
+  exact (PMP _ _ Hci Hex).
+Qed.
+
+Lemma PP_X_negY_to_neg_impl : forall X Y,
+  ProvableProp (Impl X (Impl (Neg Y) (Neg (Impl X Y)))).
+Proof.
+  intros X Y.
+  pose proof (PP_perm (Impl X Y) X Y (PP_id (Impl X Y))) as f1.
+  pose proof (PP_DN_intro Y) as f2.
+  pose proof (PP_compose_internal (Impl X Y) Y (Neg (Neg Y))) as Hci.
+  pose proof (PMP _ _ Hci f2) as f3.
+  pose proof (PP_compose _ _ _ f1 f3) as f4.
+  pose proof (PP_perm_internal (Impl X Y) (Neg Y) Bot) as f5.
+  exact (PP_compose _ _ _ f4 f5).
+Qed.
+
+Inductive ProvablePropH : list Form -> Form -> Prop :=
+  | PHhyp : forall G phi, In phi G -> ProvablePropH G phi
+  | PHthm : forall G phi, ProvableProp phi -> ProvablePropH G phi
+  | PHMP : forall G phi psi,
+      ProvablePropH G (Impl phi psi) -> ProvablePropH G phi -> ProvablePropH G psi.
+
+Lemma PHweaken : forall G G' phi,
+  (forall psi, In psi G -> In psi G') ->
+  ProvablePropH G phi -> ProvablePropH G' phi.
+Proof.
+  intros G G' phi Hsub H. revert G' Hsub.
+  induction H; intros G' Hsub.
+  - apply PHhyp. apply Hsub. exact H.
+  - apply PHthm. exact H.
+  - exact (PHMP _ _ _ (IHProvablePropH1 _ Hsub) (IHProvablePropH2 _ Hsub)).
+Qed.
+
+Theorem PHdeduction : forall G phi psi,
+  ProvablePropH (phi :: G) psi -> ProvablePropH G (Impl phi psi).
+Proof.
+  intros G phi psi H.
+  remember (phi :: G) as G' eqn:HG.
+  revert G phi HG.
+  induction H; intros G' phi' HG'.
+  - subst G. simpl in H. destruct H as [Heq | Hin].
+    + subst phi. apply PHthm. apply PP_id.
+    + apply PHMP with phi.
+      * apply PHthm. apply PAx_K.
+      * apply PHhyp. exact Hin.
+  - apply PHthm. exact (PMP _ _ (PAx_K phi phi') H).
+  - subst G.
+    pose proof (IHProvablePropH1 G' phi' eq_refl) as H1.
+    pose proof (IHProvablePropH2 G' phi' eq_refl) as H2.
+    apply PHMP with (Impl phi' phi).
+    + apply PHMP with (Impl phi' (Impl phi psi)).
+      * apply PHthm. exact (PAx_S phi' phi psi).
+      * exact H1.
+    + exact H2.
+Qed.
+
+Fixpoint box_free (phi : Form) : Prop :=
+  match phi with
+  | Var _ => True
+  | Bot => True
+  | Impl X Y => box_free X /\ box_free Y
+  | Box _ _ => False
+  end.
+
+Definition classical_valid (phi : Form) : Prop :=
+  forall val, eval val phi = true.
+
+Fixpoint free_vars (phi : Form) : list nat :=
+  match phi with
+  | Var p => [p]
+  | Bot => []
+  | Impl X Y => free_vars X ++ free_vars Y
+  | Box _ psi => free_vars psi
+  end.
+
+Definition gamma (val : nat -> bool) (phi : Form) : Form :=
+  if eval val phi then phi else Neg phi.
+
+Fixpoint gamma_list (val : nat -> bool) (vars : list nat) : list Form :=
+  match vars with
+  | [] => []
+  | p :: rest => gamma val (Var p) :: gamma_list val rest
+  end.
+
+Lemma gamma_list_in : forall val vars p,
+  In p vars -> In (gamma val (Var p)) (gamma_list val vars).
+Proof.
+  intros val vars p Hin. induction vars as [|q rest IH].
+  - destruct Hin.
+  - simpl in Hin. destruct Hin as [Heq | Hin'].
+    + subst q. simpl. left. reflexivity.
+    + simpl. right. apply IH. exact Hin'.
+Qed.
+
+Lemma in_app_or : forall A (l1 l2 : list A) (x : A),
+  In x (l1 ++ l2) -> In x l1 \/ In x l2.
+Proof.
+  intros A l1 l2 x. induction l1 as [|y l1 IH]; simpl.
+  - intro H. right. exact H.
+  - intros [Heq | Hin].
+    + left. left. exact Heq.
+    + destruct (IH Hin) as [Hl | Hr].
+      * left. right. exact Hl.
+      * right. exact Hr.
+Qed.
+
+Lemma gamma_list_app : forall val l1 l2 phi,
+  In phi (gamma_list val l1) -> In phi (gamma_list val (l1 ++ l2)).
+Proof.
+  intros val l1 l2 phi. induction l1 as [|q rest IH]; simpl.
+  - intro H. destruct H.
+  - intros [Heq | Hin].
+    + left. exact Heq.
+    + right. apply IH. exact Hin.
+Qed.
+
+Lemma gamma_list_app_r : forall val l1 l2 phi,
+  In phi (gamma_list val l2) -> In phi (gamma_list val (l1 ++ l2)).
+Proof.
+  intros val l1 l2 phi. induction l1 as [|q rest IH]; simpl.
+  - intro H. exact H.
+  - intro H. right. apply IH. exact H.
+Qed.
+
+Theorem kalmar : forall val phi,
+  box_free phi -> ProvablePropH (gamma_list val (free_vars phi)) (gamma val phi).
+Proof.
+  intros val phi Hbf. induction phi as [p | | X IHX Y IHY | n psi IHpsi].
+  - simpl. unfold gamma. simpl. apply PHhyp.
+    destruct (val p); simpl; left; reflexivity.
+  - simpl. unfold gamma. simpl. apply PHthm.
+    pose proof (PP_id Bot) as Hid.
+    exact Hid.
+  - simpl in Hbf. destruct Hbf as [HbfX HbfY].
+    pose proof (IHX HbfX) as IHX'.
+    pose proof (IHY HbfY) as IHY'.
+    pose proof (PHweaken _ (gamma_list val (free_vars X ++ free_vars Y)) _
+                  (gamma_list_app val (free_vars X) (free_vars Y)) IHX') as IHX''.
+    pose proof (PHweaken _ (gamma_list val (free_vars X ++ free_vars Y)) _
+                  (gamma_list_app_r val (free_vars X) (free_vars Y)) IHY') as IHY''.
+    simpl. unfold gamma at 1.
+    destruct (eval val (Impl X Y)) eqn:HevImp.
+    + simpl in HevImp.
+      destruct (eval val X) eqn:HevX; destruct (eval val Y) eqn:HevY;
+        simpl in HevImp; try discriminate.
+      * apply PHMP with Y.
+        -- apply PHthm. exact (PAx_K Y X).
+        -- unfold gamma in IHY''. rewrite HevY in IHY''. exact IHY''.
+      * apply PHMP with Y.
+        -- apply PHthm. exact (PAx_K Y X).
+        -- unfold gamma in IHY''. rewrite HevY in IHY''. exact IHY''.
+      * apply PHMP with (Neg X).
+        -- apply PHthm. exact (PP_neg_to_anything X Y).
+        -- unfold gamma in IHX''. rewrite HevX in IHX''. exact IHX''.
+    + simpl in HevImp.
+      destruct (eval val X) eqn:HevX; destruct (eval val Y) eqn:HevY;
+        simpl in HevImp; try discriminate.
+      apply PHMP with (Neg Y).
+      * apply PHMP with X.
+        -- apply PHthm. exact (PP_X_negY_to_neg_impl X Y).
+        -- unfold gamma in IHX''. rewrite HevX in IHX''. exact IHX''.
+      * unfold gamma in IHY''. rewrite HevY in IHY''. exact IHY''.
+  - simpl in Hbf. contradiction.
+Qed.
+
+Lemma PP_consequentia_mirabilis : forall chi,
+  ProvableProp (Impl (Impl (Neg chi) chi) chi).
+Proof.
+  intro chi.
+  pose proof (PP_id (Impl chi Bot)) as Hid.
+  pose proof (PAx_S (Impl chi Bot) chi Bot) as Hs.
+  pose proof (PMP _ _ Hs Hid) as Hstep1.
+  pose proof (PAx_DN chi) as HDN.
+  exact (PP_compose _ _ _ Hstep1 HDN).
+Qed.
+
+Lemma PHelim_var : forall G p Q,
+  ProvablePropH (Var p :: G) Q ->
+  ProvablePropH (Neg (Var p) :: G) Q ->
+  ProvablePropH G Q.
+Proof.
+  intros G p Q Hpos Hneg.
+  pose proof (PHdeduction _ _ _ Hpos) as Hpd.
+  pose proof (PHdeduction _ _ _ Hneg) as Hnd.
+  pose proof (PHMP _ _ _ (PHthm _ _ (PP_contrapos (Var p) Q)) Hpd) as Hcontrap.
+  pose proof (PHthm G _ (PP_compose_internal (Neg Q) (Neg (Var p)) Q)) as Hcc.
+  pose proof (PHMP _ _ _ Hcc Hnd) as Hcc'.
+  pose proof (PHMP _ _ _ Hcc' Hcontrap) as Hnegq.
+  apply PHMP with (Impl (Neg Q) Q).
+  - apply PHthm. apply PP_consequentia_mirabilis.
+  - exact Hnegq.
+Qed.
+
+Lemma gamma_list_ext_on : forall val val' L,
+  (forall q, In q L -> val q = val' q) ->
+  gamma_list val L = gamma_list val' L.
+Proof.
+  intros val val' L Hext. induction L as [|p rest IH]; simpl.
+  - reflexivity.
+  - f_equal.
+    + unfold gamma. simpl. rewrite (Hext p).
+      * reflexivity.
+      * left. reflexivity.
+    + apply IH. intros q Hq. apply Hext. right. exact Hq.
+Qed.
+
+Lemma elim_nodup : forall vars G phi,
+  NoDup vars ->
+  (forall val, ProvablePropH (gamma_list val vars ++ G) phi) ->
+  ProvablePropH G phi.
+Proof.
+  intro vars. induction vars as [|p rest IH]; intros G phi Hnd Hhyp.
+  - simpl in Hhyp. apply (Hhyp (fun _ => false)).
+  - inversion Hnd as [|p' rest' Hnp Hndr Heq]. subst p' rest'.
+    apply (IH G phi Hndr).
+    intro val.
+    set (val_pos := fun q : nat => if Nat.eqb q p then true else val q).
+    set (val_neg := fun q : nat => if Nat.eqb q p then false else val q).
+    assert (Hag_pos : forall q, In q rest -> val_pos q = val q).
+    { intros q Hin. unfold val_pos. destruct (Nat.eqb_spec q p).
+      - subst q. contradiction.
+      - reflexivity. }
+    assert (Hag_neg : forall q, In q rest -> val_neg q = val q).
+    { intros q Hin. unfold val_neg. destruct (Nat.eqb_spec q p).
+      - subst q. contradiction.
+      - reflexivity. }
+    pose proof (Hhyp val_pos) as Hp.
+    pose proof (Hhyp val_neg) as Hn.
+    simpl in Hp. simpl in Hn.
+    unfold gamma in Hp at 1. unfold gamma in Hn at 1.
+    simpl in Hp. simpl in Hn.
+    assert (Hpos_p : val_pos p = true).
+    { unfold val_pos. rewrite Nat.eqb_refl. reflexivity. }
+    assert (Hneg_p : val_neg p = false).
+    { unfold val_neg. rewrite Nat.eqb_refl. reflexivity. }
+    rewrite Hpos_p in Hp. rewrite Hneg_p in Hn.
+    rewrite (gamma_list_ext_on val_pos val rest Hag_pos) in Hp.
+    rewrite (gamma_list_ext_on val_neg val rest Hag_neg) in Hn.
+    apply (PHelim_var _ p _ Hp Hn).
+Qed.
+
+Lemma PHnohyp_to_PP : forall phi, ProvablePropH [] phi -> ProvableProp phi.
+Proof.
+  intros phi H. remember (@nil Form) as G eqn:HG.
+  induction H as [G' phi Hin | G' phi Hphi | G' phi psi H1 IH1 H2 IH2].
+  - subst G'. simpl in Hin. destruct Hin.
+  - exact Hphi.
+  - exact (PMP _ _ (IH1 HG) (IH2 HG)).
+Qed.
+
+Lemma gamma_list_in_nodup : forall val L psi,
+  In psi (gamma_list val L) -> In psi (gamma_list val (nodup Nat.eq_dec L)).
+Proof.
+  intros val L psi Hin. induction L as [|p rest IH]; simpl in *.
+  - destruct Hin.
+  - destruct (in_dec Nat.eq_dec p rest) as [Hin_p | Hnin_p].
+    + destruct Hin as [Heq | Hin'].
+      * subst psi. apply gamma_list_in. apply (nodup_In Nat.eq_dec). exact Hin_p.
+      * apply IH. exact Hin'.
+    + simpl. destruct Hin as [Heq | Hin'].
+      * left. exact Heq.
+      * right. apply IH. exact Hin'.
+Qed.
+
+Theorem prop_completeness : forall phi,
+  box_free phi -> classical_valid phi -> ProvableProp phi.
+Proof.
+  intros phi Hbf Hval.
+  pose (vars := nodup Nat.eq_dec (free_vars phi)).
+  assert (Hnd : NoDup vars) by apply NoDup_nodup.
+  apply PHnohyp_to_PP.
+  apply (elim_nodup vars [] phi Hnd).
+  intro val.
+  rewrite app_nil_r.
+  pose proof (kalmar val phi Hbf) as Hk.
+  unfold classical_valid in Hval.
+  unfold gamma in Hk. rewrite (Hval val) in Hk.
+  apply (PHweaken (gamma_list val (free_vars phi)) (gamma_list val vars)).
+  - intros psi Hin. apply gamma_list_in_nodup. exact Hin.
+  - exact Hk.
 Qed.
 
 (** ** Uniform-witness theorem for tiling_consistency.
@@ -3487,18 +3932,8 @@ Qed.
     is unprovable, decidable by computing [eval] on the [2^k]
     assignments to the [k] free variables.  The converse direction
     (every classical tautology is in [ProvableProp]) is the Kalmár
-    completeness theorem and is stated separately. *)
+    completeness theorem [prop_completeness] above. *)
 
-Fixpoint box_free (phi : Form) : Prop :=
-  match phi with
-  | Var _ => True
-  | Bot => True
-  | Impl X Y => box_free X /\ box_free Y
-  | Box _ _ => False
-  end.
-
-Definition classical_valid (phi : Form) : Prop :=
-  forall val, eval val phi = true.
 
 Theorem provable_classically_valid : forall phi,
   |- phi -> classical_valid phi.
