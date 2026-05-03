@@ -10731,8 +10731,7 @@ Theorem sambin_uniqueness_combined_via_canonical_FP : forall (n : nat) psi1 psi2
   |- Iff psi1 Top -> |- Iff psi2 Top -> |- Iff psi1 psi2.
 Proof.
   intros n psi1 psi2 E1 E2.
-  pose proof (prov_iff_sym _ _ E2) as E2sym.
-  exact (prov_equiv_trans _ _ _ E1 E2sym).
+  exact (sambin_uniqueness_via_top_class n Top psi1 psi2 E1 E2).
 Qed.
 
 Theorem sambin_uniqueness_at_higher_box_level : forall (p : nat) (phi : Form) psi1 psi2 n,
