@@ -10195,12 +10195,22 @@ Theorem Veblen_phi_0_no_fixed_point_in_image_of_OZero :
   forall k, Veblen_phi_0 (Gamma_0_approx k) <> OZero.
 Proof. intro k. simpl. discriminate. Qed.
 
-Theorem Gamma_0_strictly_above_epsilon_0_witnesses : forall n,
-  exists o : ord, o = Gamma_0_approx (S (S n)) /\
-                  exists o', o' = omega_tower n.
-Proof. intro n. exists (Gamma_0_approx (S (S n))). split.
+Lemma omega_tower_eq_Gamma_0_approx_S : forall n,
+  omega_tower n = Gamma_0_approx (S n).
+Proof.
+  induction n as [|n IH].
   - reflexivity.
-  - exists (omega_tower n). reflexivity.
+  - cbn [omega_tower].
+    rewrite IH.
+    rewrite Gamma_0_approx_S.
+    reflexivity.
+Qed.
+
+Theorem Gamma_0_strictly_above_epsilon_0_witnesses : forall n,
+  ord_compare (omega_tower n) (Gamma_0_approx (S (S n))) = Lt.
+Proof.
+  intro n. rewrite (omega_tower_eq_Gamma_0_approx_S n).
+  exact (Gamma_0_approx_strictly_increasing (S n)).
 Qed.
 
 Definition worm_equiv (w1 w2 : Worm) : Prop :=
