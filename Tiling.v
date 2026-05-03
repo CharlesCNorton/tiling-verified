@@ -4973,6 +4973,16 @@ Proof.
     + apply DTN_Nec. exact Hsub.
 Qed.
 
+Theorem cut_admissibility_with_Nec : forall Gamma chi phi,
+  Provable_with_hyp_Nec Gamma chi ->
+  Provable_with_hyp_Nec (chi :: Gamma) phi ->
+  Provable_with_hyp_Nec Gamma phi.
+Proof.
+  intros Gamma chi phi Hchi Hphi.
+  pose proof (deduction_theorem_with_Nec _ _ _ Hphi) as Himpl.
+  exact (DTN_MP Gamma _ _ Himpl Hchi).
+Qed.
+
 Inductive Provable_GLP : Form -> Prop :=
   | GLP_Ax_K : forall phi psi,
       Provable_GLP (Impl phi (Impl psi phi))
