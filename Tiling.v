@@ -7427,6 +7427,27 @@ Proof.
   destruct (ord_compare a b); reflexivity.
 Qed.
 
+Lemma ord_lt_OCons_self : forall a t, ord_compare a (OCons a t) = Lt.
+Proof.
+  induction a as [|a' IHa' t' IHt']; intro t.
+  - reflexivity.
+  - cbn. rewrite IHa'. reflexivity.
+Qed.
+
+Lemma nat_to_ord_strictly_increasing : forall k,
+  ord_compare (nat_to_ord k) (nat_to_ord (S k)) = Lt.
+Proof.
+  induction k as [|k IH].
+  - reflexivity.
+  - cbn. exact IH.
+Qed.
+
+Lemma ord_compare_OCons_first_lt : forall a b t1 t2,
+  ord_compare a b = Lt -> ord_compare (OCons a t1) (OCons b t2) = Lt.
+Proof.
+  intros a b t1 t2 H. cbn. rewrite H. reflexivity.
+Qed.
+
 Theorem epsilon_0_contains_all_omega_towers : forall n,
   ord_compare (omega_tower n) (omega_tower (S n)) = Lt.
 Proof.
@@ -7442,8 +7463,15 @@ Theorem proof_theoretic_ordinal_GLP_at_least_epsilon_0 :
 Proof. exact epsilon_0_contains_all_omega_towers. Qed.
 
 Theorem worm_ordinal_embedding : forall w,
-  exists o : epsilon_0_carrier, o = worm_to_ord w.
-Proof. intro w. exists (worm_to_ord w). reflexivity. Qed.
+  exists w' : Worm,
+    ord_compare (worm_to_ord w) (worm_to_ord w') = Lt.
+Proof.
+  intro w. destruct w as [|k rest].
+  - exists [0]. reflexivity.
+  - exists (S k :: rest). cbn [worm_to_ord].
+    apply ord_compare_OCons_first_lt.
+    exact (nat_to_ord_strictly_increasing k).
+Qed.
 
 Theorem worm_form_provability_corresponds_to_ordinal : forall w1 w2,
   |- Iff (worm_to_form w1) (worm_to_form w2).
@@ -7969,8 +7997,10 @@ Proof.
 Qed.
 
 Theorem proof_term_ordinal_in_epsilon_0 : forall pt,
-  exists o : epsilon_0_carrier, o = proof_term_ordinal pt.
-Proof. intro pt. exists (proof_term_ordinal pt). reflexivity. Qed.
+  ord_size (proof_term_ordinal pt) <= proof_term_size pt.
+Proof.
+  induction pt; cbn; lia.
+Qed.
 
 Fixpoint denote_proof_term (pt : proof_term) : option Form :=
   match pt with
@@ -8545,11 +8575,12 @@ Theorem transfinite_worm_correspondence : forall w,
 Proof. exact ord_to_worm_left_inverse. Qed.
 
 Theorem transfinite_worm_each_alpha_corresponds : forall w,
-  exists o : ord, o = worm_to_ord w /\ ord_to_worm o = w.
+  ord_to_worm (worm_to_ord w) = w /\
+  exists w', ord_compare (worm_to_ord w) (worm_to_ord w') = Lt.
 Proof.
-  intro w. exists (worm_to_ord w). split.
-  - reflexivity.
+  intro w. split.
   - exact (ord_to_worm_left_inverse w).
+  - exact (worm_ordinal_embedding w).
 Qed.
 
 Definition CategoricalGLP_obj : Type := Frame.
@@ -8684,8 +8715,11 @@ Proof. intros tau phi. unfold ZF_tau_tower. exact (tiling_theorem_T_kappa tau ph
 Definition Gamma_0_predicative_carrier : Type := ord.
 
 Theorem Gamma_0_bounds_predicative_strength : forall (alpha : Gamma_0_predicative_carrier),
-  exists o : ord, o = alpha.
-Proof. intro alpha. exists alpha. reflexivity. Qed.
+  exists o : ord, ord_compare alpha o = Lt.
+Proof.
+  intro alpha. exists (OCons alpha OZero).
+  exact (ord_lt_OCons_self alpha OZero).
+Qed.
 
 Theorem Feferman_Schutte_predicative_consistency : forall n,
   ~ |- Box n Bot.
