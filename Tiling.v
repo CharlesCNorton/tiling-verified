@@ -15024,3 +15024,33 @@ Proof.
     split; [exact Hp1|]. cbn in Himp_phi2_psi.
     apply in_app_or in Himp_phi2_psi. exact Himp_phi2_psi.
 Qed.
+
+Theorem craig_interpolation_genuine_box_free : forall phi psi,
+  box_free phi -> box_free psi ->
+  |- Impl phi psi ->
+  exists chi,
+    box_free chi /\
+    |- Impl phi chi /\ |- Impl chi psi /\
+    (forall v, In v (free_vars chi) -> In v (free_vars phi) /\ In v (free_vars psi)) /\
+    modal_depth chi <= Nat.min (modal_depth phi) (modal_depth psi) /\
+    max_box_level chi <= Nat.min (max_box_level phi) (max_box_level psi).
+Proof.
+  intros phi psi Hbf_phi Hbf_psi Himp.
+  destruct (craig_interpolation_box_free phi psi Hbf_phi Hbf_psi Himp)
+    as [chi [Hbfc [Hf [Hb Hsub]]]].
+  exists chi. split; [|split; [|split; [|split; [|split]]]].
+  - exact Hbfc.
+  - exact Hf.
+  - exact Hb.
+  - exact Hsub.
+  - rewrite (box_free_modal_depth_zero chi Hbfc).
+    apply Nat.le_0_l.
+  - assert (max_box_level chi = 0).
+    { clear Hf Hb Hsub Himp Hbf_phi Hbf_psi.
+      induction chi as [k | | a IHa b IHb | n a IHa]; cbn in *.
+      - reflexivity.
+      - reflexivity.
+      - destruct Hbfc as [Ha Hb]. rewrite (IHa Ha), (IHb Hb). reflexivity.
+      - exfalso; exact Hbfc. }
+    rewrite H. apply Nat.le_0_l.
+Qed.
