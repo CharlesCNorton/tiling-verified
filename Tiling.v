@@ -10462,6 +10462,24 @@ Theorem closed_fragment_decidable_in_linear_time : forall n,
   decide_tautology (Box n Top) = true.
 Proof. intro n. simpl. reflexivity. Qed.
 
+Theorem agent_T_kappa_lattice_iso : forall n phi psi,
+  |- Iff phi psi ->
+  (Provable_agent n phi <-> Provable_agent n psi) /\
+  |- Iff (T_kappa n phi) (T_kappa n psi).
+Proof.
+  intros n phi psi Hiff.
+  unfold Provable_agent, T_kappa.
+  pose proof (prov_equiv_box_cong n phi psi Hiff) as Hbox.
+  unfold prov_equiv in Hbox.
+  pose proof (prov_and_elim_l_meta _ _ Hbox) as Hf.
+  pose proof (prov_and_elim_r_meta _ _ Hbox) as Hb.
+  split.
+  - split; intro H.
+    + exact (MP _ _ Hf H).
+    + exact (MP _ _ Hb H).
+  - exact Hbox.
+Qed.
+
 Theorem agent_modal_T_kappa_correspondence : forall A n phi,
   agent_tiling_consistency A n phi ->
   agent_tiling_consistency Provable_agent n phi ->
