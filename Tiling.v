@@ -15479,3 +15479,83 @@ Proof.
   pose proof (proj1 (forces_box_free_iff_eval_F0 val phi Hbf) Habs) as Heval.
   rewrite Hv in Heval. discriminate.
 Qed.
+
+Lemma ProvableProp_to_no_nc : forall phi, ProvableProp phi -> |-no_nc phi.
+Proof.
+  intros phi H. induction H.
+  - apply NC_Ax_K.
+  - apply NC_Ax_S.
+  - apply NC_Ax_DN.
+  - exact (NC_MP _ _ IHProvableProp1 IHProvableProp2).
+Qed.
+
+Lemma ProvableProp_to_no_mon : forall phi, ProvableProp phi -> |-no_mon phi.
+Proof.
+  intros phi H. induction H.
+  - apply NM_Ax_K.
+  - apply NM_Ax_S.
+  - apply NM_Ax_DN.
+  - exact (NM_MP _ _ IHProvableProp1 IHProvableProp2).
+Qed.
+
+Lemma ProvableProp_to_no_loeb : forall phi, ProvableProp phi -> |-no_loeb phi.
+Proof.
+  intros phi H. induction H.
+  - apply NL_Ax_K.
+  - apply NL_Ax_S.
+  - apply NL_Ax_DN.
+  - exact (NL_MP _ _ IHProvableProp1 IHProvableProp2).
+Qed.
+
+Lemma ProvableProp_to_no_b4 : forall phi, ProvableProp phi -> |-no_b4 phi.
+Proof.
+  intros phi H. induction H.
+  - apply NB4_Ax_K.
+  - apply NB4_Ax_S.
+  - apply NB4_Ax_DN.
+  - exact (NB4_MP _ _ IHProvableProp1 IHProvableProp2).
+Qed.
+
+Theorem kripke_completeness_no_nc_box_free : forall phi,
+  box_free phi -> ~ |-no_nc phi -> exists val, eval val phi = false.
+Proof.
+  intros phi Hbf Hno.
+  destruct (classic (classical_valid phi)) as [Hcv | Hncv].
+  - exfalso. apply Hno. apply ProvableProp_to_no_nc.
+    apply prop_completeness; assumption.
+  - apply not_all_ex_not in Hncv. destruct Hncv as [val Hv].
+    exists val. destruct (eval val phi); [contradiction | reflexivity].
+Qed.
+
+Theorem kripke_completeness_no_mon_box_free : forall phi,
+  box_free phi -> ~ |-no_mon phi -> exists val, eval val phi = false.
+Proof.
+  intros phi Hbf Hno.
+  destruct (classic (classical_valid phi)) as [Hcv | Hncv].
+  - exfalso. apply Hno. apply ProvableProp_to_no_mon.
+    apply prop_completeness; assumption.
+  - apply not_all_ex_not in Hncv. destruct Hncv as [val Hv].
+    exists val. destruct (eval val phi); [contradiction | reflexivity].
+Qed.
+
+Theorem kripke_completeness_no_loeb_box_free : forall phi,
+  box_free phi -> ~ |-no_loeb phi -> exists val, eval val phi = false.
+Proof.
+  intros phi Hbf Hno.
+  destruct (classic (classical_valid phi)) as [Hcv | Hncv].
+  - exfalso. apply Hno. apply ProvableProp_to_no_loeb.
+    apply prop_completeness; assumption.
+  - apply not_all_ex_not in Hncv. destruct Hncv as [val Hv].
+    exists val. destruct (eval val phi); [contradiction | reflexivity].
+Qed.
+
+Theorem kripke_completeness_no_b4_box_free : forall phi,
+  box_free phi -> ~ |-no_b4 phi -> exists val, eval val phi = false.
+Proof.
+  intros phi Hbf Hno.
+  destruct (classic (classical_valid phi)) as [Hcv | Hncv].
+  - exfalso. apply Hno. apply ProvableProp_to_no_b4.
+    apply prop_completeness; assumption.
+  - apply not_all_ex_not in Hncv. destruct Hncv as [val Hv].
+    exists val. destruct (eval val phi); [contradiction | reflexivity].
+Qed.
