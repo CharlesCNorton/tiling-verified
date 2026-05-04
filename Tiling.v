@@ -13678,6 +13678,452 @@ Proof.
     rewrite Hx; cbn [length app]; lia.
 Qed.
 
+(******************************************************************************)
+(* Newman's lemma (abstract): well-foundedness + local confluence => global  *)
+(* confluence (Church-Rosser).                                                *)
+(******************************************************************************)
+
+Section NewmanLemma.
+
+Variable A : Type.
+Variable R : A -> A -> Prop.
+
+Definition R_star (x y : A) : Prop :=
+  exists n,
+    (fix iter (k : nat) (a b : A) : Prop :=
+       match k with
+       | 0 => a = b
+       | S k' => exists c, R a c /\ iter k' c b
+       end) n x y.
+
+Lemma R_star_refl : forall x, R_star x x.
+Proof. intro x. exists 0. cbn. reflexivity. Qed.
+
+Lemma R_star_step : forall x y z, R x y -> R_star y z -> R_star x z.
+Proof.
+  intros x y z H1 [n H2]. exists (S n). cbn. exists y. split; assumption.
+Qed.
+
+Lemma R_star_one : forall x y, R x y -> R_star x y.
+Proof.
+  intros x y H. apply (R_star_step _ y _ H). apply R_star_refl.
+Qed.
+
+Lemma R_star_trans : forall x y z, R_star x y -> R_star y z -> R_star x z.
+Proof.
+  intros x y z [n1 H1]. revert x y H1.
+  induction n1 as [|n IH]; intros x y H1 Hyz.
+  - cbn in H1. subst y. exact Hyz.
+  - cbn in H1. destruct H1 as [c [Hxc Hcy]].
+    apply (R_star_step _ c). exact Hxc. exact (IH c y Hcy Hyz).
+Qed.
+
+Definition locally_confluent : Prop :=
+  forall x y1 y2, R x y1 -> R x y2 ->
+    exists z, R_star y1 z /\ R_star y2 z.
+
+Definition confluent : Prop :=
+  forall x y1 y2, R_star x y1 -> R_star x y2 ->
+    exists z, R_star y1 z /\ R_star y2 z.
+
+(** Newman's lemma — proved by well-founded induction on x. *)
+
+Theorem newman_lemma :
+  well_founded (fun y x => R x y) ->
+  locally_confluent ->
+  confluent.
+Proof.
+  intros Hwf Hloc x.
+  induction x as [x IH] using (well_founded_induction Hwf).
+  intros y1 y2 [n1 H1] [n2 H2]. revert y1 y2 H1 H2.
+  destruct n1 as [|n1].
+  - cbn. intros y1 y2 Hxy1 H2. subst y1.
+    exists y2. split; [exists n2; exact H2 | apply R_star_refl].
+  - destruct n2 as [|n2].
+    + cbn. intros y1 y2 [c1 [Hxc1 Hc1y1]] Hxy2. subst y2.
+      exists y1. split. apply R_star_refl. exists (S n1). cbn.
+      exists c1. split; assumption.
+    + cbn. intros y1 y2 [c1 [Hxc1 Hc1y1]] [c2 [Hxc2 Hc2y2]].
+      destruct (Hloc x c1 c2 Hxc1 Hxc2) as [d [Hc1d Hc2d]].
+      assert (Hc1y1' : R_star c1 y1) by (exists n1; exact Hc1y1).
+      assert (Hc2y2' : R_star c2 y2) by (exists n2; exact Hc2y2).
+      destruct (IH c1 Hxc1 y1 d Hc1y1' Hc1d) as [e1 [Hy1e1 Hde1]].
+      destruct (IH c2 Hxc2 y2 e1 Hc2y2'
+                  (R_star_trans _ _ _ Hc2d Hde1)) as [e2 [Hy2e2 He1e2]].
+      exists e2. split.
+      * exact (R_star_trans _ _ _ Hy1e1 He1e2).
+      * exact Hy2e2.
+Qed.
+
+End NewmanLemma.
+
+(** ** Newman's lemma instantiated for [pt_reduces]. *)
+
+Theorem newman_for_pt_reduces :
+  (forall p q1 q2, pt_reduces p q1 -> pt_reduces p q2 ->
+     exists r, R_star _ pt_reduces q1 r /\ R_star _ pt_reduces q2 r) ->
+  forall p q1 q2,
+    R_star _ pt_reduces p q1 -> R_star _ pt_reduces p q2 ->
+    exists r, R_star _ pt_reduces q1 r /\ R_star _ pt_reduces q2 r.
+Proof.
+  intro Hloc.
+  apply (newman_lemma _ pt_reduces).
+  - exact proof_term_no_infinite_reduction.
+  - exact Hloc.
+Qed.
+
+(******************************************************************************)
+(* Local confluence of [pt_reduces]: critical-pair analysis.                   *)
+(******************************************************************************)
+
+(** Lift a single-step reduction to the reflexive-transitive closure. *)
+
+Lemma pt_reduces_R_star : forall p q,
+  pt_reduces p q -> R_star _ pt_reduces p q.
+Proof. intros p q H. apply R_star_one. exact H. Qed.
+
+Lemma pt_reduces_R_star_refl : forall p, R_star _ pt_reduces p p.
+Proof. intro p. apply R_star_refl. Qed.
+
+(** Trivial confluence: both sides equal. *)
+
+Lemma pt_reduces_confluence_eq : forall (q : proof_term),
+  exists r, R_star _ pt_reduces q r /\ R_star _ pt_reduces q r.
+Proof.
+  intros q. exists q. split; apply (R_star_refl _ pt_reduces).
+Qed.
+
+(** Reductions inside MP-left and MP-right operate on different
+    sub-positions and hence commute trivially. *)
+
+Lemma pt_reduces_orthogonal_MP : forall p1 p1' p2 p2',
+  pt_reduces p1 p1' -> pt_reduces p2 p2' ->
+  exists r, R_star _ pt_reduces (PT_MP p1' p2) r /\
+            R_star _ pt_reduces (PT_MP p1 p2') r.
+Proof.
+  intros p1 p1' p2 p2' H1 H2.
+  exists (PT_MP p1' p2'). split.
+  - apply pt_reduces_R_star. exact (PTR_MP_right _ _ _ H2).
+  - apply pt_reduces_R_star. exact (PTR_MP_left _ _ _ H1).
+Qed.
+
+(** Lifting [pt_reduces_R_star] under MP-left context. *)
+
+Lemma R_star_under_MP_left : forall p1 p1' p2,
+  R_star _ pt_reduces p1 p1' ->
+  R_star _ pt_reduces (PT_MP p1 p2) (PT_MP p1' p2).
+Proof.
+  intros p1 p1' p2 [n H]. revert p1 H.
+  induction n as [|n IH]; intros p1 H.
+  - cbn in H. subst p1'. apply R_star_refl.
+  - cbn in H. destruct H as [c [Hpc Hcp1']].
+    apply (R_star_step _ _ _ (PT_MP c p2)).
+    + exact (PTR_MP_left _ _ _ Hpc).
+    + exact (IH c Hcp1').
+Qed.
+
+Lemma R_star_under_MP_right : forall p1 p2 p2',
+  R_star _ pt_reduces p2 p2' ->
+  R_star _ pt_reduces (PT_MP p1 p2) (PT_MP p1 p2').
+Proof.
+  intros p1 p2 p2' [n H]. revert p2 H.
+  induction n as [|n IH]; intros p2 H.
+  - cbn in H. subst p2'. apply R_star_refl.
+  - cbn in H. destruct H as [c [Hpc Hcp2']].
+    apply (R_star_step _ _ _ (PT_MP p1 c)).
+    + exact (PTR_MP_right _ _ _ Hpc).
+    + exact (IH c Hcp2').
+Qed.
+
+Lemma R_star_under_Nec : forall n p p',
+  R_star _ pt_reduces p p' ->
+  R_star _ pt_reduces (PT_Nec n p) (PT_Nec n p').
+Proof.
+  intros n p p' [k H]. revert p H.
+  induction k as [|k IH]; intros p H.
+  - cbn in H. subst p'. apply R_star_refl.
+  - cbn in H. destruct H as [c [Hpc Hcp']].
+    apply (R_star_step _ _ _ (PT_Nec n c)).
+    + exact (PTR_Nec _ _ _ Hpc).
+    + exact (IH c Hcp').
+Qed.
+
+(** ** Local confluence: structural induction on the first reduction.
+
+    For each pair of single-step reductions [p → q1] and [p → q2], we
+    construct a common reduct.  The proof uses inductive case analysis:
+    the contextual rules (MP-left, MP-right, Nec) recurse on subterms;
+    the root contractions (PTR_K, PTR_BoxK_Nec) are critical pairs. *)
+
+(** Atomic axiom-constructor terms admit no reduction.  This vacuous-case
+    lemma simplifies critical-pair analyses where an inner contextual
+    reduction would have to act on a [PT_K]/[PT_BoxK]/etc. which has
+    no operational behaviour. *)
+
+Lemma pt_reduces_atomic_K : forall phi psi q,
+  ~ pt_reduces (PT_K phi psi) q.
+Proof.
+  intros phi psi q H. inversion H.
+Qed.
+
+Lemma pt_reduces_atomic_S : forall phi psi chi q,
+  ~ pt_reduces (PT_S phi psi chi) q.
+Proof.
+  intros phi psi chi q H. inversion H.
+Qed.
+
+Lemma pt_reduces_atomic_DN : forall phi q,
+  ~ pt_reduces (PT_DN phi) q.
+Proof.
+  intros phi q H. inversion H.
+Qed.
+
+Lemma pt_reduces_atomic_BoxK : forall n phi psi q,
+  ~ pt_reduces (PT_BoxK n phi psi) q.
+Proof.
+  intros n phi psi q H. inversion H.
+Qed.
+
+Lemma pt_reduces_atomic_Loeb : forall n phi q,
+  ~ pt_reduces (PT_Loeb n phi) q.
+Proof.
+  intros n phi q H. inversion H.
+Qed.
+
+Lemma pt_reduces_atomic_Box4 : forall n phi q,
+  ~ pt_reduces (PT_Box4 n phi) q.
+Proof.
+  intros n phi q H. inversion H.
+Qed.
+
+Lemma pt_reduces_atomic_Mon : forall n phi q,
+  ~ pt_reduces (PT_Mon n phi) q.
+Proof.
+  intros n phi q H. inversion H.
+Qed.
+
+Lemma pt_reduces_atomic_NextCon : forall n q,
+  ~ pt_reduces (PT_NextCon n) q.
+Proof.
+  intros n q H. inversion H.
+Qed.
+
+(** Inversion of a single reduction inside [PT_Nec n p]: the only rule
+    that applies is [PTR_Nec] (since [PT_Nec] is not a [PT_MP]). *)
+
+Lemma pt_reduces_Nec_inv : forall n p q,
+  pt_reduces (PT_Nec n p) q ->
+  exists p', q = PT_Nec n p' /\ pt_reduces p p'.
+Proof.
+  intros n p q H. inversion H. subst.
+  eexists. split; [reflexivity | eassumption].
+Qed.
+
+(** Inversion of a single reduction inside [PT_MP a b]: either inner
+    [a → a'] (PTR_MP_left), inner [b → b'] (PTR_MP_right), or a root
+    contraction (PTR_K, PTR_BoxK_Nec) — the latter requiring [a] to
+    have specific shapes. *)
+
+Lemma pt_reduces_MP_inv : forall a b q,
+  pt_reduces (PT_MP a b) q ->
+    (exists a', q = PT_MP a' b /\ pt_reduces a a') \/
+    (exists b', q = PT_MP a b' /\ pt_reduces b b') \/
+    (exists phi psi p1, a = PT_MP (PT_K phi psi) p1 /\ q = p1) \/
+    (exists n phi psi p1 p2,
+       a = PT_MP (PT_BoxK n phi psi) (PT_Nec n p1) /\
+       b = PT_Nec n p2 /\
+       q = PT_Nec n (PT_MP p1 p2)).
+Proof.
+  intros a b q H. inversion H; subst.
+  - left. eexists. split; [reflexivity | eassumption].
+  - right. left. eexists. split; [reflexivity | eassumption].
+  - right. right. left. eexists. eexists. eexists. split; reflexivity.
+  - right. right. right. eexists. eexists. eexists. eexists. eexists.
+    split; [reflexivity | split; reflexivity].
+Qed.
+
+(** ** Local confluence: critical-pair-by-critical-pair analysis.
+
+    Strategy: structural induction on the first reduction [H1].  In
+    each case, invert the second reduction [H2] using the dedicated
+    [pt_reduces_MP_inv] / [pt_reduces_Nec_inv] inversion lemmas,
+    yielding finitely many sub-cases.  Each sub-case is closed either
+    by appeal to the inductive hypothesis (when both reductions are
+    inside the same subterm), by orthogonality (when reductions are
+    in disjoint sub-positions), or by explicit construction of a
+    common reduct. *)
+
+Lemma pt_reduces_local_confluence : forall p q1 q2,
+  pt_reduces p q1 -> pt_reduces p q2 ->
+  exists r, R_star _ pt_reduces q1 r /\ R_star _ pt_reduces q2 r.
+Proof.
+  intros p q1 q2 H1. revert q2.
+  induction H1 as [a a' b H1a IHa
+                  | a b b' H1b IHb
+                  | n c c' H1c IHc
+                  | phi psi p1 p2
+                  | n phi psi p1 p2]; intros q2 H2.
+  - (* H1 = PTR_MP_left a a' b: q1 = PT_MP a' b, with a → a'. *)
+    apply pt_reduces_MP_inv in H2. destruct H2 as
+      [[a'' [Eq Ha]] | [[b'' [Eq Hb]] | [[phi [psi [p1 [Eq1 Eq2]]]] |
+       [n [phi [psi [p1 [p2 [Eq1 [Eq2 Eq3]]]]]]]]]].
+    + (* H2: inner left a → a''.  Recurse via IHa. *)
+      subst q2.
+      destruct (IHa a'' Ha) as [r [Hr1 Hr2]].
+      exists (PT_MP r b). split.
+      * apply R_star_under_MP_left. exact Hr1.
+      * apply R_star_under_MP_left. exact Hr2.
+    + (* H2: inner right b → b''.  Orthogonal. *)
+      subst q2.
+      exists (PT_MP a' b''). split.
+      * apply pt_reduces_R_star. exact (PTR_MP_right _ _ _ Hb).
+      * apply pt_reduces_R_star. exact (PTR_MP_left _ _ _ H1a).
+    + (* H2: PTR_K, so a = PT_MP (PT_K phi psi) p1, b = anything,
+         q2 = p1. *)
+      subst a. subst q2.
+      apply pt_reduces_MP_inv in H1a. destruct H1a as
+        [[a'' [Eq Hred]] | [[b'' [Eq Hred]] | [[phi' [psi' [p1' [Eq1 Eq2]]]] |
+         [n' [phi' [psi' [p1' [p2' [Eq1 [Eq2 Eq3]]]]]]]]]].
+      * (* a = PT_MP (PT_K phi psi) p1, inner left: PT_K → a''.  Vacuous. *)
+        apply pt_reduces_atomic_K in Hred. contradiction.
+      * (* Inner right: p1 → b''.  a' = PT_MP (PT_K phi psi) b''. *)
+        subst a'.
+        exists b''. split.
+        -- apply pt_reduces_R_star. exact (PTR_K phi psi b'' b).
+        -- apply pt_reduces_R_star. exact Hred.
+      * (* Inner PTR_K shape: PT_MP (PT_K phi psi) p1 = PT_MP (PT_K phi' psi') p1'? Vacuous shape. *)
+        discriminate Eq1.
+      * discriminate Eq1.
+    + (* H2: PTR_BoxK_Nec.  a = PT_MP (PT_BoxK n phi psi) (PT_Nec n p1),
+         b = PT_Nec n p2, q2 = PT_Nec n (PT_MP p1 p2). *)
+      subst a b q2.
+      apply pt_reduces_MP_inv in H1a. destruct H1a as
+        [[a'' [Eq Hred]] | [[b'' [Eq Hred]] | [[phi' [psi' [p1' [Eq1 Eq2]]]] |
+         [n' [phi' [psi' [p1' [p2' [Eq1 [Eq2 Eq3]]]]]]]]]].
+      * apply pt_reduces_atomic_BoxK in Hred. contradiction.
+      * (* Inner right: PT_Nec n p1 → b''. *)
+        apply pt_reduces_Nec_inv in Hred. destruct Hred as [p1'' [Eq' Hp1]].
+        subst b''. subst a'.
+        exists (PT_Nec n (PT_MP p1'' p2)). split.
+        -- apply pt_reduces_R_star.
+           exact (PTR_BoxK_Nec n phi psi p1'' p2).
+        -- apply pt_reduces_R_star.
+           apply PTR_Nec. exact (PTR_MP_left _ _ _ Hp1).
+      * discriminate Eq1.
+      * discriminate Eq1.
+  - (* H1 = PTR_MP_right a b b': q1 = PT_MP a b'. *)
+    apply pt_reduces_MP_inv in H2. destruct H2 as
+      [[a'' [Eq Ha]] | [[b'' [Eq Hb]] | [[phi [psi [p1 [Eq1 Eq2]]]] |
+       [n [phi [psi [p1 [p2 [Eq1 [Eq2 Eq3]]]]]]]]]].
+    + (* Inner left a → a''.  Orthogonal. *)
+      subst q2.
+      exists (PT_MP a'' b'). split.
+      * apply pt_reduces_R_star. exact (PTR_MP_left _ _ _ Ha).
+      * apply pt_reduces_R_star. exact (PTR_MP_right _ _ _ H1b).
+    + (* Inner right: recurse. *)
+      subst q2.
+      destruct (IHb b'' Hb) as [r [Hr1 Hr2]].
+      exists (PT_MP a r). split.
+      * apply R_star_under_MP_right. exact Hr1.
+      * apply R_star_under_MP_right. exact Hr2.
+    + (* PTR_K: a = PT_MP (PT_K phi psi) p1, q2 = p1. *)
+      subst a q2.
+      exists p1. split.
+      * apply pt_reduces_R_star. exact (PTR_K phi psi p1 b').
+      * apply R_star_refl.
+    + (* PTR_BoxK_Nec: a = PT_MP (PT_BoxK n phi psi) (PT_Nec n p1),
+         b = PT_Nec n p2, q2 = PT_Nec n (PT_MP p1 p2).
+         q1 = PT_MP a b' where b → b'. *)
+      subst a b q2.
+      (* H1b : pt_reduces (PT_Nec n p2) b'.  By Nec inversion. *)
+      apply pt_reduces_Nec_inv in H1b. destruct H1b as [p2' [Eq Hp2]].
+      subst b'.
+      exists (PT_Nec n (PT_MP p1 p2')). split.
+      * apply pt_reduces_R_star.
+        exact (PTR_BoxK_Nec n phi psi p1 p2').
+      * apply pt_reduces_R_star.
+        apply PTR_Nec. exact (PTR_MP_right _ _ _ Hp2).
+  - (* H1 = PTR_Nec n c c': q1 = PT_Nec n c'. *)
+    apply pt_reduces_Nec_inv in H2. destruct H2 as [c'' [Eq Hc]].
+    subst q2.
+    destruct (IHc c'' Hc) as [r [Hr1 Hr2]].
+    exists (PT_Nec n r). split.
+    + apply R_star_under_Nec. exact Hr1.
+    + apply R_star_under_Nec. exact Hr2.
+  - (* H1 = PTR_K phi psi p1 p2: q1 = p1. *)
+    apply pt_reduces_MP_inv in H2. destruct H2 as
+      [[a'' [Eq Ha]] | [[b'' [Eq Hb]] | [[phi' [psi' [p1' [Eq1 Eq2]]]] |
+       [n' [phi' [psi' [p1' [p2' [Eq1 [Eq2 Eq3]]]]]]]]]].
+    + (* Inner left: PT_MP (PT_K phi psi) p1 → a''. *)
+      apply pt_reduces_MP_inv in Ha. destruct Ha as
+        [[a''' [Eq' Hred]] | [[b''' [Eq' Hred]] | [[phi'' [psi'' [p1'' [Eq1 Eq2]]]] |
+         [n'' [phi'' [psi'' [p1'' [p2'' [Eq1 [Eq2 Eq3]]]]]]]]]].
+      * apply pt_reduces_atomic_K in Hred. contradiction.
+      * subst a'' q2.
+        exists b'''. split.
+        -- apply pt_reduces_R_star. exact Hred.
+        -- apply pt_reduces_R_star. exact (PTR_K phi psi b''' p2).
+      * discriminate Eq1.
+      * discriminate Eq1.
+    + (* Inner right: p2 → b''. *)
+      subst q2.
+      exists p1. split.
+      * apply R_star_refl.
+      * apply pt_reduces_R_star. exact (PTR_K phi psi p1 b'').
+    + (* PTR_K twice: same shape, q2 = p1. *)
+      injection Eq1 as Eq1a Eq1b. subst phi' psi' p1'.
+      subst q2.
+      exists p1. split; apply R_star_refl.
+    + (* PTR_BoxK_Nec: shape mismatch. *)
+      discriminate Eq1.
+  - (* H1 = PTR_BoxK_Nec n phi psi p1 p2:
+       q1 = PT_Nec n (PT_MP p1 p2). *)
+    apply pt_reduces_MP_inv in H2. destruct H2 as
+      [[a'' [Eq Ha]] | [[b'' [Eq Hb]] | [[phi' [psi' [p1' [Eq1 Eq2]]]] |
+       [n' [phi' [psi' [p1' [p2' [Eq1 [Eq2 Eq3]]]]]]]]]].
+    + (* Inner left: PT_MP (PT_BoxK n phi psi) (PT_Nec n p1) → a''. *)
+      apply pt_reduces_MP_inv in Ha. destruct Ha as
+        [[a''' [Eq' Hred]] | [[b''' [Eq' Hred]] | [[phi'' [psi'' [p1'' [Eq1 Eq2]]]] |
+         [n'' [phi'' [psi'' [p1'' [p2'' [Eq1 [Eq2 Eq3]]]]]]]]]].
+      * apply pt_reduces_atomic_BoxK in Hred. contradiction.
+      * (* Inner right: PT_Nec n p1 → b'''.  By Nec inversion: p1 → p1_*. *)
+        apply pt_reduces_Nec_inv in Hred. destruct Hred as [p1_ [Eq'' Hp1]].
+        subst b''' a'' q2.
+        exists (PT_Nec n (PT_MP p1_ p2)). split.
+        -- apply pt_reduces_R_star.
+           apply PTR_Nec. exact (PTR_MP_left _ _ _ Hp1).
+        -- apply pt_reduces_R_star.
+           exact (PTR_BoxK_Nec n phi psi p1_ p2).
+      * discriminate Eq1.
+      * discriminate Eq1.
+    + (* Inner right: PT_Nec n p2 → b''.  By Nec inversion: p2 → p2_*. *)
+      apply pt_reduces_Nec_inv in Hb. destruct Hb as [p2_ [Eq' Hp2]].
+      subst b'' q2.
+      exists (PT_Nec n (PT_MP p1 p2_)). split.
+      * apply pt_reduces_R_star.
+        apply PTR_Nec. exact (PTR_MP_right _ _ _ Hp2).
+      * apply pt_reduces_R_star.
+        exact (PTR_BoxK_Nec n phi psi p1 p2_).
+    + (* PTR_K: shape mismatch. *)
+      discriminate Eq1.
+    + (* PTR_BoxK_Nec twice: same shape, q2 = q1. *)
+      inversion Eq1; subst.
+      inversion Eq2; subst.
+      exists (PT_Nec n' (PT_MP p1' p2')). split; apply R_star_refl.
+Qed.
+
+(** Confluence (Church-Rosser) of [pt_reduces]: from local confluence
+    plus well-foundedness via Newman's lemma. *)
+
+Theorem pt_reduces_church_rosser :
+  forall p q1 q2,
+    R_star _ pt_reduces p q1 -> R_star _ pt_reduces p q2 ->
+    exists r, R_star _ pt_reduces q1 r /\ R_star _ pt_reduces q2 r.
+Proof.
+  apply newman_for_pt_reduces.
+  exact pt_reduces_local_confluence.
+Qed.
+
 (** Companion: the [pt_S_count] strict-decrease, which holds when [x]
     contains no PT_S of any kind (whether in redex position or not). *)
 
