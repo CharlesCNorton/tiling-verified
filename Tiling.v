@@ -14483,6 +14483,99 @@ Proof.
     exact Hstep3.
 Qed.
 
+Lemma Subst_no_occurrence_And : forall p X Y phi,
+  ~ In p (free_vars X) ->
+  Subst p Y (And X phi) = And X (Subst p Y phi).
+Proof.
+  intros p X Y phi HX.
+  pose proof (Subst_no_occurrence p Y X HX) as HX'.
+  unfold Subst, And, Neg in *. cbn.
+  rewrite HX'. reflexivity.
+Qed.
+
+Lemma prov_box_and_intro_meta : forall n A B,
+  |- Box n A -> |- Box n B -> |- Box n (And A B).
+Proof.
+  intros n A B HA HB.
+  pose proof (prov_box_and_intro n A B) as Hai.
+  exact (MP _ _ (MP _ _ Hai HA) HB).
+Qed.
+
+Lemma prov_box_and_iff_box_box4 : forall n X,
+  |- Iff (Box n X) (Box n (And X (Box n X))).
+Proof.
+  intros n X.
+  apply prov_iff_intro.
+  - pose proof (Ax_Box4 n X) as Hbox4.
+    pose proof (prov_box_and_intro n X (Box n X)) as Hai.
+    pose proof (Ax_S (Box n X) (Box n (Box n X)) (Box n (And X (Box n X)))) as Hs.
+    pose proof (MP _ _ Hs Hai) as Hstep1.
+    exact (MP _ _ Hstep1 Hbox4).
+  - exact (prov_box_and_elim_l n X (Box n X)).
+Qed.
+
+Theorem sambin_witness_and_box_atomic : forall p X n,
+  ~ In p (free_vars X) ->
+  exists psi, |- Iff psi (Subst p psi (And X (Box n (Var p)))).
+Proof.
+  intros p X n HX.
+  exists (And X (Box n X)).
+  pose proof (Subst_no_occurrence_And p X (And X (Box n X))
+                (Box n (Var p)) HX) as HsubstAnd.
+  rewrite HsubstAnd.
+  assert (HsubstBox : Subst p (And X (Box n X)) (Box n (Var p)) =
+                     Box n (And X (Box n X))).
+  { unfold Subst. cbn. rewrite Nat.eqb_refl. reflexivity. }
+  rewrite HsubstBox.
+  pose proof (prov_box_and_iff_box_box4 n X) as Hbox_iff.
+  pose proof (prov_equiv_box_cong n X (And X (Box n X))) as Hcong_box.
+  unfold prov_equiv in *.
+  apply prov_equiv_impl_cong; [|exact (prov_iff_refl Bot)].
+  apply prov_equiv_impl_cong; [exact (prov_iff_refl X)|].
+  apply prov_equiv_impl_cong; [exact Hbox_iff | exact (prov_iff_refl Bot)].
+Qed.
+
+Lemma Subst_no_occurrence_Or : forall p X Y phi,
+  ~ In p (free_vars X) ->
+  Subst p Y (Or X phi) = Or X (Subst p Y phi).
+Proof.
+  intros p X Y phi HX.
+  pose proof (Subst_no_occurrence p Y X HX) as HX'.
+  unfold Subst, Or, Neg in *. cbn.
+  rewrite HX'. reflexivity.
+Qed.
+
+Theorem sambin_witness_or_box_atomic : forall p X n,
+  ~ In p (free_vars X) ->
+  exists psi, |- Iff psi (Subst p psi (Or X (Box n (Var p)))).
+Proof.
+  intros p X n HX.
+  exists Top.
+  pose proof (Subst_no_occurrence_Or p X Top (Box n (Var p)) HX) as HsubstOr.
+  rewrite HsubstOr.
+  assert (HsubstBox : Subst p Top (Box n (Var p)) = Box n Top).
+  { unfold Subst. cbn. rewrite Nat.eqb_refl. reflexivity. }
+  rewrite HsubstBox.
+  pose proof (prov_box_top n) as HboxTop.
+  pose proof (prov_or_intro_r X (Box n Top)) as Hor_intro.
+  apply prov_iff_intro.
+  - apply prov_weaken. exact (MP _ _ Hor_intro HboxTop).
+  - apply prov_weaken. exact (prov_id Bot).
+Qed.
+
+Theorem sambin_witness_double_box : forall p n m,
+  exists psi, |- Iff psi (Subst p psi (Box n (Box m (Var p)))).
+Proof.
+  intros p n m.
+  exists Top.
+  unfold Subst. cbn. rewrite Nat.eqb_refl.
+  apply prov_iff_intro.
+  - apply prov_weaken.
+    apply Nec. exact (prov_box_top m).
+  - apply prov_weaken. exact (prov_id Bot).
+Qed.
+
+
 
 
 (** Companion: the [pt_S_count] strict-decrease, which holds when [x]
