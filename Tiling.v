@@ -12689,3 +12689,221 @@ Proof.
     reflexivity.
 Qed.
 
+(** Substituting a closed formula (free_vars empty) for variable [p] in
+    [phi] produces a formula whose free variables are exactly those of
+    [phi] minus [p]. *)
+
+Lemma free_vars_Subst_closed_fwd : forall p X phi v,
+  free_vars X = [] ->
+  In v (free_vars (Subst p X phi)) ->
+  v <> p /\ In v (free_vars phi).
+Proof.
+  intros p X phi v HX.
+  unfold Subst.
+  induction phi as [k | | a IHa b IHb | n psi IHpsi]; cbn.
+  - destruct (Nat.eqb k p) eqn:E.
+    + rewrite HX. intros [].
+    + cbn. intros [Heq|[]]. subst v.
+      apply Nat.eqb_neq in E. split.
+      * exact E.
+      * left. reflexivity.
+  - intros [].
+  - rewrite in_app_iff. intros [HA | HB].
+    + destruct (IHa HA) as [Hne Hin]. split; [exact Hne|].
+      apply in_or_app. left. exact Hin.
+    + destruct (IHb HB) as [Hne Hin]. split; [exact Hne|].
+      apply in_or_app. right. exact Hin.
+  - exact IHpsi.
+Qed.
+
+Lemma free_vars_Subst_closed_bwd : forall p X phi v,
+  v <> p ->
+  In v (free_vars phi) ->
+  In v (free_vars (Subst p X phi)).
+Proof.
+  intros p X phi v Hne.
+  unfold Subst.
+  induction phi as [k | | a IHa b IHb | n psi IHpsi]; cbn.
+  - intros [Heq | []]. subst v.
+    destruct (Nat.eqb k p) eqn:E.
+    + apply Nat.eqb_eq in E. exfalso. apply Hne. exact E.
+    + cbn. left. reflexivity.
+  - intros [].
+  - rewrite in_app_iff. intros [HA|HB].
+    + apply in_or_app. left. exact (IHa HA).
+    + apply in_or_app. right. exact (IHb HB).
+  - exact IHpsi.
+Qed.
+
+Lemma free_vars_forget_var_no_p : forall p phi v,
+  In v (free_vars (forget_var p phi)) -> v <> p /\ In v (free_vars phi).
+Proof.
+  intros p phi v Hin.
+  unfold forget_var, Or, Neg in Hin. cbn in Hin.
+  rewrite app_nil_r in Hin.
+  apply in_app_or in Hin. destruct Hin as [HA | HB].
+  - apply (free_vars_Subst_closed_fwd p Top phi v eq_refl HA).
+  - apply (free_vars_Subst_closed_fwd p Bot phi v eq_refl HB).
+Qed.
+
+Lemma free_vars_forget_var_subset : forall p phi v,
+  In v (free_vars (forget_var p phi)) -> In v (free_vars phi).
+Proof.
+  intros p phi v H. exact (proj2 (free_vars_forget_var_no_p p phi v H)).
+Qed.
+
+Lemma free_vars_forget_var_excludes : forall p phi,
+  ~ In p (free_vars (forget_var p phi)).
+Proof.
+  intros p phi H. apply (proj1 (free_vars_forget_var_no_p p phi p H)).
+  reflexivity.
+Qed.
+
+(** Iterated variable elimination over a list of variables. *)
+
+Fixpoint forget_vars (vs : list nat) (phi : Form) : Form :=
+  match vs with
+  | [] => phi
+  | p :: rest => forget_vars rest (forget_var p phi)
+  end.
+
+Lemma box_free_forget_vars : forall vs phi,
+  box_free phi -> box_free (forget_vars vs phi).
+Proof.
+  induction vs as [|p rest IH]; intros phi Hbf; cbn.
+  - exact Hbf.
+  - apply IH. apply box_free_forget_var. exact Hbf.
+Qed.
+
+Lemma free_vars_forget_vars_subset : forall vs phi v,
+  In v (free_vars (forget_vars vs phi)) -> In v (free_vars phi).
+Proof.
+  induction vs as [|p rest IH]; intros phi v H; cbn in H.
+  - exact H.
+  - apply (free_vars_forget_var_subset p phi v).
+    apply (IH (forget_var p phi) v H).
+Qed.
+
+Lemma free_vars_forget_vars_excludes : forall vs phi p,
+  In p vs -> ~ In p (free_vars (forget_vars vs phi)).
+Proof.
+  induction vs as [|q rest IH]; intros phi p Hin Habs; cbn in *.
+  - destruct Hin.
+  - destruct Hin as [Heq | Hin'].
+    + subst q.
+      pose proof (free_vars_forget_vars_subset rest (forget_var p phi) p Habs)
+        as Hin0.
+      exact (free_vars_forget_var_excludes p phi Hin0).
+    + exact (IH (forget_var q phi) p Hin' Habs).
+Qed.
+
+Theorem prov_forget_vars_intro : forall vs phi,
+  box_free phi -> |- Impl phi (forget_vars vs phi).
+Proof.
+  induction vs as [|p rest IH]; intros phi Hbf; cbn.
+  - exact (prov_id phi).
+  - pose proof (prov_forget_var_intro p phi Hbf) as H1.
+    pose proof (box_free_forget_var p phi Hbf) as Hbf'.
+    pose proof (IH (forget_var p phi) Hbf') as H2.
+    exact (prov_compose _ _ _ H1 H2).
+Qed.
+
+Theorem prov_forget_vars_elim : forall vs phi psi,
+  box_free phi -> box_free psi ->
+  (forall p, In p vs -> ~ In p (free_vars psi)) ->
+  |- Impl phi psi -> |- Impl (forget_vars vs phi) psi.
+Proof.
+  induction vs as [|p rest IH]; intros phi psi Hbf_phi Hbf_psi Hdisj Himp; cbn.
+  - exact Himp.
+  - pose proof (Hdisj p (or_introl eq_refl)) as Hp_notin.
+    pose proof (prov_forget_var_elim p phi psi Hbf_phi Hbf_psi Hp_notin Himp)
+      as Hstep.
+    pose proof (box_free_forget_var p phi Hbf_phi) as Hbf_fg.
+    apply (IH (forget_var p phi) psi Hbf_fg Hbf_psi).
+    + intros q Hq. apply Hdisj. right. exact Hq.
+    + exact Hstep.
+Qed.
+
+(** Compute the list of "private" variables of [phi] with respect to
+    [psi] — those occurring in [phi] but not in [psi]. *)
+
+Definition private_vars (phi psi : Form) : list nat :=
+  filter (fun v => negb (existsb (Nat.eqb v) (free_vars psi))) (free_vars phi).
+
+Lemma private_vars_in_phi : forall phi psi v,
+  In v (private_vars phi psi) -> In v (free_vars phi).
+Proof.
+  intros phi psi v Hin. unfold private_vars in Hin.
+  apply filter_In in Hin. exact (proj1 Hin).
+Qed.
+
+Lemma existsb_eqb_in_iff : forall (l : list nat) (v : nat),
+  existsb (Nat.eqb v) l = true <-> In v l.
+Proof.
+  intros l v. induction l as [|x rest IH]; cbn.
+  - split; [discriminate | intros []].
+  - rewrite Bool.orb_true_iff. split.
+    + intros [Heq | Hrest].
+      * left. apply Nat.eqb_eq in Heq. symmetry. exact Heq.
+      * right. apply IH. exact Hrest.
+    + intros [Heq | Hin].
+      * subst x. left. apply Nat.eqb_refl.
+      * right. apply IH. exact Hin.
+Qed.
+
+Lemma private_vars_not_in_psi : forall phi psi v,
+  In v (private_vars phi psi) -> ~ In v (free_vars psi).
+Proof.
+  intros phi psi v Hin. unfold private_vars in Hin.
+  apply filter_In in Hin. destruct Hin as [_ Hneg].
+  destruct (existsb (Nat.eqb v) (free_vars psi)) eqn:E; [discriminate|].
+  intro Habs. rewrite (proj2 (existsb_eqb_in_iff _ v) Habs) in E.
+  discriminate.
+Qed.
+
+Lemma private_vars_complete : forall phi psi v,
+  In v (free_vars phi) -> ~ In v (free_vars psi) ->
+  In v (private_vars phi psi).
+Proof.
+  intros phi psi v Hphi Hpsi. unfold private_vars.
+  apply filter_In. split; [exact Hphi|].
+  destruct (existsb (Nat.eqb v) (free_vars psi)) eqn:E; [|reflexivity].
+  exfalso. apply Hpsi. apply (proj1 (existsb_eqb_in_iff _ v)). exact E.
+Qed.
+
+(** ** Vocabulary-restricted Craig interpolation, box-free fragment.
+
+    For any provable implication [|- Impl phi psi] between two box-free
+    formulas, there is a box-free interpolant [chi] whose free variables
+    are contained in the intersection of the free variables of [phi]
+    and [psi].  The interpolant is constructed by iteratively
+    eliminating the "private" variables of [phi] (those not in [psi])
+    via [forget_var], yielding [chi := forget_vars (private_vars phi psi) phi]. *)
+
+Theorem craig_interpolation_box_free : forall phi psi,
+  box_free phi -> box_free psi ->
+  |- Impl phi psi ->
+  exists chi,
+    box_free chi /\
+    |- Impl phi chi /\ |- Impl chi psi /\
+    (forall v, In v (free_vars chi) ->
+       In v (free_vars phi) /\ In v (free_vars psi)).
+Proof.
+  intros phi psi Hbf_phi Hbf_psi Himp.
+  set (priv := private_vars phi psi).
+  exists (forget_vars priv phi).
+  split; [|split; [|split]].
+  - apply box_free_forget_vars. exact Hbf_phi.
+  - exact (prov_forget_vars_intro priv phi Hbf_phi).
+  - apply prov_forget_vars_elim; try assumption.
+    intros p Hp. apply private_vars_not_in_psi with (phi := phi). exact Hp.
+  - intros v Hin.
+    pose proof (free_vars_forget_vars_subset priv phi v Hin) as Hphi.
+    split; [exact Hphi|].
+    destruct (in_dec Nat.eq_dec v (free_vars psi)) as [Hpsi|Hnpsi].
+    + exact Hpsi.
+    + exfalso. apply (free_vars_forget_vars_excludes priv phi v).
+      * apply private_vars_complete; assumption.
+      * exact Hin.
+Qed.
+
