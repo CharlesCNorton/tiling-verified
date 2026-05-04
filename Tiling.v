@@ -14124,6 +14124,105 @@ Proof.
   exact pt_reduces_local_confluence.
 Qed.
 
+(******************************************************************************)
+(* Strong normalisation of [pt_reduces_full] on the S-free subset.            *)
+(*                                                                            *)
+(* The full pt_reduces_full system includes PTRF_S, which duplicates the     *)
+(* third argument [x] and so does not strictly decrease [proof_term_size]    *)
+(* in general.  Howard-style ordinal measures handle this for typed         *)
+(* combinatory logic but are research-level for the present untyped         *)
+(* polymodal calculus.                                                        *)
+(*                                                                            *)
+(* On the S-free subset (terms with no [PT_S] occurrence anywhere), [PTRF_S] *)
+(* never fires.  All remaining rules strictly decrease [proof_term_size],   *)
+(* hence well-foundedness holds via the size measure.                       *)
+(******************************************************************************)
+
+(** Note: [pt_S_count] does NOT decrease monotonically under
+    [pt_reduces_full] in general — PTRF_S duplicates [x] and can
+    therefore increase the count when [x] contains multiple [PT_S]
+    occurrences.  However, [pt_S_count = 0] (S-free) IS preserved:
+    no rule introduces a [PT_S] from nothing, and PTRF_S cannot fire
+    when the LHS is S-free. *)
+
+Lemma pt_S_count_pt_reduces_le : forall p p',
+  pt_reduces p p' -> pt_S_count p' <= pt_S_count p.
+Proof.
+  intros p p' H. induction H; cbn; lia.
+Qed.
+
+Lemma pt_S_free_preserved : forall p p',
+  pt_S_count p = 0 ->
+  pt_reduces_full p p' ->
+  pt_S_count p' = 0.
+Proof.
+  intros p p' Hp H. revert Hp.
+  induction H; intro Hp; cbn in *.
+  - (* PTRF_orig: pt_reduces; uses pt_S_count_pt_reduces_le. *)
+    pose proof (pt_S_count_pt_reduces_le _ _ H). lia.
+  - (* PTRF_MP_left *)
+    assert (pt_S_count p1 = 0) by lia.
+    pose proof (IHpt_reduces_full H0). lia.
+  - (* PTRF_MP_right *)
+    assert (pt_S_count p2 = 0) by lia.
+    pose proof (IHpt_reduces_full H0). lia.
+  - (* PTRF_Nec *)
+    pose proof (IHpt_reduces_full Hp). lia.
+  - (* PTRF_S: PT_S in LHS contradicts Hp = 0. *)
+    discriminate Hp.
+  - (* PTRF_DN_K *)
+    lia.
+Qed.
+
+(** Strict size decrease under [pt_reduces_full] when [pt_S_count = 0].
+    On S-free terms, PTRF_S cannot fire, and the remaining rules each
+    strictly decrease [proof_term_size]. *)
+
+Lemma pt_reduces_full_decreases_size_S_free : forall p p',
+  pt_S_count p = 0 ->
+  pt_reduces_full p p' ->
+  proof_term_size p' < proof_term_size p.
+Proof.
+  intros p p' Hp H. revert Hp.
+  induction H; intro Hp; cbn in *.
+  - apply pt_reduces_decreases_size. exact H.
+  - lia.
+  - lia.
+  - lia.
+  - (* PTRF_S: but pt_S_count of LHS includes the PT_S, so ≥ 1, contradicting Hp. *)
+    cbn in Hp. discriminate Hp.
+  - (* PTRF_DN_K *) lia.
+Qed.
+
+(** Strong normalisation: on the S-free subset, [pt_reduces_full] is
+    well-founded (descending chains terminate). *)
+
+Theorem pt_reduces_full_SN_S_free : forall p,
+  pt_S_count p = 0 ->
+  Acc (fun y x => pt_S_count x = 0 /\ pt_reduces_full x y) p.
+Proof.
+  intro p.
+  induction p as [p IH] using
+    (well_founded_induction
+       (Wf_nat.well_founded_lt_compat _ proof_term_size _ (fun x y H => H))).
+  intros Hp. apply Acc_intro. intros y [_ Hred].
+  apply IH.
+  - exact (pt_reduces_full_decreases_size_S_free p y Hp Hred).
+  - exact (pt_S_free_preserved p y Hp Hred).
+Qed.
+
+(** Useful corollary: every S-free proof term has only finitely many
+    reducts under pt_reduces_full's transitive closure. *)
+
+Theorem pt_reduces_full_S_free_terminates :
+  well_founded (fun y x => pt_S_count x = 0 /\ pt_reduces_full x y).
+Proof.
+  intro p.
+  destruct (Nat.eq_dec (pt_S_count p) 0) as [Hp|Hnp].
+  - exact (pt_reduces_full_SN_S_free p Hp).
+  - apply Acc_intro. intros y [Hy _]. exfalso. apply Hnp. exact Hy.
+Qed.
+
 (** Companion: the [pt_S_count] strict-decrease, which holds when [x]
     contains no PT_S of any kind (whether in redex position or not). *)
 
