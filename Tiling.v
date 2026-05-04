@@ -15264,3 +15264,52 @@ Proof.
   apply (canonical_truth_lemma_max_bot w).
   exact (canonical_R_max_loeb_descent_blocked n w w HR Bot Hbox).
 Qed.
+
+Definition next_con_succ_set (v : canonical_world_max) (n : nat) : Form -> Prop :=
+  fun phi => cwm_set v (Box n phi).
+
+Theorem canonical_R_max_NextCon_witness : forall n w v,
+  canonical_R_max (S n) w v -> cwm_set v (Neg (Box n Bot)).
+Proof.
+  intros n w v HR.
+  apply HR. apply (cwm_deductively_closed w).
+  exists []. split.
+  - intros _ [].
+  - apply DT_thm. exact (Ax_NextCon n).
+Qed.
+
+Lemma cwm_box_and_list : forall (v : canonical_world_max) n G,
+  Forall (fun psi => cwm_set v (Box n psi)) G ->
+  cwm_set v (Box n (And_list G)).
+Proof.
+  intros v n G HF.
+  induction G as [|psi rest IH].
+  - apply (cwm_deductively_closed v).
+    exists []. split.
+    + intros _ [].
+    + apply DT_thm. exact (prov_box_top n).
+  - inversion HF as [|? ? Hpsi Hrest_F]; subst.
+    pose proof (IH Hrest_F) as Hrest.
+    apply (cwm_deductively_closed v).
+    exists [Box n psi; Box n (And_list rest)]. split.
+    + intros chi Hin. cbn in Hin. destruct Hin as [<- | [<- | []]].
+      * exact Hpsi.
+      * exact Hrest.
+    + cbn. apply DT_MP with (Box n (And_list rest)).
+      * apply DT_MP with (Box n psi).
+        -- apply DT_thm. exact (prov_box_and_intro n psi (And_list rest)).
+        -- apply DT_hyp. cbn. tauto.
+      * apply DT_hyp. cbn. tauto.
+Qed.
+
+Theorem next_con_succ_set_extends : forall (v : canonical_world_max) n phi,
+  next_con_succ_set v n phi <-> cwm_set v (Box n phi).
+Proof. intros. unfold next_con_succ_set. tauto. Qed.
+
+Theorem canonical_R_max_to_succ_set : forall n v u,
+  (forall phi, cwm_set v (Box n phi) -> cwm_set u phi) ->
+  forall phi, next_con_succ_set v n phi -> cwm_set u phi.
+Proof.
+  intros n v u HR phi Hphi.
+  apply HR. exact Hphi.
+Qed.
