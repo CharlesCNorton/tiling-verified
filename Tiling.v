@@ -14575,6 +14575,59 @@ Proof.
   - apply prov_weaken. exact (prov_id Bot).
 Qed.
 
+Lemma Subst_no_p_in_phi : forall p Y phi,
+  ~ In p (free_vars phi) -> Subst p Y phi = phi.
+Proof. exact Subst_no_occurrence. Qed.
+
+Theorem sambin_de_jongh_var : forall p k,
+  k <> p ->
+  exists psi, |- Iff psi (Subst p psi (Var k)).
+Proof.
+  intros p k Hne. exists (Var k).
+  apply Nat.eqb_neq in Hne.
+  unfold Subst. cbn. rewrite Hne.
+  apply prov_iff_refl.
+Qed.
+
+Theorem sambin_de_jongh_bot : forall p,
+  exists psi, |- Iff psi (Subst p psi Bot).
+Proof.
+  intros p. exists Bot.
+  unfold Subst. cbn. apply prov_iff_refl.
+Qed.
+
+Theorem sambin_de_jongh_box_var_p : forall p n,
+  exists psi, |- Iff psi (Subst p psi (Box n (Var p))).
+Proof.
+  intros p n. exists Top.
+  unfold Subst. cbn. rewrite Nat.eqb_refl.
+  apply prov_iff_intro.
+  - apply prov_weaken. exact (prov_box_top n).
+  - apply prov_weaken. exact (prov_id Bot).
+Qed.
+
+Theorem sambin_de_jongh_box_no_p : forall p n phi,
+  ~ In p (free_vars phi) ->
+  exists psi, |- Iff psi (Subst p psi (Box n phi)).
+Proof.
+  intros p n phi Hno. apply sambin_witness_no_occurrence. cbn. exact Hno.
+Qed.
+
+Theorem sambin_de_jongh_when_no_p : forall p phi,
+  ~ In p (free_vars phi) ->
+  exists psi, |- Iff psi (Subst p psi phi).
+Proof. exact sambin_witness_no_occurrence. Qed.
+
+Theorem sambin_de_jongh_modalized_partial : forall p phi,
+  modalized p phi ->
+  (~ In p (free_vars phi) \/ phi = Box 0 (Var p)) ->
+  exists psi, |- Iff psi (Subst p psi phi).
+Proof.
+  intros p phi Hmod [Hno | Heq].
+  - apply sambin_witness_no_occurrence. exact Hno.
+  - subst phi. apply sambin_de_jongh_box_var_p.
+Qed.
+
 
 
 
