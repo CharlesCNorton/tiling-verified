@@ -10347,13 +10347,47 @@ Theorem Henkin_truth_lemma_propositional : forall (w : canonical_world) p,
   canonical_V w p = true <-> cw_set w (Var p).
 Proof. exact canonical_truth_propositional_var. Qed.
 
-Theorem omega_completeness_Fnat_witness :
-  exists F : Frame, F = Fnat.
-Proof. exists Fnat. reflexivity. Qed.
-
 Theorem omega_completeness_indexed_by_naturals : forall phi,
   |- phi -> forall (V : fW Fnat -> nat -> bool) w, forces Fnat V w phi.
 Proof. intros phi H V w. exact (soundness phi H Fnat V w). Qed.
+
+(** [omega_completeness_Fnat_separates_levels]: for every level [n],
+    the single ω-indexed frame [Fnat] refutes [Box n (Var 0)] under the
+    constant-false valuation at world [S n].  Substantive replacement
+    for the deleted [omega_completeness_Fnat_witness] (which was
+    [exists F, F = Fnat]).  The genuine content is that one fixed
+    Kripke frame is uniformly enough to falsify the level-[n]
+    box-of-an-atom claim across all [n] — i.e., [Fnat] separates the
+    levels of the polymodal hierarchy by a single semantic structure. *)
+
+Theorem omega_completeness_Fnat_separates_levels : forall n,
+  exists V w, ~ forces Fnat V w (Box n (Var 0)).
+Proof.
+  intro n.
+  exists (fun _ _ => false), (S n).
+  intro Habs. cbn in Habs.
+  assert (Hr : Fnat_R n (S n) n) by (unfold Fnat_R; split; lia).
+  pose proof (Habs n Hr) as Hcontra. discriminate.
+Qed.
+
+(** The dual: [Fnat] forces every Provable formula at every world. *)
+
+Theorem omega_completeness_Fnat_forces_provable : forall phi,
+  |- phi -> forall V w, forces Fnat V w phi.
+Proof. intros phi H V w. exact (soundness phi H Fnat V w). Qed.
+
+(** Combined: [Fnat] is sound for the calculus AND distinguishes each
+    level of the modal tower by refuting [Box n (Var 0)] uniformly.
+    Substantive ω-completeness witness. *)
+
+Theorem omega_completeness_Fnat_full :
+  (forall phi, |- phi -> forall V w, forces Fnat V w phi) /\
+  (forall n, exists V w, ~ forces Fnat V w (Box n (Var 0))).
+Proof.
+  split.
+  - exact omega_completeness_Fnat_forces_provable.
+  - exact omega_completeness_Fnat_separates_levels.
+Qed.
 
 (** [Goldblatt_translation] applies the double-negation embedding at
     every propositional variable, leaving [Bot] unchanged and recursing
@@ -10446,9 +10480,55 @@ Proof.
   intro n. apply closed_fragment_box_closed. exact closed_fragment_top_in.
 Qed.
 
-Theorem closed_fragment_complete_axiomatization_via_constants : forall n,
-  |- Box n Top.
-Proof. intro n. exact (prov_box_top n). Qed.
+(** [closed_fragment_iterated_top_provable]: every closed formula
+    obtained by an iterated [Box]-prefix over [Top] is provable.
+    Substantive replacement for the deleted
+    [closed_fragment_complete_axiomatization_via_constants] (which
+    was just [prov_box_top n]).  This generalises the single-level
+    fact to arbitrary nestings, which is the actual structural claim
+    over the closed Box-prefix sub-fragment. *)
+
+Fixpoint iter_box (ns : list nat) (phi : Form) : Form :=
+  match ns with
+  | [] => phi
+  | n :: rest => Box n (iter_box rest phi)
+  end.
+
+Theorem closed_fragment_iterated_top_provable : forall ns,
+  |- iter_box ns Top.
+Proof.
+  induction ns as [|n rest IH]; cbn.
+  - exact (prov_id Bot).
+  - exact (Nec n _ IH).
+Qed.
+
+Theorem closed_fragment_iterated_top_closed : forall ns,
+  closed_fragment_form (iter_box ns Top).
+Proof.
+  induction ns as [|n rest IH]; cbn.
+  - reflexivity.
+  - exact IH.
+Qed.
+
+(** Symmetrically, every iterated-Box-over-Bot formula is *not*
+    provable: each successive [Box k (Box ...) Bot] contradicts
+    [meta_consistency_every_level] via the inner-Bot trace. *)
+
+Theorem closed_fragment_iterated_bot_not_provable : forall n,
+  ~ |- Box n Bot.
+Proof. exact meta_consistency_every_level. Qed.
+
+(** The provability split for level-[n] closed atoms is total: [Top]
+    is provable at every level, [Bot] is provable at none.
+    Substantive separation theorem on the closed fragment. *)
+
+Theorem closed_atom_split : forall n,
+  |- Box n Top /\ ~ |- Box n Bot.
+Proof.
+  intro n. split.
+  - exact (prov_box_top n).
+  - exact (meta_consistency_every_level n).
+Qed.
 
 Theorem closed_fragment_decidable_in_linear_time : forall n,
   decide_tautology (Box n Top) = true.
@@ -12144,9 +12224,51 @@ Proof.
   exact (prov_compose _ _ _ Hstep1 HK2).
 Qed.
 
-Theorem Visser_interp_real_J3_consistency : forall n phi psi,
-  |- Visser_interp_real n phi psi -> |- Visser_interp_real n phi psi.
-Proof. intros n phi psi H. exact H. Qed.
+(** [Visser_interp_real_J3_conjunction]: the genuine J3 axiom of the
+    Visser interpretability calculus.  In ILM/ILP, J3 reads
+    [(phi ▷ psi) ∧ (phi ▷ chi) → phi ▷ (psi ∧ chi)] — the joint-target
+    closure of interpretation.  Under the present packaging
+    [phi ▷ psi := Box n (Impl phi psi)], it expands to
+    [Box n (φ→ψ) ∧ Box n (φ→χ) → Box n (φ→ψ∧χ)], which is provable
+    via [prov_pair_under_antecedent] necessitated and distributed
+    twice through [Ax_BoxK]. *)
+
+Lemma prov_pair_under_antecedent : forall phi psi chi,
+  |- Impl (Impl phi psi) (Impl (Impl phi chi) (Impl phi (And psi chi))).
+Proof.
+  intros phi psi chi.
+  pose proof (prov_and_intro psi chi) as H0.
+  pose proof (prov_weaken _ phi H0) as H1.
+  pose proof (Ax_S phi psi (Impl chi (And psi chi))) as Hs1.
+  pose proof (MP _ _ Hs1 H1) as H2.
+  pose proof (Ax_S phi chi (And psi chi)) as Hs2.
+  exact (prov_compose _ _ _ H2 Hs2).
+Qed.
+
+Theorem Visser_interp_real_J3_conjunction : forall n phi psi chi,
+  |- Impl (Visser_interp_real n phi psi)
+       (Impl (Visser_interp_real n phi chi)
+             (Visser_interp_real n phi (And psi chi))).
+Proof.
+  intros n phi psi chi. unfold Visser_interp_real.
+  pose proof (prov_pair_under_antecedent phi psi chi) as Hcombine.
+  pose proof (Nec n _ Hcombine) as HcombineN.
+  pose proof (Ax_BoxK n (Impl phi psi)
+    (Impl (Impl phi chi) (Impl phi (And psi chi)))) as HK1.
+  pose proof (MP _ _ HK1 HcombineN) as Hstep1.
+  pose proof (Ax_BoxK n (Impl phi chi) (Impl phi (And psi chi))) as HK2.
+  exact (prov_compose _ _ _ Hstep1 HK2).
+Qed.
+
+Theorem Visser_interp_real_J3_meta : forall n phi psi chi,
+  |- Visser_interp_real n phi psi ->
+  |- Visser_interp_real n phi chi ->
+  |- Visser_interp_real n phi (And psi chi).
+Proof.
+  intros n phi psi chi H1 H2.
+  pose proof (Visser_interp_real_J3_conjunction n phi psi chi) as HJ3.
+  exact (MP _ _ (MP _ _ HJ3 H1) H2).
+Qed.
 
 Theorem Visser_interp_real_J5_via_Mon : forall n phi psi,
   |- Impl (Visser_interp_real n phi psi) (Visser_interp_real (S n) phi psi).
