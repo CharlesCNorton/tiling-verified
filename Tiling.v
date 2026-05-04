@@ -14717,3 +14717,95 @@ Theorem compute_fp_explicit_correct : forall p phi (H : sambin_base_class p phi)
 Proof.
   intros p phi H. exact (proj2_sig (compute_fp_explicit p phi H)).
 Qed.
+
+Definition categorical_fixed_point_universal_real (F : nat -> Form -> Form) : Prop :=
+  (forall n phi, |- phi -> |- F n phi) /\
+  (forall n phi psi, |- Impl (F n (Impl phi psi)) (Impl (F n phi) (F n psi))) /\
+  (forall n phi, |- Impl (F n phi) (Box n phi)) /\
+  (forall n phi, |- Impl (Box n phi) (F n phi)).
+
+Theorem categorical_fixed_point_universal_real_implies_iff : forall F,
+  categorical_fixed_point_universal_real F ->
+  forall n phi, |- Iff (F n phi) (Box n phi).
+Proof.
+  intros F [_ [_ [Hfwd Hbwd]]] n phi.
+  apply prov_and_intro_meta.
+  - exact (Hfwd n phi).
+  - exact (Hbwd n phi).
+Qed.
+
+Theorem licenses_satisfies_categorical_universal_property_real :
+  categorical_fixed_point_universal_real licenses.
+Proof.
+  unfold categorical_fixed_point_universal_real, licenses.
+  split; [|split; [|split]].
+  - intros n phi H. exact (Nec n _ H).
+  - intros n phi psi. exact (Ax_BoxK n phi psi).
+  - intros n phi. exact (prov_id (Box n phi)).
+  - intros n phi. exact (prov_id (Box n phi)).
+Qed.
+
+Theorem T_kappa_satisfies_categorical_universal_property_real :
+  categorical_fixed_point_universal_real T_kappa.
+Proof.
+  unfold categorical_fixed_point_universal_real, T_kappa.
+  split; [|split; [|split]].
+  - intros n phi H. exact (Nec n _ H).
+  - intros n phi psi. exact (Ax_BoxK n phi psi).
+  - intros n phi. exact (prov_id (Box n phi)).
+  - intros n phi. exact (prov_id (Box n phi)).
+Qed.
+
+Theorem categorical_fixed_point_universal_real_unique : forall F G,
+  categorical_fixed_point_universal_real F ->
+  categorical_fixed_point_universal_real G ->
+  forall n phi, |- Iff (F n phi) (G n phi).
+Proof.
+  intros F G HF HG n phi.
+  pose proof (categorical_fixed_point_universal_real_implies_iff F HF n phi) as HFI.
+  pose proof (categorical_fixed_point_universal_real_implies_iff G HG n phi) as HGI.
+  pose proof (prov_iff_sym _ _ HGI) as HGIsym.
+  exact (prov_equiv_trans _ _ _ HFI HGIsym).
+Qed.
+
+Theorem licensing_consistency_yh_quantitative : forall n phi,
+  |- Box (S n) (Impl (licenses n phi) (Neg (licenses n (Neg phi)))) /\
+  FAxProvable (Box (S n) (Impl (licenses n phi) (Neg (licenses n (Neg phi))))).
+Proof.
+  intros n phi. unfold licenses. split.
+  - exact (tiling_consistency n phi).
+  - apply fax_provable_complete. exact (tiling_consistency n phi).
+Qed.
+
+Theorem T_kappa_consistent_with_kripke_witness : forall kappa,
+  ~ |- T_kappa kappa Bot /\
+  exists (V : nat -> nat -> bool) (w : nat),
+    ~ forces Fnat V w (Box kappa Bot).
+Proof.
+  intro kappa. unfold T_kappa. split.
+  - exact (meta_consistency_every_level kappa).
+  - exists (fun _ _ => true), (S kappa). intro Habs.
+    cbn in Habs.
+    assert (Hr : Fnat_R kappa (S kappa) kappa) by (unfold Fnat_R; split; lia).
+    exact (Habs kappa Hr).
+Qed.
+
+Theorem Magari_diag_K_strong : forall phi psi chi,
+  |- Impl (Magari_diag (Impl phi (Impl psi chi)))
+          (Impl (Magari_diag phi) (Impl (Magari_diag psi) (Magari_diag chi))).
+Proof.
+  intros phi psi chi. unfold Magari_diag.
+  pose proof (Ax_BoxK 0 phi (Impl psi chi)) as HK1.
+  pose proof (Ax_BoxK 0 psi chi) as HK2.
+  pose proof (prov_compose_internal (Box 0 phi) (Box 0 (Impl psi chi))
+                (Impl (Box 0 psi) (Box 0 chi))) as Hci.
+  pose proof (MP _ _ Hci HK2) as Hstep.
+  exact (prov_compose _ _ _ HK1 Hstep).
+Qed.
+
+Theorem Magari_diag_Loeb_iff : forall phi,
+  |- Iff (Magari_diag phi) (Magari_diag (Impl (Magari_diag phi) phi)).
+Proof.
+  intros phi. unfold Magari_diag.
+  exact (loeb_iff 0 phi).
+Qed.
