@@ -15002,3 +15002,25 @@ Theorem cut_free_box_free_SC_GLP_cf_witnessed : forall phi,
 Proof.
   intros phi Hbf _. exact (box_free_modal_depth_zero phi Hbf).
 Qed.
+
+Theorem Maehara_interpolant_real : forall phi1 phi2 psi,
+  box_free phi1 -> box_free phi2 -> box_free psi ->
+  |- Impl phi1 (Impl phi2 psi) ->
+  exists chi, box_free chi /\
+              |- Impl phi1 chi /\ |- Impl chi (Impl phi2 psi) /\
+              (forall v, In v (free_vars chi) ->
+                 In v (free_vars phi1) /\
+                 (In v (free_vars phi2) \/ In v (free_vars psi))).
+Proof.
+  intros phi1 phi2 psi Hbf1 Hbf2 Hbfp Himp.
+  assert (Hbf_inner : box_free (Impl phi2 psi)) by (cbn; split; assumption).
+  destruct (craig_interpolation_box_free phi1 (Impl phi2 psi) Hbf1 Hbf_inner Himp)
+    as [chi [Hbfc [Hf [Hb Hsub]]]].
+  exists chi. split; [|split; [|split]].
+  - exact Hbfc.
+  - exact Hf.
+  - exact Hb.
+  - intros v Hv. destruct (Hsub v Hv) as [Hp1 Himp_phi2_psi].
+    split; [exact Hp1|]. cbn in Himp_phi2_psi.
+    apply in_app_or in Himp_phi2_psi. exact Himp_phi2_psi.
+Qed.
