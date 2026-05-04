@@ -8209,6 +8209,25 @@ Proof.
   - exact cnf_lt_well_founded.
 Qed.
 
+Theorem intuitionistic_syntactic_core :
+  (forall n phi, |- Impl (Box n phi) (Box n (Box n phi))) /\
+  (forall n phi, |- Impl (Box n phi) (Box (S n) phi)) /\
+  (forall n, |- Box (S n) (Neg (Box n Bot))) /\
+  (forall n phi, |- Impl (Box n (Impl (Box n phi) phi)) (Box n phi)) /\
+  (forall n phi psi, |- Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi))) /\
+  (forall phi, FAxProvable phi <-> |- phi) /\
+  (forall phi, box_free phi -> |- phi -> ProvableProp phi).
+Proof.
+  split; [|split; [|split; [|split; [|split; [|split]]]]].
+  - exact Ax_Box4.
+  - exact Ax_Mon.
+  - exact Ax_NextCon.
+  - exact Ax_Loeb.
+  - exact Ax_BoxK.
+  - exact finite_axiomatisation.
+  - exact box_free_normalisation.
+Qed.
+
 Theorem nnf_correct : forall phi,
   (|- Iff (nnf_pos phi) phi) /\ (|- Iff (nnf_neg phi) (Neg phi)).
 Proof.
