@@ -13330,4 +13330,242 @@ Proof.
   - reflexivity.
 Qed.
 
+(******************************************************************************)
+(* Subject reduction for [pt_reduces] (the basic five-rule reduction).        *)
+(*                                                                            *)
+(* Each contraction rule preserves the denotation of the proof term.  We     *)
+(* build up by single lemmas — one per rule — and then combine.               *)
+(******************************************************************************)
+
+(** Lemma: K-contraction preserves denotation. *)
+
+Lemma pt_K_subject_reduction : forall phi psi p1 p2 chi,
+  denote_proof_term (PT_MP (PT_MP (PT_K phi psi) p1) p2) = Some chi ->
+  denote_proof_term p1 = Some chi.
+Proof.
+  intros phi psi p1 p2 chi Hd. cbn in Hd.
+  destruct (denote_proof_term p1) as [d1|] eqn:Ep1; [|discriminate].
+  destruct (Form_eqb phi d1) eqn:E1; [|discriminate].
+  apply Form_eqb_eq in E1. subst d1.
+  destruct (denote_proof_term p2) as [d2|] eqn:Ep2; [|discriminate].
+  destruct (Form_eqb psi d2) eqn:E2; [|discriminate].
+  injection Hd as Hd. subst chi. reflexivity.
+Qed.
+
+(** Lemma: BoxK-Nec contraction preserves denotation.
+    [(BoxK n φ ψ) (Nec n p1) (Nec n p2)] reduces to [Nec n (MP p1 p2)]. *)
+
+Lemma pt_BoxK_Nec_subject_reduction : forall n phi psi p1 p2 chi,
+  denote_proof_term
+    (PT_MP (PT_MP (PT_BoxK n phi psi) (PT_Nec n p1)) (PT_Nec n p2)) = Some chi ->
+  denote_proof_term (PT_Nec n (PT_MP p1 p2)) = Some chi.
+Proof.
+  intros n phi psi p1 p2 chi Hd. cbn in Hd.
+  destruct (denote_proof_term p1) as [d1|] eqn:Ep1; [|discriminate].
+  destruct (Form_eqb (Box n (Impl phi psi)) (Box n d1)) eqn:E1; [|discriminate].
+  apply Form_eqb_eq in E1. injection E1 as E1. subst d1.
+  destruct (denote_proof_term p2) as [d2|] eqn:Ep2; [|discriminate].
+  destruct (Form_eqb (Box n phi) (Box n d2)) eqn:E2; [|discriminate].
+  apply Form_eqb_eq in E2. injection E2 as E2. subst d2.
+  injection Hd as Hd. subst chi.
+  cbn. rewrite Ep1, Ep2.
+  rewrite Form_eqb_refl. reflexivity.
+Qed.
+
+(** Lemma: contextual rule, MP-left.  If p1 → p1' preserves denotation,
+    then so does (PT_MP p1 p2) → (PT_MP p1' p2). *)
+
+Lemma pt_MP_left_subject_reduction : forall p1 p1' p2 chi,
+  (forall psi, denote_proof_term p1 = Some psi ->
+               denote_proof_term p1' = Some psi) ->
+  denote_proof_term (PT_MP p1 p2) = Some chi ->
+  denote_proof_term (PT_MP p1' p2) = Some chi.
+Proof.
+  intros p1 p1' p2 chi Hpres Hd. cbn in Hd.
+  destruct (denote_proof_term p1) as [f|] eqn:Ep1; [|discriminate].
+  pose proof (Hpres f eq_refl) as Hp1'.
+  cbn. rewrite Hp1'. exact Hd.
+Qed.
+
+(** Lemma: contextual rule, MP-right. *)
+
+Lemma pt_MP_right_subject_reduction : forall p1 p2 p2' chi,
+  (forall psi, denote_proof_term p2 = Some psi ->
+               denote_proof_term p2' = Some psi) ->
+  denote_proof_term (PT_MP p1 p2) = Some chi ->
+  denote_proof_term (PT_MP p1 p2') = Some chi.
+Proof.
+  intros p1 p2 p2' chi Hpres Hd. cbn in Hd.
+  destruct (denote_proof_term p1) as [f|] eqn:Ep1; [|discriminate].
+  destruct f as [v | | a b | k psi]; try discriminate.
+  destruct (denote_proof_term p2) as [a'|] eqn:Ep2; [|discriminate].
+  pose proof (Hpres a' eq_refl) as Hp2'.
+  cbn. rewrite Ep1, Hp2'. exact Hd.
+Qed.
+
+(** Lemma: contextual rule, under Nec. *)
+
+Lemma pt_Nec_subject_reduction : forall n p p' chi,
+  (forall psi, denote_proof_term p = Some psi ->
+               denote_proof_term p' = Some psi) ->
+  denote_proof_term (PT_Nec n p) = Some chi ->
+  denote_proof_term (PT_Nec n p') = Some chi.
+Proof.
+  intros n p p' chi Hpres Hd. cbn in Hd.
+  destruct (denote_proof_term p) as [psi|] eqn:Ep; [|discriminate].
+  pose proof (Hpres psi eq_refl) as Hp'.
+  cbn. rewrite Hp'. exact Hd.
+Qed.
+
+(** Main theorem: every step of [pt_reduces] preserves denotation
+    (subject reduction). *)
+
+Theorem pt_reduces_subject_reduction : forall p p' phi,
+  pt_reduces p p' ->
+  denote_proof_term p = Some phi ->
+  denote_proof_term p' = Some phi.
+Proof.
+  intros p p' phi Hred. revert phi.
+  induction Hred; intro chi.
+  - (* PTR_MP_left *)
+    apply pt_MP_left_subject_reduction. intros psi Hp; exact (IHHred psi Hp).
+  - (* PTR_MP_right *)
+    apply pt_MP_right_subject_reduction. intros psi Hp; exact (IHHred psi Hp).
+  - (* PTR_Nec *)
+    apply pt_Nec_subject_reduction. intros psi Hp; exact (IHHred psi Hp).
+  - (* PTR_K *)
+    intro Hd. exact (pt_K_subject_reduction phi psi p1 p2 chi Hd).
+  - (* PTR_BoxK_Nec *)
+    intro Hd. exact (pt_BoxK_Nec_subject_reduction n phi psi p1 p2 chi Hd).
+Qed.
+
+(** Corollary: provability is preserved under [pt_reduces]: if a proof
+    term denotes a provable formula and reduces to another, the reduct
+    also denotes the same provable formula. *)
+
+Corollary pt_reduces_preserves_provability : forall p p' phi,
+  pt_reduces p p' ->
+  denote_proof_term p = Some phi ->
+  |- phi /\ denote_proof_term p' = Some phi.
+Proof.
+  intros p p' phi Hred Hd.
+  pose proof (pt_reduces_subject_reduction p p' phi Hred Hd) as Hd'.
+  split.
+  - exact (denote_proof_term_provable p phi Hd).
+  - exact Hd'.
+Qed.
+
+(** ** Normal forms.
+
+    A proof term is in normal form when no [pt_reduces] step applies to
+    it.  We define a syntactic predicate [pt_redex] detecting whether
+    any of the five reduction-rule LHS shapes occur at the term root,
+    and [pt_normal] propagating "no redex anywhere" structurally. *)
+
+Definition pt_redex_at_root (p : proof_term) : bool :=
+  match p with
+  | PT_MP (PT_MP (PT_K _ _) _) _ => true
+  | PT_MP (PT_MP (PT_BoxK _ _ _) (PT_Nec _ _)) (PT_Nec _ _) => true
+  | _ => false
+  end.
+
+Fixpoint pt_normal (p : proof_term) : bool :=
+  match p with
+  | PT_MP p1 p2 =>
+      andb (negb (pt_redex_at_root (PT_MP p1 p2)))
+           (andb (pt_normal p1) (pt_normal p2))
+  | PT_Nec _ p1 => pt_normal p1
+  | _ => true
+  end.
+
+(** Atomic proof terms are always normal. *)
+
+Lemma pt_normal_atomic : forall p,
+  match p with
+  | PT_MP _ _ | PT_Nec _ _ => False
+  | _ => True
+  end -> pt_normal p = true.
+Proof.
+  intros p H.
+  destruct p; cbn; try reflexivity; contradiction.
+Qed.
+
+(** A normal proof term has no root redex. *)
+
+Lemma pt_normal_no_root_redex : forall p,
+  pt_normal p = true -> pt_redex_at_root p = false.
+Proof.
+  intros p H. destruct p; cbn in *; try reflexivity.
+  apply Bool.andb_true_iff in H. destruct H as [Hneg _].
+  apply Bool.negb_true_iff in Hneg. exact Hneg.
+Qed.
+
+(** ** Existence of normal forms.
+
+    Every proof term reduces to a normal form via well-founded recursion
+    on [proof_term_size].  We express this as: for every [p], there
+    exists a [p'] such that [pt_reduces*] reaches [p'] and [pt_normal p']. *)
+
+Inductive pt_reduces_star : proof_term -> proof_term -> Prop :=
+  | PTRS_refl : forall p, pt_reduces_star p p
+  | PTRS_step : forall p p' p'',
+      pt_reduces p p' -> pt_reduces_star p' p'' -> pt_reduces_star p p''.
+
+Lemma pt_reduces_star_size : forall p p',
+  pt_reduces_star p p' -> proof_term_size p' <= proof_term_size p.
+Proof.
+  intros p p' H. induction H.
+  - reflexivity.
+  - pose proof (pt_reduces_decreases_size p p' H) as Hlt. lia.
+Qed.
+
+(** Subject reduction extends to multi-step reduction. *)
+
+Theorem pt_reduces_star_subject_reduction : forall p p' phi,
+  pt_reduces_star p p' ->
+  denote_proof_term p = Some phi ->
+  denote_proof_term p' = Some phi.
+Proof.
+  intros p p' phi Hstar. revert phi.
+  induction Hstar; intro chi; intro Hd.
+  - exact Hd.
+  - apply IHHstar.
+    exact (pt_reduces_subject_reduction p p' chi H Hd).
+Qed.
+
+(** Strong normalisation: every proof term has a [pt_reduces]-normal
+    form reachable in finitely many steps. *)
+
+Theorem pt_normal_form_exists : forall p,
+  exists p', pt_reduces_star p p' /\
+             (forall q, ~ pt_reduces p' q).
+Proof.
+  intros p.
+  induction p as [p IH] using
+    (well_founded_induction proof_term_no_infinite_reduction).
+  destruct (classic (exists q, pt_reduces p q)) as [[q Hpq] | Hnone].
+  - destruct (IH q Hpq) as [p' [Hstar Hnf]].
+    exists p'. split.
+    + exact (PTRS_step p q p' Hpq Hstar).
+    + exact Hnf.
+  - exists p. split.
+    + apply PTRS_refl.
+    + intros q Hcontra. apply Hnone. exists q. exact Hcontra.
+Qed.
+
+(** Combined with subject reduction: every provable formula has a
+    proof-term derivation in normal form. *)
+
+Theorem provable_has_normal_form_proof : forall phi,
+  |- phi -> exists p, denote_proof_term p = Some phi /\
+                      (forall q, ~ pt_reduces p q).
+Proof.
+  intros phi Hp.
+  destruct (provable_to_proof_term phi Hp) as [pt Hd].
+  destruct (pt_normal_form_exists pt) as [pt' [Hstar Hnf]].
+  exists pt'. split.
+  - exact (pt_reduces_star_subject_reduction pt pt' phi Hstar Hd).
+  - exact Hnf.
+Qed.
+
 
