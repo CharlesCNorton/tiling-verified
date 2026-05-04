@@ -10922,6 +10922,18 @@ Proof.
     exact (same_level_fixed_point_uniqueness n psi1 psi2 H1 H2).
 Qed.
 
+Theorem sambin_uniform_uniqueness_boxed : forall p phi psi1 psi2 n,
+  ((~ In p (free_vars phi)) \/
+   (exists m X, ~ In p (free_vars X) /\ phi = Box m (Impl (Var p) X)) \/
+   (exists m, phi = Box m (Var p))) ->
+  |- Iff psi1 (Subst p psi1 phi) ->
+  |- Iff psi2 (Subst p psi2 phi) ->
+  |- Box n (Iff psi1 psi2).
+Proof.
+  intros. apply Nec.
+  apply (sambin_uniform_uniqueness_base p phi); assumption.
+Qed.
+
 Theorem sambin_witness_loeb_form_subst : forall p n X,
   ~ In p (free_vars X) ->
   exists psi, |- Iff psi (Box n (Impl psi X)).
