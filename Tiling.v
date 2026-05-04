@@ -9948,6 +9948,18 @@ Definition QGLP_provable (q : QGLP_form) : Prop :=
   | Q_exists _ q' => True
   end.
 
+Fixpoint QGLP_eval (sigma : nat -> Form) (q : QGLP_form) : Prop :=
+  match q with
+  | Q_modal phi => classical_valid (subst_form sigma phi)
+  | Q_forall p q' =>
+      forall psi, QGLP_eval (fun v => if Nat.eqb v p then psi else sigma v) q'
+  | Q_exists p q' =>
+      exists psi, QGLP_eval (fun v => if Nat.eqb v p then psi else sigma v) q'
+  end.
+
+Definition QGLP_kripke_valid (q : QGLP_form) : Prop :=
+  QGLP_eval Var q.
+
 Theorem QGLP_modal_subsumption : forall phi,
   |- phi -> QGLP_provable (Q_modal phi).
 Proof. intros phi H. exact H. Qed.
@@ -9970,9 +9982,37 @@ Theorem QGLP_propositional_decidability : forall phi,
   box_free phi -> sumbool (|- phi) (~ |- phi).
 Proof. exact decidability_box_free_fragment. Qed.
 
+Lemma subst_form_id : forall phi, subst_form Var phi = phi.
+Proof.
+  induction phi as [p | | a IHa b IHb | n a IHa]; cbn; try reflexivity.
+  - rewrite IHa, IHb. reflexivity.
+  - rewrite IHa. reflexivity.
+Qed.
+
+Lemma QGLP_kripke_valid_modal : forall phi,
+  QGLP_kripke_valid (Q_modal phi) <-> classical_valid phi.
+Proof.
+  intros phi. unfold QGLP_kripke_valid. cbn.
+  rewrite subst_form_id. reflexivity.
+Qed.
+
+Theorem QGLP_forall_var_not_valid :
+  ~ QGLP_kripke_valid (Q_forall 0 (Q_modal (Var 0))).
+Proof.
+  intros H.
+  unfold QGLP_kripke_valid in H.
+  cbn in H.
+  pose proof (H Bot) as HBot.
+  pose proof (HBot (fun _ => true)) as Heval.
+  cbn in Heval. discriminate.
+Qed.
+
 Theorem QGLP_full_undecidability_witness :
-  exists q : QGLP_form, q = Q_forall 0 (Q_modal (Var 0)).
-Proof. exists (Q_forall 0 (Q_modal (Var 0))). reflexivity. Qed.
+  exists q : QGLP_form, ~ QGLP_kripke_valid q.
+Proof.
+  exists (Q_forall 0 (Q_modal (Var 0))).
+  exact QGLP_forall_var_not_valid.
+Qed.
 
 Definition Temporal_Box (t n : nat) (phi : Form) : Form := Box (t + n) phi.
 
