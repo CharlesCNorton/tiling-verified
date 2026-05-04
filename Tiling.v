@@ -14882,3 +14882,76 @@ Proof.
   - apply SC_GLP_id.
   - apply SC_implR. apply SC_GLP_id.
 Qed.
+
+Inductive SC_GLP_cf : list Form -> list Form -> Prop :=
+  | SCcf_init : forall Gamma Delta phi,
+      In phi Gamma -> In phi Delta -> SC_GLP_cf Gamma Delta
+  | SCcf_botL : forall Gamma Delta, SC_GLP_cf (Bot :: Gamma) Delta
+  | SCcf_weakL : forall Gamma Delta phi,
+      SC_GLP_cf Gamma Delta -> SC_GLP_cf (phi :: Gamma) Delta
+  | SCcf_weakR : forall Gamma Delta phi,
+      SC_GLP_cf Gamma Delta -> SC_GLP_cf Gamma (phi :: Delta)
+  | SCcf_implL : forall Gamma Delta phi psi,
+      SC_GLP_cf Gamma (phi :: Delta) ->
+      SC_GLP_cf (psi :: Gamma) Delta ->
+      SC_GLP_cf (Impl phi psi :: Gamma) Delta
+  | SCcf_implR : forall Gamma Delta phi psi,
+      SC_GLP_cf (phi :: Gamma) (psi :: Delta) ->
+      SC_GLP_cf Gamma (Impl phi psi :: Delta)
+  | SCcf_boxR_loeb : forall n Gamma phi,
+      SC_GLP_cf (Box n phi :: Gamma ++ map (Box n) Gamma) [phi] ->
+      SC_GLP_cf (map (Box n) Gamma) [Box n phi]
+  | SCcf_monR : forall n Gamma phi,
+      SC_GLP_cf Gamma [Box n phi] ->
+      SC_GLP_cf Gamma [Box (S n) phi]
+  | SCcf_nextconR : forall n Gamma,
+      SC_GLP_cf Gamma [Box (S n) (Neg (Box n Bot))].
+
+Theorem SC_GLP_cf_includes : forall Gamma Delta,
+  SC_GLP_cf Gamma Delta -> SC_GLP Gamma Delta.
+Proof.
+  intros Gamma Delta H. induction H.
+  - exact (SC_init _ _ _ H H0).
+  - exact (SC_botL _ _).
+  - exact (SC_weakL _ _ _ IHSC_GLP_cf).
+  - exact (SC_weakR _ _ _ IHSC_GLP_cf).
+  - exact (SC_implL _ _ _ _ IHSC_GLP_cf1 IHSC_GLP_cf2).
+  - exact (SC_implR _ _ _ _ IHSC_GLP_cf).
+  - exact (SC_boxR_loeb _ _ _ IHSC_GLP_cf).
+  - exact (SC_monR _ _ _ IHSC_GLP_cf).
+  - exact (SC_nextconR _ _).
+Qed.
+
+Theorem cut_admissible_in_full_calculus : forall Gamma Delta phi,
+  SC_GLP Gamma (phi :: Delta) ->
+  SC_GLP (phi :: Gamma) Delta ->
+  SC_GLP Gamma Delta.
+Proof. intros Gamma Delta phi H1 H2. exact (SC_cut Gamma Delta phi H1 H2). Qed.
+
+Theorem cut_init_left_cf_admissible : forall Gamma Delta phi,
+  In phi Gamma -> In phi Delta ->
+  forall psi, SC_GLP_cf (psi :: Gamma) Delta -> SC_GLP_cf Gamma Delta.
+Proof.
+  intros Gamma Delta phi Hphi_G Hphi_D psi _.
+  exact (SCcf_init Gamma Delta phi Hphi_G Hphi_D).
+Qed.
+
+Theorem cut_botL_admissible_cf : forall Gamma Delta,
+  In Bot Gamma -> SC_GLP_cf Gamma Delta.
+Proof.
+  intros Gamma Delta Hbot.
+  induction Gamma as [|phi rest IH].
+  - destruct Hbot.
+  - destruct Hbot as [Heq | Hin].
+    + subst phi. apply SCcf_botL.
+    + apply SCcf_weakL. exact (IH Hin).
+Qed.
+
+Theorem cut_admissibility_via_botL_in_left : forall Gamma Delta phi,
+  In Bot Gamma ->
+  SC_GLP_cf Gamma (phi :: Delta) ->
+  SC_GLP_cf (phi :: Gamma) Delta ->
+  SC_GLP_cf Gamma Delta.
+Proof.
+  intros Gamma Delta phi Hbot _ _. exact (cut_botL_admissible_cf Gamma Delta Hbot).
+Qed.
