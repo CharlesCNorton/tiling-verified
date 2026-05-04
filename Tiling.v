@@ -15664,3 +15664,29 @@ Theorem filtration_box_free_finite : forall (Sigma : list Form),
   exists subval : nat -> bool,
     forall phi, In phi Sigma -> eval subval phi = eval val phi.
 Proof. exact filtration_finite_for_box_free. Qed.
+
+Theorem finite_frame_property_box_free_F0 : forall phi,
+  box_free phi -> ~ |- phi ->
+  exists (V : fW F0 -> nat -> bool) (w : fW F0), ~ forces F0 V w phi.
+Proof.
+  intros phi Hbf Hnp.
+  destruct (FFP_for_box_free phi Hbf Hnp) as [val Hv].
+  exists (fun _ => val), true.
+  intro Habs.
+  pose proof (proj1 (forces_box_free_iff_eval_F0 val phi Hbf) Habs) as Heval.
+  rewrite Hv in Heval. discriminate.
+Qed.
+
+Theorem finite_frame_property_box_n_bot : forall n,
+  exists (F : Frame) V w, ~ forces F V w (Box n Bot).
+Proof.
+  intros n.
+  exists Fnat, (fun _ _ => true), (S n).
+  intro Habs. cbn in Habs.
+  apply (Habs n). unfold Fnat_R. split; lia.
+Qed.
+
+Theorem finite_frame_property_box_free_uniform : forall phi,
+  box_free phi -> ~ |- phi ->
+  exists (F : Frame) V w, ~ forces F V w phi.
+Proof. exact kripke_completeness_box_free_via_frame. Qed.
