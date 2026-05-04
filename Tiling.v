@@ -8209,6 +8209,10 @@ Proof.
   - exact cnf_lt_well_founded.
 Qed.
 
+Theorem box_free_decidable_constructive : forall phi,
+  box_free phi -> sumbool (|- phi) (~ |- phi).
+Proof. exact decidability_box_free_fragment. Defined.
+
 Theorem intuitionistic_syntactic_core :
   (forall n phi, |- Impl (Box n phi) (Box n (Box n phi))) /\
   (forall n phi, |- Impl (Box n phi) (Box (S n) phi)) /\
