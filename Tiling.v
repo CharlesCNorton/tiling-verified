@@ -11161,11 +11161,32 @@ Proof.
   - exact (prov_compose _ _ _ E2f E1b).
 Qed.
 
+Lemma prov_iff_with_top : forall psi, |- Iff (Iff psi Top) psi.
+Proof.
+  intros psi.
+  apply prov_iff_intro.
+  - pose proof (prov_and_elim_r (Impl psi Top) (Impl Top psi)) as Hr.
+    pose proof (prov_id Bot) as Htop.
+    pose proof (Ax_S (Iff psi Top) Top psi) as Hs.
+    pose proof (MP _ _ Hs Hr) as Hstep.
+    pose proof (prov_weaken Top (Iff psi Top) Htop) as Hwk.
+    exact (MP _ _ Hstep Hwk).
+  - apply prov_and_intro_under.
+    + apply (prov_weaken (Impl psi Top) psi).
+      apply (prov_weaken Top psi). apply (prov_id Bot).
+    + exact (Ax_K psi Top).
+Qed.
+
 Theorem FairBot_diagonal_collapse_to_Top : forall n psi,
-  |- Iff psi (Box n (Iff psi Cooperate)) ->
-  |- Iff (Box n (Iff psi Cooperate)) (Box n psi) ->
-  |- Iff psi Top -> True.
-Proof. intros. exact I. Qed.
+  |- Iff psi (Box n (Iff psi Cooperate)) -> |- Iff psi Top.
+Proof.
+  intros n psi Hfp. unfold Cooperate in Hfp.
+  pose proof (prov_iff_with_top psi) as Hsimp.
+  pose proof (prov_equiv_box_cong n _ _ Hsimp) as HboxSimp.
+  unfold prov_equiv in HboxSimp.
+  pose proof (prov_equiv_trans _ _ _ Hfp HboxSimp) as Hfp_simplified.
+  exact (fixed_point_unique_for_box_atomic n psi Hfp_simplified).
+Qed.
 
 Definition FairBot_two_bots (n : nat) : Prop :=
   exists psi1 psi2,
