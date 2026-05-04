@@ -9560,6 +9560,38 @@ Theorem canonical_R_reflects_provable : forall n w v phi,
   cw_set v phi.
 Proof. intros n w v phi HR Hbox. exact (HR phi Hbox). Qed.
 
+Theorem canonical_R_transitive : forall n w v u,
+  (forall phi, |- phi -> cw_set w phi) ->
+  (forall phi psi, cw_set w (Impl phi psi) -> cw_set w phi -> cw_set w psi) ->
+  canonical_R n w v -> canonical_R n v u -> canonical_R n w u.
+Proof.
+  intros n w v u Hdc HMP HR1 HR2 phi Hwbox.
+  pose proof (Hdc _ (Ax_Box4 n phi)) as HBox4_in_w.
+  pose proof (HMP _ _ HBox4_in_w Hwbox) as Hwboxbox.
+  pose proof (HR1 _ Hwboxbox) as Hvbox.
+  exact (HR2 _ Hvbox).
+Qed.
+
+Theorem canonical_R_monotone : forall n w v,
+  (forall phi, |- phi -> cw_set w phi) ->
+  (forall phi psi, cw_set w (Impl phi psi) -> cw_set w phi -> cw_set w psi) ->
+  canonical_R (S n) w v -> canonical_R n w v.
+Proof.
+  intros n w v Hdc HMP HR phi Hwboxn.
+  pose proof (Hdc _ (Ax_Mon n phi)) as HMon_in_w.
+  pose proof (HMP _ _ HMon_in_w Hwboxn) as Hwboxsn.
+  exact (HR _ Hwboxsn).
+Qed.
+
+Theorem canonical_R_NextCon_witness : forall n w v,
+  (forall phi, |- phi -> cw_set w phi) ->
+  canonical_R (S n) w v -> cw_set v (Neg (Box n Bot)).
+Proof.
+  intros n w v Hdc HR.
+  pose proof (Hdc _ (Ax_NextCon n)) as Hnext_in_w.
+  exact (HR _ Hnext_in_w).
+Qed.
+
 Theorem canonical_world_extension : forall Gamma,
   Consistent Gamma -> exists w : canonical_world, forall phi, Gamma phi -> cw_set w phi.
 Proof.
