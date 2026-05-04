@@ -3,28 +3,32 @@
 Ordered so each item's prerequisites appear earlier.  Each item must
 compile cleanly before the next is begun.
 
-1. Replace the binder-free `Form` substitution with an α-aware
+1. Prove `well_founded ord_lt` (restricted to `{ o : ord | wf_ord o }`)
+   by direct nested structural recursion: outer fix on the head
+   exponent's syntactic structure with an inner fix on the tail.
+   `ord_lt_trans`, `ord_lt_total`, `wf_ord`, `wf_ord_dec` already
+   done; this item closes the genuine well-order content for CNF
+   ordinals up to ε₀.
+2. Define a canonical Cantor-normal-form datatype `cnf_ord` as a
+   sigma `{ o : ord | wf_ord o }` with smart constructors that
+   guarantee CNF; lift `ord_lt`, `ord_compare`, the `nat_to_ord` /
+   `worm_to_ord` embeddings to `cnf_ord`; prove the ordering is a
+   well-order up to ε₀ (using item 1).
+3. Implement Buchholz's notation system or a Veblen-hierarchy
+   notation in Coq; prove the notation system well-ordered; connect
+   it to the proof-theoretic ordinals of GLP*-style calculi.
+4. Replace the binder-free `Form` substitution with an α-aware
    substitution operation over a binder-aware syntax, anticipating
    the QGLP extension; prove its substitution lemmas.
-2. Prove the Kripke substitution lemma:
+5. Prove the Kripke substitution lemma:
    `forces F V w (subst_form sigma phi) <-> forces F V' w phi`
    where `V' = V ∘ sigma`.
-3. Define a canonical normal form on `Form` (negation normal form,
+6. Define a canonical normal form on `Form` (negation normal form,
    plus a Beklemishev-style worm normal form for the modal part);
    give a Coq function computing it and a proof of provable
    equivalence to the input.
-4. Prove decidability of α-equivalence once binders are added, and
+7. Prove decidability of α-equivalence once binders are added, and
    decidability of provable equivalence on decidable fragments.
-5. Replace the ad-hoc `ord` type with a verified Cantor normal form
-   datatype where well-foundedness of `ord_lt` is provable in Coq's
-   logic; prove the ordering is a well-order up to ε₀ by direct
-   recursion.
-6. Prove `well_founded ord_lt` and restate ordinal-embedding
-   theorems on `{ o : ord | wf_ord o }` (`ord_lt_trans`,
-   `ord_lt_total`, `wf_ord`, `wf_ord_dec` already done).
-7. Implement Buchholz's notation system or a Veblen-hierarchy
-   notation in Coq; prove the notation system well-ordered; connect
-   it to the proof-theoretic ordinals of GLP*-style calculi.
 
 8. Audit which results require classical logic (LEM) and which
    require choice (ClassicalEpsilon); isolate the constructive core,

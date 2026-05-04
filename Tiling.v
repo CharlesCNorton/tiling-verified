@@ -7865,6 +7865,27 @@ Proof.
   intros x y H. exact H.
 Qed.
 
+Definition lt_cnf (a b : ord) : Prop := wf_ord a /\ wf_ord b /\ ord_lt a b.
+
+Lemma Acc_lt_cnf_OZero : Acc lt_cnf OZero.
+Proof.
+  apply Acc_intro. intros y [_ [_ Hy]].
+  destruct y; cbn in Hy; discriminate.
+Qed.
+
+Lemma ord_lt_OCons_inv : forall e1 e2 t1 t2,
+  ord_lt (OCons e1 t1) (OCons e2 t2) ->
+  ord_lt e1 e2 \/ (e1 = e2 /\ ord_lt t1 t2).
+Proof.
+  intros e1 e2 t1 t2 H. unfold ord_lt in H. cbn in H.
+  destruct (ord_compare e1 e2) eqn:Hcmp.
+  - apply ord_compare_eq_iff_eq in Hcmp. subst e2.
+    right. split; [reflexivity | unfold ord_lt; exact H].
+  - left. unfold ord_lt. exact Hcmp.
+  - discriminate.
+Qed.
+
+
 Fixpoint nat_to_ord (n : nat) : ord :=
   match n with
   | 0 => OZero
