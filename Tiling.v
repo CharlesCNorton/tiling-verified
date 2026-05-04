@@ -15054,3 +15054,69 @@ Proof.
       - exfalso; exact Hbfc. }
     rewrite H. apply Nat.le_0_l.
 Qed.
+
+Fixpoint pos_occurs (p : nat) (phi : Form) : Prop :=
+  match phi with
+  | Var k => k = p
+  | Bot => False
+  | Impl X Y => neg_occurs p X \/ pos_occurs p Y
+  | Box _ X => pos_occurs p X
+  end
+with neg_occurs (p : nat) (phi : Form) : Prop :=
+  match phi with
+  | Var _ => False
+  | Bot => False
+  | Impl X Y => pos_occurs p X \/ neg_occurs p Y
+  | Box _ X => neg_occurs p X
+  end.
+
+Lemma not_in_free_vars_no_polarity : forall p phi,
+  ~ In p (free_vars phi) -> ~ pos_occurs p phi /\ ~ neg_occurs p phi.
+Proof.
+  intros p phi Hno.
+  induction phi as [k | | a IHa b IHb | n a IHa]; cbn in *.
+  - split.
+    + intro Heq. apply Hno. subst k. left. reflexivity.
+    + intros [].
+  - split; intros [].
+  - apply not_in_app_split in Hno. destruct Hno as [Hna Hnb].
+    destruct (IHa Hna) as [Hpos_na Hneg_na].
+    destruct (IHb Hnb) as [Hpos_nb Hneg_nb].
+    split.
+    + intros [Hneg_a | Hpos_b].
+      * exact (Hneg_na Hneg_a).
+      * exact (Hpos_nb Hpos_b).
+    + intros [Hpos_a | Hneg_b].
+      * exact (Hpos_na Hpos_a).
+      * exact (Hneg_nb Hneg_b).
+  - destruct (IHa Hno) as [Hpos_na Hneg_na].
+    split; assumption.
+Qed.
+
+Theorem Lyndon_interpolation_box_free : forall phi psi,
+  box_free phi -> box_free psi ->
+  |- Impl phi psi ->
+  exists chi,
+    box_free chi /\
+    |- Impl phi chi /\ |- Impl chi psi /\
+    (forall v, In v (free_vars chi) -> In v (free_vars phi) /\ In v (free_vars psi)) /\
+    (forall v, ~ In v (free_vars phi) -> ~ pos_occurs v chi /\ ~ neg_occurs v chi) /\
+    (forall v, ~ In v (free_vars psi) -> ~ pos_occurs v chi /\ ~ neg_occurs v chi).
+Proof.
+  intros phi psi Hbf_phi Hbf_psi Himp.
+  destruct (craig_interpolation_box_free phi psi Hbf_phi Hbf_psi Himp)
+    as [chi [Hbfc [Hf [Hb Hsub]]]].
+  exists chi. split; [|split; [|split; [|split; [|split]]]].
+  - exact Hbfc.
+  - exact Hf.
+  - exact Hb.
+  - exact Hsub.
+  - intros v Hno.
+    assert (Hno_chi : ~ In v (free_vars chi)).
+    { intro Habs. exact (Hno (proj1 (Hsub v Habs))). }
+    exact (not_in_free_vars_no_polarity v chi Hno_chi).
+  - intros v Hno.
+    assert (Hno_chi : ~ In v (free_vars chi)).
+    { intro Habs. exact (Hno (proj2 (Hsub v Habs))). }
+    exact (not_in_free_vars_no_polarity v chi Hno_chi).
+Qed.
