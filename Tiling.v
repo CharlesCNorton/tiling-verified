@@ -6200,6 +6200,25 @@ Proof.
   exists G. split; assumption.
 Qed.
 
+Lemma Form_seq_encode : forall phi, Form_seq (encode_form phi) = phi.
+Proof.
+  intros phi. unfold Form_seq, enum_form. apply decode_encode.
+Qed.
+
+Theorem Lindenbaum_limit_maximal : forall Gamma,
+  forall phi, Lindenbaum_limit Gamma phi \/ Lindenbaum_limit Gamma (Neg phi).
+Proof.
+  intros Gamma phi.
+  set (n := encode_form phi).
+  pose proof (Form_seq_encode phi) as Hseq.
+  fold n in Hseq.
+  pose proof (lindenbaum_extend_decides
+                (lindenbaum_iterate Gamma n) (Form_seq n)) as Hdec_ext.
+  destruct Hdec_ext as [Hphi | Hnphi].
+  - left. exists (S n). simpl. rewrite Hseq in Hphi. rewrite Hseq. exact Hphi.
+  - right. exists (S n). simpl. rewrite Hseq in Hnphi. rewrite Hseq. exact Hnphi.
+Qed.
+
 
 Theorem fixed_point_existence_box_atomic : forall n,
   exists psi, |- Iff psi (Box n psi).
