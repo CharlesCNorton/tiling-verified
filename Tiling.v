@@ -15120,3 +15120,22 @@ Proof.
     { intro Habs. exact (Hno (proj2 (Hsub v Habs))). }
     exact (not_in_free_vars_no_polarity v chi Hno_chi).
 Qed.
+
+Theorem uniform_interpolation_box_free : forall phi p,
+  box_free phi ->
+  exists phi_p, box_free phi_p /\ ~ In p (free_vars phi_p) /\
+    forall psi, box_free psi -> ~ In p (free_vars psi) ->
+      |- Impl phi psi <-> |- Impl phi_p psi.
+Proof.
+  intros phi p Hbf.
+  exists (forget_var p phi).
+  split; [|split].
+  - apply box_free_forget_var. exact Hbf.
+  - apply free_vars_forget_var_excludes.
+  - intros psi Hbf_psi Hp_notin_psi.
+    split.
+    + intro Himp. apply prov_forget_var_elim; assumption.
+    + intro Himp.
+      pose proof (prov_forget_var_intro p phi Hbf) as Hintro.
+      exact (prov_compose _ _ _ Hintro Himp).
+Qed.
