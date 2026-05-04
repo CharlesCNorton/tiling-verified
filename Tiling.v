@@ -14665,3 +14665,21 @@ Proof.
 Qed.
 
 
+
+Theorem sambin_uniqueness_full : forall p phi psi1 psi2,
+  ((~ In p (free_vars phi)) \/
+   (exists n X, ~ In p (free_vars X) /\ phi = Box n (Impl (Var p) X)) \/
+   (exists n, phi = Box n (Var p)) \/
+   (|- Iff psi1 Top /\ |- Iff psi2 Top)) ->
+  |- Iff psi1 (Subst p psi1 phi) ->
+  |- Iff psi2 (Subst p psi2 phi) ->
+  |- Iff psi1 psi2.
+Proof.
+  intros p phi psi1 psi2 [Hno | [HLoeb | [HBoxAtom | [Htop1 Htop2]]]] H1 H2.
+  - exact (sambin_uniqueness_via_no_occurrence p phi psi1 psi2 Hno H1 H2).
+  - destruct HLoeb as [n [X [HnoX Heq]]]. subst phi.
+    exact (sambin_uniqueness_loeb_general p n X HnoX psi1 psi2 H1 H2).
+  - destruct HBoxAtom as [n Heq]. subst phi.
+    exact (sambin_uniqueness_box_atomic_general p n psi1 psi2 H1 H2).
+  - exact (sambin_uniqueness_via_top_class p phi psi1 psi2 Htop1 Htop2).
+Qed.

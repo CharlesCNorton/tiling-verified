@@ -3,468 +3,463 @@
 Ordered so each item's prerequisites appear earlier.  Each item must
 compile cleanly before the next is begun.
 
-1. Prove the full de Jongh-Sambin uniqueness over arbitrary
-    modalised formulas (combining `sambin_uniqueness_loeb_general`,
-    `sambin_uniqueness_box_atomic_general`,
-    `sambin_uniqueness_via_no_occurrence`,
-    `sambin_uniqueness_via_top_class`).
-2. Implement an explicit fixed-point computation algorithm: given
+1. Implement an explicit fixed-point computation algorithm: given
     a modalised `phi(p)`, return a syntactic `psi` in normal form
     plus a derivation of the equivalence; prove the algorithm
     correct.
-3. Wrapper-content audit: for every `Theorem foo : ... Proof.
+2. Wrapper-content audit: for every `Theorem foo : ... Proof.
     exact bar. Qed.` style one-line restatement currently in
     `Tiling.v`, replace with a strengthened version that adds
     quantitative, categorical, or proof-length content.
-4. Prove `T_no_self_consistency` directly from `Bew`'s HBL
+3. Prove `T_no_self_consistency` directly from `Bew`'s HBL
     conditions rather than routing through the full Provable
     calculus.
-5. Prove the reverse direction of
+4. Prove the reverse direction of
     `licensing_consistency_concrete_converse` quantifying over all
     formulas at level `n` simultaneously.
-6. Build a sequent presentation `SC_GLP : list Form -> list Form ->
+5. Build a sequent presentation `SC_GLP : list Form -> list Form ->
     Prop` with structural rules, propositional rules, and per-level
     modal rules with the Löb side-condition.
-7. Prove cut admissibility structurally for the sequent calculus
+6. Prove cut admissibility structurally for the sequent calculus
     (Avron-Negri-von Plato discharge mechanism for the Löb case).
-8. Prove cut-free derivations exist for every theorem and have
+7. Prove cut-free derivations exist for every theorem and have
     bounded modal depth as a function of the conclusion, giving a
     constructive bound on proof complexity.
-9. Define `Maehara_interpolant_real` by structural recursion on a
+8. Define `Maehara_interpolant_real` by structural recursion on a
     cut-free derivation; prove the standard Maehara case-split at
     every rule with the invariant FV(χ) ⊆ FV(Γ₁) ∩ ({phi} ∪ FV(Γ₂))
     and analogous bound on box-levels.
-10. Prove genuine Craig interpolation: for every `|- Impl phi psi`,
+9. Prove genuine Craig interpolation: for every `|- Impl phi psi`,
     exhibit `chi` whose free variables and Box-levels are strictly
     contained in the intersection of those of `phi` and `psi`,
     via cut-free proof induction.
-11. Prove Lyndon interpolation: the interpolant additionally
+10. Prove Lyndon interpolation: the interpolant additionally
     preserves polarity of variable occurrences.
-12. Prove uniform interpolation: for every `phi` and variable `p`,
+11. Prove uniform interpolation: for every `phi` and variable `p`,
     exhibit `phi_p` not containing `p` such that for every `psi`
     not containing `p`, `|- Impl phi psi <-> |- Impl phi_p psi`.
-13. Prove Beth definability in its full form: every implicitly
+12. Prove Beth definability in its full form: every implicitly
     definable predicate is explicitly definable.
-14. Define `canonical_world_max := { Γ | Consistent Γ /\ maximal /\
+13. Define `canonical_world_max := { Γ | Consistent Γ /\ maximal /\
     deductively_closed }`; lift `canonical_R` to it; prove the
     modal truth lemma over the maximal-consistent canonical model.
-15. Prove `canonical_R` satisfies converse-well-foundedness from
+14. Prove `canonical_R` satisfies converse-well-foundedness from
     `Ax_Loeb`.
-16. Construct the explicit `canonical_R` NextCon-successor by
+15. Construct the explicit `canonical_R` NextCon-successor by
     showing `{ phi | v (Box n phi) }` is consistent (using
     `canonical_R_NextCon_witness`) and extending to a canonical
     world via Lindenbaum.
-17. Extend the canonical-model truth lemma to the full modal
+16. Extend the canonical-model truth lemma to the full modal
     language (`Box n psi` case) by structural induction on `phi`,
     including the non-trivial backward direction requiring a
     witnessing world for the negation.
-18. Prove the existence-lemma for the canonical model: every
+17. Prove the existence-lemma for the canonical model: every
     consistent formula is true at some canonical world; chain to
     strong completeness rather than weak completeness.
-19. Prove Kripke completeness of GLP*: every non-theorem is refuted
+18. Prove Kripke completeness of GLP*: every non-theorem is refuted
     by some GLP*-frame.
-20. Prove Kripke completeness for `Provable_no_NC`,
+19. Prove Kripke completeness for `Provable_no_NC`,
     `Provable_no_Mon`, `Provable_no_Loeb`, `Provable_no_B4`
     separately, with their distinguishing frame classes.
-21. Prove modal compactness: a set of formulas has a model iff
+20. Prove modal compactness: a set of formulas has a model iff
     every finite subset does.
-22. Prove ω-completeness for `Fnat`: every formula valid at every
+21. Prove ω-completeness for `Fnat`: every formula valid at every
     world of `Fnat` is provable; characterise the formulas valid
     in `Fnat` as a sublogic of GLP*.
-23. Construct the universal frame for GLP* and prove it is the
+22. Construct the universal frame for GLP* and prove it is the
     canonical Kripke model up to bisimulation.
-24. Implement filtration through a finite subformula-closed set Σ;
+23. Implement filtration through a finite subformula-closed set Σ;
     prove the resulting finite model preserves truth values for
     formulas in Σ.
-25. Prove the finite frame property: every non-theorem of GLP* is
+24. Prove the finite frame property: every non-theorem of GLP* is
     refuted on some finite frame.
-26. Prove finite-model property with effective bounds: every
+25. Prove finite-model property with effective bounds: every
     non-theorem is refuted on a frame of size at most exponential
     in the formula's modal depth.
-27. Prove a selection theorem: from a Kripke model extract a
+26. Prove a selection theorem: from a Kripke model extract a
     generated submodel containing a designated point bisimilar to
     the original at that point.
-28. Prove the existence of a finite refuting frame for every
+27. Prove the existence of a finite refuting frame for every
     specific non-theorem (not just `Box n Bot`).
-29. Implement a true PSPACE decision procedure for the full
+28. Implement a true PSPACE decision procedure for the full
     polymodal language via filtration; prove a Coq-verified PSPACE
     complexity bound.
-30. Prove decidability of the full polymodal calculus via
+29. Prove decidability of the full polymodal calculus via
     filtration.
-31. Prove PSPACE-completeness of GLP* satisfiability/provability,
+30. Prove PSPACE-completeness of GLP* satisfiability/provability,
     by reducing QBF to provability in GLP*.
-32. Prove the box-free fragment coNP-complete via a verified
+31. Prove the box-free fragment coNP-complete via a verified
     reduction from UNSAT.
-33. Replace `decidability_admissibility_box_free` (whose conclusion
+32. Replace `decidability_admissibility_box_free` (whose conclusion
     is `sumbool (... -> True) True`) with
     `decidability_admissibility_box_free_canonical`:
     a real `sumbool` of `(forall sigma, |- subst_form sigma phi)`
     against its negation, witnessed by `decide_tautology phi`.
-34. Prove decidability of admissible rules (Rybakov's theorem) for
+33. Prove decidability of admissible rules (Rybakov's theorem) for
     at least the box-free fragment, with a real decision procedure
     rather than a vacuous skeleton.
-35. Prove a decidability result for the bimodal `Box n + Box m`
+34. Prove a decidability result for the bimodal `Box n + Box m`
     fragment with `n ≠ m` distinct from the full polymodal case.
-36. Provide a verified extracted decision procedure operating on
+35. Provide a verified extracted decision procedure operating on
     actual inputs and producing certificates, rather than a
     Coq-internal `sumbool` mediated by classical excluded-middle.
-37. Implement and verify a tableau procedure for GLP* that produces
+36. Implement and verify a tableau procedure for GLP* that produces
     either a closed tableau (proof) or an open branch
     (countermodel).
-38. Verify a SAT/QBF-based reduction of box-free GLP* validity and
+37. Verify a SAT/QBF-based reduction of box-free GLP* validity and
     extract a procedure calling an external solver, with the
     soundness of the reduction proven in Coq.
-39. Prove decidability of the closed (variable-free) fragment with
+38. Prove decidability of the closed (variable-free) fragment with
     explicit complexity bounds via filtration.
-40. Establish decidability of the variable-free fragment with
+39. Establish decidability of the variable-free fragment with
     bounded modal depth and exhibit the complexity class precisely.
-41. Prove the Abashidze-Japaridze characterisation of the closed
+40. Prove the Abashidze-Japaridze characterisation of the closed
     fragment of `Provable_GLP`.
-42. Prove a proper Kalmár-style completeness for the `Sigma1_modal`
+41. Prove a proper Kalmár-style completeness for the `Sigma1_modal`
     closure (not just box-free).
-43. Prove the full Reflection Calculus completeness theorem for
+42. Prove the full Reflection Calculus completeness theorem for
     strictly positive formulas.
-44. Prove independence of `Ax_K` using non-Kripke (e.g.
+43. Prove independence of `Ax_K` using non-Kripke (e.g.
     neighborhood) semantics, via a calculus-soundness theorem
     against the neighborhood semantics that omits Ax_K.
-45. Prove `Ax_DN` is independent of K, S, BoxK, Loeb, Box4, Mon,
+44. Prove `Ax_DN` is independent of K, S, BoxK, Loeb, Box4, Mon,
     NextCon by exhibiting an intuitionistic-modal frame validating
     the others but refuting DN.
-46. Establish a complete independence matrix: for each pair of
+45. Establish a complete independence matrix: for each pair of
     axioms, exhibit a model validating one but not the other.
-47. Prove minimality of the axiom set: removing any axiom strictly
+46. Prove minimality of the axiom set: removing any axiom strictly
     weakens the calculus, with each minimality result witnessed by
     a specific theorem that fails.
-48. Prove that each axiom-removal calculus is strictly weaker than
+47. Prove that each axiom-removal calculus is strictly weaker than
     `Provable` for infinitely many distinct theorems.
-49. Prove undecidability of any extension of GLP* with binary
+48. Prove undecidability of any extension of GLP* with binary
     modalities corresponding to interpretation, by reduction from
     the halting problem or a known undecidable modal logic.
-50. Strengthen `is_modal_definable` to require the witnessing
+49. Strengthen `is_modal_definable` to require the witnessing
     formula to land in a syntactically restricted fragment matching
     the property's intended class; restate the bisim-invariance
     theorems on the strengthened predicate.
-51. Prove the unconditional reverse direction of van Benthem: every
+50. Prove the unconditional reverse direction of van Benthem: every
     bisimulation-invariant first-order property over ω-saturated
     models is modally definable.
-52. Prove the full Goldblatt-Thomason theorem characterising
+51. Prove the full Goldblatt-Thomason theorem characterising
     modally-definable frame classes.
-53. Prove Sahlqvist correspondence in its general form (not just
+52. Prove Sahlqvist correspondence in its general form (not just
     for K, Löb).
-54. Prove the polymodal Fine-Schurz incompleteness result
+53. Prove the polymodal Fine-Schurz incompleteness result
     identifying GLP*-formulas not derivable in any Kripke-complete
     sub-logic.
-55. Construct the Lindenbaum-Tarski algebra explicitly as a
+54. Construct the Lindenbaum-Tarski algebra explicitly as a
     quotient type with proven decidable equality on equivalence
     classes (where decidability holds); prove it is the free
     Magari algebra on countably many generators.
-56. Prove Magari (diagonalisable algebra) completeness: every GL
+55. Prove Magari (diagonalisable algebra) completeness: every GL
     theorem holds in every Magari algebra and conversely; the
     Lindenbaum-Tarski algebra is the free Magari algebra on the
     propositional variables.
-57. Prove Jónsson-Tarski / Stone duality between the
+56. Prove Jónsson-Tarski / Stone duality between the
     Lindenbaum-Tarski algebra and the canonical frame, in the
     style of Stone duality for Boolean algebras lifted to modal
     algebras.
-58. Establish that the variety generated by Magari algebras is
+57. Establish that the variety generated by Magari algebras is
     locally finite for the box-free fragment and prove a
     McKinsey-Tarski-style algebraic completeness result.
-59. Prove a genuine categorical-semantics theorem: define a
+58. Prove a genuine categorical-semantics theorem: define a
     category of GLP*-frames with bisimulation-respecting morphisms;
     prove `Provable` corresponds to global sections of a sheaf or
     similar structure.
-60. Establish a categorical equivalence between provability-style
+59. Establish a categorical equivalence between provability-style
     modal logics and a class of preordered algebras, in the manner
     of Esakia duality for intuitionistic logic.
-61. Replace `categorical_fixed_point_for_licenses` and
+60. Replace `categorical_fixed_point_for_licenses` and
     `categorical_fixed_point_for_T_kappa` (currently
     `prov_iff_refl`) with `licenses_universal_property_categorical`:
     `forall F, (preserves provability) -> (K-distrib) ->
               (monotonicity) -> (Loeb closure) ->
     forall n phi, |- Iff (F n phi) (Box n phi)`.
-62. Strengthen `licenses_axiomatic_uniqueness` to non-extensional
+61. Strengthen `licenses_axiomatic_uniqueness` to non-extensional
     candidate operators via a categorical universal property.
-63. Construct a genuine arithmetic Σ₁ provability predicate
+62. Construct a genuine arithmetic Σ₁ provability predicate
     `Bew_PA` over a Gödel-encoded fragment of arithmetic (formulas
     as numerals, proofs as numerals); prove the
     Hilbert-Bernays-Löb conditions for it.
-64. Replace the primitive `Box n` view with a Σ₁ predicate
+63. Replace the primitive `Box n` view with a Σ₁ predicate
     `Bew_n : nat -> Prop` defined over a Gödel-numbered syntax of
     formulas and proofs; prove the HBL conditions as theorems
     about this predicate rather than postulates.
-65. Prove an internal Gödel diagonalisation lemma: for every
+64. Prove an internal Gödel diagonalisation lemma: for every
     `φ(p)` with one free variable, construct `ψ` with
     `|- Iff ψ (φ ⌜ψ⌝)`; use it to derive Gödel's first and second
     incompleteness theorems internally.
-66. Construct, for each `n`, a Gödel sentence `Gₙ` with
+65. Construct, for each `n`, a Gödel sentence `Gₙ` with
     `|- Iff Gₙ (Neg (Bew_n ⌜Gₙ⌝))`; prove `Gₙ` is independent of
     `Tₙ` but provable in `Tₙ₊₁`.
-67. Construct in Coq an explicit recursive enumeration of axioms
+66. Construct in Coq an explicit recursive enumeration of axioms
     for each `Tₙ` as actual arithmetic theories extending Robinson
     Q (or PA), with the level-(n+1) theory containing the Σ₁
     sentence `Con(Tₙ)`; prove cumulativity as a theorem about
     provability rather than a definitional inclusion.
-68. Construct a first-order theory `T_n` with explicit axioms (not
+67. Construct a first-order theory `T_n` with explicit axioms (not
     just modal axiom-schemas via `T_axiom`); prove the
     cumulativity, consistency, and tiling results at the genuine
     first-order level.
-69. Eliminate `Ax_NextCon` from the axiom list and instead derive
+68. Eliminate `Ax_NextCon` from the axiom list and instead derive
     `Box (S n) (¬ Box n ⊥)` from properties of an underlying
     arithmetic theory.
-70. Establish a non-trivial consistency-strength ordering between
+69. Establish a non-trivial consistency-strength ordering between
     `Tₙ` and `Tₙ₊₁` by proving an ordinal analysis result.
-71. Prove the tower bypass non-vacuous by exhibiting a specific
+70. Prove the tower bypass non-vacuous by exhibiting a specific
     `φ` such that `Tₙ` does not prove `Con(Tₙ → φ)` but `Tₙ₊₁`
     does.
-72. Prove a soundness theorem connecting modal `Box n φ` to the
+71. Prove a soundness theorem connecting modal `Box n φ` to the
     arithmetised `Bew_n ⌜φ*⌝` for a realisation map `φ ↦ φ*`.
-73. Prove Π₁ conservativity of `T_(n+1)` over `T_n` for arithmetic
+72. Prove Π₁ conservativity of `T_(n+1)` over `T_n` for arithmetic
     Π₁ sentences.
-74. Prove Π₂ conservativity across the tower.
-75. Prove Friedman's negative translation result connecting
+73. Prove Π₂ conservativity across the tower.
+74. Prove Friedman's negative translation result connecting
     classical to constructive provability beyond the box-free
     case.
-76. Prove the relative-consistency direction `Con(T_0) → Con(T_n)`
+75. Prove the relative-consistency direction `Con(T_0) → Con(T_n)`
     from a strictly weaker hypothesis than meta-consistency of the
     full system.
-77. Prove the strict separation between `Bew n` and `Bew (S n)` at
+76. Prove the strict separation between `Bew n` and `Bew (S n)` at
     the proof level (not just at the axiom-set level).
-78. Prove that the structural `Bew` predicate satisfies provability
+77. Prove that the structural `Bew` predicate satisfies provability
     logic (i.e. `Bew n` interpreted into `Box n` validates exactly
     GLP* at the relevant level).
-79. Prove Solovay's first completeness theorem in full: every
+78. Prove Solovay's first completeness theorem in full: every
     modal formula valid under all arithmetic interpretations into
     PA is provable in GL.
-80. Prove Solovay's second completeness theorem for the
+79. Prove Solovay's second completeness theorem for the
     truth-extension `Provable_S` beyond the box-free fragment.
-81. Prove arithmetic completeness of `Provable_GLP` (Japaridze's
+80. Prove arithmetic completeness of `Provable_GLP` (Japaridze's
     theorem) for arbitrary formulas, not just box-free ones.
-82. Construct a genuinely non-identity, non-licensure inhabitant of
+81. Construct a genuinely non-identity, non-licensure inhabitant of
     `is_arithmetic_interpretation` to show the predicate has
     non-trivial structure beyond `identity` and `licenses k`.
-83. Prove Tarski undefinability in its sharpest form: no formula
+82. Prove Tarski undefinability in its sharpest form: no formula
     `Tr(x)` in the language of GLP* with one free variable
     satisfies `|- Iff (Tr ⌜φ⌝) φ` for all `φ`.
-84. Prove a strong undefinability theorem by Gödel diagonalisation
+83. Prove a strong undefinability theorem by Gödel diagonalisation
     on a self-referential sentence, in any consistent extension of
     the calculus with a unary `Tr` satisfying the T-schema.
-85. Prove the Friedman-Sheard truth-axiomatisation theorem.
-86. Construct a hierarchy of partial truth predicates `Trₙ` where
+84. Prove the Friedman-Sheard truth-axiomatisation theorem.
+85. Construct a hierarchy of partial truth predicates `Trₙ` where
     each `Trₙ` correctly evaluates formulas of modal depth `≤ n`,
     with `Trₙ` definable at level `n+1`, paralleling Tarski's
     hierarchy.
-87. Prove the Visser interpretability logic ILM/ILP axioms beyond
+86. Prove the Visser interpretability logic ILM/ILP axioms beyond
     just the K-distribution and Box4 forms.
-88. Prove the Visser-Berarducci theorem on interpretability logic:
+87. Prove the Visser-Berarducci theorem on interpretability logic:
     ILM is the interpretability logic of any reasonable arithmetic
     theory containing IΣ₁.
-89. Prove the Visser ILM J5 axiom from the calculus axioms rather
+88. Prove the Visser ILM J5 axiom from the calculus axioms rather
     than via `Ax_Mon`.
-90. Prove the Critch parametric bounded-Löb theorem for a genuinely
+89. Prove the Critch parametric bounded-Löb theorem for a genuinely
     bounded provability predicate (with proof-length bound encoded
     inside the modal formula), not just iterated `Box`.
-91. Prove the Critch correspondence between modal
+90. Prove the Critch correspondence between modal
     `critch_bounded_box` and a genuine bounded-arithmetic
     provability predicate with explicit polynomial bounds.
-92. Implement Critch's bounded provability with an explicit
+91. Implement Critch's bounded provability with an explicit
     resource bound `k` counting proof steps; prove a parametric
     Löb theorem with a threshold `k₀`.
-93. Construct a concrete agent using bounded provability whose
+92. Construct a concrete agent using bounded provability whose
     behaviour depends measurably on `k`.
-94. Replace the cosmetic alias `licenses n φ := Box n φ` with a
+93. Replace the cosmetic alias `licenses n φ := Box n φ` with a
     substantive predicate over a separately defined `Agent`
     record carrying a decision procedure, a goal predicate, an
     action space, and a verification routine.
-95. Formalise a concrete agent that takes as input a candidate
+94. Formalise a concrete agent that takes as input a candidate
     successor and outputs a decision in finite time based on
     inspection of a level-`n` proof.
-96. Prove a non-trivial successor-licensing theorem: given an
+95. Prove a non-trivial successor-licensing theorem: given an
     explicit goal predicate `G`, an explicit transition function,
     and an explicit candidate successor `σ`, derive that the
     level-`n` agent licenses `σ` iff a verifiable condition on
     `σ` holds, where the condition is computable.
-97. Demonstrate a concrete failure case where a level-`n` agent
+96. Demonstrate a concrete failure case where a level-`n` agent
     cannot license a successor that a level-(n+1) agent can,
     using actual programs and goals rather than uninterpreted
     formulas.
-98. Prove the goal-preservation tiling theorem for an agent that
+97. Prove the goal-preservation tiling theorem for an agent that
     takes non-trivial actions changing the state.
-99. Prove vingean reflection in a setting where the agent's
+98. Prove vingean reflection in a setting where the agent's
     decision genuinely depends on `T_(n+1)` licensure.
-100. Prove the no-panic reflective-trust theorem at the level of
+99. Prove the no-panic reflective-trust theorem at the level of
     self-modifying agents.
-101. Prove the `T_kappa` agent-correspondence theorem with a
+100. Prove the `T_kappa` agent-correspondence theorem with a
     non-trivial agent architecture.
-102. Replace the constant `Cooperate := ⊤` with a genuine action
+101. Replace the constant `Cooperate := ⊤` with a genuine action
     representing cooperation in a payoff-bearing game.
-103. Define `FairBot n psi := psi := Box n (Iff (opp psi) Cooperate)`
+102. Define `FairBot n psi := psi := Box n (Iff (opp psi) Cooperate)`
     as a real Sambin fixed point where `opp` reads from the open
     variable.
-104. Define `PrudentBot n psi` as a real Sambin fixed point with
+103. Define `PrudentBot n psi` as a real Sambin fixed point with
     the consistency conjunct `Box (S n) (Neg (Box n Bot))`.
-105. Prove FairBot vs FairBot mutual cooperation with the genuine
+104. Prove FairBot vs FairBot mutual cooperation with the genuine
     fixed-point semantics and source-code reflection.
-106. Prove FairBot vs DefectBot defection.
-107. Prove FairBot vs CooperateBot mutual cooperation and FairBot
+105. Prove FairBot vs DefectBot defection.
+106. Prove FairBot vs CooperateBot mutual cooperation and FairBot
     vs DefectBot mutual defection as theorems where the bots
     access opponents' source code via a reflection principle.
-108. Prove the BCFHLY robust-cooperation theorem for non-trivial
+107. Prove the BCFHLY robust-cooperation theorem for non-trivial
     fixed points (not just the collapse to `Top`).
-109. Prove that PrudentBot strictly dominates FairBot in modal-PD
+108. Prove that PrudentBot strictly dominates FairBot in modal-PD
     against DefectBot, exhibiting concrete formula witnesses.
-110. Establish PrudentBot's strict Pareto improvement over FairBot
+109. Establish PrudentBot's strict Pareto improvement over FairBot
     by exhibiting an opponent against which PrudentBot defects
     correctly but a naïve FairBot would cooperate.
-111. Prove Aumann's agreement theorem in modal form: agents at
+110. Prove Aumann's agreement theorem in modal form: agents at
     different levels with common knowledge of consistency provably
     agree (the existing `Aumann_agreement_modal_real` covers the
     two-level case; extend to common-knowledge across many
     levels).
-112. Prove the Fallenstein-Soares 2014 finite-tower
+111. Prove the Fallenstein-Soares 2014 finite-tower
     self-modification theorem at the arithmetic level.
-113. Prove the Pudlák speedup result for the parametric tower at
+112. Prove the Pudlák speedup result for the parametric tower at
     every level.
-114. Prove a quantitative version of the Löbian obstacle: bound the
+113. Prove a quantitative version of the Löbian obstacle: bound the
     proof length of the inconsistency derivation by a function of
     the reflection-schema's proof complexity.
-115. Formalise the original Yudkowsky-Herreshoff tiling agent as a
+114. Formalise the original Yudkowsky-Herreshoff tiling agent as a
     concrete program: a Turing machine that, given a candidate
     successor, performs a bounded proof search at level `n`,
     decides licensing based on a specific verification predicate,
     and outputs a decision.
-116. Prove the tiling-agent never-defects-against-itself theorem:
+115. Prove the tiling-agent never-defects-against-itself theorem:
     when two such agents face each other in a coordination game,
     both license the cooperative strategy via a common-knowledge
     fixed point.
-117. Establish the Vingean reflection no-go result formally.
-118. Prove the Fallenstein parametric bounded Löb result: bounded
+116. Establish the Vingean reflection no-go result formally.
+117. Prove the Fallenstein parametric bounded Löb result: bounded
     Löb with parameter `k` holds iff the agent's verifier has
     access to proofs of length at least `k`.
-119. Connect the tower to a concrete model of self-improvement:
+118. Connect the tower to a concrete model of self-improvement:
     prove that an agent at level `n` licensing a successor at
     level `n+1` corresponds to a specific code transformation
     preserving a goal predicate.
-120. Re-derive the worm theory inside a calculus where Mon is
+119. Re-derive the worm theory inside a calculus where Mon is
     absent (genuine GLP), so worms have non-trivial provability
     content and the worm-ordinal correspondence captures real
     proof-theoretic strength rather than collapsing.
-121. Prove Beklemishev's worm normal form theorem for
+120. Prove Beklemishev's worm normal form theorem for
     `Provable_GLP` (where worms are not all provable), not just
     the trivial collapse in `Provable`.
-122. Prove the Beklemishev reduction theorem: every theorem of GLP
+121. Prove the Beklemishev reduction theorem: every theorem of GLP
     is provably equivalent (in GLP) to a Boolean combination of
     worms.
-123. Prove the worm-ordering total: for any two worms `w₁`, `w₂`,
+122. Prove the worm-ordering total: for any two worms `w₁`, `w₂`,
     decide which provably implies the other in GLP, with the
     ordering matching Cantor-normal-form comparison on
     `worm_to_ord`.
-124. Prove that the proof-theoretic ordinal of GLP (without Mon)
+123. Prove that the proof-theoretic ordinal of GLP (without Mon)
     equals ε₀ via Beklemishev's worm normalisation.
-125. Prove the proof-theoretic ordinal of `Provable_GLP` is exactly
+124. Prove the proof-theoretic ordinal of `Provable_GLP` is exactly
     ε₀ via a complete ordinal-assignment to proof terms with
     strict decrease under reduction.
-126. Compute the proof-theoretic ordinal of GLP* as presented and
+125. Compute the proof-theoretic ordinal of GLP* as presented and
     prove a sharp upper and lower bound.
-127. Replace the syntactic `Veblen_phi_iter` and `Gamma_0_approx`
+126. Replace the syntactic `Veblen_phi_iter` and `Gamma_0_approx`
     shells with the genuine Veblen hierarchy as ordinal functions;
     prove their fixed-point properties.
-128. Prove Carlson's theorem on the ordinal-analysis correspondence
+127. Prove Carlson's theorem on the ordinal-analysis correspondence
     between worms and ordinals below ε₀.
-129. Prove Carlson's theorem (second incompleteness for polymodal
+128. Prove Carlson's theorem (second incompleteness for polymodal
     provability) in its sharp form.
-130. Prove the explicit ε₀-rank-respecting normalisation theorem
+129. Prove the explicit ε₀-rank-respecting normalisation theorem
     for proof terms with strict ordinal decrease.
-131. Prove Gentzen's consistency proof for PA via ε₀-induction
+130. Prove Gentzen's consistency proof for PA via ε₀-induction
     inside Coq.
-132. Define a genuine first-order extension `QGLP` with quantifiers,
+131. Define a genuine first-order extension `QGLP` with quantifiers,
     variable assignments, and a Tarskian semantics; prove which
     fragments are decidable, which are recursively enumerable,
     and which are Π¹₁-complete.
-133. Prove constant-domain QGLP* soundness and completeness with
+132. Prove constant-domain QGLP* soundness and completeness with
     respect to a Kripke-style first-order semantics for quantified
     modal formulas.
-134. Prove the Barcan and converse-Barcan formulas hold or fail in
+133. Prove the Barcan and converse-Barcan formulas hold or fail in
     the quantified extension, with semantic witnesses.
-135. Prove a genuine temporal-extension result where time and modal
+134. Prove a genuine temporal-extension result where time and modal
     level interact non-trivially.
-136. Prove a probabilistic-Löb theorem with a real probability
+135. Prove a probabilistic-Löb theorem with a real probability
     parameter (not just `nat`) showing graded reflection survives
     at strictly positive ε.
-137. Define a probabilistic logic of provability with graded
+136. Define a probabilistic logic of provability with graded
     modalities `Bel_p` where `p` is a probability; prove sound
     and complete with respect to a measure-theoretic semantics.
-138. Connect the probabilistic version to actual decision-theoretic
+137. Connect the probabilistic version to actual decision-theoretic
     agents using credences.
-139. Construct a proper neighborhood-semantics framework; prove
+138. Construct a proper neighborhood-semantics framework; prove
     soundness/completeness for a non-normal modal logic separating
     it from GLP*.
-140. Formalise a transfinite-level extension where modalities are
+139. Formalise a transfinite-level extension where modalities are
     indexed by ordinals below Γ₀.
-141. Extend the calculus with a μ-operator for least fixed points;
+140. Extend the calculus with a μ-operator for least fixed points;
     prove the resulting μGLP is decidable.
-142. Prove the modal μ-calculus alternation hierarchy is strict at
+141. Prove the modal μ-calculus alternation hierarchy is strict at
     every level.
-143. Establish the Kozen completeness theorem for μGLP and connect
+142. Establish the Kozen completeness theorem for μGLP and connect
     μ-fixed points to the parametric tower's fixed-point
     licensing decisions.
-144. Define a game semantics for GLP* where verifier and falsifier
+143. Define a game semantics for GLP* where verifier and falsifier
     play over the Kripke frame.
-145. Establish determinacy for the resulting games on well-founded
+144. Establish determinacy for the resulting games on well-founded
     frames; connect winning strategies to proof terms.
-146. Connect the FairBot/PrudentBot constructions to actual
+145. Connect the FairBot/PrudentBot constructions to actual
     game-theoretic equilibria via the game semantics.
-147. Prove the modal logic of programs (PDL) embeds into GLP* via
+146. Prove the modal logic of programs (PDL) embeds into GLP* via
     a translation mapping program iteration to fixed points.
-148. Connect Coalition Logic and ATL to the licensing tower.
-149. Prove the disjunction property for `Provable_GLP`.
-150. Prove that `Provable_GLP_incomparable_with_provable` extends
+147. Connect Coalition Logic and ATL to the licensing tower.
+148. Prove the disjunction property for `Provable_GLP`.
+149. Prove that `Provable_GLP_incomparable_with_provable` extends
     to infinitely many incomparable formulas.
-151. Prove a no-go theorem for any uniform strengthening of
+150. Prove a no-go theorem for any uniform strengthening of
     `Ax_NextCon` to `Box n (Neg (Box n Bot))` across all levels.
-152. Prove that the `Provable_plus` extension scheme yields
+151. Prove that the `Provable_plus` extension scheme yields
     inconsistency for any reflection-schema extension at any
     level uniformly.
-153. Prove the Smoryński bimodal independence theorem at distinct
+152. Prove the Smoryński bimodal independence theorem at distinct
     levels for non-trivial formulas.
-154. Prove the full conservativity of `Provable_GL` over `Provable`
+153. Prove the full conservativity of `Provable_GL` over `Provable`
     at level 0 in both directions.
-155. Establish the conservativity of GLP* over GL at level 0 in
+154. Establish the conservativity of GLP* over GL at level 0 in
     both directions and over Japaridze's GLP at all levels.
-156. Prove a conservativity ordering: GLP* is conservative over GL
+155. Prove a conservativity ordering: GLP* is conservative over GL
     for level-0 sentences, conservative over a specific theory of
     arithmetic for Π₁ sentences.
-157. Prove the polymodal-fixed-point system completeness à la
+156. Prove the polymodal-fixed-point system completeness à la
     Smoryński.
-158. Define a realisability interpretation of GLP* where realisers
+157. Define a realisability interpretation of GLP* where realisers
     are verified programs.
-159. Prove a Curry-Howard correspondence for the modal fragment.
-160. Establish a propositions-as-types interpretation where
+158. Prove a Curry-Howard correspondence for the modal fragment.
+159. Establish a propositions-as-types interpretation where
     licensing translates to the existence of a verified compiler
     from level-`n` programs to level-(n+1) programs.
-161. Embed GLP* into homotopy type theory.
-162. Connect `Box n` to a graded comonad in the categorical
+160. Embed GLP* into homotopy type theory.
+161. Connect `Box n` to a graded comonad in the categorical
     semantics.
-163. Determine the reverse-mathematical strength of each major
+162. Determine the reverse-mathematical strength of each major
     theorem in the development.
-164. Prove that `meta_consistency_system` requires no more than
+163. Prove that `meta_consistency_system` requires no more than
     primitive recursive arithmetic.
-165. Extract a verified OCaml or Haskell decision procedure from
+164. Extract a verified OCaml or Haskell decision procedure from
     the Coq development; benchmark against existing modal-logic
     provers.
-166. Use the formalisation to verify a real safety property of a
+165. Use the formalisation to verify a real safety property of a
     real machine-learning system.
-167. Connect the verification to a runtime monitor that rejects
+166. Connect the verification to a runtime monitor that rejects
     unsafe operations based on level-`n` proof obligations.
-168. Prove a non-trivial program transformation correct using the
+167. Prove a non-trivial program transformation correct using the
     modal apparatus.
-169. Split `Tiling.v` into themed modules — `Calculus`, `Hilbert`,
+168. Split `Tiling.v` into themed modules — `Calculus`, `Hilbert`,
     `Kripke`, `FixedPoints`, `Bew`, `ProofTerms`, `Worms`,
     `Agents`.  (A 15-module split is already drafted on
     `multi-module-split` and can be merged.)
-170. Add `Examples.v` with three worked examples.
-171. Add `README.md` listing the headline theorems, the dependency
+169. Add `Examples.v` with three worked examples.
+170. Add `README.md` listing the headline theorems, the dependency
     story, and build instructions.
-172. Provide tutorial sections explaining the proof strategies.
-173. Cross-reference each theorem to its source in Boolos's *The
+171. Provide tutorial sections explaining the proof strategies.
+172. Cross-reference each theorem to its source in Boolos's *The
     Logic of Provability*, Smoryński's *Self-Reference and Modal
     Logic*, Beklemishev's papers, and the YH13 tech report.
