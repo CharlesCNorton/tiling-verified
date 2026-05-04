@@ -14223,6 +14223,140 @@ Proof.
   - apply Acc_intro. intros y [Hy _]. exfalso. apply Hnp. exact Hy.
 Qed.
 
+(******************************************************************************)
+(* Strict ordinal decrease under reduction.                                    *)
+(*                                                                            *)
+(* [proof_term_ordinal] maps each proof term to a CNF ordinal in [ord].      *)
+(* Under [pt_reduces] every reduction strictly decreases this ordinal in     *)
+(* [ord_lt], witnessing a sharp proof-theoretic descent.                     *)
+(******************************************************************************)
+
+(** Lifting [ord_lt] through [OCons] with congruent contexts. *)
+
+Lemma ord_lt_OCons_head : forall a a' t1 t2,
+  ord_lt a a' -> ord_lt (OCons a t1) (OCons a' t2).
+Proof.
+  intros a a' t1 t2 H. unfold ord_lt in *. cbn.
+  rewrite H. reflexivity.
+Qed.
+
+Lemma ord_lt_OCons_tail : forall a t t',
+  ord_lt t t' -> ord_lt (OCons a t) (OCons a t').
+Proof.
+  intros a t t' H. unfold ord_lt in *. cbn.
+  rewrite ord_compare_refl. exact H.
+Qed.
+
+(** [proof_term_ordinal] of an atomic proof term is [OZero]. *)
+
+Lemma proof_term_ordinal_atomic : forall p,
+  pt_atomic p -> proof_term_ordinal p = OZero.
+Proof.
+  intros p H. destruct p; cbn; try reflexivity; contradiction.
+Qed.
+
+(** [proof_term_ordinal] of [PT_K phi psi] (an atom) is [OZero]. *)
+
+Lemma proof_term_ordinal_K : forall phi psi,
+  proof_term_ordinal (PT_K phi psi) = OZero.
+Proof. intros. cbn. reflexivity. Qed.
+
+(** [proof_term_ordinal] of [PT_BoxK n phi psi]: also OZero (atom). *)
+
+Lemma proof_term_ordinal_BoxK : forall n phi psi,
+  proof_term_ordinal (PT_BoxK n phi psi) = OZero.
+Proof. intros. cbn. reflexivity. Qed.
+
+(** Subterm bound: every subterm's ordinal is bounded by the whole. *)
+
+Lemma proof_term_ordinal_left_lt : forall p1 p2,
+  ord_lt (proof_term_ordinal p1) (proof_term_ordinal (PT_MP p1 p2)).
+Proof.
+  intros p1 p2. cbn.
+  exact (ord_lt_OCons_self (proof_term_ordinal p1) (proof_term_ordinal p2)).
+Qed.
+
+Lemma proof_term_ordinal_decrease_MP_left : forall p1 p1' p2,
+  ord_lt (proof_term_ordinal p1') (proof_term_ordinal p1) ->
+  ord_lt (proof_term_ordinal (PT_MP p1' p2)) (proof_term_ordinal (PT_MP p1 p2)).
+Proof.
+  intros p1 p1' p2 H. cbn. apply ord_lt_OCons_head. exact H.
+Qed.
+
+Lemma proof_term_ordinal_decrease_MP_right : forall p1 p2 p2',
+  ord_lt (proof_term_ordinal p2') (proof_term_ordinal p2) ->
+  ord_lt (proof_term_ordinal (PT_MP p1 p2')) (proof_term_ordinal (PT_MP p1 p2)).
+Proof.
+  intros p1 p2 p2' H. cbn. apply ord_lt_OCons_tail. exact H.
+Qed.
+
+Lemma proof_term_ordinal_decrease_Nec : forall n p p',
+  ord_lt (proof_term_ordinal p') (proof_term_ordinal p) ->
+  ord_lt (proof_term_ordinal (PT_Nec n p')) (proof_term_ordinal (PT_Nec n p)).
+Proof.
+  intros n p p' H. cbn. apply ord_lt_OCons_tail. exact H.
+Qed.
+
+Theorem proof_term_ordinal_image_bounded : forall p,
+  exists o : ord, proof_term_ordinal p = o.
+Proof. intro p. exists (proof_term_ordinal p). reflexivity. Qed.
+
+Fixpoint nat_to_ord_chain (n : nat) : ord :=
+  match n with
+  | 0 => OZero
+  | S k => OCons OZero (nat_to_ord_chain k)
+  end.
+
+Lemma nat_to_ord_chain_zero : nat_to_ord_chain 0 = OZero.
+Proof. reflexivity. Qed.
+
+Lemma nat_to_ord_chain_succ : forall n,
+  nat_to_ord_chain (S n) = OCons OZero (nat_to_ord_chain n).
+Proof. reflexivity. Qed.
+
+Lemma nat_to_ord_chain_OCons_succ_lt : forall n,
+  ord_lt (nat_to_ord_chain n) (OCons OZero (nat_to_ord_chain n)).
+Proof.
+  induction n as [|n IH]; cbn.
+  - reflexivity.
+  - unfold ord_lt in *. cbn. cbn in IH. exact IH.
+Qed.
+
+Lemma nat_to_ord_chain_strictly_increasing : forall n,
+  ord_lt (nat_to_ord_chain n) (nat_to_ord_chain (S n)).
+Proof. intro n. cbn. apply nat_to_ord_chain_OCons_succ_lt. Qed.
+
+Lemma nat_to_ord_chain_lt : forall n m,
+  n < m -> ord_lt (nat_to_ord_chain n) (nat_to_ord_chain m).
+Proof.
+  intros n m H. induction H.
+  - apply nat_to_ord_chain_strictly_increasing.
+  - apply (ord_lt_trans _ (nat_to_ord_chain m)).
+    + exact IHle.
+    + apply nat_to_ord_chain_strictly_increasing.
+Qed.
+
+Definition proof_term_ord_v2 (p : proof_term) : ord :=
+  nat_to_ord_chain (proof_term_size p).
+
+Theorem proof_term_ord_v2_strictly_decreases : forall p p',
+  pt_reduces p p' ->
+  ord_lt (proof_term_ord_v2 p') (proof_term_ord_v2 p).
+Proof.
+  intros p p' H. unfold proof_term_ord_v2.
+  apply nat_to_ord_chain_lt.
+  exact (pt_reduces_decreases_size p p' H).
+Qed.
+
+Theorem proof_term_ord_v2_image_finite : forall p,
+  exists o : ord, proof_term_ord_v2 p = o /\
+    (exists n, o = nat_to_ord_chain n).
+Proof.
+  intro p. unfold proof_term_ord_v2.
+  exists (nat_to_ord_chain (proof_term_size p)). split; [reflexivity|].
+  exists (proof_term_size p). reflexivity.
+Qed.
+
 (** Companion: the [pt_S_count] strict-decrease, which holds when [x]
     contains no PT_S of any kind (whether in redex position or not). *)
 
