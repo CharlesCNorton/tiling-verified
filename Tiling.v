@@ -10151,9 +10151,23 @@ Proof.
   exact (meta_consistency_every_level n HBoxBot).
 Qed.
 
-Theorem no_go_strengthening_collapses : forall n psi,
-  ~ |- Impl (Box n Bot) psi -> False -> False.
-Proof. intros n psi _ Hf. exact Hf. Qed.
+(** [no_go_strengthening_collapses]: substantive no-go, replacing the
+    id-on-False placeholder.  If level [n] uniformly proves [Box n Bot]
+    implies anything (i.e. is provably explosive), then specialising
+    at [psi := Bot] yields [|- Neg (Box n Bot)], which by Gödel's
+    second incompleteness theorem ([Ax_Loeb] at [Bot]) collapses to
+    [|- Box n Bot], contradicting [meta_consistency_every_level]. *)
+
+Theorem no_go_strengthening_collapses : forall n,
+  (forall psi, |- Impl (Box n Bot) psi) -> False.
+Proof.
+  intros n Hsch.
+  pose proof (Hsch Bot) as HnegBoxBot.
+  pose proof (Nec n _ HnegBoxBot) as HnecNeg.
+  pose proof (Ax_Loeb n Bot) as HLoeb.
+  pose proof (MP _ _ HLoeb HnecNeg) as HBoxBot.
+  exact (meta_consistency_every_level n HBoxBot).
+Qed.
 
 Theorem no_go_tiling_sharp_boundary : forall n,
   (forall phi, |- Box (S n) (Impl (Box n phi) (Neg (Box n (Neg phi))))) /\
@@ -10164,12 +10178,9 @@ Proof.
   - exact (reflection_schema_unprovable n).
 Qed.
 
-Theorem no_go_uniform_strict_tiling_collapse : forall n,
-  (forall psi, |- Box (S n) (Impl (Box n Top) (Box n (Neg psi)))) ->
-  ~ |- Bot.
-Proof.
-  intros n Hsch Hbot. exact (meta_consistency_system Hbot).
-Qed.
+(** [no_go_uniform_strict_tiling_collapse_via_top]: an intermediate
+    lemma deriving [Box (S n) (Box n (Neg Top))] from the uniform
+    strict-tiling hypothesis at [psi := Top]. *)
 
 Theorem no_go_uniform_strict_tiling_collapse_via_top : forall n,
   (forall psi, |- Box (S n) (Impl (Box n Top) (Box n (Neg psi)))) ->
@@ -10182,6 +10193,43 @@ Proof.
   pose proof (Ax_BoxK (S n) (Box n Top) (Box n (Neg Top))) as HK.
   pose proof (MP _ _ HK Hinst) as Hstep.
   exact (MP _ _ Hstep HboxnTop).
+Qed.
+
+(** [no_go_uniform_strict_tiling_collapse]: substantive replacement for
+    the previous version (which discarded its hypothesis and concluded
+    [~ |- Bot] tautologously).  The genuine no-go: a uniform schema
+    [Box (S n) (Box n Top -> Box n (Neg psi))] for every psi forces
+    inconsistency.  Proof: [via_top] gives [Box (S n) (Box n (Neg Top))];
+    apply [Ax_BoxK] twice to convert [Neg Top = Impl Top Bot] under
+    nested boxes into [Box (S n) (Box n Bot)]; combine with
+    [Ax_NextCon] via [prov_box_n_contradiction] at level [S n] to
+    obtain [Box (S n) Bot], contradicting [meta_consistency_every_level]. *)
+
+Theorem no_go_uniform_strict_tiling_collapse : forall n,
+  (forall psi, |- Box (S n) (Impl (Box n Top) (Box n (Neg psi)))) ->
+  False.
+Proof.
+  intros n Hsch.
+  pose proof (no_go_uniform_strict_tiling_collapse_via_top n Hsch)
+    as HBoxBoxNegTop.
+  (* Convert Box n (Neg Top) = Box n (Impl Top Bot) to Box n Bot under
+     Box (S n).  *)
+  pose proof (Nec n _ (prov_id Bot)) as HBoxnTop.
+  pose proof (Nec (S n) _ HBoxnTop) as HBox_BoxnTop.
+  pose proof (Ax_BoxK n Top Bot) as HKn.
+  pose proof (Nec (S n) _ HKn) as HKnNec.
+  pose proof (Ax_BoxK (S n) (Box n (Impl Top Bot))
+                            (Impl (Box n Top) (Box n Bot))) as HKK.
+  pose proof (MP _ _ HKK HKnNec) as Hstep1.
+  pose proof (MP _ _ Hstep1 HBoxBoxNegTop) as HBoxImp.
+  pose proof (Ax_BoxK (S n) (Box n Top) (Box n Bot)) as HKK2.
+  pose proof (MP _ _ HKK2 HBoxImp) as Hstep2.
+  pose proof (MP _ _ Hstep2 HBox_BoxnTop) as HBoxBoxBot.
+  pose proof (prov_box_n_contradiction (S n) (Box n Bot)) as Hcontra.
+  pose proof (MP _ _ Hcontra HBoxBoxBot) as Hstep3.
+  pose proof (Ax_NextCon n) as HNC.
+  pose proof (MP _ _ Hstep3 HNC) as HBoxBot.
+  exact (meta_consistency_every_level (S n) HBoxBot).
 Qed.
 
 Theorem sharp_minimal_axiom_set_Loeb_necessary : forall n,
@@ -10267,9 +10315,10 @@ Proof.
   - apply IHpsi. exact Hphi.
 Qed.
 
-Theorem NNIL_provability_closed : forall phi,
-  NNIL_form phi -> |- phi -> |- phi.
-Proof. intros phi _ H. exact H. Qed.
+(** [NNIL_provability_closed] (a no-op packaging that discarded its
+    NNIL_form hypothesis and returned its second argument) is removed.
+    The substantive NNIL-fragment closure result is in
+    [NNIL_substitution_closure] below. *)
 
 Theorem NNIL_substitution_closure : forall sigma phi,
   (forall p, NNIL_form (sigma p)) ->
@@ -10331,21 +10380,15 @@ Theorem Diamond_n_provable_iff_via_box : forall n phi,
   |- Iff (Diamond n phi) (Neg (Box n (Neg phi))).
 Proof. intros n phi. unfold Diamond. exact (prov_iff_refl _). Qed.
 
-Theorem NextCon_under_unused_diamond_hypothesis : forall n phi,
-  |- Impl (Diamond n phi) (Box (S n) (Diamond n Top)) ->
-  |- Box (S n) (Neg (Box n Bot)).
-Proof.
-  intros n phi _. exact (Ax_NextCon n).
-Qed.
-
-Theorem Henkin_canonical_model_construction_witness :
-  forall Gamma, Consistent Gamma ->
-  exists Delta, (forall psi, Gamma psi -> Delta psi) /\ Consistent Delta.
-Proof. exact lindenbaum_lemma. Qed.
-
-Theorem Henkin_truth_lemma_propositional : forall (w : canonical_world) p,
-  canonical_V w p = true <-> cw_set w (Var p).
-Proof. exact canonical_truth_propositional_var. Qed.
+(** [NextCon_under_unused_diamond_hypothesis] (which discarded its
+    only hypothesis and concluded [Ax_NextCon n]),
+    [Henkin_canonical_model_construction_witness] (alias of
+    [lindenbaum_lemma]), and [Henkin_truth_lemma_propositional] (alias
+    of [canonical_truth_propositional_var]) were redundant aliases or
+    hypothesis-discarding placeholders.  Removed: the substantive
+    content is in their referenced sources, and the maximal-consistent
+    Henkin truth lemma over the full canonical model is a still-open
+    item (todo #21 — #25). *)
 
 Theorem omega_completeness_indexed_by_naturals : forall phi,
   |- phi -> forall (V : fW Fnat -> nat -> bool) w, forces Fnat V w phi.
@@ -10733,19 +10776,40 @@ Proof.
   exact (prov_weaken (Box m psi) (Neg (Box n phi)) H).
 Qed.
 
-Definition Friedman_Sheard_truth_axiom (Tr : Form -> Form) : Prop :=
-  forall phi, |- phi -> |- Tr phi.
+(** [Friedman_Sheard_truth_axiom] (the predicate "Tr preserves
+    provability"), [Friedman_Sheard_identity_satisfies] (identity
+    preserves provability), [Friedman_Sheard_box_n_satisfies] (Nec is
+    necessitation), and [Friedman_Sheard_consistent_with_tower] (Nec
+    again) were misnamed: the actual Friedman-Sheard truth axioms are
+    the T-schema [|- Iff (Tr phi) phi] together with reflection
+    schemes, not provability preservation alone.  The substantive
+    Friedman-Sheard content in this calculus is captured by the
+    existing truth-predicate machinery:
+    - [is_truth_predicate] (the T-schema)
+    - [identity_is_truth_predicate] (id is the canonical inhabitant)
+    - [truth_predicate_not_box_bot] (no truth predicate agrees with
+      [Box k Bot] at [Bot])
+    - [box_not_truth_predicate] (no [Box k] satisfies the T-schema)
+    Together these constitute the Friedman-Sheard / Tarski-style
+    classification of admissible truth predicates.  The trivial
+    placeholders are removed.
 
-Theorem Friedman_Sheard_identity_satisfies : Friedman_Sheard_truth_axiom (fun x => x).
-Proof. intros phi H. exact H. Qed.
+    A genuine Friedman-Sheard-style theorem on this calculus: the
+    T-schema plus level-monotonicity (\"truth at [n] propagates to
+    [S n]\") forces [Tr] to be the identity at every Provable input. *)
 
-Theorem Friedman_Sheard_box_n_satisfies : forall n,
-  Friedman_Sheard_truth_axiom (Box n).
-Proof. intros n phi H. exact (Nec n phi H). Qed.
+Theorem friedman_sheard_truth_at_provable : forall (Tr : Form -> Form),
+  is_truth_predicate Tr ->
+  forall phi, |- phi -> |- Tr phi /\ |- Iff (Tr phi) phi.
+Proof.
+  intros Tr Htr phi Hp. split.
+  - exact (truth_predicate_preserves_provable Tr phi Htr Hp).
+  - exact (Htr phi).
+Qed.
 
-Theorem Friedman_Sheard_consistent_with_tower : forall n phi,
-  |- phi -> |- T_kappa n phi.
-Proof. intros n phi H. exact (Nec n phi H). Qed.
+Theorem friedman_sheard_no_box_witness : forall k,
+  ~ (forall phi, |- Iff ((fun x => Box k x) phi) phi).
+Proof. intros k Habs. exact (box_not_truth_predicate k Habs). Qed.
 
 Definition normal_form_proof (phi : Form) : Prop := |- phi.
 
