@@ -15139,3 +15139,37 @@ Proof.
       pose proof (prov_forget_var_intro p phi Hbf) as Hintro.
       exact (prov_compose _ _ _ Hintro Himp).
 Qed.
+
+Lemma Beth_uniqueness_under_phi : forall phi delta delta',
+  |- Impl phi delta -> |- Impl phi delta' ->
+  |- Impl phi (Iff delta delta').
+Proof.
+  intros phi delta delta' H1 H2.
+  unfold Iff. apply prov_and_intro_under.
+  - pose proof (Ax_K delta' delta) as Hk.
+    exact (prov_compose _ _ _ H2 Hk).
+  - pose proof (Ax_K delta delta') as Hk.
+    exact (prov_compose _ _ _ H1 Hk).
+Qed.
+
+Theorem Beth_definability_full_box_free : forall phi p psi,
+  box_free phi -> box_free psi ->
+  ~ In p (free_vars psi) ->
+  |- Impl phi psi ->
+  exists delta, box_free delta /\ ~ In p (free_vars delta) /\
+                |- Impl phi delta /\ |- Impl delta psi /\
+                forall delta', box_free delta' -> ~ In p (free_vars delta') ->
+                  |- Impl phi delta' -> |- Impl delta' psi ->
+                  |- Impl phi (Iff delta delta').
+Proof.
+  intros phi p psi Hbf_phi Hbf_psi Hp_notin_psi Himp.
+  destruct (beth_explicit_definability_box_free phi psi p Hbf_phi Hbf_psi Hp_notin_psi Himp)
+    as [delta [Hbf_d [Hf [Hb Hno_p]]]].
+  exists delta. split; [|split; [|split; [|split; [|]]]].
+  - exact Hbf_d.
+  - exact Hno_p.
+  - exact Hf.
+  - exact Hb.
+  - intros delta' _ _ Hf' _.
+    exact (Beth_uniqueness_under_phi phi delta delta' Hf Hf').
+Qed.
