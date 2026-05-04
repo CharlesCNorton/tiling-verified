@@ -8213,6 +8213,46 @@ Theorem box_free_decidable_constructive : forall phi,
   box_free phi -> sumbool (|- phi) (~ |- phi).
 Proof. exact decidability_box_free_fragment. Defined.
 
+Fixpoint find_first_false {A : Type} (f : A -> bool) (l : list A) :
+  forallb f l = false -> { x : A | In x l /\ f x = false }.
+Proof.
+  destruct l as [|y l].
+  - intros H. cbn in H. discriminate.
+  - intros H. cbn in H.
+    destruct (f y) eqn:Efy.
+    + cbn in H.
+      destruct (find_first_false A f l H) as [x [Hin Hfx]].
+      exists x. split; [right; exact Hin | exact Hfx].
+    + exists y. split; [left; reflexivity | exact Efy].
+Defined.
+
+Lemma find_refuting_assignment : forall phi,
+  box_free phi -> decide_tautology phi = false ->
+  { val : nat -> bool | eval val phi = false }.
+Proof.
+  intros phi Hbf Hd.
+  unfold decide_tautology in Hd.
+  set (vars := nodup Nat.eq_dec (free_vars phi)) in *.
+  destruct (find_first_false _ (all_bool_lists (length vars)) Hd) as [bs [_ Hbs]].
+  exists (mk_assignment vars bs). exact Hbs.
+Defined.
+
+Inductive box_free_decision (phi : Form) : Type :=
+  | BFD_provable : |- phi -> box_free_decision phi
+  | BFD_refuted : forall val, eval val phi = false -> box_free_decision phi.
+
+Theorem decide_box_free_with_cert : forall phi, box_free phi ->
+  box_free_decision phi.
+Proof.
+  intros phi Hbf.
+  destruct (decide_tautology phi) eqn:E.
+  - apply BFD_provable. apply trivial_in_provable.
+    apply prop_completeness; [exact Hbf|].
+    apply decide_tautology_correct. exact E.
+  - destruct (find_refuting_assignment phi Hbf E) as [val Hval].
+    apply BFD_refuted with (val := val). exact Hval.
+Defined.
+
 Theorem intuitionistic_syntactic_core :
   (forall n phi, |- Impl (Box n phi) (Box n (Box n phi))) /\
   (forall n phi, |- Impl (Box n phi) (Box (S n) phi)) /\
