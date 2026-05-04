@@ -15228,3 +15228,39 @@ Theorem canonical_truth_lemma_max_box_forward : forall (w : canonical_world_max)
   cwm_set w (Box n phi) ->
   forall v, canonical_R_max n w v -> cwm_set v phi.
 Proof. intros w n phi Hbox v HR. exact (HR phi Hbox). Qed.
+
+Theorem canonical_R_max_transitive : forall n w v u,
+  canonical_R_max n w v -> canonical_R_max n v u -> canonical_R_max n w u.
+Proof.
+  intros n w v u Hwv Hvu phi Hwbox.
+  apply Hvu. apply Hwv.
+  apply (cwm_deductively_closed w).
+  exists [Box n phi]. split.
+  - intros chi Hin. cbn in Hin. destruct Hin as [<-|[]]. exact Hwbox.
+  - apply DT_MP with (Box n phi).
+    + apply DT_thm. exact (Ax_Box4 n phi).
+    + apply DT_hyp. cbn. tauto.
+Qed.
+
+Theorem canonical_R_max_loeb_descent_blocked : forall n w v,
+  canonical_R_max n w v ->
+  forall phi, cwm_set w (Box n (Impl (Box n phi) phi)) -> cwm_set v phi.
+Proof.
+  intros n w v HR phi Hwbox.
+  apply HR. apply (cwm_deductively_closed w).
+  exists [Box n (Impl (Box n phi) phi)]. split.
+  - intros chi Hin. cbn in Hin. destruct Hin as [<-|[]]. exact Hwbox.
+  - apply DT_MP with (Box n (Impl (Box n phi) phi)).
+    + apply DT_thm. exact (Ax_Loeb n phi).
+    + apply DT_hyp. cbn. tauto.
+Qed.
+
+Theorem canonical_R_max_converse_wf_no_self_box_bot : forall n w,
+  canonical_R_max n w w ->
+  cwm_set w (Box n (Impl (Box n Bot) Bot)) ->
+  False.
+Proof.
+  intros n w HR Hbox.
+  apply (canonical_truth_lemma_max_bot w).
+  exact (canonical_R_max_loeb_descent_blocked n w w HR Bot Hbox).
+Qed.
