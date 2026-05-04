@@ -10325,23 +10325,23 @@ Qed.
     the sequent calculus and structural induction on a cut-free proof
     (see the cut-elimination items below). *)
 
-Definition Maehara_constructive_interp (phi psi : Form) : Form :=
+Definition self_interpolation_via_conjunction (phi psi : Form) : Form :=
   And phi (Impl phi psi).
 
-Lemma Maehara_constructive_interp_phi_to_chi : forall phi psi,
+Lemma self_interpolation_via_conjunction_phi_to_chi : forall phi psi,
   |- Impl phi psi ->
-  |- Impl phi (Maehara_constructive_interp phi psi).
+  |- Impl phi (self_interpolation_via_conjunction phi psi).
 Proof.
-  intros phi psi Himp. unfold Maehara_constructive_interp.
+  intros phi psi Himp. unfold self_interpolation_via_conjunction.
   apply prov_and_intro_under.
   - exact (prov_id phi).
   - exact (prov_weaken (Impl phi psi) phi Himp).
 Qed.
 
-Lemma Maehara_constructive_interp_chi_to_psi : forall phi psi,
-  |- Impl (Maehara_constructive_interp phi psi) psi.
+Lemma self_interpolation_via_conjunction_chi_to_psi : forall phi psi,
+  |- Impl (self_interpolation_via_conjunction phi psi) psi.
 Proof.
-  intros phi psi. unfold Maehara_constructive_interp.
+  intros phi psi. unfold self_interpolation_via_conjunction.
   pose proof (Ax_S (And phi (Impl phi psi)) phi psi) as Hs.
   pose proof (prov_and_elim_r phi (Impl phi psi)) as Hr.
   pose proof (MP _ _ Hs Hr) as Step.
@@ -10353,9 +10353,9 @@ Theorem Maehara_lemma_via_self_interpolation : forall phi psi,
   |- Impl phi psi ->
   exists chi, |- Impl phi chi /\ |- Impl chi psi.
 Proof.
-  intros phi psi H. exists (Maehara_constructive_interp phi psi). split.
-  - exact (Maehara_constructive_interp_phi_to_chi phi psi H).
-  - exact (Maehara_constructive_interp_chi_to_psi phi psi).
+  intros phi psi H. exists (self_interpolation_via_conjunction phi psi). split.
+  - exact (self_interpolation_via_conjunction_phi_to_chi phi psi H).
+  - exact (self_interpolation_via_conjunction_chi_to_psi phi psi).
 Qed.
 
 Theorem Lyndon_Robinson_positivity_preservation_via_iff : forall n phi psi,
