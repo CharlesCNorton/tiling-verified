@@ -7982,6 +7982,43 @@ Proof.
   apply nf_Acc. exact Hwfy.
 Qed.
 
+Definition cnf_ord : Type := { o : ord | wf_ord o }.
+
+Definition cnf_carrier (c : cnf_ord) : ord := proj1_sig c.
+
+Definition cnf_wf (c : cnf_ord) : wf_ord (cnf_carrier c) := proj2_sig c.
+
+Definition cnf_lt (c1 c2 : cnf_ord) : Prop :=
+  ord_lt (cnf_carrier c1) (cnf_carrier c2).
+
+Definition cnf_compare (c1 c2 : cnf_ord) : comparison :=
+  ord_compare (cnf_carrier c1) (cnf_carrier c2).
+
+Definition cnf_zero : cnf_ord := exist _ OZero I.
+
+Definition cnf_tail_compat (e : cnf_ord) (t : cnf_ord) : Prop :=
+  match cnf_carrier t with
+  | OZero => True
+  | OCons e' _ => ord_compare e' (cnf_carrier e) = Lt
+  end.
+
+Definition cnf_cons (e : cnf_ord) (t : cnf_ord) (Htail : cnf_tail_compat e t) : cnf_ord :=
+  exist _ (OCons (cnf_carrier e) (cnf_carrier t))
+    (conj (cnf_wf e) (conj (cnf_wf t) Htail)).
+
+Theorem cnf_lt_well_founded : well_founded cnf_lt.
+Proof.
+  intros [o Hwf]. unfold cnf_lt, cnf_carrier. cbn.
+  pose proof (nf_Acc o Hwf) as Acco.
+  remember o as o_orig eqn:Heqo. clear Heqo.
+  induction Acco as [o' _ IH].
+  apply Acc_intro. intros [y Hwfy] Hy.
+  unfold cnf_lt, cnf_carrier in Hy. cbn in Hy.
+  apply IH. unfold lt_cnf. split; [exact Hwfy | split; [exact Hwf | exact Hy]].
+Qed.
+
+Definition cnf_one : cnf_ord := exist _ (OCons OZero OZero) (conj I (conj I I)).
+
 
 
 Fixpoint nat_to_ord (n : nat) : ord :=
@@ -7995,6 +8032,19 @@ Fixpoint worm_to_ord (w : Worm) : ord :=
   | [] => OZero
   | k :: rest => OCons (nat_to_ord k) (worm_to_ord rest)
   end.
+
+Lemma nat_to_ord_wf_iff : forall n, wf_ord (nat_to_ord n) <-> n <= 1.
+Proof.
+  induction n as [|[|n] IH]; cbn.
+  - split; [intros _; lia | intros _; exact I].
+  - split; [intros _; lia | intros _; split; [exact I | split; [exact I | exact I]]].
+  - split.
+    + intros [_ [_ H]]. discriminate H.
+    + intros H. lia.
+Qed.
+
+Definition nat_to_cnf_le1 (n : nat) (Hn : n <= 1) : cnf_ord :=
+  exist _ (nat_to_ord n) (proj2 (nat_to_ord_wf_iff n) Hn).
 
 Theorem worm_to_ord_zero : worm_to_ord [] = OZero.
 Proof. reflexivity. Qed.
