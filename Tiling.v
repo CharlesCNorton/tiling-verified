@@ -15572,3 +15572,42 @@ Proof.
   apply (canonical_world_max_extension Gamma).
   apply compactness. exact Hfc.
 Qed.
+
+Lemma forces_Fnat_box_free_iff_classical : forall phi val w,
+  box_free phi ->
+  (forces Fnat (fun _ => val) w phi <-> eval val phi = true).
+Proof.
+  intros phi val w Hbf. revert w.
+  induction phi as [p | | a IHa b IHb | n psi IHpsi]; intros w; cbn in *.
+  - tauto.
+  - split. intros []. discriminate.
+  - destruct Hbf as [Hbfa Hbfb].
+    pose proof (IHa Hbfa w) as Hia.
+    pose proof (IHb Hbfb w) as Hib.
+    split.
+    + intros Himp.
+      destruct (classic (forces Fnat (fun _ => val) w a)) as [Ha | Hna].
+      * pose proof (proj1 Hia Ha) as Heva.
+        pose proof (Himp Ha) as Hb.
+        pose proof (proj1 Hib Hb) as Hevb.
+        rewrite Heva, Hevb. cbn. reflexivity.
+      * assert (Heva : eval val a = false).
+        { case_eq (eval val a); intros Hev; [|reflexivity].
+          exfalso. apply Hna. apply (proj2 Hia). exact Hev. }
+        rewrite Heva. cbn. reflexivity.
+    + intros Heval Ha.
+      pose proof (proj1 Hia Ha) as Heva.
+      rewrite Heva in Heval. cbn in Heval.
+      apply (proj2 Hib). exact Heval.
+  - exfalso; exact Hbf.
+Qed.
+
+Theorem omega_completeness_Fnat_box_free : forall phi,
+  box_free phi -> (forall V w, forces Fnat V w phi) -> |- phi.
+Proof.
+  intros phi Hbf Hall.
+  apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+  intro val.
+  apply (proj1 (forces_Fnat_box_free_iff_classical phi val 0 Hbf)).
+  exact (Hall (fun _ => val) 0).
+Qed.
