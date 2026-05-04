@@ -12510,3 +12510,182 @@ Theorem sambin_uniqueness_via_box_collapse : forall n phi1 phi2,
   |- Iff phi1 phi2 -> |- Box n (Iff phi1 phi2).
 Proof. intros n phi1 phi2 H. exact (Nec n _ H). Qed.
 
+(******************************************************************************)
+(* Substantive Craig interpolation for the box-free fragment via variable     *)
+(* elimination.  The classical construction: define                            *)
+(*   forget_var p phi := (phi[p:=Top]) ∨ (phi[p:=Bot])                         *)
+(* eliminating one private variable; iterate over all variables of phi not    *)
+(* occurring in psi.  The resulting interpolant chi has free_vars strictly    *)
+(* contained in free_vars phi ∩ free_vars psi.                                 *)
+(******************************************************************************)
+
+Lemma eval_subst_box_free : forall val sigma phi,
+  box_free phi ->
+  eval val (subst_form sigma phi) = eval (fun k => eval val (sigma k)) phi.
+Proof.
+  intros val sigma phi. revert val sigma.
+  induction phi as [k | | a IHa b IHb | n a IHa]; intros val sigma Hbf; cbn in *.
+  - reflexivity.
+  - reflexivity.
+  - destruct Hbf as [Ha Hb]. rewrite (IHa val sigma Ha), (IHb val sigma Hb).
+    reflexivity.
+  - exfalso; exact Hbf.
+Qed.
+
+Definition update_val (val : nat -> bool) (p : nat) (b : bool) (k : nat) : bool :=
+  if Nat.eqb k p then b else val k.
+
+Lemma eval_Subst_box_free : forall val p X phi,
+  box_free phi ->
+  eval val (Subst p X phi) = eval (update_val val p (eval val X)) phi.
+Proof.
+  intros val p X phi Hbf. unfold Subst.
+  rewrite (eval_subst_box_free val _ phi Hbf).
+  apply eval_ext_on_free_vars.
+  intros q _. cbn beta. unfold update_val.
+  destruct (Nat.eqb q p); reflexivity.
+Qed.
+
+Lemma eval_Top_true : forall val, eval val Top = true.
+Proof. intro val. cbn. reflexivity. Qed.
+
+Lemma eval_Bot_false : forall val, eval val Bot = false.
+Proof. intro val. cbn. reflexivity. Qed.
+
+Lemma box_free_Top : box_free Top.
+Proof. cbn. split; exact I. Qed.
+
+Lemma box_free_Bot : box_free Bot.
+Proof. cbn. exact I. Qed.
+
+Lemma box_free_subst_form : forall sigma phi,
+  box_free phi ->
+  (forall p, In p (free_vars phi) -> box_free (sigma p)) ->
+  box_free (subst_form sigma phi).
+Proof.
+  intros sigma phi. revert sigma.
+  induction phi as [k | | a IHa b IHb | n a IHa]; intros sigma Hbf Hsig; cbn in *.
+  - apply Hsig. left. reflexivity.
+  - exact I.
+  - destruct Hbf as [Ha Hb]. split.
+    + apply IHa; [exact Ha|]. intros p Hp. apply Hsig. apply in_or_app. left. exact Hp.
+    + apply IHb; [exact Hb|]. intros p Hp. apply Hsig. apply in_or_app. right. exact Hp.
+  - exfalso; exact Hbf.
+Qed.
+
+Lemma box_free_Subst : forall p X phi,
+  box_free phi -> box_free X ->
+  box_free (Subst p X phi).
+Proof.
+  intros p X phi Hbf HX. unfold Subst.
+  apply box_free_subst_form; [exact Hbf|].
+  intros q _. destruct (Nat.eqb q p) eqn:E.
+  - exact HX.
+  - cbn. exact I.
+Qed.
+
+Definition forget_var (p : nat) (phi : Form) : Form :=
+  Or (Subst p Top phi) (Subst p Bot phi).
+
+Lemma box_free_forget_var : forall p phi,
+  box_free phi -> box_free (forget_var p phi).
+Proof.
+  intros p phi Hbf. unfold forget_var, Or, Neg.
+  cbn. split.
+  - split; [apply box_free_Subst; [exact Hbf|exact box_free_Top] | exact I].
+  - apply box_free_Subst; [exact Hbf|exact box_free_Bot].
+Qed.
+
+Lemma eval_Or : forall val A B,
+  eval val (Or A B) = orb (eval val A) (eval val B).
+Proof.
+  intros val A B. unfold Or, Neg. cbn.
+  destruct (eval val A); destruct (eval val B); reflexivity.
+Qed.
+
+Lemma eval_Impl : forall val A B,
+  eval val (Impl A B) = orb (negb (eval val A)) (eval val B).
+Proof. intros val A B. cbn. reflexivity. Qed.
+
+Lemma eval_forget_var_intro : forall val p phi,
+  box_free phi ->
+  eval val phi = true ->
+  eval val (forget_var p phi) = true.
+Proof.
+  intros val p phi Hbf Hev. unfold forget_var.
+  rewrite eval_Or.
+  rewrite (eval_Subst_box_free val p Top phi Hbf).
+  rewrite (eval_Subst_box_free val p Bot phi Hbf).
+  rewrite eval_Top_true, eval_Bot_false.
+  destruct (val p) eqn:Vp.
+  - assert (Hxt : eval (update_val val p true) phi = eval val phi).
+    { apply eval_ext_on_free_vars. intros q _.
+      unfold update_val. destruct (Nat.eqb q p) eqn:E.
+      - apply Nat.eqb_eq in E. subst q. symmetry. exact Vp.
+      - reflexivity. }
+    rewrite Hxt, Hev. reflexivity.
+  - assert (Hxf : eval (update_val val p false) phi = eval val phi).
+    { apply eval_ext_on_free_vars. intros q _.
+      unfold update_val. destruct (Nat.eqb q p) eqn:E.
+      - apply Nat.eqb_eq in E. subst q. symmetry. exact Vp.
+      - reflexivity. }
+    rewrite Hxf, Hev.
+    destruct (eval (update_val val p true) phi); reflexivity.
+Qed.
+
+Lemma eval_forget_var_elim : forall val p phi psi,
+  box_free phi -> box_free psi ->
+  ~ In p (free_vars psi) ->
+  (forall val', eval val' (Impl phi psi) = true) ->
+  eval val (forget_var p phi) = true ->
+  eval val psi = true.
+Proof.
+  intros val p phi psi Hbf_phi Hbf_psi Hp_notin Himp Hfg.
+  unfold forget_var in Hfg. rewrite eval_Or in Hfg.
+  rewrite (eval_Subst_box_free val p Top phi Hbf_phi) in Hfg.
+  rewrite (eval_Subst_box_free val p Bot phi Hbf_phi) in Hfg.
+  rewrite eval_Top_true, eval_Bot_false in Hfg.
+  apply Bool.orb_true_iff in Hfg. destruct Hfg as [Hf | Hf].
+  - pose proof (Himp (update_val val p true)) as Himp_t.
+    rewrite eval_Impl in Himp_t. rewrite Hf in Himp_t. cbn in Himp_t.
+    assert (Hpsi_eq : eval (update_val val p true) psi = eval val psi).
+    { apply eval_ext_on_free_vars. intros q Hq.
+      unfold update_val. destruct (Nat.eqb q p) eqn:E; [|reflexivity].
+      apply Nat.eqb_eq in E. subst q. exfalso. exact (Hp_notin Hq). }
+    rewrite Hpsi_eq in Himp_t. exact Himp_t.
+  - pose proof (Himp (update_val val p false)) as Himp_f.
+    rewrite eval_Impl in Himp_f. rewrite Hf in Himp_f. cbn in Himp_f.
+    assert (Hpsi_eq : eval (update_val val p false) psi = eval val psi).
+    { apply eval_ext_on_free_vars. intros q Hq.
+      unfold update_val. destruct (Nat.eqb q p) eqn:E; [|reflexivity].
+      apply Nat.eqb_eq in E. subst q. exfalso. exact (Hp_notin Hq). }
+    rewrite Hpsi_eq in Himp_f. exact Himp_f.
+Qed.
+
+Theorem prov_forget_var_intro : forall p phi,
+  box_free phi -> |- Impl phi (forget_var p phi).
+Proof.
+  intros p phi Hbf.
+  apply trivial_in_provable. apply prop_completeness.
+  - cbn. split; [exact Hbf|]. apply box_free_forget_var. exact Hbf.
+  - intro val. rewrite eval_Impl.
+    destruct (eval val phi) eqn:Ephi.
+    + rewrite (eval_forget_var_intro val p phi Hbf Ephi). reflexivity.
+    + reflexivity.
+Qed.
+
+Theorem prov_forget_var_elim : forall p phi psi,
+  box_free phi -> box_free psi ->
+  ~ In p (free_vars psi) ->
+  |- Impl phi psi -> |- Impl (forget_var p phi) psi.
+Proof.
+  intros p phi psi Hbf_phi Hbf_psi Hp_notin Himp.
+  apply trivial_in_provable. apply prop_completeness.
+  - cbn. split; [|exact Hbf_psi]. apply box_free_forget_var. exact Hbf_phi.
+  - intro val. rewrite eval_Impl.
+    destruct (eval val (forget_var p phi)) eqn:Efg; [|reflexivity].
+    rewrite (eval_forget_var_elim val p phi psi Hbf_phi Hbf_psi Hp_notin
+              (provable_classically_valid _ Himp) Efg).
+    reflexivity.
+Qed.
+
