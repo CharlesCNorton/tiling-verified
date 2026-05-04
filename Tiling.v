@@ -14357,6 +14357,134 @@ Proof.
   exists (proof_term_size p). reflexivity.
 Qed.
 
+Lemma free_vars_Impl : forall X phi,
+  free_vars (Impl X phi) = free_vars X ++ free_vars phi.
+Proof. intros. cbn. reflexivity. Qed.
+
+Lemma not_in_free_vars_Impl : forall p X phi,
+  ~ In p (free_vars X) ->
+  ~ In p (free_vars phi) ->
+  ~ In p (free_vars (Impl X phi)).
+Proof.
+  intros p X phi HX Hphi Hin.
+  rewrite free_vars_Impl in Hin.
+  apply in_app_or in Hin. destruct Hin; contradiction.
+Qed.
+
+Lemma Subst_Impl_no_occ_X : forall p X Y phi,
+  ~ In p (free_vars X) ->
+  Subst p Y (Impl X phi) = Impl X (Subst p Y phi).
+Proof.
+  intros p X Y phi HX.
+  pose proof (Subst_no_occurrence p Y X HX) as HX'.
+  unfold Subst in *. cbn.
+  rewrite HX'. reflexivity.
+Qed.
+
+Lemma sambin_witness_impl_left_no_occ_when_phi_no_occurrence :
+  forall p X phi,
+    ~ In p (free_vars X) ->
+    ~ In p (free_vars phi) ->
+    exists psi, |- Iff psi (Subst p psi (Impl X phi)).
+Proof.
+  intros p X phi HX Hphi.
+  apply sambin_witness_no_occurrence.
+  apply not_in_free_vars_Impl; assumption.
+Qed.
+
+Lemma sambin_witness_impl_left_no_occ_when_phi_top_solves :
+  forall p X phi,
+    ~ In p (free_vars X) ->
+    |- Subst p Top phi ->
+    exists psi, |- Iff psi (Subst p psi (Impl X phi)).
+Proof.
+  intros p X phi HX Hphi.
+  apply fixed_point_existence_top_solves.
+  rewrite (Subst_Impl_no_occ_X p X Top phi HX).
+  exact (prov_weaken _ X Hphi).
+Qed.
+
+Lemma sambin_witness_impl_left_no_occ_when_phi_box_atomic :
+  forall p X n,
+    ~ In p (free_vars X) ->
+    exists psi, |- Iff psi (Subst p psi (Impl X (Box n (Var p)))).
+Proof.
+  intros p X n HX.
+  apply sambin_witness_impl_left_no_occ_when_phi_top_solves; [exact HX|].
+  unfold Subst. cbn. rewrite Nat.eqb_refl.
+  exact (prov_box_top n).
+Qed.
+
+Lemma sambin_witness_impl_left_no_occ_when_phi_loeb_form :
+  forall p X n Y,
+    ~ In p (free_vars X) ->
+    ~ In p (free_vars Y) ->
+    |- Y ->
+    exists psi, |- Iff psi (Subst p psi (Impl X (Box n (Impl (Var p) Y)))).
+Proof.
+  intros p X n Y HX HY HYprov.
+  apply sambin_witness_impl_left_no_occ_when_phi_top_solves; [exact HX|].
+  pose proof (Subst_no_occurrence p Top Y HY) as HY'.
+  unfold Subst in *. cbn. rewrite Nat.eqb_refl.
+  rewrite HY'.
+  apply Nec. apply prov_weaken. exact HYprov.
+Qed.
+
+Lemma prov_impl_X_under_K : forall X A,
+  |- Impl A (Impl X A).
+Proof. intros X A. exact (Ax_K A X). Qed.
+
+Lemma prov_meta_chain_K : forall X A Y,
+  |- Impl (Impl (Impl X A) Y) (Impl A Y).
+Proof.
+  intros X A Y.
+  pose proof (prov_compose_internal A (Impl X A) Y) as Hci.
+  pose proof (prov_impl_X_under_K X A) as Hk.
+  exact (MP _ _ (prov_perm _ _ _ Hci) Hk).
+Qed.
+
+Lemma sambin_witness_impl_left_no_occ_loeb_form_general :
+  forall p X n Y,
+    ~ In p (free_vars X) ->
+    ~ In p (free_vars Y) ->
+    exists psi, |- Iff psi (Subst p psi (Impl X (Box n (Impl (Var p) Y)))).
+Proof.
+  intros p X n Y HX HY.
+  exists (Impl X (Box n Y)).
+  pose proof (Subst_no_occurrence p (Impl X (Box n Y)) X HX) as HsubstX.
+  pose proof (Subst_no_occurrence p (Impl X (Box n Y)) Y HY) as HsubstY.
+  unfold Subst in *.
+  assert (Hsubst :
+    subst_form (fun k => if Nat.eqb k p then Impl X (Box n Y) else Var k)
+               (Impl X (Box n (Impl (Var p) Y))) =
+    Impl X (Box n (Impl (Impl X (Box n Y)) Y))).
+  { cbn. rewrite HsubstX, HsubstY. rewrite Nat.eqb_refl. reflexivity. }
+  rewrite Hsubst. clear Hsubst HsubstX HsubstY.
+  apply prov_iff_intro.
+  - pose proof (Ax_K Y (Impl X (Box n Y))) as HK1.
+    pose proof (Nec n _ HK1) as HK1n.
+    pose proof (Ax_BoxK n Y (Impl (Impl X (Box n Y)) Y)) as HBK.
+    pose proof (MP _ _ HBK HK1n) as Hstep1.
+    pose proof (prov_compose_internal X (Box n Y)
+                  (Box n (Impl (Impl X (Box n Y)) Y))) as Hci.
+    pose proof (MP _ _ Hci Hstep1) as Hstep2.
+    exact Hstep2.
+  - pose proof (prov_meta_chain_K X (Box n Y) Y) as Hmeta.
+    pose proof (Nec n _ Hmeta) as HmetaN.
+    pose proof (Ax_BoxK n (Impl (Impl X (Box n Y)) Y)
+                          (Impl (Box n Y) Y)) as HBK1.
+    pose proof (MP _ _ HBK1 HmetaN) as Hstep1.
+    pose proof (Ax_Loeb n Y) as HLoeb.
+    pose proof (prov_compose _ _ _ Hstep1 HLoeb) as Hstep2.
+    pose proof (prov_compose_internal X
+                  (Box n (Impl (Impl X (Box n Y)) Y))
+                  (Box n Y)) as Hci.
+    pose proof (MP _ _ Hci Hstep2) as Hstep3.
+    exact Hstep3.
+Qed.
+
+
+
 (** Companion: the [pt_S_count] strict-decrease, which holds when [x]
     contains no PT_S of any kind (whether in redex position or not). *)
 
