@@ -8019,6 +8019,72 @@ Qed.
 
 Definition cnf_one : cnf_ord := exist _ (OCons OZero OZero) (conj I (conj I I)).
 
+Inductive QForm : Type :=
+  | QVar : nat -> QForm
+  | QBot : QForm
+  | QImpl : QForm -> QForm -> QForm
+  | QBox : nat -> QForm -> QForm
+  | QForall : QForm -> QForm
+  | QExists : QForm -> QForm.
+
+Fixpoint q_lift (cutoff : nat) (n : nat) (f : QForm) : QForm :=
+  match f with
+  | QVar i => if Nat.ltb i cutoff then QVar i else QVar (i + n)
+  | QBot => QBot
+  | QImpl a b => QImpl (q_lift cutoff n a) (q_lift cutoff n b)
+  | QBox m a => QBox m (q_lift cutoff n a)
+  | QForall a => QForall (q_lift (S cutoff) n a)
+  | QExists a => QExists (q_lift (S cutoff) n a)
+  end.
+
+Fixpoint q_subst (k : nat) (s : QForm) (f : QForm) : QForm :=
+  match f with
+  | QVar i =>
+      match Nat.compare i k with
+      | Eq => s
+      | Lt => QVar i
+      | Gt => QVar (i - 1)
+      end
+  | QBot => QBot
+  | QImpl a b => QImpl (q_subst k s a) (q_subst k s b)
+  | QBox m a => QBox m (q_subst k s a)
+  | QForall a => QForall (q_subst (S k) (q_lift 0 1 s) a)
+  | QExists a => QExists (q_subst (S k) (q_lift 0 1 s) a)
+  end.
+
+Lemma q_lift_zero : forall f k, q_lift k 0 f = f.
+Proof.
+  induction f as [i | | a IHa b IHb | n a IHa | a IHa | a IHa]; intro k; simpl.
+  - rewrite Nat.add_0_r. destruct (Nat.ltb i k); reflexivity.
+  - reflexivity.
+  - rewrite IHa, IHb. reflexivity.
+  - rewrite IHa. reflexivity.
+  - rewrite IHa. reflexivity.
+  - rewrite IHa. reflexivity.
+Qed.
+
+Lemma q_subst_q_lift_cancel : forall f k s,
+  q_subst k s (q_lift k 1 f) = f.
+Proof.
+  induction f as [i | | a IHa b IHb | n a IHa | a IHa | a IHa]; intros k s; simpl.
+  - destruct (Nat.ltb i k) eqn:Hltb.
+    + simpl. apply Nat.ltb_lt in Hltb.
+      destruct (Nat.compare i k) eqn:Hcmp.
+      * apply Nat.compare_eq_iff in Hcmp. lia.
+      * reflexivity.
+      * apply Nat.compare_gt_iff in Hcmp. lia.
+    + simpl. apply Nat.ltb_ge in Hltb.
+      destruct (Nat.compare (i + 1) k) eqn:Hcmp.
+      * apply Nat.compare_eq_iff in Hcmp. lia.
+      * apply Nat.compare_lt_iff in Hcmp. lia.
+      * f_equal. lia.
+  - reflexivity.
+  - rewrite IHa, IHb. reflexivity.
+  - rewrite IHa. reflexivity.
+  - rewrite IHa. reflexivity.
+  - rewrite IHa. reflexivity.
+Qed.
+
 
 
 Fixpoint nat_to_ord (n : nat) : ord :=
