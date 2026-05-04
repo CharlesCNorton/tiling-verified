@@ -8192,6 +8192,23 @@ Proof.
     rewrite Heq in E. discriminate.
 Qed.
 
+Theorem constructive_core_audit :
+  (forall phi, |- phi -> classical_valid phi) /\
+  (forall phi, decide_tautology phi = true -> classical_valid phi) /\
+  (forall phi, box_free phi -> classical_valid phi -> ProvableProp phi) /\
+  (forall n phi, |- Box (S n) (Impl (Box n phi) (Neg (Box n (Neg phi))))) /\
+  (forall o, wf_ord o -> Acc lt_cnf o) /\
+  well_founded cnf_lt.
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - intros phi H val. exact (eval_provable_true val phi H).
+  - exact decide_tautology_correct.
+  - exact prop_completeness.
+  - exact tiling_consistency.
+  - exact nf_Acc.
+  - exact cnf_lt_well_founded.
+Qed.
+
 Theorem nnf_correct : forall phi,
   (|- Iff (nnf_pos phi) phi) /\ (|- Iff (nnf_neg phi) (Neg phi)).
 Proof.
