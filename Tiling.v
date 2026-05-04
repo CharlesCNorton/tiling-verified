@@ -10889,6 +10889,39 @@ Proof.
   exact (prov_iff_refl phi).
 Qed.
 
+Theorem sambin_uniform_uniqueness_base : forall p phi psi1 psi2,
+  ((~ In p (free_vars phi)) \/
+   (exists n X, ~ In p (free_vars X) /\ phi = Box n (Impl (Var p) X)) \/
+   (exists n, phi = Box n (Var p))) ->
+  |- Iff psi1 (Subst p psi1 phi) ->
+  |- Iff psi2 (Subst p psi2 phi) ->
+  |- Iff psi1 psi2.
+Proof.
+  intros p phi psi1 psi2 [Hno | [[n [X [HnoX Heq]]] | [n Heq]]] H1 H2.
+  - rewrite (Subst_no_occurrence p psi1 phi Hno) in H1.
+    rewrite (Subst_no_occurrence p psi2 phi Hno) in H2.
+    pose proof (prov_iff_sym _ _ H2) as H2sym.
+    exact (prov_equiv_trans _ _ _ H1 H2sym).
+  - subst phi.
+    assert (Hsub1 : Subst p psi1 (Box n (Impl (Var p) X)) = Box n (Impl psi1 X)).
+    { unfold Subst. cbn. rewrite Nat.eqb_refl.
+      pose proof (Subst_no_occurrence p psi1 X HnoX) as Hsno.
+      unfold Subst in Hsno. rewrite Hsno. reflexivity. }
+    assert (Hsub2 : Subst p psi2 (Box n (Impl (Var p) X)) = Box n (Impl psi2 X)).
+    { unfold Subst. cbn. rewrite Nat.eqb_refl.
+      pose proof (Subst_no_occurrence p psi2 X HnoX) as Hsno.
+      unfold Subst in Hsno. rewrite Hsno. reflexivity. }
+    rewrite Hsub1 in H1. rewrite Hsub2 in H2.
+    exact (fixed_point_unique_loeb_form n X psi1 psi2 H1 H2).
+  - subst phi.
+    assert (Hsub1 : Subst p psi1 (Box n (Var p)) = Box n psi1).
+    { unfold Subst. cbn. rewrite Nat.eqb_refl. reflexivity. }
+    assert (Hsub2 : Subst p psi2 (Box n (Var p)) = Box n psi2).
+    { unfold Subst. cbn. rewrite Nat.eqb_refl. reflexivity. }
+    rewrite Hsub1 in H1. rewrite Hsub2 in H2.
+    exact (same_level_fixed_point_uniqueness n psi1 psi2 H1 H2).
+Qed.
+
 Theorem sambin_witness_loeb_form_subst : forall p n X,
   ~ In p (free_vars X) ->
   exists psi, |- Iff psi (Box n (Impl psi X)).
