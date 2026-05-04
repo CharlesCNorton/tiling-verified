@@ -14832,3 +14832,53 @@ Proof.
     pose proof (licensing_consistency_concrete_converse n phi Hcons) as Hno.
     exact (Hno Hnphi).
 Qed.
+
+Inductive SC_GLP : list Form -> list Form -> Prop :=
+  | SC_init : forall Gamma Delta phi,
+      In phi Gamma -> In phi Delta -> SC_GLP Gamma Delta
+  | SC_botL : forall Gamma Delta, SC_GLP (Bot :: Gamma) Delta
+  | SC_weakL : forall Gamma Delta phi,
+      SC_GLP Gamma Delta -> SC_GLP (phi :: Gamma) Delta
+  | SC_weakR : forall Gamma Delta phi,
+      SC_GLP Gamma Delta -> SC_GLP Gamma (phi :: Delta)
+  | SC_implL : forall Gamma Delta phi psi,
+      SC_GLP Gamma (phi :: Delta) ->
+      SC_GLP (psi :: Gamma) Delta ->
+      SC_GLP (Impl phi psi :: Gamma) Delta
+  | SC_implR : forall Gamma Delta phi psi,
+      SC_GLP (phi :: Gamma) (psi :: Delta) ->
+      SC_GLP Gamma (Impl phi psi :: Delta)
+  | SC_boxR_loeb : forall n Gamma phi,
+      SC_GLP (Box n phi :: Gamma ++ map (Box n) Gamma) [phi] ->
+      SC_GLP (map (Box n) Gamma) [Box n phi]
+  | SC_monR : forall n Gamma phi,
+      SC_GLP Gamma [Box n phi] ->
+      SC_GLP Gamma [Box (S n) phi]
+  | SC_nextconR : forall n Gamma,
+      SC_GLP Gamma [Box (S n) (Neg (Box n Bot))]
+  | SC_cut : forall Gamma Delta phi,
+      SC_GLP Gamma (phi :: Delta) ->
+      SC_GLP (phi :: Gamma) Delta ->
+      SC_GLP Gamma Delta.
+
+Lemma SC_GLP_id : forall phi, SC_GLP [phi] [phi].
+Proof.
+  intros phi. apply (SC_init _ _ phi); cbn; tauto.
+Qed.
+
+Lemma SC_GLP_nextcon_derivable : forall n,
+  SC_GLP [] [Box (S n) (Neg (Box n Bot))].
+Proof. intros n. apply SC_nextconR. Qed.
+
+Lemma SC_GLP_mon_derivable : forall n phi,
+  SC_GLP [Box n phi] [Box (S n) phi].
+Proof.
+  intros n phi. apply SC_monR. apply SC_GLP_id.
+Qed.
+
+Lemma SC_GLP_init_singleton : forall phi, SC_GLP [phi] [phi] /\ SC_GLP [] [Impl phi phi].
+Proof.
+  intros phi. split.
+  - apply SC_GLP_id.
+  - apply SC_implR. apply SC_GLP_id.
+Qed.
