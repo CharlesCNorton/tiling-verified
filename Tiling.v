@@ -8253,6 +8253,89 @@ Proof.
     apply BFD_refuted with (val := val). exact Hval.
 Defined.
 
+Lemma box_free_Neg : forall phi, box_free phi -> box_free (Neg phi).
+Proof. intros phi H. cbn. split; [exact H | exact I]. Qed.
+
+Lemma box_free_And_list : forall l, Forall box_free l -> box_free (And_list l).
+Proof.
+  intros l H. induction l as [|phi rest IH]; cbn.
+  - split; exact I.
+  - inversion H; subst.
+    cbn. split; [|exact I]. split; [exact H2 |].
+    cbn. split; [apply IH; exact H3 | exact I].
+Qed.
+
+Fixpoint list_to_impl_chain (G : list Form) (phi : Form) : Form :=
+  match G with
+  | [] => phi
+  | psi :: rest => list_to_impl_chain rest (Impl psi phi)
+  end.
+
+Lemma Provable_with_hyp_nil : forall phi, Provable_with_hyp [] phi -> |- phi.
+Proof.
+  intros phi H. remember (@nil Form) as G eqn:HG.
+  induction H as [G' alpha Hin | G' alpha Hp | G' alpha beta H1 IH1 H2 IH2].
+  - subst G'. destruct Hin.
+  - exact Hp.
+  - exact (MP _ _ (IH1 HG) (IH2 HG)).
+Qed.
+
+Lemma list_to_impl_chain_correct : forall G phi,
+  Provable_with_hyp G phi -> |- list_to_impl_chain G phi.
+Proof.
+  induction G as [|psi rest IH]; intros phi H.
+  - cbn. apply Provable_with_hyp_nil. exact H.
+  - cbn. apply IH. apply deduction_theorem. exact H.
+Qed.
+
+Lemma list_to_impl_chain_box_free : forall G phi,
+  Forall box_free G -> box_free phi -> box_free (list_to_impl_chain G phi).
+Proof.
+  induction G as [|psi rest IH]; intros phi HG Hphi; cbn.
+  - exact Hphi.
+  - inversion HG; subst.
+    apply IH; [exact H2 |]. cbn. split; [exact H1 | exact Hphi].
+Qed.
+
+Theorem Provable_with_hyp_dec_box_free : forall G phi,
+  Forall box_free G -> box_free phi ->
+  sumbool (Provable_with_hyp G phi) (~ Provable_with_hyp G phi).
+Proof.
+  intros G phi HG Hphi.
+  destruct (decidability_box_free_fragment (list_to_impl_chain G phi))
+    as [Hp | Hnp].
+  - apply list_to_impl_chain_box_free; assumption.
+  - left.
+    revert phi Hphi Hp.
+    induction G as [|psi rest IH]; intros phi Hphi Hp.
+    + apply DT_thm. exact Hp.
+    + cbn in Hp.
+      inversion HG; subst.
+      assert (HG' : Forall box_free rest) by exact H2.
+      pose proof (Provable_with_hyp_weaken rest (psi :: rest)) as Hwk.
+      assert (Hsub : forall x, In x rest -> In x (psi :: rest)).
+      { intros x Hx. right. exact Hx. }
+      apply IH with (phi := Impl psi phi) in Hp.
+      * pose proof (Hwk _ Hsub Hp) as Hp'.
+        apply DT_MP with psi.
+        ** exact Hp'.
+        ** apply DT_hyp. left. reflexivity.
+      * exact HG'.
+      * cbn. split; [exact H1 | exact Hphi].
+  - right. intro H.
+    apply Hnp. apply list_to_impl_chain_correct. exact H.
+Qed.
+
+Theorem Consistent_dec_box_free_finite : forall G,
+  Forall box_free G ->
+  sumbool (~ Provable_with_hyp G Bot) (Provable_with_hyp G Bot).
+Proof.
+  intros G HG.
+  destruct (Provable_with_hyp_dec_box_free G Bot HG I) as [Hp | Hnp].
+  - right. exact Hp.
+  - left. exact Hnp.
+Qed.
+
 Theorem intuitionistic_syntactic_core :
   (forall n phi, |- Impl (Box n phi) (Box n (Box n phi))) /\
   (forall n phi, |- Impl (Box n phi) (Box (S n) phi)) /\
