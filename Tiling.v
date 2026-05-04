@@ -14820,3 +14820,15 @@ Proof.
   pose proof (Bew_HBL_MP (S n) _ _ Hcum HBoxBot) as HBot.
   exact (Bew_consistent (S n) HBot).
 Qed.
+
+Theorem licensing_consistency_concrete_converse_reverse_uniform : forall n,
+  (forall phi, ~ (|- Box n phi /\ |- Box n (Neg phi))) <->
+  (forall phi, |- Box n phi -> |- Box (S n) (Neg (Box n (Neg phi)))).
+Proof.
+  intros n. split.
+  - intros _ phi Hphi. exact (licensing_consistency_concrete n phi Hphi).
+  - intros Hint phi [Hphi Hnphi].
+    pose proof (Hint phi Hphi) as Hcons.
+    pose proof (licensing_consistency_concrete_converse n phi Hcons) as Hno.
+    exact (Hno Hnphi).
+Qed.
