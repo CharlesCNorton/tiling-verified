@@ -8107,6 +8107,109 @@ Proof.
     + rewrite IHpsi. exact (H v Hwv).
 Qed.
 
+Fixpoint nnf_pos (phi : Form) : Form :=
+  match phi with
+  | Var p => Var p
+  | Bot => Bot
+  | Impl X Y => Or (nnf_neg X) (nnf_pos Y)
+  | Box n X => Box n (nnf_pos X)
+  end
+with nnf_neg (phi : Form) : Form :=
+  match phi with
+  | Var p => Neg (Var p)
+  | Bot => Top
+  | Impl X Y => And (nnf_pos X) (nnf_neg Y)
+  | Box n X => Diamond n (nnf_neg X)
+  end.
+
+Lemma prov_or_neg_iff_impl : forall X Y,
+  |- Iff (Or (Neg X) Y) (Impl X Y).
+Proof.
+  intros X Y. unfold Iff, Or.
+  apply prov_and_intro_meta.
+  - pose proof (prov_compose_internal X (Neg (Neg X)) Y) as Hci.
+    pose proof (prov_perm _ _ _ Hci) as HciP.
+    pose proof (prov_DN_intro X) as Hdn.
+    exact (MP _ _ HciP Hdn).
+  - pose proof (prov_compose_internal (Neg (Neg X)) X Y) as Hci.
+    pose proof (prov_perm _ _ _ Hci) as HciP.
+    pose proof (Ax_DN X) as HDN.
+    exact (MP _ _ HciP HDN).
+Qed.
+
+Lemma prov_and_neg_iff_neg_impl : forall X Y,
+  |- Iff (And X (Neg Y)) (Neg (Impl X Y)).
+Proof.
+  intros X Y.
+  apply prov_and_intro_meta.
+  - pose proof (prov_compose_internal X Y (Neg (Neg Y))) as Hci1.
+    pose proof (prov_DN_intro Y) as Hdn.
+    pose proof (MP _ _ Hci1 Hdn) as Hf.
+    pose proof (prov_compose_internal (Impl X Y) (Impl X (Neg (Neg Y))) Bot) as Hci2.
+    pose proof (prov_perm _ _ _ Hci2) as Hci2P.
+    exact (MP _ _ Hci2P Hf).
+  - pose proof (prov_compose_internal X (Neg (Neg Y)) Y) as Hci1.
+    pose proof (Ax_DN Y) as Hdn.
+    pose proof (MP _ _ Hci1 Hdn) as Hf.
+    pose proof (prov_compose_internal (Impl X (Neg (Neg Y))) (Impl X Y) Bot) as Hci2.
+    pose proof (prov_perm _ _ _ Hci2) as Hci2P.
+    exact (MP _ _ Hci2P Hf).
+Qed.
+
+Lemma prov_neg_box_iff_diamond : forall n phi,
+  |- Iff (Diamond n (Neg phi)) (Neg (Box n phi)).
+Proof.
+  intros n phi.
+  apply prov_and_intro_meta.
+  - pose proof (prov_DN_intro phi) as HDNI.
+    pose proof (prov_box_imp n _ _ HDNI) as HboxDNI.
+    apply (MP _ _ (prov_contrapos _ _) HboxDNI).
+  - pose proof (Ax_DN phi) as HDN.
+    pose proof (prov_box_imp n _ _ HDN) as HboxDN.
+    apply (MP _ _ (prov_contrapos _ _) HboxDN).
+Qed.
+
+Theorem nnf_correct : forall phi,
+  (|- Iff (nnf_pos phi) phi) /\ (|- Iff (nnf_neg phi) (Neg phi)).
+Proof.
+  induction phi as [p | | X IHX Y IHY | n X IHX].
+  - cbn. split; apply prov_iff_refl.
+  - cbn. split.
+    + apply prov_iff_refl.
+    + apply prov_and_intro_meta.
+      * apply prov_weaken. apply prov_id.
+      * apply prov_weaken. apply prov_id.
+  - destruct IHX as [IHXp IHXn]. destruct IHY as [IHYp IHYn].
+    cbn. split.
+    + pose proof (prov_or_neg_iff_impl X Y) as HOI.
+      pose proof (prov_equiv_impl_cong _ _ _ _ IHXn IHYp) as Hcong.
+      assert (Hor_eq : prov_equiv (Or (nnf_neg X) (nnf_pos Y)) (Or (Neg X) Y)).
+      { unfold Or. unfold prov_equiv in Hcong |- *.
+        apply prov_equiv_impl_cong; [|exact IHYp].
+        apply prov_equiv_impl_cong; [|apply prov_iff_refl].
+        exact IHXn. }
+      unfold prov_equiv in Hor_eq.
+      exact (prov_equiv_trans _ _ _ Hor_eq HOI).
+    + pose proof (prov_and_neg_iff_neg_impl X Y) as HAI.
+      assert (Hand_eq : prov_equiv (And (nnf_pos X) (nnf_neg Y)) (And X (Neg Y))).
+      { unfold And, Neg. unfold prov_equiv.
+        apply prov_equiv_impl_cong; [|apply prov_iff_refl].
+        apply prov_equiv_impl_cong; [exact IHXp|].
+        apply prov_equiv_impl_cong; [exact IHYn| apply prov_iff_refl]. }
+      unfold prov_equiv in Hand_eq.
+      exact (prov_equiv_trans _ _ _ Hand_eq HAI).
+  - destruct IHX as [IHXp IHXn]. cbn. split.
+    + apply prov_equiv_box_cong. exact IHXp.
+    + pose proof (prov_neg_box_iff_diamond n X) as HBD.
+      assert (Hd_eq : prov_equiv (Diamond n (nnf_neg X)) (Diamond n (Neg X))).
+      { unfold Diamond. unfold prov_equiv.
+        apply prov_equiv_impl_cong; [|apply prov_iff_refl].
+        apply prov_equiv_box_cong.
+        apply prov_equiv_impl_cong; [exact IHXn|apply prov_iff_refl]. }
+      unfold prov_equiv in Hd_eq.
+      exact (prov_equiv_trans _ _ _ Hd_eq HBD).
+Qed.
+
 
 
 Fixpoint nat_to_ord (n : nat) : ord :=
