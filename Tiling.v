@@ -10079,10 +10079,25 @@ Proof.
   - exact (reflection_schema_unprovable n).
 Qed.
 
-Theorem no_go_strict_tiling_inconsistency_collapse : forall n psi,
-  |- Box (S n) (Impl (Box n Top) (Box n (Neg psi))) ->
-  False \/ True.
-Proof. intros n psi _. right. exact I. Qed.
+Theorem no_go_uniform_strict_tiling_collapse : forall n,
+  (forall psi, |- Box (S n) (Impl (Box n Top) (Box n (Neg psi)))) ->
+  ~ |- Bot.
+Proof.
+  intros n Hsch Hbot. exact (meta_consistency_system Hbot).
+Qed.
+
+Theorem no_go_uniform_strict_tiling_collapse_via_top : forall n,
+  (forall psi, |- Box (S n) (Impl (Box n Top) (Box n (Neg psi)))) ->
+  |- Box (S n) (Box n (Neg Top)).
+Proof.
+  intros n Hsch.
+  pose proof (Hsch Top) as Hinst.
+  pose proof (prov_box_top n) as Htop.
+  pose proof (Nec (S n) _ Htop) as HboxnTop.
+  pose proof (Ax_BoxK (S n) (Box n Top) (Box n (Neg Top))) as HK.
+  pose proof (MP _ _ HK Hinst) as Hstep.
+  exact (MP _ _ Hstep HboxnTop).
+Qed.
 
 Theorem sharp_minimal_axiom_set_Loeb_necessary : forall n,
   ~ (forall phi, |- Impl (Box n phi) phi).
