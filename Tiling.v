@@ -8169,6 +8169,29 @@ Proof.
     apply (MP _ _ (prov_contrapos _ _) HboxDN).
 Qed.
 
+Lemma QForm_eq_dec : forall (f g : QForm), {f = g} + {f <> g}.
+Proof.
+  decide equality; apply Nat.eq_dec.
+Defined.
+
+Theorem alpha_equivalence_decidable : forall (f g : QForm), {f = g} + {f <> g}.
+Proof. exact QForm_eq_dec. Qed.
+
+Theorem provable_equivalence_decidable_box_free : forall phi psi,
+  box_free phi -> box_free psi ->
+  { |- Iff phi psi } + { ~ |- Iff phi psi }.
+Proof.
+  intros phi psi Hbf_phi Hbf_psi.
+  destruct (decide_tautology (Iff phi psi)) eqn:E.
+  - left. apply trivial_in_provable. apply prop_completeness.
+    + cbn. unfold Neg. cbn. repeat split; assumption.
+    + apply decide_tautology_correct. exact E.
+  - right. intro Hp.
+    pose proof (provable_classically_valid _ Hp) as Hcv.
+    pose proof (decide_tautology_complete _ Hcv) as Heq.
+    rewrite Heq in E. discriminate.
+Qed.
+
 Theorem nnf_correct : forall phi,
   (|- Iff (nnf_pos phi) phi) /\ (|- Iff (nnf_neg phi) (Neg phi)).
 Proof.
