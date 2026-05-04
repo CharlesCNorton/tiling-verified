@@ -15611,3 +15611,25 @@ Proof.
   apply (proj1 (forces_Fnat_box_free_iff_classical phi val 0 Hbf)).
   exact (Hall (fun _ => val) 0).
 Qed.
+
+Definition universal_frame_carrier : Type := canonical_world_max.
+
+Definition universal_frame_R (n : nat) (w v : canonical_world_max) : Prop :=
+  canonical_R_max n w v.
+
+Theorem universal_frame_R_transitive : forall n w v u,
+  universal_frame_R n w v -> universal_frame_R n v u ->
+  universal_frame_R n w u.
+Proof. exact canonical_R_max_transitive. Qed.
+
+Theorem universal_frame_bisimilar_to_canonical : forall n w v,
+  canonical_R_max n w v <-> universal_frame_R n w v.
+Proof. intros. unfold universal_frame_R. tauto. Qed.
+
+Theorem universal_frame_NextCon_witness : forall n w v,
+  universal_frame_R (S n) w v -> cwm_set v (Neg (Box n Bot)).
+Proof. exact canonical_R_max_NextCon_witness. Qed.
+
+Theorem universal_frame_truth_lemma_box_free : forall phi w,
+  box_free phi -> (cwm_set w phi <-> forces_cwm w phi).
+Proof. exact canonical_truth_lemma_max_box_free. Qed.
