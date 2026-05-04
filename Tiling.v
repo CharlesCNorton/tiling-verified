@@ -14628,6 +14628,27 @@ Proof.
   - subst phi. apply sambin_de_jongh_box_var_p.
 Qed.
 
+Theorem sambin_uniform_uniqueness_extended : forall p phi psi1 psi2,
+  ((~ In p (free_vars phi)) \/
+   (exists n X, ~ In p (free_vars X) /\ phi = Box n (Impl (Var p) X)) \/
+   (exists n, phi = Box n (Var p)) \/
+   (|- Subst p Top phi /\ |- Iff psi1 Top /\ |- Iff psi2 Top)) ->
+  |- Iff psi1 (Subst p psi1 phi) ->
+  |- Iff psi2 (Subst p psi2 phi) ->
+  |- Iff psi1 psi2.
+Proof.
+  intros p phi psi1 psi2 Hclass H1 H2.
+  destruct Hclass as [Hno | [HLoeb | [HBoxAtom | [_ [HpsiTop1 HpsiTop2]]]]].
+  - apply (sambin_uniform_uniqueness_base p phi); [|exact H1|exact H2].
+    left. exact Hno.
+  - apply (sambin_uniform_uniqueness_base p phi); [|exact H1|exact H2].
+    right. left. exact HLoeb.
+  - apply (sambin_uniform_uniqueness_base p phi); [|exact H1|exact H2].
+    right. right. exact HBoxAtom.
+  - pose proof (prov_iff_sym _ _ HpsiTop2) as HpsiTop2sym.
+    exact (prov_equiv_trans _ _ _ HpsiTop1 HpsiTop2sym).
+Qed.
+
 
 
 
