@@ -15439,3 +15439,43 @@ Proof.
     cbn in Hforces_neg.
     exact (Hforces_neg Hw_phi).
 Qed.
+
+Lemma forces_box_free_iff_eval_F0 : forall val phi,
+  box_free phi ->
+  (forces F0 (fun _ => val) true phi <-> eval val phi = true).
+Proof.
+  intros val phi Hbf.
+  induction phi as [p | | a IHa b IHb | n psi IHpsi]; cbn in *.
+  - tauto.
+  - split. intros []. discriminate.
+  - destruct Hbf as [Hbfa Hbfb].
+    specialize (IHa Hbfa). specialize (IHb Hbfb).
+    split.
+    + intros Himp.
+      destruct (classic (forces F0 (fun _ => val) true a)) as [Ha | Hna].
+      * pose proof (proj1 IHa Ha) as Heva.
+        pose proof (Himp Ha) as Hb.
+        pose proof (proj1 IHb Hb) as Hevb.
+        rewrite Heva, Hevb. cbn. reflexivity.
+      * assert (Heva : eval val a = false).
+        { case_eq (eval val a); intros Hev; [|reflexivity].
+          exfalso. apply Hna. apply (proj2 IHa). exact Hev. }
+        rewrite Heva. cbn. reflexivity.
+    + intros Heval Ha.
+      pose proof (proj1 IHa Ha) as Heva. rewrite Heva in Heval. cbn in Heval.
+      apply (proj2 IHb). exact Heval.
+  - exfalso; exact Hbf.
+Qed.
+
+Theorem kripke_completeness_box_free_via_frame : forall phi,
+  box_free phi -> ~ |- phi ->
+  exists (F : Frame) (V : fW F -> nat -> bool) (w : fW F),
+    ~ forces F V w phi.
+Proof.
+  intros phi Hbf Hnp.
+  destruct (FFP_for_box_free phi Hbf Hnp) as [val Hv].
+  exists F0, (fun _ => val), true.
+  intro Habs.
+  pose proof (proj1 (forces_box_free_iff_eval_F0 val phi Hbf) Habs) as Heval.
+  rewrite Hv in Heval. discriminate.
+Qed.
