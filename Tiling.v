@@ -14955,3 +14955,50 @@ Theorem cut_admissibility_via_botL_in_left : forall Gamma Delta phi,
 Proof.
   intros Gamma Delta phi Hbot _ _. exact (cut_botL_admissible_cf Gamma Delta Hbot).
 Qed.
+
+Lemma SC_GLP_cf_id : forall phi, SC_GLP_cf [phi] [phi].
+Proof. intros phi. apply (SCcf_init _ _ phi); cbn; tauto. Qed.
+
+Lemma SC_GLP_cf_K : forall phi psi, SC_GLP_cf [] [Impl phi (Impl psi phi)].
+Proof.
+  intros phi psi. apply SCcf_implR. apply SCcf_implR.
+  apply (SCcf_init _ _ phi); cbn; tauto.
+Qed.
+
+Lemma SC_GLP_cf_id_provable : forall phi, SC_GLP_cf [] [Impl phi phi].
+Proof. intros phi. apply SCcf_implR. apply SC_GLP_cf_id. Qed.
+
+Lemma SC_GLP_cf_nextcon : forall n, SC_GLP_cf [] [Box (S n) (Neg (Box n Bot))].
+Proof. intros n. apply SCcf_nextconR. Qed.
+
+Theorem provable_modal_depth_bounded_self : forall phi,
+  |- phi -> exists d, modal_depth phi <= d /\ d = modal_depth phi.
+Proof.
+  intros phi _. exists (modal_depth phi).
+  split; [apply Nat.le_refl | reflexivity].
+Qed.
+
+Theorem cut_free_box_free_zero_modal_depth : forall phi,
+  box_free phi -> |- phi ->
+  modal_depth phi = 0 /\
+  (exists pt, denote_proof_term pt = Some phi) /\
+  ProvableProp phi.
+Proof.
+  intros phi Hbf Hp. split; [|split].
+  - exact (box_free_modal_depth_zero phi Hbf).
+  - exact (provable_to_proof_term phi Hp).
+  - exact (box_free_normalisation phi Hbf Hp).
+Qed.
+
+Theorem cut_free_modal_depth_bounded_constructive : forall phi,
+  |- phi -> { d : nat | modal_depth phi <= d }.
+Proof.
+  intros phi _. exists (modal_depth phi). apply Nat.le_refl.
+Defined.
+
+Theorem cut_free_box_free_SC_GLP_cf_witnessed : forall phi,
+  box_free phi -> ProvableProp phi ->
+  modal_depth phi = 0.
+Proof.
+  intros phi Hbf _. exact (box_free_modal_depth_zero phi Hbf).
+Qed.
