@@ -9263,18 +9263,36 @@ Inductive pt_reduces : proof_term -> proof_term -> Prop :=
       pt_reduces p2 p2' -> pt_reduces (PT_MP p1 p2) (PT_MP p1 p2')
   | PTR_Nec : forall n p p',
       pt_reduces p p' -> pt_reduces (PT_Nec n p) (PT_Nec n p')
-  (* K-axiom contraction: K p1 p2 reduces to p1 (combinator K = first projection). *)
   | PTR_K : forall phi psi p1 p2,
       pt_reduces (PT_MP (PT_MP (PT_K phi psi) p1) p2) p1
-  (* BoxK distribution: when both arguments to BoxK are Nec, fuse into a single Nec. *)
   | PTR_BoxK_Nec : forall n phi psi p1 p2,
       pt_reduces (PT_MP (PT_MP (PT_BoxK n phi psi) (PT_Nec n p1)) (PT_Nec n p2))
                  (PT_Nec n (PT_MP p1 p2)).
+
+Inductive pt_reduces_full : proof_term -> proof_term -> Prop :=
+  | PTRF_orig : forall p p', pt_reduces p p' -> pt_reduces_full p p'
+  | PTRF_MP_left : forall p1 p1' p2,
+      pt_reduces_full p1 p1' -> pt_reduces_full (PT_MP p1 p2) (PT_MP p1' p2)
+  | PTRF_MP_right : forall p1 p2 p2',
+      pt_reduces_full p2 p2' -> pt_reduces_full (PT_MP p1 p2) (PT_MP p1 p2')
+  | PTRF_Nec : forall n p p',
+      pt_reduces_full p p' -> pt_reduces_full (PT_Nec n p) (PT_Nec n p')
+  | PTRF_S : forall phi psi chi f g x,
+      pt_reduces_full (PT_MP (PT_MP (PT_MP (PT_S phi psi chi) f) g) x)
+                      (PT_MP (PT_MP f x) (PT_MP g x))
+  | PTRF_DN_K : forall phi p,
+      pt_reduces_full (PT_MP (PT_DN phi) (PT_MP (PT_K Bot (Neg phi)) p)) p.
 
 Theorem pt_reduces_decreases_size : forall p p',
   pt_reduces p p' -> proof_term_size p' < proof_term_size p.
 Proof.
   intros p p' H. induction H; cbn; lia.
+Qed.
+
+Theorem pt_reduces_full_DN_K_decreases_size : forall phi p,
+  proof_term_size p < proof_term_size (PT_MP (PT_DN phi) (PT_MP (PT_K Bot (Neg phi)) p)).
+Proof.
+  intros phi p. cbn. lia.
 Qed.
 
 (** Confluence of [pt_reduces] holds via the strong-normalisation
