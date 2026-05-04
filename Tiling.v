@@ -15173,3 +15173,58 @@ Proof.
   - intros delta' _ _ Hf' _.
     exact (Beth_uniqueness_under_phi phi delta delta' Hf Hf').
 Qed.
+
+Record canonical_world_max : Type := mk_cwm {
+  cwm_set : Form -> Prop;
+  cwm_consistent : Consistent cwm_set;
+  cwm_maximal : forall phi, cwm_set phi \/ cwm_set (Neg phi);
+  cwm_deductively_closed : forall phi, Provable_set cwm_set phi -> cwm_set phi
+}.
+
+Definition canonical_R_max (n : nat) (w v : canonical_world_max) : Prop :=
+  forall phi, cwm_set w (Box n phi) -> cwm_set v phi.
+
+Theorem canonical_world_max_extension : forall Gamma,
+  Consistent Gamma ->
+  exists w : canonical_world_max, forall phi, Gamma phi -> cwm_set w phi.
+Proof.
+  intros Gamma Hcons.
+  exists (mk_cwm (Lindenbaum_limit Gamma)
+                 (Lindenbaum_limit_consistent Gamma Hcons)
+                 (Lindenbaum_limit_maximal Gamma)
+                 (fun phi Hp => Lindenbaum_limit_deductively_closed Gamma phi Hcons Hp)).
+  cbn. intros phi Hg. exact (Lindenbaum_limit_extends Gamma phi Hg).
+Qed.
+
+Theorem canonical_truth_lemma_max_var : forall (w : canonical_world_max) p,
+  cwm_set w (Var p) <-> cwm_set w (Var p).
+Proof. intros w p. tauto. Qed.
+
+Theorem canonical_truth_lemma_max_bot : forall (w : canonical_world_max),
+  ~ cwm_set w Bot.
+Proof.
+  intros w Hbot.
+  apply (cwm_consistent w).
+  exists [Bot]. split.
+  - intros psi Hin. cbn in Hin. destruct Hin as [Heq|[]]. subst psi. exact Hbot.
+  - apply DT_hyp. cbn. tauto.
+Qed.
+
+Theorem canonical_truth_lemma_max_impl_forward : forall (w : canonical_world_max) phi psi,
+  cwm_set w (Impl phi psi) -> cwm_set w phi -> cwm_set w psi.
+Proof.
+  intros w phi psi Himp Hphi.
+  apply (cwm_deductively_closed w).
+  exists [phi; Impl phi psi]. split.
+  - intros chi Hin. cbn in Hin. destruct Hin as [Heq | [Heq | []]].
+    + subst chi. exact Hphi.
+    + subst chi. exact Himp.
+  - apply DT_MP with phi.
+    + apply DT_hyp. cbn. tauto.
+    + apply DT_hyp. cbn. tauto.
+Qed.
+
+Theorem canonical_truth_lemma_max_box_forward : forall (w : canonical_world_max) n phi,
+  cwm_set w (Box n phi) ->
+  forall v, canonical_R_max n w v -> cwm_set v phi.
+Proof. intros w n phi Hbox v HR. exact (HR phi Hbox). Qed.
