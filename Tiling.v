@@ -10059,6 +10059,23 @@ Proof.
   - apply prov_box_mon_le. lia.
 Qed.
 
+Theorem Aumann_agreement_modal_real : forall n m phi,
+  |- Box n phi ->
+  |- Box m phi ->
+  |- Box (S (Nat.max n m)) (Neg (Box (Nat.max n m) (Neg phi))) /\
+  ~ |- Box (Nat.max n m) (Neg phi).
+Proof.
+  intros n m phi Hn Hm.
+  pose proof (prov_box_mon_le n (Nat.max n m) phi (Nat.le_max_l n m)) as Hmonn.
+  pose proof (MP _ _ Hmonn Hn) as Hmaxphi.
+  pose proof (licensing_consistency_concrete (Nat.max n m) phi Hmaxphi) as Hcons.
+  split.
+  - exact Hcons.
+  - intro Hneg.
+    apply (meta_no_contradiction (Nat.max n m) phi).
+    split; [exact Hmaxphi | exact Hneg].
+Qed.
+
 Theorem Probabilistic_robust_cooperation : forall (n : nat) (p : nat) psi1 psi2,
   cooperative_strategy n psi1 ->
   cooperative_strategy n psi2 ->
