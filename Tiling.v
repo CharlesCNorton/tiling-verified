@@ -3487,7 +3487,7 @@ Lemma repeat_false_length : forall n,
   length (@List.repeat bool false n) = n.
 Proof. intro n. apply repeat_length. Qed.
 
-Lemma pspace_check_iter_sound : forall vars phi fuel current,
+Lemma pspace_check_iter_pointwise_sound : forall vars phi fuel current,
   pspace_check_iter vars current phi fuel = true ->
   eval (mk_assignment vars current) phi = true.
 Proof.
@@ -3496,6 +3496,244 @@ Proof.
     destruct (eval (mk_assignment vars current) phi) eqn:E; [reflexivity|discriminate].
   - cbn in H.
     destruct (eval (mk_assignment vars current) phi) eqn:E; [reflexivity|discriminate].
+Qed.
+
+Fixpoint bl_to_nat (l : list bool) : nat :=
+  match l with
+  | [] => 0
+  | false :: rest => 2 * bl_to_nat rest
+  | true :: rest => S (2 * bl_to_nat rest)
+  end.
+
+Lemma bl_to_nat_repeat_false : forall n, bl_to_nat (List.repeat false n) = 0.
+Proof.
+  induction n as [|n IH]; cbn.
+  - reflexivity.
+  - rewrite IH. reflexivity.
+Qed.
+
+Lemma bl_to_nat_bound : forall l, bl_to_nat l < 2 ^ length l.
+Proof.
+  induction l as [|b rest IH]; cbn.
+  - lia.
+  - destruct b; cbn; lia.
+Qed.
+
+Lemma bool_list_succ_None_fwd : forall l,
+  bool_list_succ l = None -> l = List.repeat true (length l).
+Proof.
+  induction l as [|b rest IH]; intros H; cbn in *.
+  - reflexivity.
+  - destruct b; cbn.
+    + destruct (bool_list_succ rest) as [r'|] eqn:Esucc.
+      * discriminate.
+      * f_equal. apply IH. reflexivity.
+    + discriminate.
+Qed.
+
+Lemma bool_list_succ_repeat_true : forall n,
+  bool_list_succ (List.repeat true n) = None.
+Proof.
+  induction n as [|n IH]; cbn.
+  - reflexivity.
+  - rewrite IH. reflexivity.
+Qed.
+
+Lemma bool_list_succ_None_iff : forall l,
+  bool_list_succ l = None <-> l = List.repeat true (length l).
+Proof.
+  intros l. split.
+  - apply bool_list_succ_None_fwd.
+  - intros H. rewrite H. apply bool_list_succ_repeat_true.
+Qed.
+
+Lemma bool_list_succ_some_S : forall l l',
+  bool_list_succ l = Some l' -> bl_to_nat l' = S (bl_to_nat l).
+Proof.
+  induction l as [|b rest IH]; intros l' H; cbn in H.
+  - discriminate.
+  - destruct b; cbn.
+    + destruct (bool_list_succ rest) as [r'|] eqn:Esucc; [|discriminate].
+      injection H as Heq. subst l'. cbn.
+      pose proof (IH r' eq_refl) as Hr'. rewrite Hr'. lia.
+    + injection H as Heq. subst l'. cbn. lia.
+Qed.
+
+Fixpoint iter_bool_list_succ (k : nat) (l : list bool) : option (list bool) :=
+  match k with
+  | 0 => Some l
+  | S k' => match bool_list_succ l with
+            | Some l' => iter_bool_list_succ k' l'
+            | None => None
+            end
+  end.
+
+Lemma iter_bool_list_succ_preserves_length : forall k l l',
+  iter_bool_list_succ k l = Some l' -> length l' = length l.
+Proof.
+  induction k as [|k IH]; intros l l' H; cbn in H.
+  - injection H as Hl. subst l'. reflexivity.
+  - destruct (bool_list_succ l) as [m|] eqn:Esucc; [|discriminate].
+    pose proof (IH m l' H) as Hm.
+    pose proof (bool_list_succ_preserves_length _ _ Esucc) as Hlen.
+    lia.
+Qed.
+
+Lemma iter_bool_list_succ_S_value : forall k l l',
+  iter_bool_list_succ k l = Some l' -> bl_to_nat l' = bl_to_nat l + k.
+Proof.
+  induction k as [|k IH]; intros l l' H; cbn in H.
+  - injection H as Hl. subst l'. lia.
+  - destruct (bool_list_succ l) as [m|] eqn:Esucc; [|discriminate].
+    pose proof (bool_list_succ_some_S _ _ Esucc) as Hm.
+    pose proof (IH m l' H) as Hl'.
+    lia.
+Qed.
+
+Lemma two_pow_pos : forall n, 2 ^ n >= 1.
+Proof.
+  induction n as [|n IH]; cbn; lia.
+Qed.
+
+Lemma bl_to_nat_repeat_true : forall n,
+  bl_to_nat (List.repeat true n) = 2 ^ n - 1.
+Proof.
+  induction n as [|n IH]; cbn.
+  - reflexivity.
+  - rewrite IH.
+    pose proof (two_pow_pos n) as Hp. lia.
+Qed.
+
+Lemma bool_list_succ_some_when_lt : forall l n,
+  length l = n -> bl_to_nat l < 2 ^ n - 1 ->
+  exists l', bool_list_succ l = Some l'.
+Proof.
+  induction l as [|b rest IH]; intros n Hlen Hlt.
+  - cbn in Hlen. subst n. cbn in Hlt. lia.
+  - cbn in Hlen. destruct n as [|n']; [discriminate|]. injection Hlen as Hl.
+    cbn. destruct b.
+    + cbn in Hlt.
+      assert (Hrest_lt : bl_to_nat rest < 2 ^ n' - 1).
+      { pose proof (two_pow_pos n') as Hp. cbn in Hlt. lia. }
+      destruct (IH n' Hl Hrest_lt) as [l' Hsucc].
+      rewrite Hsucc. eexists. reflexivity.
+    + eexists. reflexivity.
+Qed.
+
+Lemma iter_bool_list_succ_progress : forall k m l n,
+  length l = n -> bl_to_nat l = m -> m + k < 2 ^ n ->
+  exists l', iter_bool_list_succ k l = Some l' /\
+             length l' = n /\
+             bl_to_nat l' = m + k.
+Proof.
+  induction k as [|k IH]; intros m l n Hlen Hm Hbound.
+  - exists l. cbn. split; [reflexivity | split; [exact Hlen | rewrite Hm; lia]].
+  - assert (Hm_lt : m < 2 ^ n - 1).
+    { pose proof (two_pow_pos n) as Hp. lia. }
+    rewrite <- Hm in Hm_lt.
+    destruct (bool_list_succ_some_when_lt _ _ Hlen Hm_lt) as [next Hsucc].
+    pose proof (bool_list_succ_some_S _ _ Hsucc) as Hnext_val.
+    pose proof (bool_list_succ_preserves_length _ _ Hsucc) as Hnext_len.
+    cbn. rewrite Hsucc.
+    destruct (IH (S m) next n) as [l' [Hi [Hl' Hv']]].
+    + lia.
+    + lia.
+    + lia.
+    + exists l'. split; [exact Hi | split; [exact Hl' | lia]].
+Qed.
+
+Lemma bl_to_nat_inj_same_length : forall l1 l2,
+  length l1 = length l2 -> bl_to_nat l1 = bl_to_nat l2 -> l1 = l2.
+Proof.
+  induction l1 as [|b1 r1 IH]; intros [|b2 r2] Hlen Hv; cbn in Hlen, Hv.
+  - reflexivity.
+  - discriminate.
+  - discriminate.
+  - injection Hlen as Hlen'.
+    assert (Hb : b1 = b2 /\ bl_to_nat r1 = bl_to_nat r2).
+    { destruct b1, b2; cbn in Hv; split; try reflexivity; lia. }
+    destruct Hb as [Hb_eq Hr_eq]. subst b2.
+    f_equal. apply IH; assumption.
+Qed.
+
+Lemma every_bool_list_visited : forall n bs,
+  length bs = n ->
+  iter_bool_list_succ (bl_to_nat bs) (List.repeat false n) = Some bs.
+Proof.
+  intros n bs Hlen.
+  pose proof (bl_to_nat_bound bs) as Hbound.
+  rewrite Hlen in Hbound.
+  destruct (iter_bool_list_succ_progress (bl_to_nat bs) 0 (List.repeat false n) n)
+    as [l' [Hi [Hl' Hv']]].
+  - apply repeat_false_length.
+  - apply bl_to_nat_repeat_false.
+  - lia.
+  - cbn in Hv'. assert (l' = bs).
+    { apply bl_to_nat_inj_same_length.
+      - rewrite Hl'. symmetry. exact Hlen.
+      - rewrite Hv'. reflexivity. }
+    rewrite H in Hi. exact Hi.
+Qed.
+
+Lemma pspace_check_iter_visits_iter_sound : forall vars phi fuel current,
+  pspace_check_iter vars current phi fuel = true ->
+  forall k l, k <= fuel ->
+    iter_bool_list_succ k current = Some l ->
+    eval (mk_assignment vars l) phi = true.
+Proof.
+  intros vars phi fuel. induction fuel as [|f IH]; intros current Hf k l Hk Hi.
+  - assert (k = 0) by lia. subst k. cbn in Hi.
+    injection Hi as Hl. subst l.
+    cbn in Hf.
+    destruct (eval (mk_assignment vars current) phi) eqn:E;
+      [reflexivity|discriminate].
+  - cbn in Hf.
+    destruct (eval (mk_assignment vars current) phi) eqn:E; [|discriminate].
+    destruct k as [|k'].
+    + cbn in Hi. injection Hi as Hl. subst l. exact E.
+    + cbn in Hi.
+      destruct (bool_list_succ current) as [next|] eqn:Esucc.
+      * apply IH with (k := k') (current := next).
+        -- exact Hf.
+        -- lia.
+        -- exact Hi.
+      * discriminate.
+Qed.
+
+Theorem pspace_check_iter_full_sound : forall vars phi,
+  pspace_check_iter vars (List.repeat false (length vars)) phi
+                    (Nat.pow 2 (length vars)) = true ->
+  forall bs, length bs = length vars ->
+    eval (mk_assignment vars bs) phi = true.
+Proof.
+  intros vars phi Hf bs Hlen.
+  pose proof (every_bool_list_visited (length vars) bs Hlen) as Hvisit.
+  pose proof (bl_to_nat_bound bs) as Hbound.
+  rewrite Hlen in Hbound.
+  apply pspace_check_iter_visits_iter_sound with
+    (vars := vars) (phi := phi)
+    (fuel := Nat.pow 2 (length vars))
+    (current := List.repeat false (length vars))
+    (k := bl_to_nat bs).
+  - exact Hf.
+  - lia.
+  - exact Hvisit.
+Qed.
+
+Theorem decide_tautology_pspace_sound : forall phi,
+  decide_tautology_pspace phi = true -> classical_valid phi.
+Proof.
+  intros phi Hd val.
+  unfold decide_tautology_pspace in Hd.
+  set (vars := nodup Nat.eq_dec (free_vars phi)) in *.
+  destruct (all_bool_lists_complete vars val) as [bs [Hlen [_ Hagree]]].
+  pose proof (pspace_check_iter_full_sound vars phi Hd bs Hlen) as Heval.
+  rewrite <- Heval.
+  apply eval_ext_on_free_vars.
+  intros p Hp.
+  assert (Hin : In p vars).
+  { unfold vars. apply free_vars_in_nodup. exact Hp. }
+  symmetry. apply Hagree. exact Hin.
 Qed.
 
 Lemma pspace_check_iter_complete : forall vars phi fuel current,
