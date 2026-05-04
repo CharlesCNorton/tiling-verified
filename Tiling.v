@@ -11056,6 +11056,41 @@ Proof.
     exact IH.
 Qed.
 
+Lemma Veblen_phi_0_wf : forall alpha, wf_ord alpha -> wf_ord (Veblen_phi_0 alpha).
+Proof.
+  intros alpha Hwf. unfold Veblen_phi_0.
+  cbn. split; [exact Hwf | split; [exact I | exact I]].
+Qed.
+
+Lemma Veblen_phi_iter_wf : forall k alpha, wf_ord alpha -> wf_ord (Veblen_phi_iter k alpha).
+Proof.
+  induction k as [|k IH]; intros alpha Halpha; cbn.
+  - exact Halpha.
+  - apply Veblen_phi_0_wf. apply IH. exact Halpha.
+Qed.
+
+Lemma Gamma_0_approx_wf : forall k, wf_ord (Gamma_0_approx k).
+Proof.
+  intros k. unfold Gamma_0_approx. apply Veblen_phi_iter_wf. exact I.
+Qed.
+
+Lemma Veblen_phi_0_strictly_increasing : forall alpha beta,
+  ord_compare alpha beta = Lt ->
+  ord_compare (Veblen_phi_0 alpha) (Veblen_phi_0 beta) = Lt.
+Proof.
+  intros alpha beta H. unfold Veblen_phi_0.
+  rewrite ord_compare_OCons_OZero. exact H.
+Qed.
+
+Lemma Veblen_phi_iter_strictly_increasing : forall k alpha beta,
+  ord_compare alpha beta = Lt ->
+  ord_compare (Veblen_phi_iter k alpha) (Veblen_phi_iter k beta) = Lt.
+Proof.
+  induction k as [|k IH]; intros alpha beta H.
+  - exact H.
+  - cbn. apply Veblen_phi_0_strictly_increasing. apply IH. exact H.
+Qed.
+
 Theorem Gamma_0_approx_unbounded : forall k,
   exists o : ord, ord_compare (Gamma_0_approx k) o = Lt.
 Proof.
