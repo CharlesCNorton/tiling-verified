@@ -10066,6 +10066,22 @@ Theorem HoTT_GLP_consistency_hierarchy : forall n,
   |- Box (S n) (Neg (Box n Bot)).
 Proof. exact Ax_NextCon. Qed.
 
+Theorem no_go_uniform_negative_strengthening : forall n,
+  (forall psi, |- Impl (Box n Bot) (Neg (Box n psi))) -> False.
+Proof.
+  intros n Hsch.
+  pose proof (Hsch Top) as Hinst.
+  pose proof (prov_box_top n) as Htop.
+  pose proof (Ax_S (Box n Bot) (Box n Top) Bot) as Hs.
+  pose proof (MP _ _ Hs Hinst) as Hstep1.
+  pose proof (prov_weaken (Box n Top) (Box n Bot) Htop) as Hwk.
+  pose proof (MP _ _ Hstep1 Hwk) as HnegBoxBot.
+  pose proof (Nec n _ HnegBoxBot) as HBoxNegBoxBot.
+  pose proof (godel_second n) as HG2.
+  pose proof (MP _ _ HG2 HBoxNegBoxBot) as HBoxBot.
+  exact (meta_consistency_every_level n HBoxBot).
+Qed.
+
 Theorem no_go_strengthening_collapses : forall n psi,
   ~ |- Impl (Box n Bot) psi -> False -> False.
 Proof. intros n psi _ Hf. exact Hf. Qed.
