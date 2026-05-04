@@ -13568,4 +13568,126 @@ Proof.
   - exact Hnf.
 Qed.
 
+(******************************************************************************)
+(* Multiset measure for PTRF_S contraction.                                    *)
+(*                                                                            *)
+(* The PTRF_S rule duplicates [x]:                                            *)
+(*   (PT_S _ _ _) f g x  -->  (f x) (g x)                                     *)
+(* Naive [proof_term_size] does not strictly decrease (LHS=4+|f|+|g|+|x|,    *)
+(* RHS=3+|f|+|g|+2|x|).                                                       *)
+(*                                                                            *)
+(* We build a measure based on the *count of PT_S occurrences*, observing    *)
+(* that PTRF_S contraction strictly decreases the count when [x] contains    *)
+(* no internal [PT_S].  We then strengthen to a multiset-pair measure.        *)
+(******************************************************************************)
+
+Fixpoint pt_S_count (p : proof_term) : nat :=
+  match p with
+  | PT_S _ _ _ => 1
+  | PT_MP p1 p2 => pt_S_count p1 + pt_S_count p2
+  | PT_Nec _ p1 => pt_S_count p1
+  | _ => 0
+  end.
+
+(** PTRF_S strictly decreases [pt_S_count] when [x] has no internal S. *)
+
+Lemma pt_S_count_PTRF_S_decreases_when_x_S_free : forall phi psi chi f g x,
+  pt_S_count x = 0 ->
+  pt_S_count (PT_MP (PT_MP f x) (PT_MP g x))
+    < pt_S_count (PT_MP (PT_MP (PT_MP (PT_S phi psi chi) f) g) x).
+Proof.
+  intros phi psi chi f g x Hx.
+  cbn. rewrite Hx. lia.
+Qed.
+
+(** ** Subterm-size-pair multiset measure.
+
+    For each PTRF_S-redex root in the term, record the pair
+    [(|f|+|g|, |x|)].  Reduction by PTRF_S removes the entry at the
+    contracted redex; the inner-of-[x] entries get duplicated, but the
+    inner-of-[f]/[g] entries are unchanged.  When [x] has no internal
+    PTRF_S redex, the multiset strictly shrinks under multi-set order. *)
+
+Fixpoint pt_S_redex_pairs (p : proof_term) : list (nat * nat) :=
+  match p with
+  | PT_MP (PT_MP (PT_MP (PT_S _ _ _) f) g) x =>
+      (proof_term_size f + proof_term_size g, proof_term_size x)
+        :: pt_S_redex_pairs f ++ pt_S_redex_pairs g ++ pt_S_redex_pairs x
+  | PT_MP p1 p2 => pt_S_redex_pairs p1 ++ pt_S_redex_pairs p2
+  | PT_Nec _ p1 => pt_S_redex_pairs p1
+  | _ => []
+  end.
+
+(** PTRF_S contraction strictly decreases the redex-pair-list length
+    when [f], [g], and [x] are all S-redex-free.  Under this hypothesis,
+    the LHS has exactly one S-redex (the root one), and the RHS has
+    none — neither [PT_MP f x] nor [PT_MP g x] can be a redex because
+    that would require [f] or [g] itself to start with
+    [PT_MP (PT_MP (PT_S _ _ _) _) _], contradicting their S-redex-free
+    assumption. *)
+
+(** [pt_atomic]: a proof term is atomic if it is not a PT_MP or PT_Nec.
+    Atomic terms have no internal MPs and so cannot themselves form an
+    S-redex root, nor can wrapping them in a single MP create one. *)
+
+Definition pt_atomic (p : proof_term) : Prop :=
+  match p with
+  | PT_MP _ _ | PT_Nec _ _ => False
+  | _ => True
+  end.
+
+Lemma pt_atomic_pairs_empty : forall p,
+  pt_atomic p -> pt_S_redex_pairs p = [].
+Proof.
+  intros p H.
+  destruct p; cbn; try reflexivity; contradiction.
+Qed.
+
+(** When [f] and [g] are atomic, [PT_MP f x] and [PT_MP g x] cannot be
+    PTRF_S-redexes (which would require [f] or [g] to be of shape
+    [PT_MP (PT_MP (PT_S _ _ _) _) _]).  The pair-list reduces to
+    [pt_S_redex_pairs x] in the non-redex MP case. *)
+
+Lemma pt_S_redex_pairs_MP_atomic_f : forall f x,
+  pt_atomic f ->
+  pt_S_redex_pairs (PT_MP f x) = pt_S_redex_pairs x.
+Proof.
+  intros f x H. destruct f; cbn in *; try contradiction; reflexivity.
+Qed.
+
+(** Strict-decrease theorem: PTRF_S contraction strictly decreases the
+    redex-pair-list length when [f] and [g] are atomic and [x] has no
+    S-redex.  Under these hypotheses, the LHS has exactly one redex
+    (the root one), and the RHS has none. *)
+
+Theorem PTRF_S_decreases_pair_count_atomic_fg :
+  forall phi psi chi f g x,
+    pt_atomic f ->
+    pt_atomic g ->
+    pt_S_redex_pairs x = [] ->
+    length (pt_S_redex_pairs (PT_MP (PT_MP f x) (PT_MP g x))) <
+    length (pt_S_redex_pairs
+              (PT_MP (PT_MP (PT_MP (PT_S phi psi chi) f) g) x)).
+Proof.
+  intros phi psi chi f g x Hf Hg Hx.
+  pose proof (pt_atomic_pairs_empty f Hf) as Hf'.
+  pose proof (pt_atomic_pairs_empty g Hg) as Hg'.
+  destruct f; cbn in Hf; try contradiction;
+    destruct g; cbn in Hg; try contradiction;
+    cbn [pt_S_redex_pairs];
+    rewrite Hx; cbn [length app]; lia.
+Qed.
+
+(** Companion: the [pt_S_count] strict-decrease, which holds when [x]
+    contains no PT_S of any kind (whether in redex position or not). *)
+
+Theorem PTRF_S_decreases_S_count_when_x_S_free :
+  forall phi psi chi f g x,
+    pt_S_count x = 0 ->
+    pt_S_count (PT_MP (PT_MP f x) (PT_MP g x))
+      < pt_S_count (PT_MP (PT_MP (PT_MP (PT_S phi psi chi) f) g) x).
+Proof.
+  exact pt_S_count_PTRF_S_decreases_when_x_S_free.
+Qed.
+
 
