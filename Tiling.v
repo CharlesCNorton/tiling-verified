@@ -15377,3 +15377,65 @@ Proof.
   intros n psi w Hw v HR.
   exact (HR psi Hw).
 Qed.
+
+Lemma Provable_with_hyp_singleton_to_impl : forall phi chi,
+  Provable_with_hyp [phi] chi -> |- Impl phi chi.
+Proof.
+  intros phi chi H.
+  apply Provable_with_hyp_nil.
+  apply (deduction_theorem [] phi chi).
+  apply (Provable_with_hyp_weaken [phi] (phi :: [])).
+  - intros psi Hin. exact Hin.
+  - exact H.
+Qed.
+
+Theorem canonical_existence_lemma : forall phi,
+  ~ |- Neg phi ->
+  exists w : canonical_world_max, cwm_set w phi.
+Proof.
+  intros phi Hno.
+  assert (Hcons : Consistent (fun psi => psi = phi)).
+  { intros [G [HG Hbot]].
+    apply Hno. unfold Neg.
+    assert (Hsub : forall psi, In psi G -> psi = phi).
+    { intros psi Hin. exact (HG psi Hin). }
+    assert (Hsub' : forall psi, In psi G -> In psi [phi]).
+    { intros psi Hin. left. exact (eq_sym (Hsub psi Hin)). }
+    pose proof (Provable_with_hyp_weaken G [phi] Bot Hsub' Hbot) as Hbot'.
+    exact (Provable_with_hyp_singleton_to_impl phi Bot Hbot'). }
+  pose proof (canonical_world_max_extension _ Hcons) as [w Hw].
+  exists w. apply Hw. reflexivity.
+Qed.
+
+Theorem canonical_existence_lemma_box_free : forall phi,
+  box_free phi -> ~ |- Neg phi ->
+  exists w : canonical_world_max, forces_cwm w phi.
+Proof.
+  intros phi Hbf Hno.
+  destruct (canonical_existence_lemma phi Hno) as [w Hw].
+  exists w. apply (canonical_truth_lemma_max_box_free phi w Hbf). exact Hw.
+Qed.
+
+Theorem strong_to_weak_completeness_box_free : forall phi,
+  box_free phi ->
+  (forall w : canonical_world_max, forces_cwm w phi) ->
+  |- phi.
+Proof.
+  intros phi Hbf Hall.
+  apply NNPP. intro Hno.
+  assert (Hno_neg : ~ |- Neg (Neg phi)).
+  { intro Habs. apply Hno.
+    pose proof (Ax_DN phi) as HDN.
+    exact (MP _ _ HDN Habs). }
+  destruct (canonical_existence_lemma (Neg phi)) as [w Hw_neg].
+  - intro Habs. apply Hno.
+    pose proof (Ax_DN phi) as HDN.
+    exact (MP _ _ HDN Habs).
+  - assert (Hbf_neg : box_free (Neg phi)).
+    { cbn. split; [exact Hbf | exact I]. }
+    pose proof (Hall w) as Hw_phi.
+    pose proof (canonical_truth_lemma_max_box_free (Neg phi) w Hbf_neg) as Hiff.
+    pose proof (proj1 Hiff Hw_neg) as Hforces_neg.
+    cbn in Hforces_neg.
+    exact (Hforces_neg Hw_phi).
+Qed.
