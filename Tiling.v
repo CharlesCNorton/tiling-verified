@@ -14683,3 +14683,37 @@ Proof.
     exact (sambin_uniqueness_box_atomic_general p n psi1 psi2 H1 H2).
   - exact (sambin_uniqueness_via_top_class p phi psi1 psi2 Htop1 Htop2).
 Qed.
+
+Inductive sambin_base_class (p : nat) (phi : Form) : Type :=
+  | SBC_no_occ : ~ In p (free_vars phi) -> sambin_base_class p phi
+  | SBC_top : |- Subst p Top phi -> sambin_base_class p phi
+  | SBC_loeb : forall n X, ~ In p (free_vars X) ->
+               phi = Box n (Impl (Var p) X) -> sambin_base_class p phi
+  | SBC_box_atomic : forall n, phi = Box n (Var p) -> sambin_base_class p phi.
+
+Definition compute_fp_explicit (p : nat) (phi : Form)
+  (H : sambin_base_class p phi) : { psi : Form | |- Iff psi (Subst p psi phi) }.
+Proof.
+  destruct H as [Hno | Htop | n X HnoX Heq | n Heq].
+  - exists phi. rewrite (Subst_no_occurrence p phi phi Hno).
+    exact (prov_iff_refl phi).
+  - exists Top. apply prov_and_intro_meta.
+    + exact (prov_weaken _ Top Htop).
+    + exact (prov_weaken Top _ (prov_id Bot)).
+  - subst phi. exists (Box n X).
+    assert (Hsub : Subst p (Box n X) (Box n (Impl (Var p) X)) =
+                   Box n (Impl (Box n X) X)).
+    { unfold Subst. simpl. rewrite Nat.eqb_refl.
+      pose proof (Subst_no_occurrence p (Box n X) X HnoX) as Heq.
+      unfold Subst in Heq. rewrite Heq. reflexivity. }
+    rewrite Hsub. exact (fixed_point_loeb_witness n X).
+  - subst phi. exists Top. unfold Subst. simpl. rewrite Nat.eqb_refl.
+    exact (fixedpoint_top_box n).
+Defined.
+
+Theorem compute_fp_explicit_correct : forall p phi (H : sambin_base_class p phi),
+  let psi := proj1_sig (compute_fp_explicit p phi H) in
+  |- Iff psi (Subst p psi phi).
+Proof.
+  intros p phi H. exact (proj2_sig (compute_fp_explicit p phi H)).
+Qed.
