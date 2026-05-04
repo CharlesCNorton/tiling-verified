@@ -8085,6 +8085,28 @@ Proof.
   - rewrite IHa. reflexivity.
 Qed.
 
+Fixpoint forces_p (F : Frame) (V : fW F -> nat -> Prop) (w : fW F) (phi : Form) : Prop :=
+  match phi with
+  | Var p => V w p
+  | Bot => False
+  | Impl X Y => forces_p F V w X -> forces_p F V w Y
+  | Box n psi => forall v, fR F n w v -> forces_p F V v psi
+  end.
+
+Theorem forces_p_subst : forall F V w phi sigma,
+  forces_p F V w (subst_form sigma phi) <->
+  forces_p F (fun w' p => forces_p F V w' (sigma p)) w phi.
+Proof.
+  intros F V w phi. revert w. induction phi as [p | | X IHX Y IHY | n psi IHpsi];
+    intros w sigma; cbn.
+  - reflexivity.
+  - reflexivity.
+  - rewrite IHX, IHY. reflexivity.
+  - split; intros H v Hwv.
+    + rewrite <- IHpsi. exact (H v Hwv).
+    + rewrite IHpsi. exact (H v Hwv).
+Qed.
+
 
 
 Fixpoint nat_to_ord (n : nat) : ord :=
