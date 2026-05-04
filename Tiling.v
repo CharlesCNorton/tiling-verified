@@ -14809,3 +14809,14 @@ Proof.
   intros phi. unfold Magari_diag.
   exact (loeb_iff 0 phi).
 Qed.
+
+Theorem T_no_self_consistency_direct : forall n, ~ Bew n (Con n).
+Proof.
+  intros n H. unfold Con in H.
+  pose proof (Bew_cumulative n _ H) as Hcum.
+  pose proof (Bew_HBL_Nec (S n) n _ (Nat.lt_succ_diag_r n) Hcum) as HBoxImpl.
+  pose proof (Bew_HBL_Loeb (S n) n Bot (Nat.lt_succ_diag_r n)) as HLoeb.
+  pose proof (Bew_HBL_MP (S n) _ _ HLoeb HBoxImpl) as HBoxBot.
+  pose proof (Bew_HBL_MP (S n) _ _ Hcum HBoxBot) as HBot.
+  exact (Bew_consistent (S n) HBot).
+Qed.
