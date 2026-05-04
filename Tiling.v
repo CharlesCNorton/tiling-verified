@@ -6549,43 +6549,15 @@ Proof.
   intros phi Hbf _. exact (box_free_modal_depth_zero phi Hbf).
 Qed.
 
-(** ** Craig interpolation, restricted form.
+(** ** Craig interpolation: substantive box-free statements.
 
-    The antecedent itself interpolates the trivial Craig statement
-    (forward), and any closed-form implication has a closed-form
-    interpolant.  Both follow immediately from the Hilbert calculus. *)
-
-Theorem craig_self_interpolation : forall phi psi,
-  |- Impl phi psi -> exists chi, |- Impl phi chi /\ |- Impl chi psi.
-Proof.
-  intros phi psi H. exists phi. split.
-  - exact (prov_id phi).
-  - exact H.
-Qed.
-
-Theorem craig_closed_interpolation : forall phi psi,
-  free_vars phi = [] -> free_vars psi = [] ->
-  |- Impl phi psi ->
-  exists chi, free_vars chi = [] /\ free_vars psi = [] /\
-              |- Impl phi chi /\ |- Impl chi psi.
-Proof.
-  intros phi psi Hcphi Hcpsi H. exists phi.
-  split; [exact Hcphi|]. split; [exact Hcpsi|]. split.
-  - exact (prov_id phi).
-  - exact H.
-Qed.
-
-(** ** Beth definability via Craig.
-
-    Beth's theorem from Craig interpolation: implicit definability
-    yields explicit definability.  The restricted statement here is
-    the immediate corollary of [craig_self_interpolation]. *)
-
-Theorem beth_from_craig_self : forall phi,
-  exists def, |- Impl phi def /\ |- Impl def phi.
-Proof.
-  intro phi. exists phi. split; exact (prov_id phi).
-Qed.
+    The genuine vocabulary-restricted Craig interpolation theorem for
+    the box-free fragment is [craig_interpolation_box_free], proved at
+    the end of the file via the [forget_var] / [forget_vars] variable-
+    elimination construction.  Beth, Lyndon, and Maehara consequences
+    that are downstream of the genuine Craig theorem are stated and
+    proved alongside it; trivial-witness "named-after-classical-theorem"
+    placeholders that returned [chi = phi] have been removed. *)
 
 (** ** Box-free normalisation predicate.
 
@@ -9396,6 +9368,12 @@ Fixpoint denote_proof_term (pt : proof_term) : option Form :=
     end
   end.
 
+(** [craig_interpolation_phi_subset] / [_psi_subset]: when one side's
+    free variables are already contained in the other's, the obvious
+    interpolant works.  Substantive only as degenerate corollaries of
+    the genuine theorem [craig_interpolation_box_free]; kept here only
+    in their containment-hypothesis form. *)
+
 Theorem craig_interpolation_phi_subset : forall phi psi,
   (forall v, In v (free_vars phi) -> In v (free_vars psi)) ->
   |- Impl phi psi ->
@@ -9452,29 +9430,11 @@ Proof.
   - reflexivity.
 Qed.
 
-Theorem beth_definability_from_craig : forall phi psi,
-  (forall v, In v (free_vars phi) -> In v (free_vars psi)) ->
-  |- Impl phi psi ->
-  exists def,
-    |- Impl phi def /\ |- Impl def psi /\
-    (forall v, In v (free_vars def) ->
-       In v (free_vars phi) /\ In v (free_vars psi)).
-Proof. exact craig_interpolation_phi_subset. Qed.
-
-Theorem beth_implicit_to_explicit : forall phi psi p,
-  ~ In p (free_vars psi) ->
-  (forall v, In v (free_vars phi) -> In v (free_vars psi) \/ v = p) ->
-  |- Impl phi psi ->
-  exists def,
-    |- Impl phi def /\ |- Impl def psi /\
-    ~ In p (free_vars def).
-Proof.
-  intros phi psi p Hp_notin Hsub Himpl. exists psi.
-  split; [|split].
-  - exact Himpl.
-  - exact (prov_id psi).
-  - exact Hp_notin.
-Qed.
+(** [beth_definability_from_craig] (alias of [craig_interpolation_phi_subset])
+    and [beth_implicit_to_explicit] (with witness [def := psi]) were trivial
+    placeholders.  The substantive box-free Beth theorem is
+    [beth_explicit_definability_box_free], proved alongside the genuine
+    Craig theorem at the end of the file. *)
 
 Theorem beth_uniqueness_via_craig : forall phi1 phi2 psi,
   (forall v, In v (free_vars phi1) -> In v (free_vars psi)) ->
@@ -9489,33 +9449,11 @@ Proof.
   - exact (prov_compose _ _ _ Hf2 Hb1).
 Qed.
 
-Theorem lyndon_interpolation_via_craig_subset : forall phi psi,
-  (forall v, In v (free_vars phi) -> In v (free_vars psi)) ->
-  |- Impl phi psi ->
-  exists chi,
-    |- Impl phi chi /\ |- Impl chi psi /\
-    chi = phi.
-Proof.
-  intros phi psi Hsub Himpl.
-  exists phi. split; [|split].
-  - exact (prov_id phi).
-  - exact Himpl.
-  - reflexivity.
-Qed.
-
-Theorem lyndon_polarity_preserved_when_identical_interpolant : forall phi psi,
-  (forall v, In v (free_vars phi) -> In v (free_vars psi)) ->
-  |- Impl phi psi ->
-  exists chi,
-    |- Impl phi chi /\ |- Impl chi psi /\
-    forall v, In v (free_vars chi) <-> In v (free_vars phi).
-Proof.
-  intros phi psi Hsub Himpl.
-  exists phi. split; [|split].
-  - exact (prov_id phi).
-  - exact Himpl.
-  - intro v. tauto.
-Qed.
+(** [lyndon_interpolation_via_craig_subset] (witness [chi = phi]) and
+    [lyndon_polarity_preserved_when_identical_interpolant] (same witness)
+    were trivial placeholders.  Lyndon interpolation requires polarity
+    tracking that the proof-term reduction system has not yet been
+    extended to support; see todo item 18. *)
 
 Theorem uniform_interpolation_no_occurrence : forall phi p,
   ~ In p (free_vars phi) ->
@@ -10478,47 +10416,10 @@ Proof.
   exact (prov_equiv_trans _ _ _ Step1 Hpsi_sym).
 Qed.
 
-(** Constructive interpolant on [phi -> psi]: the conjunction
-    [And phi (Impl phi psi)].  This sits between [phi] and [psi] in
-    implication strength and exposes both ends syntactically.  When
-    [Impl phi psi] is closed (no free variables), the interpolant
-    inherits that closure.  Vocabulary-restricted Maehara —
-    interpolants strictly inside the shared-variable subset — needs
-    the sequent calculus and structural induction on a cut-free proof
-    (see the cut-elimination items below). *)
-
-Definition self_interpolation_via_conjunction (phi psi : Form) : Form :=
-  And phi (Impl phi psi).
-
-Lemma self_interpolation_via_conjunction_phi_to_chi : forall phi psi,
-  |- Impl phi psi ->
-  |- Impl phi (self_interpolation_via_conjunction phi psi).
-Proof.
-  intros phi psi Himp. unfold self_interpolation_via_conjunction.
-  apply prov_and_intro_under.
-  - exact (prov_id phi).
-  - exact (prov_weaken (Impl phi psi) phi Himp).
-Qed.
-
-Lemma self_interpolation_via_conjunction_chi_to_psi : forall phi psi,
-  |- Impl (self_interpolation_via_conjunction phi psi) psi.
-Proof.
-  intros phi psi. unfold self_interpolation_via_conjunction.
-  pose proof (Ax_S (And phi (Impl phi psi)) phi psi) as Hs.
-  pose proof (prov_and_elim_r phi (Impl phi psi)) as Hr.
-  pose proof (MP _ _ Hs Hr) as Step.
-  pose proof (prov_and_elim_l phi (Impl phi psi)) as Hl.
-  exact (MP _ _ Step Hl).
-Qed.
-
-Theorem Maehara_lemma_via_self_interpolation : forall phi psi,
-  |- Impl phi psi ->
-  exists chi, |- Impl phi chi /\ |- Impl chi psi.
-Proof.
-  intros phi psi H. exists (self_interpolation_via_conjunction phi psi). split.
-  - exact (self_interpolation_via_conjunction_phi_to_chi phi psi H).
-  - exact (self_interpolation_via_conjunction_chi_to_psi phi psi).
-Qed.
+(** [Maehara_lemma_via_self_interpolation] (witness [And phi (Impl phi psi)])
+    was a trivial placeholder.  The substantive box-free Maehara theorem
+    is [maehara_lemma_box_free], proved alongside the genuine Craig
+    theorem at the end of the file. *)
 
 Theorem Lyndon_Robinson_positivity_preservation_via_iff : forall n phi psi,
   |- Iff phi psi -> |- Iff (Box n phi) (Box n psi).
@@ -10725,16 +10626,11 @@ Theorem finite_axiomatisation_modal_substitutional_minimal : forall phi,
   FAx2Provable phi <-> |- phi.
 Proof. exact finite_axiomatisation_levelsubst. Qed.
 
-Theorem Beth_strongest_form_via_self_interpolation : forall phi psi,
-  |- Impl phi psi ->
-  exists chi, |- Impl phi chi /\ |- Impl chi psi /\
-              modal_depth chi <= modal_depth phi.
-Proof.
-  intros phi psi H. exists phi. split; [|split].
-  - exact (prov_id phi).
-  - exact H.
-  - lia.
-Qed.
+(** [Beth_strongest_form_via_self_interpolation] (witness [chi = phi])
+    was a trivial placeholder.  The substantive box-free Beth theorem
+    with explicit-definability content is [beth_explicit_definability_box_free]
+    at the end of the file. *)
+
 
 Theorem GLP_disjunction_property_via_classical_valuation : forall n m phi psi val,
   eval val (Or (Box n phi) (Box m psi)) = true ->
@@ -12905,5 +12801,107 @@ Proof.
     + exfalso. apply (free_vars_forget_vars_excludes priv phi v).
       * apply private_vars_complete; assumption.
       * exact Hin.
+Qed.
+
+(** ** Substantive consequences of box-free Craig interpolation.
+
+    These replace the deleted trivial-witness placeholders.  Each is
+    derived from [craig_interpolation_box_free] and inherits the
+    vocabulary-restriction guarantee FV(chi) ⊆ FV(phi) ∩ FV(psi). *)
+
+(** Box-free Maehara lemma: every box-free implication has a box-free
+    interpolant of strictly bounded vocabulary.  Substantive replacement
+    for the deleted [Maehara_lemma_via_self_interpolation] (which
+    returned [And phi (Impl phi psi)]). *)
+
+Theorem maehara_lemma_box_free : forall phi psi,
+  box_free phi -> box_free psi ->
+  |- Impl phi psi ->
+  exists chi,
+    box_free chi /\
+    |- Impl phi chi /\ |- Impl chi psi /\
+    (forall v, In v (free_vars chi) ->
+       In v (free_vars phi) /\ In v (free_vars psi)).
+Proof. exact craig_interpolation_box_free. Qed.
+
+(** Box-free Beth explicit definability: if [phi] implicitly defines
+    [psi] (in the sense that [|- Impl phi psi]) and [psi] does not
+    mention a variable [p], then there is an explicit definition
+    [chi] of [psi] from [phi] that also avoids [p].  Substantive
+    replacement for the deleted [beth_implicit_to_explicit] (witness
+    [def := psi]).  Here the witness [chi] is constructed by Craig
+    interpolation, so [chi] genuinely sits between [phi] and [psi]
+    in vocabulary, not just at one of the endpoints. *)
+
+Theorem beth_explicit_definability_box_free : forall phi psi p,
+  box_free phi -> box_free psi ->
+  ~ In p (free_vars psi) ->
+  |- Impl phi psi ->
+  exists chi,
+    box_free chi /\
+    |- Impl phi chi /\ |- Impl chi psi /\
+    ~ In p (free_vars chi).
+Proof.
+  intros phi psi p Hbf_phi Hbf_psi Hp_notin Himp.
+  destruct (craig_interpolation_box_free phi psi Hbf_phi Hbf_psi Himp)
+    as [chi [Hbf [Hf [Hb Hsub]]]].
+  exists chi. split; [|split; [|split]].
+  - exact Hbf.
+  - exact Hf.
+  - exact Hb.
+  - intro Habs. apply Hp_notin. exact (proj2 (Hsub p Habs)).
+Qed.
+
+(** Lyndon-style polarity-restricted Beth corollary: if [phi]
+    syntactically excludes a variable [p], then so does the Craig
+    interpolant.  Substantive replacement for the deleted
+    [lyndon_interpolation_via_craig_subset] (witness [chi = phi]) and
+    [lyndon_polarity_preserved_when_identical_interpolant].  Full
+    Lyndon polarity tracking requires the cut-free sequent calculus
+    and remains under todo item 18. *)
+
+Theorem lyndon_excluded_variable_box_free : forall phi psi p,
+  box_free phi -> box_free psi ->
+  ~ In p (free_vars phi) ->
+  |- Impl phi psi ->
+  exists chi,
+    box_free chi /\
+    |- Impl phi chi /\ |- Impl chi psi /\
+    ~ In p (free_vars chi).
+Proof.
+  intros phi psi p Hbf_phi Hbf_psi Hp_notin Himp.
+  destruct (craig_interpolation_box_free phi psi Hbf_phi Hbf_psi Himp)
+    as [chi [Hbf [Hf [Hb Hsub]]]].
+  exists chi. split; [|split; [|split]].
+  - exact Hbf.
+  - exact Hf.
+  - exact Hb.
+  - intro Habs. apply Hp_notin. exact (proj1 (Hsub p Habs)).
+Qed.
+
+(** Closed-form Craig: if both [phi] and [psi] are box-free and
+    closed (no free variables), the interpolant is also closed.
+    Substantive replacement for the deleted [craig_closed_interpolation]
+    (which returned [chi = phi] without using closure of [psi]). *)
+
+Theorem craig_interpolation_box_free_closed : forall phi psi,
+  box_free phi -> box_free psi ->
+  free_vars phi = [] -> free_vars psi = [] ->
+  |- Impl phi psi ->
+  exists chi,
+    box_free chi /\ free_vars chi = [] /\
+    |- Impl phi chi /\ |- Impl chi psi.
+Proof.
+  intros phi psi Hbf_phi Hbf_psi Hcphi Hcpsi Himp.
+  destruct (craig_interpolation_box_free phi psi Hbf_phi Hbf_psi Himp)
+    as [chi [Hbf [Hf [Hb Hsub]]]].
+  exists chi. split; [|split; [|split]].
+  - exact Hbf.
+  - destruct (free_vars chi) as [|v rest] eqn:Echi; [reflexivity|].
+    exfalso.
+    destruct (Hsub v (or_introl eq_refl)) as [Hphi _].
+    rewrite Hcphi in Hphi. exact Hphi.
+  - exact Hf.
+  - exact Hb.
 Qed.
 
