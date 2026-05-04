@@ -15559,3 +15559,16 @@ Proof.
   - apply not_all_ex_not in Hncv. destruct Hncv as [val Hv].
     exists val. destruct (eval val phi); [contradiction | reflexivity].
 Qed.
+
+Theorem modal_compactness_full : forall Gamma,
+  Consistent Gamma <-> FinitelyConsistent Gamma.
+Proof. exact compactness. Qed.
+
+Theorem modal_compactness_canonical_witness : forall (Gamma : Form -> Prop),
+  FinitelyConsistent Gamma ->
+  exists w : canonical_world_max, forall phi, Gamma phi -> cwm_set w phi.
+Proof.
+  intros Gamma Hfc.
+  apply (canonical_world_max_extension Gamma).
+  apply compactness. exact Hfc.
+Qed.
