@@ -15633,3 +15633,34 @@ Proof. exact canonical_R_max_NextCon_witness. Qed.
 Theorem universal_frame_truth_lemma_box_free : forall phi w,
   box_free phi -> (cwm_set w phi <-> forces_cwm w phi).
 Proof. exact canonical_truth_lemma_max_box_free. Qed.
+
+Definition filtration_through_Sigma (F : Frame) (V : fW F -> nat -> bool)
+                                     (Sigma : list Form) (w v : fW F) : Prop :=
+  filtration_equiv F V Sigma w v.
+
+Theorem filtration_through_Sigma_equiv : forall F V Sigma,
+  (forall w, filtration_through_Sigma F V Sigma w w) /\
+  (forall w v, filtration_through_Sigma F V Sigma w v ->
+               filtration_through_Sigma F V Sigma v w) /\
+  (forall w v u, filtration_through_Sigma F V Sigma w v ->
+                 filtration_through_Sigma F V Sigma v u ->
+                 filtration_through_Sigma F V Sigma w u).
+Proof.
+  intros F V Sigma. split; [|split].
+  - exact (filtration_equiv_refl F V Sigma).
+  - exact (filtration_equiv_sym F V Sigma).
+  - exact (filtration_equiv_trans F V Sigma).
+Qed.
+
+Theorem filtration_through_Sigma_truth_preserving : forall F V Sigma phi w v,
+  filtration_through_Sigma F V Sigma w v ->
+  In phi Sigma ->
+  forces F V w phi <-> forces F V v phi.
+Proof. exact filtration_quotient_preserves_truth. Qed.
+
+Theorem filtration_box_free_finite : forall (Sigma : list Form),
+  Forall box_free Sigma ->
+  forall (val : nat -> bool),
+  exists subval : nat -> bool,
+    forall phi, In phi Sigma -> eval subval phi = eval val phi.
+Proof. exact filtration_finite_for_box_free. Qed.
