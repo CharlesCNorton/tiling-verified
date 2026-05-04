@@ -15313,3 +15313,67 @@ Proof.
   intros n v u HR phi Hphi.
   apply HR. exact Hphi.
 Qed.
+
+Fixpoint forces_cwm (w : canonical_world_max) (phi : Form) : Prop :=
+  match phi with
+  | Var p => cwm_set w (Var p)
+  | Bot => False
+  | Impl a b => forces_cwm w a -> forces_cwm w b
+  | Box n psi => forall v, canonical_R_max n w v -> forces_cwm v psi
+  end.
+
+Lemma cwm_classical_impl : forall (w : canonical_world_max) phi psi,
+  (cwm_set w phi -> cwm_set w psi) -> cwm_set w (Impl phi psi).
+Proof.
+  intros w phi psi Himp.
+  destruct (cwm_maximal w phi) as [Hphi | Hnphi].
+  - pose proof (Himp Hphi) as Hpsi.
+    apply (cwm_deductively_closed w).
+    exists [psi]. split.
+    + intros chi Hin. cbn in Hin. destruct Hin as [<-|[]]. exact Hpsi.
+    + apply DT_MP with psi.
+      * apply DT_thm. exact (Ax_K psi phi).
+      * apply DT_hyp. cbn. tauto.
+  - apply (cwm_deductively_closed w).
+    exists [Neg phi]. split.
+    + intros chi Hin. cbn in Hin. destruct Hin as [<-|[]]. exact Hnphi.
+    + apply DT_MP with (Neg phi).
+      * apply DT_thm.
+        pose proof (prov_explosion psi) as Hexp.
+        pose proof (prov_compose_internal phi Bot psi) as Hci.
+        exact (MP _ _ Hci Hexp).
+      * apply DT_hyp. cbn. tauto.
+Qed.
+
+Theorem canonical_truth_lemma_max_box_free : forall phi w,
+  box_free phi -> (cwm_set w phi <-> forces_cwm w phi).
+Proof.
+  induction phi as [p | | a IHa b IHb | n psi IHpsi]; intros w Hbf; cbn in *.
+  - tauto.
+  - split.
+    + intro H. exact (canonical_truth_lemma_max_bot w H).
+    + intros [].
+  - destruct Hbf as [Hbf_a Hbf_b]. split.
+    + intros Hw Ha.
+      apply (IHb w Hbf_b).
+      apply (cwm_deductively_closed w).
+      exists [a; Impl a b]. split.
+      * intros chi Hin. cbn in Hin. destruct Hin as [<- | [<- | []]].
+        -- apply (IHa w Hbf_a). exact Ha.
+        -- exact Hw.
+      * apply DT_MP with a.
+        -- apply DT_hyp. cbn. tauto.
+        -- apply DT_hyp. cbn. tauto.
+    + intros Himp.
+      apply cwm_classical_impl. intros Ha_in.
+      apply (IHb w Hbf_b). apply Himp. apply (IHa w Hbf_a). exact Ha_in.
+  - exfalso. exact Hbf.
+Qed.
+
+Theorem canonical_truth_lemma_max_forward_box : forall n psi w,
+  cwm_set w (Box n psi) ->
+  forall v, canonical_R_max n w v -> cwm_set v psi.
+Proof.
+  intros n psi w Hw v HR.
+  exact (HR psi Hw).
+Qed.
