@@ -7824,7 +7824,7 @@ Fixpoint wf_ord (o : ord) : Prop :=
       wf_ord e /\ wf_ord t /\
       match t with
       | OZero => True
-      | OCons e' _ => ord_compare e' e <> Gt
+      | OCons e' _ => ord_compare e' e = Lt
       end
   end.
 
@@ -7837,11 +7837,9 @@ Proof.
       * destruct t as [|e' t'].
         -- left. split; [exact HE | split; [exact HT | exact I]].
         -- destruct (ord_compare e' e) eqn:Hcmp.
-           ++ left. split; [exact HE | split; [exact HT |]].
-              intro Hbad; discriminate Hbad.
-           ++ left. split; [exact HE | split; [exact HT |]].
-              intro Hbad; discriminate Hbad.
-           ++ right. intros [_ [_ HG]]. exact (HG eq_refl).
+           ++ right. intros [_ [_ HG]]. discriminate HG.
+           ++ left. split; [exact HE | split; [exact HT | reflexivity]].
+           ++ right. intros [_ [_ HG]]. discriminate HG.
       * right. intros [_ [HT' _]]. exact (HT HT').
     + right. intros [HE' _]. exact (HE HE').
 Qed.
@@ -7884,6 +7882,106 @@ Proof.
   - left. unfold ord_lt. exact Hcmp.
   - discriminate.
 Qed.
+
+Lemma not_ord_lt_OZero : forall y, ~ ord_lt y OZero.
+Proof.
+  intros y H. destruct y; cbn in H; discriminate.
+Qed.
+
+Lemma wf_ord_inv1 : forall e t, wf_ord (OCons e t) -> wf_ord e.
+Proof. intros e t [H _]. exact H. Qed.
+
+Lemma wf_ord_inv2 : forall e t, wf_ord (OCons e t) -> wf_ord t.
+Proof. intros e t [_ [H _]]. exact H. Qed.
+
+Lemma wf_ord_inv_tail : forall e t,
+  wf_ord (OCons e t) ->
+  match t with
+  | OZero => True
+  | OCons e' _ => ord_lt e' e
+  end.
+Proof. intros e t [_ [_ H]]. exact H. Qed.
+
+Lemma single_wf : forall e, wf_ord e -> wf_ord (OCons e OZero).
+Proof. intros e He. cbn. split; [exact He | split; [exact I | exact I]]. Qed.
+
+Definition head_lt_e (e : ord) (b : ord) : Prop :=
+  match b with
+  | OZero => True
+  | OCons f _ => ord_lt f e
+  end.
+
+Lemma wf_ord_OCons_head_lt : forall e t,
+  wf_ord (OCons e t) -> head_lt_e e t.
+Proof.
+  intros e t H. apply wf_ord_inv_tail in H.
+  destruct t; cbn; trivial.
+Qed.
+
+Definition Acc_strong (e : ord) : Prop :=
+  forall t, wf_ord (OCons e t) -> Acc lt_cnf (OCons e t).
+
+Lemma Acc_implies_Acc_strong : forall e, wf_ord e -> Acc lt_cnf e -> Acc_strong e.
+Proof.
+  intros e Hwfe Ae.
+  revert Hwfe.
+  induction Ae as [e _ IHe].
+  intros Hwfe.
+  unfold Acc_strong.
+  assert (beta_Acc : forall b, wf_ord b -> head_lt_e e b -> Acc lt_cnf b).
+  { intros b Hwfb Hhead.
+    destruct b as [|f s].
+    - exact Acc_lt_cnf_OZero.
+    - cbn in Hhead.
+      pose proof (wf_ord_inv1 _ _ Hwfb) as Hwff.
+      assert (Hf_e : lt_cnf f e).
+      { unfold lt_cnf. split; [exact Hwff | split; [exact Hwfe | exact Hhead]]. }
+      pose proof (IHe f Hf_e Hwff) as Acc_strong_f.
+      apply Acc_strong_f. exact Hwfb. }
+  intros t Hwf.
+  pose proof (wf_ord_OCons_head_lt e t Hwf) as Hht.
+  pose proof (wf_ord_inv2 e t Hwf) as Hwft.
+  pose proof (beta_Acc t Hwft Hht) as Acct.
+  revert Hwf.
+  induction Acct as [t _ IHt].
+  intros Hwf.
+  apply Acc_intro. intros y [Hwfy [_ Hy]].
+  destruct y as [|e' t'].
+  - exact Acc_lt_cnf_OZero.
+  - pose proof (wf_ord_inv1 _ _ Hwfy) as Hwfe'.
+    pose proof (wf_ord_inv2 _ _ Hwfy) as Hwft'.
+    pose proof (wf_ord_inv_tail _ _ Hwfy) as Htail'.
+    apply ord_lt_OCons_inv in Hy.
+    destruct Hy as [Hee' | [Heq Htt']].
+    + assert (Hf_e : lt_cnf e' e).
+      { unfold lt_cnf. split; [exact Hwfe' | split; [exact Hwfe | exact Hee']]. }
+      pose proof (IHe e' Hf_e Hwfe') as Acc_strong_e'.
+      apply Acc_strong_e'. exact Hwfy.
+    + subst e'.
+      assert (Hht' : head_lt_e e t').
+      { destruct t' as [|g r]; cbn in Htail' |- *; [exact I | exact Htail']. }
+      apply IHt with (y := t').
+      * unfold lt_cnf. split; [exact Hwft' | split; [exact (wf_ord_inv2 _ _ Hwf) | exact Htt']].
+      * exact Hht'.
+      * exact Hwft'.
+      * exact Hwfy.
+Qed.
+
+Theorem nf_Acc : forall o, wf_ord o -> Acc lt_cnf o.
+Proof.
+  induction o as [|e IHe t _].
+  - intros _. exact Acc_lt_cnf_OZero.
+  - intros Hwf.
+    pose proof (wf_ord_inv1 _ _ Hwf) as Hwfe.
+    exact (Acc_implies_Acc_strong e Hwfe (IHe Hwfe) t Hwf).
+Qed.
+
+Theorem ord_lt_well_founded_on_wf_ord : well_founded lt_cnf.
+Proof.
+  intros o. apply Acc_intro. intros y [Hwfy [_ Hy]].
+  apply nf_Acc. exact Hwfy.
+Qed.
+
 
 
 Fixpoint nat_to_ord (n : nat) : ord :=
