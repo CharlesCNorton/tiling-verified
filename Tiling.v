@@ -6219,6 +6219,29 @@ Proof.
   - right. exists (S n). simpl. rewrite Hseq in Hnphi. rewrite Hseq. exact Hnphi.
 Qed.
 
+Theorem Lindenbaum_limit_deductively_closed : forall Gamma phi,
+  Consistent Gamma ->
+  Provable_set (Lindenbaum_limit Gamma) phi ->
+  Lindenbaum_limit Gamma phi.
+Proof.
+  intros Gamma phi HC HP.
+  destruct (Lindenbaum_limit_maximal Gamma phi) as [Hphi | Hnphi].
+  - exact Hphi.
+  - exfalso.
+    apply (Lindenbaum_limit_consistent Gamma HC).
+    destruct HP as [G [HG Hp]].
+    exists (Neg phi :: G).
+    split.
+    + intros psi Hin. simpl in Hin. destruct Hin as [Heq | Hin'].
+      * subst psi. exact Hnphi.
+      * exact (HG psi Hin').
+    + apply DT_MP with phi.
+      * apply DT_hyp. left. reflexivity.
+      * apply (Provable_with_hyp_weaken G).
+        -- intros psi Hin. right. exact Hin.
+        -- exact Hp.
+Qed.
+
 
 Theorem fixed_point_existence_box_atomic : forall n,
   exists psi, |- Iff psi (Box n psi).
