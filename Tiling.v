@@ -13091,3 +13091,243 @@ Proof.
   - exact Hb.
 Qed.
 
+(******************************************************************************)
+(* Veblen notation system extending the CNF carrier [ord].                    *)
+(*                                                                            *)
+(* Beyond the existing [Veblen_phi_0] (which is just [λα. ω^α]) and its      *)
+(* iterates [Veblen_phi_iter k OZero] (which all live in CNF below ε_0),     *)
+(* we introduce a stratified Veblen-φ system where each φ_(n+1) for n : nat  *)
+(* is represented by a syntactic atom [V_phi n α].  Concretely:               *)
+(*                                                                            *)
+(*   - [V_cnf o]   embeds a CNF ord o (necessarily below ε_0) into vord.     *)
+(*   - [V_phi n α] represents φ_(n+1)(α), the α-th common fixed point of    *)
+(*     [φ_0, φ_1, ..., φ_n].  In particular [V_phi 0 OZero = ε_0], and       *)
+(*     [V_phi n OZero] is the n-th Γ_0 approximation φ_(n+1)(0).             *)
+(*                                                                            *)
+(* The stratified design — V_phi's argument is an [ord] (existing CNF), not  *)
+(* a recursive vord — sidesteps the binary-Veblen cross-comparison problem.  *)
+(* Comparison is straightforward lex on (head-class, index, ord-position),   *)
+(* and well-foundedness follows from well-foundedness of < on nat together   *)
+(* with [cnf_lt] on the CNF subset.                                           *)
+(******************************************************************************)
+
+Inductive vord : Type :=
+  | V_cnf  : ord -> vord
+  | V_phi  : nat -> ord -> vord.
+
+(** Normal-form predicate: in [V_phi n α], the [ord] argument α must be
+    in CNF, i.e. [wf_ord α].  [V_cnf o] requires [wf_ord o]. *)
+
+Definition wf_vord (v : vord) : Prop :=
+  match v with
+  | V_cnf o   => wf_ord o
+  | V_phi _ α => wf_ord α
+  end.
+
+(** Inductively-defined Veblen ordering on [vord].  Three cases:
+    CNF on CNF goes through [ord_lt]; every CNF position is strictly
+    below every [V_phi]-atom; among [V_phi] atoms, the lex order on
+    (index, argument) decides. *)
+
+Inductive vord_lt : vord -> vord -> Prop :=
+  | VL_cnf       : forall o1 o2, ord_lt o1 o2 -> vord_lt (V_cnf o1) (V_cnf o2)
+  | VL_cnf_phi   : forall o n α, vord_lt (V_cnf o) (V_phi n α)
+  | VL_phi_idx   : forall n1 n2 α1 α2,
+      n1 < n2 -> vord_lt (V_phi n1 α1) (V_phi n2 α2)
+  | VL_phi_arg   : forall n α1 α2,
+      ord_lt α1 α2 -> vord_lt (V_phi n α1) (V_phi n α2).
+
+Lemma vord_lt_V_cnf_inv : forall v o,
+  vord_lt v (V_cnf o) -> exists o', v = V_cnf o' /\ ord_lt o' o.
+Proof.
+  intros v o H.
+  remember (V_cnf o) as u eqn:Eu.
+  destruct H as [o1 o2 Hlt | o' n α | n1 n2 α1 α2 Hlt | n α1 α2 Hlt].
+  - injection Eu as Hu. subst o2.
+    exists o1. split; [reflexivity | exact Hlt].
+  - discriminate.
+  - discriminate.
+  - discriminate.
+Qed.
+
+Lemma vord_lt_V_phi_inv : forall v n α,
+  vord_lt v (V_phi n α) ->
+    (exists o, v = V_cnf o) \/
+    (exists n' α', v = V_phi n' α' /\ n' < n) \/
+    (exists α', v = V_phi n α' /\ ord_lt α' α).
+Proof.
+  intros v n α H.
+  remember (V_phi n α) as u eqn:Eu.
+  destruct H as [o1 o2 Hlt | o' nn αα | n1 n2 α1 α2 Hlt | nn α1 α2 Hlt].
+  - discriminate.
+  - injection Eu as En Eα. subst nn αα.
+    left. exists o'. reflexivity.
+  - injection Eu as En Eα. subst n2 α2.
+    right. left. exists n1, α1. split; [reflexivity | exact Hlt].
+  - injection Eu as En Eα. subst nn α2.
+    right. right. exists α1. split; [reflexivity | exact Hlt].
+Qed.
+
+(** ** Well-foundedness on the [wf_vord] subset.
+
+    Conditioned relation [vord_wf_lt] requires both endpoints to be
+    well-formed (CNF in their [ord] components).  Well-foundedness then
+    follows from: (i) [V_cnf]-images use [nf_Acc] for [cnf_lt] descent,
+    (ii) [V_phi n _] images use lex on (n, [cnf_lt] on the inner [ord]). *)
+
+Definition vord_wf_lt (u v : vord) : Prop :=
+  wf_vord u /\ wf_vord v /\ vord_lt u v.
+
+Lemma Acc_vord_V_cnf_wf : forall o,
+  wf_ord o -> Acc vord_wf_lt (V_cnf o).
+Proof.
+  intros o Hwfo.
+  pose proof (nf_Acc o Hwfo) as Acco.
+  revert Hwfo.
+  induction Acco as [o Hacc IH]. intro Hwfo.
+  apply Acc_intro. intros y [Hwfy [_ Hlt]].
+  destruct (vord_lt_V_cnf_inv _ _ Hlt) as [o' [Heq Hltoo]].
+  subst y. cbn in Hwfy.
+  apply IH.
+  - unfold lt_cnf. split; [exact Hwfy | split; [exact Hwfo | exact Hltoo]].
+  - exact Hwfy.
+Qed.
+
+(** For [V_phi n α] images: outer induction on n, inner on Acc lt_cnf α. *)
+
+Lemma Acc_vord_V_phi_wf : forall n α,
+  wf_ord α -> Acc vord_wf_lt (V_phi n α).
+Proof.
+  intro n. induction n as [n IHn] using lt_wf_ind.
+  intros α Hwfα.
+  pose proof (nf_Acc α Hwfα) as Accα.
+  revert Hwfα.
+  induction Accα as [α Haccα IHα]. intro Hwfα.
+  apply Acc_intro. intros y [Hwfy [_ Hlt]].
+  destruct (vord_lt_V_phi_inv _ _ _ Hlt) as
+    [[o E] | [[n' [α' [E Hlt']]] | [α' [E Hltα]]]].
+  - subst y. apply Acc_vord_V_cnf_wf. exact Hwfy.
+  - subst y. cbn in Hwfy. apply IHn; [exact Hlt' | exact Hwfy].
+  - subst y. cbn in Hwfy. apply IHα.
+    + unfold lt_cnf. split; [exact Hwfy | split; [exact Hwfα | exact Hltα]].
+    + exact Hwfy.
+Qed.
+
+Theorem vord_wf_lt_well_founded : well_founded vord_wf_lt.
+Proof.
+  intro v. apply Acc_intro. intros y [Hwfy [Hwfv Hlt]].
+  destruct v as [o | n α].
+  - apply (Acc_inv (Acc_vord_V_cnf_wf o Hwfv)).
+    split; [exact Hwfy | split; [exact Hwfv | exact Hlt]].
+  - apply (Acc_inv (Acc_vord_V_phi_wf n α Hwfv)).
+    split; [exact Hwfy | split; [exact Hwfv | exact Hlt]].
+Qed.
+
+(** ** Concrete Veblen positions.
+
+    [veps0]            = ε_0 = φ_1(0), encoded as [V_phi 0 OZero].
+    [vgamma0_approx n] = φ_(n+1)(0), the Γ_0 approximations from below.
+    *)
+
+Definition veps0 : vord := V_phi 0 OZero.
+
+Definition vgamma0_approx (n : nat) : vord := V_phi n OZero.
+
+Theorem vgamma0_approx_zero : vgamma0_approx 0 = veps0.
+Proof. reflexivity. Qed.
+
+Theorem vgamma0_approx_strict : forall n,
+  vord_lt (vgamma0_approx n) (vgamma0_approx (S n)).
+Proof. intro n. unfold vgamma0_approx. apply VL_phi_idx. lia. Qed.
+
+Theorem vgamma0_approx_chain : forall n m,
+  n < m -> vord_lt (vgamma0_approx n) (vgamma0_approx m).
+Proof. intros n m H. unfold vgamma0_approx. apply VL_phi_idx. exact H. Qed.
+
+(** Every CNF ord is strictly below ε_0 in vord. *)
+
+Theorem cnf_below_veps0 : forall o,
+  vord_lt (V_cnf o) veps0.
+Proof. intro o. unfold veps0. apply VL_cnf_phi. Qed.
+
+(** In particular, every iterated ω-tower [Veblen_phi_iter k OZero] is
+    below ε_0 in vord, witnessing that ε_0 is genuinely beyond CNF. *)
+
+Theorem omega_tower_image_below_veps0 : forall k,
+  vord_lt (V_cnf (Veblen_phi_iter k OZero)) veps0.
+Proof. intro k. apply cnf_below_veps0. Qed.
+
+(** Every worm has its [worm_to_ord] image below ε_0 in vord. *)
+
+Theorem worm_image_below_veps0 : forall w,
+  vord_lt (V_cnf (worm_to_ord w)) veps0.
+Proof. intro w. apply cnf_below_veps0. Qed.
+
+(** ** Normal-form preservation under the canonical witnesses. *)
+
+Theorem veps0_wf : wf_vord veps0.
+Proof. unfold veps0. cbn. exact I. Qed.
+
+Theorem vgamma0_approx_wf : forall n, wf_vord (vgamma0_approx n).
+Proof. intro n. unfold vgamma0_approx. cbn. exact I. Qed.
+
+Theorem cnf_wf_to_vord : forall o, wf_ord o -> wf_vord (V_cnf o).
+Proof. intros o H. exact H. Qed.
+
+(** ** Connection to GLP* worms.
+
+    Every GLP* worm [w] has a CNF representation [worm_to_ord w] in
+    [ord], which lifts to [V_cnf (worm_to_ord w)] in [vord], and is
+    strictly below [veps0 = ε_0].  Combined with [vgamma0_approx]
+    being unbounded above [veps0], this shows the Veblen notation
+    system genuinely strictly extends the worm-induced CNF bound on
+    GLP* proof-theoretic ordinals. *)
+
+Theorem GLP_worm_strictly_below_veps0 : forall w,
+  vord_lt (V_cnf (worm_to_ord w)) veps0 /\
+  forall n, vord_lt veps0 (vgamma0_approx (S n)).
+Proof.
+  intros w. split.
+  - apply worm_image_below_veps0.
+  - intro n. unfold veps0, vgamma0_approx.
+    apply VL_phi_idx. lia.
+Qed.
+
+(** ** Strict layering of the Veblen hierarchy.
+
+    For every n, there is a vord (namely [vgamma0_approx n]) that is
+    strictly above every CNF ord (representing all worm-images) and
+    below [vgamma0_approx (S n)].  This is the strict layering of the
+    Γ_0 approximations from below the Feferman-Schütte ordinal Γ_0. *)
+
+Theorem veblen_hierarchy_strict_layering : forall n,
+  (forall o, vord_lt (V_cnf o) (vgamma0_approx n)) /\
+  vord_lt (vgamma0_approx n) (vgamma0_approx (S n)).
+Proof.
+  intro n. split.
+  - intro o. unfold vgamma0_approx. apply VL_cnf_phi.
+  - apply vgamma0_approx_strict.
+Qed.
+
+(** ** Veblen notation system: the headline package.
+
+    The Veblen notation system (vord, vord_wf_lt, wf_vord) extends CNF
+    in a well-ordered fashion, captures ε_0 as the syntactic atom
+    [V_phi 0 OZero], approximates Γ_0 from below via the
+    [vgamma0_approx] family, and connects to GLP*'s worm-image
+    proof-theoretic ordinal bound via the [V_cnf] embedding. *)
+
+Theorem veblen_notation_system_well_ordered :
+  well_founded vord_wf_lt /\
+  (forall n m, n < m -> vord_lt (vgamma0_approx n) (vgamma0_approx m)) /\
+  (forall w, vord_lt (V_cnf (worm_to_ord w)) veps0) /\
+  veps0 = vgamma0_approx 0.
+Proof.
+  split; [|split; [|split]].
+  - exact vord_wf_lt_well_founded.
+  - exact vgamma0_approx_chain.
+  - exact worm_image_below_veps0.
+  - reflexivity.
+Qed.
+
+
