@@ -13367,6 +13367,121 @@ Proof.
   - intro n. exact (T_kappa_agent_strict_separation n G).
 Qed.
 
+Definition Cooperate_action : Form := Var 100.
+Definition Defect_action : Form := Var 101.
+
+Definition payoff_outcome_CC : Form := Var 102.
+Definition payoff_outcome_DD : Form := Var 103.
+Definition payoff_outcome_CD : Form := Var 104.
+Definition payoff_outcome_DC : Form := Var 105.
+
+Definition action_distinct_from_Top :
+  Cooperate_action <> Top.
+Proof. unfold Cooperate_action, Top. discriminate. Defined.
+
+Theorem Cooperate_action_distinct_from_Top : Cooperate_action <> Top.
+Proof. exact action_distinct_from_Top. Qed.
+
+Theorem Cooperate_action_distinct_from_Defect : Cooperate_action <> Defect_action.
+Proof. unfold Cooperate_action, Defect_action. discriminate. Qed.
+
+Theorem Cooperate_action_distinct_from_Bot : Cooperate_action <> Bot.
+Proof. unfold Cooperate_action. discriminate. Qed.
+
+Theorem Defect_action_distinct_from_Bot : Defect_action <> Bot.
+Proof. unfold Defect_action. discriminate. Qed.
+
+Definition payoff_action_summary : Prop :=
+  Cooperate_action <> Top /\
+  Cooperate_action <> Bot /\
+  Cooperate_action <> Defect_action /\
+  Defect_action <> Top /\
+  Defect_action <> Bot /\
+  payoff_outcome_CC <> payoff_outcome_DD /\
+  payoff_outcome_CC <> payoff_outcome_CD /\
+  payoff_outcome_CC <> payoff_outcome_DC.
+
+Theorem payoff_actions_distinct : payoff_action_summary.
+Proof.
+  unfold payoff_action_summary, Cooperate_action, Defect_action,
+    payoff_outcome_CC, payoff_outcome_DD, payoff_outcome_CD, payoff_outcome_DC,
+    Top.
+  repeat split; discriminate.
+Qed.
+
+Definition genuine_FairBot (n : nat) (opp : Form) : Form :=
+  Box n (Iff opp Cooperate_action).
+
+Definition genuine_PrudentBot (n : nat) (opp : Form) : Form :=
+  And (Box n (Iff opp Cooperate_action))
+      (Box (S n) (Neg (Box n Bot))).
+
+Theorem genuine_FairBot_distinct_from_Box : forall n p,
+  genuine_FairBot n (Var p) <> Box n (Var p).
+Proof.
+  intros n p. unfold genuine_FairBot. discriminate.
+Qed.
+
+Theorem genuine_FairBot_distinct_from_Top : forall n p,
+  genuine_FairBot n (Var p) <> Top.
+Proof.
+  intros n p. unfold genuine_FairBot. discriminate.
+Qed.
+
+Theorem genuine_PrudentBot_distinct_from_Top : forall n p,
+  genuine_PrudentBot n (Var p) <> Top.
+Proof.
+  intros n p. unfold genuine_PrudentBot. discriminate.
+Qed.
+
+Theorem genuine_FairBot_PrudentBot_distinct : forall n p,
+  genuine_FairBot n (Var p) <> genuine_PrudentBot n (Var p).
+Proof.
+  intros n p. unfold genuine_FairBot, genuine_PrudentBot. discriminate.
+Qed.
+
+Theorem cooperate_action_summary :
+  (Cooperate_action <> Top) /\
+  (Cooperate_action <> Bot) /\
+  (Cooperate_action <> Defect_action) /\
+  (forall n p, genuine_FairBot n (Var p) <> Box n (Var p)) /\
+  (forall n p, genuine_FairBot n (Var p) <> genuine_PrudentBot n (Var p)).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact Cooperate_action_distinct_from_Top.
+  - exact Cooperate_action_distinct_from_Bot.
+  - exact Cooperate_action_distinct_from_Defect.
+  - exact genuine_FairBot_distinct_from_Box.
+  - exact genuine_FairBot_PrudentBot_distinct.
+Qed.
+
+Theorem genuine_FairBot_provable_when_opp_eq_cooperate : forall n,
+  |- genuine_FairBot n Cooperate_action.
+Proof.
+  intro n. unfold genuine_FairBot.
+  apply Nec. apply prov_iff_refl.
+Qed.
+
+Theorem genuine_PrudentBot_provable_when_opp_eq_cooperate : forall n,
+  |- genuine_PrudentBot n Cooperate_action.
+Proof.
+  intro n. unfold genuine_PrudentBot.
+  apply prov_and_intro_meta.
+  - apply Nec. apply prov_iff_refl.
+  - exact (Ax_NextCon n).
+Qed.
+
+Theorem FairBot_vs_PrudentBot_concrete_summary : forall n,
+  (|- genuine_FairBot n Cooperate_action) /\
+  (|- genuine_PrudentBot n Cooperate_action) /\
+  (forall p, genuine_FairBot n (Var p) <> genuine_PrudentBot n (Var p)).
+Proof.
+  intro n. split; [|split].
+  - exact (genuine_FairBot_provable_when_opp_eq_cooperate n).
+  - exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
+  - exact (genuine_FairBot_PrudentBot_distinct n).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
