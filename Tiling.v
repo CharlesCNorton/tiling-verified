@@ -11870,6 +11870,101 @@ Proof.
   - exact Pi2_conservativity_box_free_iff.
 Qed.
 
+Fixpoint neg_translate (phi : Form) : Form :=
+  match phi with
+  | Var p => Neg (Neg (Var p))
+  | Bot => Bot
+  | Impl a b => Impl (neg_translate a) (neg_translate b)
+  | Box k a => Neg (Neg (Box k (neg_translate a)))
+  end.
+
+Lemma impl_iff_compat : forall a b a' b',
+  |- Iff a a' -> |- Iff b b' ->
+  |- Iff (Impl a b) (Impl a' b').
+Proof.
+  intros a b a' b' Ha Hb.
+  pose proof (prov_and_elim_l_meta _ _ Ha) as Haf.
+  pose proof (prov_and_elim_r_meta _ _ Ha) as Hab.
+  pose proof (prov_and_elim_l_meta _ _ Hb) as Hbf.
+  pose proof (prov_and_elim_r_meta _ _ Hb) as Hbb.
+  apply prov_iff_intro.
+  - pose proof (prov_compose_internal a' a b) as H1.
+    pose proof (prov_perm _ _ _ H1) as H1p.
+    pose proof (MP _ _ H1p Hab) as H2.
+    pose proof (prov_compose_internal a' b b') as H3.
+    pose proof (MP _ _ H3 Hbf) as H4.
+    exact (prov_compose _ _ _ H2 H4).
+  - pose proof (prov_compose_internal a a' b') as H1.
+    pose proof (prov_perm _ _ _ H1) as H1p.
+    pose proof (MP _ _ H1p Haf) as H2.
+    pose proof (prov_compose_internal a b' b) as H3.
+    pose proof (MP _ _ H3 Hbb) as H4.
+    exact (prov_compose _ _ _ H2 H4).
+Qed.
+
+Lemma box_iff_compat : forall n a a',
+  |- Iff a a' -> |- Iff (Box n a) (Box n a').
+Proof.
+  intros n a a' Ha.
+  pose proof (prov_and_elim_l_meta _ _ Ha) as Haf.
+  pose proof (prov_and_elim_r_meta _ _ Ha) as Hab.
+  apply prov_iff_intro.
+  - pose proof (Nec n _ Haf) as Hnec.
+    exact (MP _ _ (Ax_BoxK n a a') Hnec).
+  - pose proof (Nec n _ Hab) as Hnec.
+    exact (MP _ _ (Ax_BoxK n a' a) Hnec).
+Qed.
+
+Lemma neg_neg_iff : forall phi, |- Iff phi (Neg (Neg phi)).
+Proof.
+  intro phi. apply prov_iff_intro.
+  - exact (prov_DN_intro phi).
+  - exact (Ax_DN phi).
+Qed.
+
+Theorem neg_translate_classical_equiv : forall phi,
+  |- Iff phi (neg_translate phi).
+Proof.
+  intro phi. induction phi as [p | | a IHa b IHb | k psi IHpsi]; cbn.
+  - exact (neg_neg_iff (Var p)).
+  - exact (prov_iff_refl Bot).
+  - exact (impl_iff_compat _ _ _ _ IHa IHb).
+  - pose proof (box_iff_compat k _ _ IHpsi) as Hbox.
+    pose proof (neg_neg_iff (Box k (neg_translate psi))) as Hnn.
+    exact (prov_equiv_trans _ _ _ Hbox Hnn).
+Qed.
+
+Theorem Friedman_negative_translation_classical : forall phi,
+  |- phi <-> |- neg_translate phi.
+Proof.
+  intro phi. split.
+  - intro H. pose proof (neg_translate_classical_equiv phi) as Hiff.
+    exact (MP _ _ (prov_and_elim_l_meta _ _ Hiff) H).
+  - intro H. pose proof (neg_translate_classical_equiv phi) as Hiff.
+    exact (MP _ _ (prov_and_elim_r_meta _ _ Hiff) H).
+Qed.
+
+Theorem Friedman_translation_box_free : forall phi,
+  box_free phi -> |- Iff phi (neg_translate phi).
+Proof.
+  intros phi _. exact (neg_translate_classical_equiv phi).
+Qed.
+
+Theorem Friedman_translation_modal_general : forall phi,
+  |- Iff phi (neg_translate phi).
+Proof. exact neg_translate_classical_equiv. Qed.
+
+Theorem Friedman_negative_translation_summary :
+  (forall phi, |- phi <-> |- neg_translate phi) /\
+  (forall phi, |- Iff phi (neg_translate phi)) /\
+  (forall phi, box_free phi -> |- Iff phi (neg_translate phi)).
+Proof.
+  split; [|split].
+  - exact Friedman_negative_translation_classical.
+  - exact Friedman_translation_modal_general.
+  - exact Friedman_translation_box_free.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
