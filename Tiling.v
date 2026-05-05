@@ -24622,6 +24622,89 @@ Qed.
 Lemma omega_cnf_pos : ord_lt OZero omega_cnf.
 Proof. unfold ord_lt, omega_cnf. cbn. reflexivity. Qed.
 
+Lemma omega_cnf_gt_one : ord_lt (OCons OZero OZero) omega_cnf.
+Proof. unfold ord_lt, omega_cnf. cbn. reflexivity. Qed.
+
+(* Every proof_height_ord is at least omega_cnf, since the base axiom
+   ranks ARE omega_cnf and ord_add / omega_pow only grow heights. *)
+(* Helper: ord_compare X (OCons (OCons OZero OZero) Y) is determined
+   by the leading exp of X compared to OCons OZero OZero, with the
+   tail comparing only when leading is exactly OCons OZero OZero. *)
+Lemma omega_cnf_le_OCons_OCons_OZero_OZero_anything : forall t,
+  ord_le omega_cnf (OCons (OCons OZero OZero) t).
+Proof.
+  intro t. unfold ord_le, omega_cnf. cbn.
+  destruct t; cbn; discriminate.
+Qed.
+
+(* If e is OCons (OCons OZero OZero) _ or has leading >= OCons OZero OZero,
+   then ord_le omega_cnf (OCons e _). *)
+Lemma omega_cnf_le_OCons_when_lead_ge : forall e t,
+  ord_le (OCons OZero OZero) e ->
+  ord_le omega_cnf (OCons e t).
+Proof.
+  intros e t H.
+  destruct e as [|ee et].
+  - exfalso. apply H. unfold ord_le. cbn. reflexivity.
+  - destruct ee as [|eee eet].
+    + (* e = OCons OZero et: leading exp OZero, equal to OCons OZero OZero's
+         leading exp OZero. Compare tails. *)
+      destruct et as [|ete ett].
+      * (* e = OCons OZero OZero = 1 = leading of omega_cnf. *)
+        unfold ord_le, omega_cnf. cbn.
+        destruct t; cbn; discriminate.
+      * (* e = OCons OZero (OCons _ _) *)
+        unfold ord_le, omega_cnf. cbn.
+        discriminate.
+    + (* e = OCons (OCons _ _) _: leading > OZero. *)
+      unfold ord_le, omega_cnf. cbn.
+      discriminate.
+Qed.
+
+Lemma proof_height_ord_ge_omega_cnf :
+  forall (phi : Form) (pt : Provable_term phi),
+  ord_le omega_cnf (proof_height_ord phi pt).
+Proof.
+  intros phi pt. induction pt.
+  - cbn. apply ord_le_refl.
+  - cbn. apply ord_le_refl.
+  - cbn. apply ord_le_refl.
+  - cbn. apply ord_le_refl.
+  - cbn. apply ord_le_refl.
+  - cbn. apply ord_le_refl.
+  - cbn. apply ord_le_refl.
+  - cbn. apply ord_le_refl.
+  - cbn.
+    destruct (proof_height_ord_OCons_shape _ pt1) as [e1 [t1 H1]].
+    destruct (proof_height_ord_OCons_shape _ pt2) as [e2 [t2 H2]].
+    rewrite H1 in IHpt1 |- *.
+    rewrite H2 in IHpt2 |- *.
+    cbn.
+    (* IHpt1: ord_le omega_cnf (OCons e1 t1).  This means ord_compare
+       (OCons OZero OZero) e1 is Eq or Lt, i.e., e1 >= OCons OZero OZero. *)
+    assert (HE1 : ord_le (OCons OZero OZero) e1).
+    { destruct e1 as [|e1e e1t].
+      - exfalso. apply IHpt1. unfold omega_cnf. cbn. reflexivity.
+      - destruct e1e as [|e1ee e1et].
+        + destruct e1t as [|e1te e1tt].
+          * unfold ord_le. cbn. discriminate.
+          * unfold ord_le. cbn. discriminate.
+        + unfold ord_le. cbn. discriminate. }
+    destruct (ord_compare e1 e2) eqn:Hee.
+    + apply ord_compare_eq_iff in Hee. subst e2.
+      apply omega_cnf_le_OCons_when_lead_ge. exact HE1.
+    + exact IHpt2.
+    + apply omega_cnf_le_OCons_when_lead_ge. exact HE1.
+  - cbn.
+    unfold omega_pow.
+    destruct (proof_height_ord_OCons_shape _ pt) as [e [t Heq]].
+    rewrite Heq.
+    apply omega_cnf_le_OCons_when_lead_ge.
+    unfold ord_le. destruct e as [|ee et]; cbn.
+    + destruct t as [|te tt]; cbn; discriminate.
+    + discriminate.
+Qed.
+
 (* Helper: if omega_pow X has leading exp X, the result of ord_add ω
    (omega_pow X) has leading exp X (when X >= 1, which it is for positive X). *)
 
