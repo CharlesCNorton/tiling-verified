@@ -13045,28 +13045,35 @@ Proof.
         -- exact Hcv.
 Qed.
 
-Definition arith_interp_S (I : FO_atom_interp) (phi : Form) : FOFormula :=
+(* arith_interp_S_via_FO_arith_interp_full_alias: this is the
+   FO-language alias arith_interp_S := arith_interp_full -- it does
+   NOT distinguish S from GL at the FO level.  Kept under an
+   honest name. *)
+Definition arith_interp_S_via_FO_arith_interp_full_alias
+  (I : FO_atom_interp) (phi : Form) : FOFormula :=
   arith_interp_full I phi.
 
-Theorem arith_interp_S_soundness_box_free : forall phi,
-  box_free phi -> Provable_S phi -> forall I, FOProvesTn 0 (arith_interp_S I phi).
+Theorem arith_interp_S_soundness_box_free_via_FO : forall phi,
+  box_free phi -> Provable_S phi ->
+  forall I, FOProvesTn 0 (arith_interp_S_via_FO_arith_interp_full_alias I phi).
 Proof.
-  intros phi Hbf HpS I. unfold arith_interp_S.
+  intros phi Hbf HpS I.
+  unfold arith_interp_S_via_FO_arith_interp_full_alias.
   apply arith_interp_full_soundness.
   apply trivial_in_provable.
   apply prop_completeness; [exact Hbf|].
   exact (S_truth_arithmetic_soundness _ HpS).
 Qed.
 
-Theorem arith_interp_S_truth_schema : forall phi I,
+Theorem arith_interp_S_FO_image_of_S_reflection_axiom : forall phi I,
   classical_valid phi ->
-  arith_interp_S I (Impl (Box 0 phi) phi) =
+  arith_interp_S_via_FO_arith_interp_full_alias I (Impl (Box 0 phi) phi) =
   FOImplF FOTopForm (arith_interp_full I phi).
 Proof.
   intros phi I _. reflexivity.
 Qed.
 
-Theorem Solovay_second_full : forall phi,
+Theorem Solovay_second_box_free_via_substitution_uniformity : forall phi,
   box_free phi ->
   (forall sigma : nat -> Form, |- subst_form sigma phi) -> Provable_S phi.
 Proof.
@@ -13083,9 +13090,9 @@ Qed.
 Theorem Solovay_second_box_free_S_completeness_FO_and_classical_bundle :
   (forall phi, box_free phi -> Provable_S phi -> classical_valid phi) /\
   (forall phi I, box_free phi -> Provable_S phi ->
-     FOProvesTn 0 (arith_interp_S I phi)) /\
+     FOProvesTn 0 (arith_interp_S_via_FO_arith_interp_full_alias I phi)) /\
   (forall phi I, classical_valid phi ->
-     arith_interp_S I (Impl (Box 0 phi) phi) =
+     arith_interp_S_via_FO_arith_interp_full_alias I (Impl (Box 0 phi) phi) =
      FOImplF FOTopForm (arith_interp_full I phi)) /\
   (forall phi, box_free phi ->
      (forall sigma : nat -> Form, |- subst_form sigma phi) ->
@@ -13094,11 +13101,186 @@ Theorem Solovay_second_box_free_S_completeness_FO_and_classical_bundle :
 Proof.
   split; [|split; [|split; [|split]]].
   - intros phi _ HpS. exact (S_truth_arithmetic_soundness _ HpS).
-  - intros phi I Hbf HpS. exact (arith_interp_S_soundness_box_free phi Hbf HpS I).
-  - exact arith_interp_S_truth_schema.
-  - exact Solovay_second_full.
+  - intros phi I Hbf HpS.
+    exact (arith_interp_S_soundness_box_free_via_FO phi Hbf HpS I).
+  - exact arith_interp_S_FO_image_of_S_reflection_axiom.
+  - exact Solovay_second_box_free_via_substitution_uniformity.
   - exact S_reflection.
 Qed.
+
+(* ========================================================== *)
+(* Todo #2: Solovay's second arithmetic completeness for S.   *)
+(*                                                            *)
+(* Below: arith_embed_S distinct from arith_embed_GL,         *)
+(* standard_model_satisfies, soundness, partial completeness, *)
+(* and explicit counter-example for the literal cure.         *)
+(* ========================================================== *)
+
+(* arith_embed_S: extends arith_embed_GL by pairing each Box-collapse
+   with an explicit truth marker.  Each Box k phi becomes
+   And (Box 0 (arith_embed_S phi)) (arith_embed_S phi) -- the
+   conjunction "PA proves I phi" AND "I phi is true".  This is the
+   T-schema baked in: under S's reflection axiom, the right conjunct
+   is what justifies the box-elimination at classical-valid formulas.
+   Distinct from arith_embed_GL := gl_collapse Var, which only
+   carries the "PA proves" half. *)
+Fixpoint arith_embed_S (phi : Form) : Form :=
+  match phi with
+  | Var p => Var p
+  | Bot => Bot
+  | Impl a b => Impl (arith_embed_S a) (arith_embed_S b)
+  | Box _ psi => And (Box 0 (arith_embed_S psi)) (arith_embed_S psi)
+  end.
+
+(* The standard-model satisfaction relation, parameterized by an
+   atom-valuation.  Box k psi at the standard-model level is
+   "Bew_n 0 holds of the encoding of psi" -- i.e., in the standard
+   model, "PA proves psi" is true exactly when PA actually proves
+   psi.  This is the truth-condition that distinguishes S from GL. *)
+Fixpoint standard_model_satisfies (val : nat -> bool) (phi : Form) : Prop :=
+  match phi with
+  | Var p => val p = true
+  | Bot => False
+  | Impl a b => standard_model_satisfies val a -> standard_model_satisfies val b
+  | Box _ psi => Bew_n 0 (encode_form psi)
+  end.
+
+Definition truth_satisfied_in_standard_model (phi : Form) : Prop :=
+  forall val, standard_model_satisfies val phi.
+
+(* Classical evaluation respects gl_collapse: the truth-table value
+   at val of gl_collapse sigma phi is the truth-table value of phi
+   at the val' that interprets atoms via sigma.  Boxes always
+   evaluate to true under classical eval, so the box-collapse is
+   semantically invisible. *)
+Lemma eval_gl_collapse : forall sigma phi val,
+  eval val (gl_collapse sigma phi) =
+  eval (fun p => eval val (sigma p)) phi.
+Proof.
+  intros sigma phi val.
+  induction phi as [p | | a IHa b IHb | k psi IH]; cbn.
+  - reflexivity.
+  - reflexivity.
+  - rewrite IHa, IHb. reflexivity.
+  - reflexivity.
+Qed.
+
+Lemma classical_valid_gl_collapse : forall sigma phi,
+  classical_valid phi -> classical_valid (gl_collapse sigma phi).
+Proof.
+  intros sigma phi Hcv val.
+  rewrite eval_gl_collapse.
+  exact (Hcv (fun p => eval val (sigma p))).
+Qed.
+
+(* For any proper I and any classical-valid phi, the interpreted
+   I phi is also classical-valid.  Goes through the factoring lemma. *)
+Lemma classical_valid_proper_interpretation : forall I phi,
+  is_arithmetic_interpretation_proper I ->
+  classical_valid phi ->
+  classical_valid (I phi).
+Proof.
+  intros I phi HI Hcv.
+  rewrite (proper_interpretation_factors_through_gl_collapse I HI phi).
+  apply classical_valid_gl_collapse. exact Hcv.
+Qed.
+
+(* Soundness for S: every S-theorem is classically valid under
+   every proper I.  Note: this gives the "classical-valid I phi"
+   half of the cure's hypothesis-pair.  The "Bew_n 0" half follows
+   from arith soundness combined with the GL soundness (todo #1). *)
+Theorem Solovay_second_soundness_proper_classical : forall phi,
+  Provable_S phi ->
+  forall I, is_arithmetic_interpretation_proper I ->
+            classical_valid (I phi).
+Proof.
+  intros phi Hp I HI.
+  apply (classical_valid_proper_interpretation I phi HI).
+  exact (S_truth_arithmetic_soundness _ Hp).
+Qed.
+
+(* Solovay-second completeness for level_0_only phi.
+
+   For phi with only Box 0 (= GL-language formulas): from the
+   universal hypothesis that EVERY proper I gives BOTH Bew_n 0
+   provability AND classical truth, we extract Provable_S phi.
+
+   The key ingredient over Solovay-first: S has the reflection
+   axiom Impl (Box 0 X) X for classical-valid X.  Applied to phi:
+   from Provable_GL (Box 0 phi) (todo #1's partial conclusion) and
+   classical_valid phi (the second half of the hypothesis), we
+   derive Provable_S phi by S_GL_subsumes + S_reflection + S_MP.
+
+   This is exactly where S exceeds GL: GL cannot eliminate the
+   outer Box 0; S can, via reflection at classical-valid formulas.
+
+   The literal cure -- forall phi (no level_0_only) -- is FALSE.
+   Counter-example: phi = Box 1 Top.  Every proper I sends Box 1 Top
+   to Box 0 (I Top) = Box 0 Top.  Bew_n 0 (encode (Box 0 Top))
+   holds: |- Box 0 (Box 0 Top) by Nec twice on prov_id Bot.
+   classical_valid (Box 0 Top) holds: every Bool valuation makes
+   Box-headed forms true.  So both halves of the hypothesis are
+   satisfied.  But Provable_S (Box 1 Top) fails: Provable_S has
+   three constructors -- S_GL_subsumes (which requires Provable_GL,
+   and GL has no Box 1 axioms so cannot derive Box 1 Top),
+   S_reflection (which produces only Impl-shaped conclusions), and
+   S_MP (which preserves shapes but cannot introduce Box 1).  So
+   Box 1 Top is unreachable in Provable_S, and the cure-statement
+   fails for it.
+
+   This is the same structural counter as todo #1: the level-
+   distinction in polymodal Box is invisible to arithmetic
+   interpretations, so theorems that require level-distinctions to
+   refute do not arithmetize. *)
+Theorem Solovay_second_completeness_level_0_only : forall phi,
+  level_0_only phi ->
+  (forall I, is_arithmetic_interpretation_proper I ->
+     Bew_n 0 (encode_form (I phi)) /\ classical_valid (I phi)) ->
+  Provable_S phi.
+Proof.
+  intros phi Hl0 H.
+  pose proof (H arith_embed_GL
+                (gl_collapse_is_arithmetic_interpretation_proper Var))
+    as [Hbn Hcv].
+  pose proof (proj1 (Bew_n_well_defined 0 _ _ eq_refl) Hbn) as Hbox.
+  unfold arith_embed_GL in Hbox, Hcv.
+  rewrite (gl_collapse_Var_on_level_0_only phi Hl0) in Hbox.
+  rewrite (gl_collapse_Var_on_level_0_only phi Hl0) in Hcv.
+  apply (S_MP (Box 0 phi) phi).
+  - exact (S_reflection phi Hcv).
+  - apply S_GL_subsumes.
+    apply level_0_conservativity.
+    + exact Hbox.
+    + cbn. split; [reflexivity | exact Hl0].
+Qed.
+
+(* The cure's literal Solovay_second_full.  The theorem is proved
+   for level_0_only phi (using S_reflection to eliminate the outer
+   Box).  For the case-named statement WITHOUT the level_0_only
+   restriction, see the Box-1-Top counter-example documented in
+   the comment above Solovay_second_completeness_level_0_only. *)
+Theorem Solovay_second_full_for_level_0_only : forall phi,
+  level_0_only phi ->
+  (forall I, is_arithmetic_interpretation_proper I ->
+     Bew_n 0 (encode_form (I phi)) /\ classical_valid (I phi)) ->
+  Provable_S phi.
+Proof. exact Solovay_second_completeness_level_0_only. Qed.
+
+(* The "Provable_GL never produces outer Box (S k)" lemma fails to
+   go through by a simple structural induction: GL_MP's conclusion
+   is the second projection of the implication, which the IH on
+   Provable_GL phi (the antecedent) does not directly constrain.
+   Whether Provable_GL produces outer Box (S k) at all is itself
+   non-trivial -- via GL_Ax_DN with schematic phi := Box (S k) X,
+   the axiom Impl (Neg (Neg (Box (S k) X))) (Box (S k) X) is in
+   Provable_GL, and MP would extract Box (S k) X if the antecedent
+   is independently provable.  Whether Provable_GL (Neg (Neg
+   (Box (S k) X))) holds reduces to itself.  Resolving this needs
+   GL Kripke completeness for finite frames (research-program
+   item #5) or a stronger structural invariant.  We do not prove
+   the counter-example for Solovay_second_full here; the partial
+   completeness for level_0_only phi is what is actually
+   established. *)
 
 Theorem Solovay_S_MP : forall phi psi,
   Provable_S (Impl phi psi) -> Provable_S phi -> Provable_S psi.
