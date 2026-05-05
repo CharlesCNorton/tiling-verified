@@ -1,20 +1,13 @@
 # tiling-verified todo
 
-1. Strengthen `Pi2_conservativity_via_propositional_inversion` to cover
-    depth-1 formulas. Construct a `Provable_no_NC`-style frame
-    validating `Neg (Box k phi)` at level `S n` and refuting it at
-    level `n` for every `k < n` with `phi` box-free, and use it to
-    prove `Pi2_depth1_conservativity : forall n k phi, k < n ->
-    box_free phi -> Bew (S n) (Neg (Box k phi)) -> Bew n (Neg (Box k
-    phi))`.
-2. Replace `relative_consistency_via_meta` with
+1. Replace `relative_consistency_via_meta` with
     `Con_T0_implies_Con_Tn : ~ Bew 0 Bot -> forall n, ~ Bew n Bot`.
     Define `untower_translation : forall n phi, Bew n phi ->
     Bew 0 (translate phi)` by induction on Bew-derivations,
     replacing each `TAx_NextCon` application with a `Bew 0`
     derivation under the hypothesis `~ Bew 0 Bot`. Prove the lemma at
     `phi = Bot` to obtain `Con_T0_implies_Con_Tn`.
-3. Replace `Solovay_first_completeness_box_free_fragment` with the
+2. Replace `Solovay_first_completeness_box_free_fragment` with the
     full Solovay theorem for arbitrary `phi`. Define
     `arith_interp : Form -> FOFormula` that maps `Box k phi` to a
     `FOProvesTn k` claim under Gödel encoding, prove
@@ -23,12 +16,12 @@
     `Solovay_first_full : forall phi, (forall I, FOProvesTn 0
     (I (arith_interp phi))) -> |- phi` without collapsing the
     universal premise to identity.
-4. Replace `Solovay_second_completeness_with_reflection_axiom` with
+3. Replace `Solovay_second_completeness_with_reflection_axiom` with
     the full Solovay-S theorem for arbitrary `phi`. Construct
     `arith_interp_S : Form -> FOFormula` with the T-schema for true
     sentences, and prove `Solovay_second_full : forall phi, (forall
     I, FOProvesTn 0 (I (arith_interp_S phi))) -> Provable_S phi`.
-5. Replace `Japaridze_arithmetic_completeness_general` with a
+4. Replace `Japaridze_arithmetic_completeness_general` with a
     Solovay-tree construction. Define `Solovay_tree : Form -> nat ->
     FOFormula` returning the Solovay-tree node at each level, prove
     the modal-image theorem
@@ -37,7 +30,7 @@
     <-> Provable_full_GLP phi`, and use it to discharge
     `Japaridze_full` without instantiating at the identity
     interpretation.
-6. Replace the `From Tiling Require Export Tiling.` content of
+5. Replace the `From Tiling Require Export Tiling.` content of
     `Calculus.v`, `Hilbert.v`, `Kripke.v`, `FixedPoints.v`, `Bew.v`,
     `ProofTerms.v`, `Worms.v`, and `Agents.v` with a physical
     partition of `Tiling.v`'s body. Move calculus inductives plus
@@ -49,7 +42,7 @@
     Update `_CoqProject` with the dependency order. `Tiling.v`
     becomes a meta-file containing only `From Tiling Require Export
     Calculus Hilbert Kripke FixedPoints Bew ProofTerms Worms Agents.`
-7. Replace each `*_summary` theorem that is a conjunction of
+6. Replace each `*_summary` theorem that is a conjunction of
     already-named theorems (`Pi1_conservativity_summary`,
     `Pi2_conservativity_summary`, `Bew_axiomatic_summary`,
     `realisation_full_soundness`, `Bew_satisfies_GLP_axioms_summary`,

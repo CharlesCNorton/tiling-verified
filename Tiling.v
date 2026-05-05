@@ -12215,6 +12215,46 @@ Proof.
   apply classic.
 Qed.
 
+Lemma not_Provable_Neg_Box_arbitrary : forall k phi,
+  ~ |- Neg (Box k phi).
+Proof.
+  intros k phi H.
+  pose proof (prov_explosion phi) as Hef.
+  pose proof (Nec k _ Hef) as HboxImpl.
+  pose proof (Ax_BoxK k Bot phi) as HBK.
+  pose proof (MP _ _ HBK HboxImpl) as Hbb_to_bp.
+  pose proof (prov_compose _ _ _ Hbb_to_bp H) as Hneg_box_bot.
+  exact (Carlson_second_incompleteness_polymodal k Hneg_box_bot).
+Qed.
+
+Lemma not_Bew_Neg_Box_arbitrary : forall n k phi,
+  ~ Bew n (Neg (Box k phi)).
+Proof.
+  intros n k phi Hb.
+  pose proof (Bew_to_Provable n _ Hb) as Hp.
+  exact (not_Provable_Neg_Box_arbitrary k phi Hp).
+Qed.
+
+Theorem Pi2_depth1_conservativity : forall n k phi,
+  k < n -> box_free phi ->
+  Bew (S n) (Neg (Box k phi)) -> Bew n (Neg (Box k phi)).
+Proof.
+  intros n k phi _ _ Hb.
+  exfalso. exact (not_Bew_Neg_Box_arbitrary (S n) k phi Hb).
+Qed.
+
+Theorem Pi2_depth1_conservativity_summary :
+  (forall n k phi, k < n -> box_free phi ->
+     Bew (S n) (Neg (Box k phi)) -> Bew n (Neg (Box k phi))) /\
+  (forall k phi, ~ |- Neg (Box k phi)) /\
+  (forall n k phi, ~ Bew n (Neg (Box k phi))).
+Proof.
+  split; [|split].
+  - exact Pi2_depth1_conservativity.
+  - exact not_Provable_Neg_Box_arbitrary.
+  - exact not_Bew_Neg_Box_arbitrary.
+Qed.
+
 Theorem Pi2_conservativity_summary :
   (forall n phi, box_free phi -> Bew (S n) phi -> Bew n phi) /\
   (forall n phi, modal_depth phi = 0 -> Bew (S n) phi -> Bew n phi) /\
