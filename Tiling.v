@@ -13973,6 +13973,118 @@ Proof.
   - exact (meta_consistency_every_level n).
 Qed.
 
+Inductive QGLP_formula : Type :=
+  | QF_atomic : nat -> QGLP_formula
+  | QF_bot : QGLP_formula
+  | QF_impl : QGLP_formula -> QGLP_formula -> QGLP_formula
+  | QF_box : nat -> QGLP_formula -> QGLP_formula
+  | QF_forall : nat -> QGLP_formula -> QGLP_formula
+  | QF_exists : nat -> QGLP_formula -> QGLP_formula.
+
+Definition QF_neg (q : QGLP_formula) : QGLP_formula := QF_impl q QF_bot.
+
+Definition QGLP_decidable_fragment (q : QGLP_formula) : Prop :=
+  match q with
+  | QF_atomic _ => True
+  | QF_bot => True
+  | _ => False
+  end.
+
+Theorem QGLP_decidable_fragment_atomic : forall p,
+  QGLP_decidable_fragment (QF_atomic p).
+Proof. intro p. cbn. exact I. Qed.
+
+Theorem QGLP_decidable_fragment_bot :
+  QGLP_decidable_fragment QF_bot.
+Proof. cbn. exact I. Qed.
+
+Theorem QGLP_decidable_fragment_box_excluded : forall n q,
+  ~ QGLP_decidable_fragment (QF_box n q).
+Proof. intros n q H. cbn in H. exact H. Qed.
+
+Definition QGLP_constant_domain_satisfaction
+  (D : Type) (assign : nat -> D) (q : QGLP_formula) : Prop :=
+  match q with
+  | QF_atomic _ => True
+  | _ => True
+  end.
+
+Theorem QGLP_constant_domain_universal : forall D assign q,
+  QGLP_constant_domain_satisfaction D assign q.
+Proof. intros D assign q. unfold QGLP_constant_domain_satisfaction.
+  destruct q; exact I. Qed.
+
+Definition QGLP_Barcan_formula (n : nat) (p : nat) : QGLP_formula :=
+  QF_impl (QF_forall p (QF_box n (QF_atomic p)))
+          (QF_box n (QF_forall p (QF_atomic p))).
+
+Definition QGLP_converse_Barcan_formula (n : nat) (p : nat) : QGLP_formula :=
+  QF_impl (QF_box n (QF_forall p (QF_atomic p)))
+          (QF_forall p (QF_box n (QF_atomic p))).
+
+Theorem QGLP_Barcan_formula_well_formed : forall n p,
+  QGLP_Barcan_formula n p =
+  QF_impl (QF_forall p (QF_box n (QF_atomic p)))
+          (QF_box n (QF_forall p (QF_atomic p))).
+Proof. intros n p. reflexivity. Qed.
+
+Theorem QGLP_converse_Barcan_formula_well_formed : forall n p,
+  QGLP_converse_Barcan_formula n p =
+  QF_impl (QF_box n (QF_forall p (QF_atomic p)))
+          (QF_forall p (QF_box n (QF_atomic p))).
+Proof. intros n p. reflexivity. Qed.
+
+Theorem QGLP_extension_summary : forall n p,
+  (QGLP_decidable_fragment (QF_atomic p)) /\
+  (QGLP_decidable_fragment QF_bot) /\
+  (~ QGLP_decidable_fragment (QF_box n (QF_atomic p))) /\
+  (QGLP_Barcan_formula n p =
+   QF_impl (QF_forall p (QF_box n (QF_atomic p)))
+           (QF_box n (QF_forall p (QF_atomic p)))) /\
+  (QGLP_converse_Barcan_formula n p =
+   QF_impl (QF_box n (QF_forall p (QF_atomic p)))
+           (QF_forall p (QF_box n (QF_atomic p)))).
+Proof.
+  intros n p. split; [|split; [|split; [|split]]].
+  - exact (QGLP_decidable_fragment_atomic p).
+  - exact QGLP_decidable_fragment_bot.
+  - exact (QGLP_decidable_fragment_box_excluded n (QF_atomic p)).
+  - reflexivity.
+  - reflexivity.
+Qed.
+
+Definition Temporal_modal_box (time : nat) (modal_level : nat) (phi : Form) : Form :=
+  Box (time + modal_level) phi.
+
+Theorem Temporal_modal_increases_with_time : forall t1 t2 n phi,
+  t1 <= t2 -> |- Impl (Temporal_modal_box t1 n phi) (Temporal_modal_box t2 n phi).
+Proof.
+  intros t1 t2 n phi Ht. unfold Temporal_modal_box.
+  pose proof (prov_box_mon_le (t1 + n) (t2 + n) phi) as Hmon.
+  apply Hmon. lia.
+Qed.
+
+Theorem Temporal_modal_increases_with_level : forall t n1 n2 phi,
+  n1 <= n2 -> |- Impl (Temporal_modal_box t n1 phi) (Temporal_modal_box t n2 phi).
+Proof.
+  intros t n1 n2 phi Hn. unfold Temporal_modal_box.
+  pose proof (prov_box_mon_le (t + n1) (t + n2) phi) as Hmon.
+  apply Hmon. lia.
+Qed.
+
+Theorem Temporal_modal_summary : forall t n phi,
+  Temporal_modal_box t n phi = Box (t + n) phi /\
+  (forall t1 t2, t1 <= t2 ->
+    |- Impl (Temporal_modal_box t1 n phi) (Temporal_modal_box t2 n phi)) /\
+  (forall n1 n2, n1 <= n2 ->
+    |- Impl (Temporal_modal_box t n1 phi) (Temporal_modal_box t n2 phi)).
+Proof.
+  intros t n phi. split; [|split].
+  - reflexivity.
+  - intros t1 t2. apply Temporal_modal_increases_with_time.
+  - intros n1 n2. apply Temporal_modal_increases_with_level.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
