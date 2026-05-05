@@ -14851,6 +14851,65 @@ Proof.
   - exact sahlqvist_Mon_iff_inclusion.
 Qed.
 
+Theorem fine_schurz_kripke_incompleteness :
+  exists phi, Provable_GLP phi /\ exists (F : Frame) V w, ~ forces F V w phi.
+Proof.
+  exists (Japaridze 0 (Var 0)). split.
+  - apply GLP_Ax_Japaridze.
+  - exists Fnat.
+    set (V := fun (w : nat) (p : nat) =>
+      match p with O => Nat.eqb w 4 | _ => false end).
+    exists V. exists 5.
+    intro Hf.
+    unfold Japaridze, Diamond in Hf. simpl in Hf.
+    assert (Hdia0 : (forall v : nat, Fnat_R 0 5 v -> V v 0 = true -> False) -> False).
+    { intro Habs.
+      apply (Habs 4).
+      - unfold Fnat_R. split; lia.
+      - unfold V. simpl. reflexivity. }
+    pose proof (Hf Hdia0) as HBox1.
+    apply (HBox1 1).
+    + unfold Fnat_R. split; lia.
+    + intros v Hv Hval. unfold Fnat_R in Hv. destruct Hv as [Hv1 Hv2].
+      assert (v = 0) by lia. subst v.
+      unfold V in Hval. simpl in Hval. discriminate.
+Qed.
+
+Theorem fine_schurz_at_each_level : forall (n : nat),
+  exists phi, Provable_GLP phi /\ exists (F : Frame) V w, ~ forces F V w phi.
+Proof.
+  intro n. exists (Japaridze n (Var 0)). split.
+  - apply GLP_Ax_Japaridze.
+  - exists Fnat.
+    set (V := fun (w : nat) (p : nat) =>
+      match p with O => Nat.eqb w (n + 4) | _ => false end).
+    exists V. exists (n + 5).
+    intro Hf.
+    unfold Japaridze, Diamond in Hf. simpl in Hf.
+    assert (Hdia : (forall v : nat, Fnat_R n (n + 5) v -> V v 0 = true -> False) -> False).
+    { intro Habs.
+      apply (Habs (n + 4)).
+      - unfold Fnat_R. split; lia.
+      - unfold V. simpl. rewrite Nat.eqb_refl. reflexivity. }
+    pose proof (Hf Hdia) as HBoxSn.
+    specialize (HBoxSn (n + 1) ltac:(unfold Fnat_R; split; lia)) as HD.
+    apply HD.
+    intros v Hv Hval.
+    unfold Fnat_R in Hv. destruct Hv as [Hv1 Hv2].
+    assert (Hve : v = n) by lia. subst v.
+    unfold V in Hval. simpl in Hval.
+    apply Nat.eqb_eq in Hval. lia.
+Qed.
+
+Theorem fine_schurz_no_kripke_complete_subextension :
+  ~ (forall phi, Provable_GLP phi -> Valid phi).
+Proof.
+  intro H.
+  destruct fine_schurz_kripke_incompleteness as [phi [Hp Hnv]].
+  destruct Hnv as [F [V [w Hnf]]].
+  apply Hnf. apply (H phi Hp).
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
