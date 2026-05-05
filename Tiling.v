@@ -14394,6 +14394,109 @@ Proof.
   - exact strict_weakening_distinct_DN_instances.
 Qed.
 
+Inductive Form_B : Type :=
+  | FB_var : nat -> Form_B
+  | FB_bot : Form_B
+  | FB_impl : Form_B -> Form_B -> Form_B
+  | FB_box : nat -> Form_B -> Form_B
+  | FB_interp : nat -> Form_B -> Form_B -> Form_B.
+
+Definition FB_neg (a : Form_B) : Form_B := FB_impl a FB_bot.
+Definition FB_top : Form_B := FB_impl FB_bot FB_bot.
+
+Fixpoint Form_to_B (phi : Form) : Form_B :=
+  match phi with
+  | Var p => FB_var p
+  | Bot => FB_bot
+  | Impl a b => FB_impl (Form_to_B a) (Form_to_B b)
+  | Box n a => FB_box n (Form_to_B a)
+  end.
+
+Inductive Provable_B : Form_B -> Prop :=
+  | PB_K : forall a b, Provable_B (FB_impl a (FB_impl b a))
+  | PB_S : forall a b c,
+      Provable_B (FB_impl (FB_impl a (FB_impl b c))
+                          (FB_impl (FB_impl a b) (FB_impl a c)))
+  | PB_DN : forall a, Provable_B (FB_impl (FB_neg (FB_neg a)) a)
+  | PB_BoxK : forall n a b,
+      Provable_B (FB_impl (FB_box n (FB_impl a b))
+                          (FB_impl (FB_box n a) (FB_box n b)))
+  | PB_Loeb : forall n a,
+      Provable_B (FB_impl (FB_box n (FB_impl (FB_box n a) a)) (FB_box n a))
+  | PB_Box4 : forall n a, Provable_B (FB_impl (FB_box n a) (FB_box n (FB_box n a)))
+  | PB_Mon : forall n a, Provable_B (FB_impl (FB_box n a) (FB_box (S n) a))
+  | PB_NC : forall n, Provable_B (FB_box (S n) (FB_neg (FB_box n FB_bot)))
+  | PB_J1 : forall n a, Provable_B (FB_interp n a a)
+  | PB_J2 : forall n a b c,
+      Provable_B (FB_impl (FB_interp n a b)
+                          (FB_impl (FB_interp n b c) (FB_interp n a c)))
+  | PB_J3_box : forall n a b,
+      Provable_B (FB_impl (FB_box n (FB_impl a b)) (FB_interp n a b))
+  | PB_MP : forall a b, Provable_B (FB_impl a b) -> Provable_B a -> Provable_B b
+  | PB_Nec : forall n a, Provable_B a -> Provable_B (FB_box n a).
+
+Theorem Provable_lifts_to_B : forall phi,
+  |- phi -> Provable_B (Form_to_B phi).
+Proof.
+  intros phi H. induction H; cbn.
+  - apply PB_K.
+  - apply PB_S.
+  - apply PB_DN.
+  - apply PB_BoxK.
+  - apply PB_Loeb.
+  - apply PB_Box4.
+  - apply PB_Mon.
+  - apply PB_NC.
+  - exact (PB_MP _ _ IHProvable1 IHProvable2).
+  - exact (PB_Nec _ _ IHProvable).
+Qed.
+
+Theorem Provable_B_strict_extension :
+  forall n a, Provable_B (FB_interp n a a).
+Proof. intros. apply PB_J1. Qed.
+
+Theorem Provable_B_J3_box_to_interp : forall n phi psi,
+  |- Box n (Impl phi psi) ->
+  Provable_B (FB_interp n (Form_to_B phi) (Form_to_B psi)).
+Proof.
+  intros n phi psi H.
+  pose proof (Provable_lifts_to_B _ H) as HB.
+  cbn in HB.
+  pose proof (PB_J3_box n (Form_to_B phi) (Form_to_B psi)) as HJ3.
+  exact (PB_MP _ _ HJ3 HB).
+Qed.
+
+Theorem Provable_B_J2_meta : forall n a b c,
+  Provable_B (FB_interp n a b) ->
+  Provable_B (FB_interp n b c) ->
+  Provable_B (FB_interp n a c).
+Proof.
+  intros n a b c Hab Hbc.
+  pose proof (PB_J2 n a b c) as HJ2.
+  pose proof (PB_MP _ _ HJ2 Hab) as Hstep.
+  exact (PB_MP _ _ Hstep Hbc).
+Qed.
+
+Theorem Provable_B_interp_provability_chain : forall n a b c,
+  Provable_B (FB_interp n a b) ->
+  Provable_B (FB_interp n b c) ->
+  Provable_B (FB_interp n a c).
+Proof. exact Provable_B_J2_meta. Qed.
+
+Theorem binary_modality_extension_witness :
+  forall n,
+    (forall a, Provable_B (FB_interp n a a)) /\
+    (forall a b, Provable_B (FB_impl (FB_box n (FB_impl a b)) (FB_interp n a b))) /\
+    (forall a b c,
+       Provable_B (FB_impl (FB_interp n a b)
+                           (FB_impl (FB_interp n b c) (FB_interp n a c)))).
+Proof.
+  intro n. split; [|split].
+  - apply PB_J1.
+  - apply PB_J3_box.
+  - apply PB_J2.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
