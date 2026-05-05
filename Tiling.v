@@ -14815,13 +14815,6 @@ Proof. intros phi. apply SCcf_implR. apply SC_GLP_cf_id. Qed.
 Lemma SC_GLP_cf_nextcon : forall n, SC_GLP_cf [] [Box (S n) (Neg (Box n Bot))].
 Proof. intros n. apply SCcf_nextconR. Qed.
 
-Theorem provable_modal_depth_bounded_self : forall phi,
-  |- phi -> exists d, modal_depth phi <= d /\ d = modal_depth phi.
-Proof.
-  intros phi _. exists (modal_depth phi).
-  split; [apply Nat.le_refl | reflexivity].
-Qed.
-
 Theorem cut_free_box_free_zero_modal_depth : forall phi,
   box_free phi -> |- phi ->
   modal_depth phi = 0 /\
@@ -14839,13 +14832,6 @@ Theorem cut_free_modal_depth_bounded_constructive : forall phi,
 Proof.
   intros phi _. exists (modal_depth phi). apply Nat.le_refl.
 Defined.
-
-Theorem cut_free_box_free_SC_GLP_cf_witnessed : forall phi,
-  box_free phi -> ProvableProp phi ->
-  modal_depth phi = 0.
-Proof.
-  intros phi Hbf _. exact (box_free_modal_depth_zero phi Hbf).
-Qed.
 
 Theorem Maehara_interpolant_real : forall phi1 phi2 psi,
   box_free phi1 -> box_free phi2 -> box_free psi ->
@@ -15404,10 +15390,6 @@ Proof.
     exists val. destruct (eval val phi); [contradiction | reflexivity].
 Qed.
 
-Theorem modal_compactness_full : forall Gamma,
-  Consistent Gamma <-> FinitelyConsistent Gamma.
-Proof. exact compactness. Qed.
-
 Theorem modal_compactness_canonical_witness : forall (Gamma : Form -> Prop),
   FinitelyConsistent Gamma ->
   exists w : canonical_world_max, forall phi, Gamma phi -> cwm_set w phi.
@@ -15478,37 +15460,6 @@ Theorem universal_frame_truth_lemma_box_free : forall phi w,
   box_free phi -> (cwm_set w phi <-> forces_cwm w phi).
 Proof. exact canonical_truth_lemma_max_box_free. Qed.
 
-Definition filtration_through_Sigma (F : Frame) (V : fW F -> nat -> bool)
-                                     (Sigma : list Form) (w v : fW F) : Prop :=
-  filtration_equiv F V Sigma w v.
-
-Theorem filtration_through_Sigma_equiv : forall F V Sigma,
-  (forall w, filtration_through_Sigma F V Sigma w w) /\
-  (forall w v, filtration_through_Sigma F V Sigma w v ->
-               filtration_through_Sigma F V Sigma v w) /\
-  (forall w v u, filtration_through_Sigma F V Sigma w v ->
-                 filtration_through_Sigma F V Sigma v u ->
-                 filtration_through_Sigma F V Sigma w u).
-Proof.
-  intros F V Sigma. split; [|split].
-  - exact (filtration_equiv_refl F V Sigma).
-  - exact (filtration_equiv_sym F V Sigma).
-  - exact (filtration_equiv_trans F V Sigma).
-Qed.
-
-Theorem filtration_through_Sigma_truth_preserving : forall F V Sigma phi w v,
-  filtration_through_Sigma F V Sigma w v ->
-  In phi Sigma ->
-  forces F V w phi <-> forces F V v phi.
-Proof. exact filtration_quotient_preserves_truth. Qed.
-
-Theorem filtration_box_free_finite : forall (Sigma : list Form),
-  Forall box_free Sigma ->
-  forall (val : nat -> bool),
-  exists subval : nat -> bool,
-    forall phi, In phi Sigma -> eval subval phi = eval val phi.
-Proof. exact filtration_finite_for_box_free. Qed.
-
 Theorem finite_frame_property_box_free_F0 : forall phi,
   box_free phi -> ~ |- phi ->
   exists (V : fW F0 -> nat -> bool) (w : fW F0), ~ forces F0 V w phi.
@@ -15530,19 +15481,6 @@ Proof.
   apply (Habs n). unfold Fnat_R. split; lia.
 Qed.
 
-Theorem finite_frame_property_box_free_uniform : forall phi,
-  box_free phi -> ~ |- phi ->
-  exists (F : Frame) V w, ~ forces F V w phi.
-Proof. exact kripke_completeness_box_free_via_frame. Qed.
-
-Theorem FMP_effective_bound_box_free : forall phi,
-  box_free phi -> ~ |- phi ->
-  exists (V : fW F0 -> nat -> bool) (w : fW F0), ~ forces F0 V w phi.
-Proof. exact finite_frame_property_box_free_F0. Qed.
-
-Theorem FMP_F0_size_two : exists (a b : fW F0), a <> b.
-Proof. exists true, false. discriminate. Qed.
-
 Theorem FMP_modal_depth_zero_via_F0 : forall phi,
   box_free phi -> ~ |- phi ->
   modal_depth phi = 0 /\
@@ -15550,7 +15488,7 @@ Theorem FMP_modal_depth_zero_via_F0 : forall phi,
 Proof.
   intros phi Hbf Hnp. split.
   - exact (box_free_modal_depth_zero phi Hbf).
-  - exact (FMP_effective_bound_box_free phi Hbf Hnp).
+  - exact (finite_frame_property_box_free_F0 phi Hbf Hnp).
 Qed.
 
 Theorem selection_theorem_identity_bisimulation : forall (F : Frame) V w,
@@ -15559,19 +15497,6 @@ Proof.
   intros F V w. exists (@eq (fW F)). split.
   - apply bisim_id.
   - reflexivity.
-Qed.
-
-Theorem selection_theorem_pointed_bisimilar : forall (F : Frame) V w phi,
-  forces F V w phi <-> exists (F' : Frame) V' (w' : fW F'),
-                       (exists Z, Bisim F F' V V' Z /\ Z w w') /\
-                       forces F' V' w' phi.
-Proof.
-  intros F V w phi. split.
-  - intro H. exists F, V, w. split.
-    + exists (@eq (fW F)). split. apply bisim_id. reflexivity.
-    + exact H.
-  - intros [F' [V' [w' [[Z [HB HZ]] Hf]]]].
-    apply (bisim_invariance F F' V V' Z HB phi w w' HZ). exact Hf.
 Qed.
 
 Theorem finite_refuting_frame_box_free_or_box_bot : forall phi,
