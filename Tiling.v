@@ -14226,6 +14226,26 @@ Proof.
   - exact genuine_FairBot_PrudentBot_distinct.
 Qed.
 
+Theorem cooperate_action_summary_strengthened :
+  (Cooperate_action <> Top) /\
+  (Cooperate_action <> Bot) /\
+  (Cooperate_action <> Defect_action) /\
+  (forall n p, genuine_FairBot n (Var p) <> Box n (Var p)) /\
+  (forall n p, genuine_FairBot n (Var p) <> genuine_PrudentBot n (Var p)) /\
+  (Top <> Bot /\ Top <> Defect_action /\ Bot <> Defect_action).
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - exact Cooperate_action_distinct_from_Top.
+  - exact Cooperate_action_distinct_from_Bot.
+  - exact Cooperate_action_distinct_from_Defect.
+  - exact genuine_FairBot_distinct_from_Box.
+  - exact genuine_FairBot_PrudentBot_distinct.
+  - split; [|split].
+    + intro H. unfold Top, Neg in H. discriminate.
+    + unfold Defect_action. unfold Top, Neg. discriminate.
+    + unfold Defect_action. discriminate.
+Qed.
+
 Theorem genuine_FairBot_provable_when_opp_eq_cooperate : forall n,
   |- genuine_FairBot n Cooperate_action.
 Proof.
@@ -14251,6 +14271,22 @@ Proof.
   - exact (genuine_FairBot_provable_when_opp_eq_cooperate n).
   - exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
   - exact (genuine_FairBot_PrudentBot_distinct n).
+Qed.
+
+Theorem FairBot_vs_PrudentBot_concrete_summary_strengthened : forall n,
+  (|- genuine_FairBot n Cooperate_action) /\
+  (|- genuine_PrudentBot n Cooperate_action) /\
+  (forall p, genuine_FairBot n (Var p) <> genuine_PrudentBot n (Var p)) /\
+  (|- genuine_FairBot n Cooperate_action /\
+   |- genuine_PrudentBot n Cooperate_action).
+Proof.
+  intro n. split; [|split; [|split]].
+  - exact (genuine_FairBot_provable_when_opp_eq_cooperate n).
+  - exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
+  - exact (genuine_FairBot_PrudentBot_distinct n).
+  - split.
+    + exact (genuine_FairBot_provable_when_opp_eq_cooperate n).
+    + exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
 Qed.
 
 Theorem FairBot_self_consistency : forall n,
