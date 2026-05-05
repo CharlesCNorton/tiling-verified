@@ -13209,6 +13209,34 @@ Proof.
   - exact Friedman_Sheard_axiomatisation.
 Qed.
 
+Theorem Friedman_Sheard_axiomatisation_summary_strengthened :
+  (exists T, FS_truth_axioms T /\ ~ |- T Bot) /\
+  (forall T, FS_truth_axioms T ->
+    (forall phi, box_free phi -> |- Iff (T phi) phi) /\
+    (forall phi, |- phi -> |- T phi) /\
+    (forall phi psi, |- T (Impl phi psi) -> |- Impl (T phi) (T psi))) /\
+  (FS_truth_axioms (fun phi => phi)) /\
+  (forall T, FS_truth_axioms T -> ~ |- T Bot ->
+    forall phi, box_free phi -> (|- T phi <-> |- phi)).
+Proof.
+  split; [|split; [|split]].
+  - exact Friedman_Sheard_T_for_box_free_consistent.
+  - exact Friedman_Sheard_axiomatisation.
+  - split; [|split].
+    + intros phi Hp. exact Hp.
+    + intros phi psi Hp. exact Hp.
+    + intros phi _. apply prov_iff_refl.
+  - intros T HT _ phi Hbf.
+    pose proof (Friedman_Sheard_axiomatisation T HT) as [HBF [HNec _]].
+    pose proof (HBF phi Hbf) as Hiff.
+    split.
+    + intro HTp.
+      pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+      exact (MP _ _ Hfwd HTp).
+    + intro Hp.
+      exact (HNec phi Hp).
+Qed.
+
 Definition Tr_partial (n : nat) (phi : Form) : Form :=
   if (modal_depth phi <=? n)%nat then phi else Box (S n) phi.
 
@@ -13286,6 +13314,29 @@ Proof.
   - exact Tr_partial_evaluates_box_free.
 Qed.
 
+Theorem Tr_partial_hierarchy_summary_strengthened :
+  (forall n phi, modal_depth phi <= n -> |- Iff (Tr_partial n phi) phi) /\
+  (forall n phi, modal_depth phi > n -> |- Impl (Box (S n) phi) (Tr_partial n phi)) /\
+  (forall n, ~ |- Tr_partial n Bot) /\
+  (forall n m, n < m ->
+    forall phi, modal_depth phi <= n ->
+    |- Iff (Tr_partial n phi) (Tr_partial m phi)) /\
+  (forall n phi, box_free phi -> |- Iff (Tr_partial n phi) phi) /\
+  (forall n phi, box_free phi ->
+    modal_depth phi <= n /\ |- Iff (Tr_partial n phi) phi).
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - exact Tr_partial_T_schema_for_depth_le_n.
+  - exact Tr_partial_definable_at_n_plus_1.
+  - exact Tr_partial_consistency.
+  - exact Tr_partial_hierarchy_strict.
+  - exact Tr_partial_evaluates_box_free.
+  - intros n phi Hbf. split.
+    + pose proof (proj1 (Pi2_conservativity_box_free_iff phi) Hbf) as Hd.
+      rewrite Hd. apply Nat.le_0_l.
+    + exact (Tr_partial_evaluates_box_free n phi Hbf).
+Qed.
+
 Definition Visser_interp (n : nat) (phi psi : Form) : Form :=
   Box n (Impl phi psi).
 
@@ -13357,6 +13408,23 @@ Proof.
   - exact Visser_ILM_J5_via_Mon.
   - exact Visser_J5_from_calculus_axioms.
   - exact Visser_J5_Mon.
+Qed.
+
+Theorem Visser_J5_full_summary_strengthened :
+  (forall n phi psi, |- Impl (Box n (Impl phi psi)) (Box (S n) (Impl phi psi))) /\
+  (forall n phi, |- Impl (Box n phi) (Box (S n) phi)) /\
+  (forall n phi psi, |- Impl (Visser_interp n phi psi) (Visser_interp (S n) phi psi)) /\
+  (forall n m phi, n <= m -> |- Impl (Box n phi) (Box m phi)).
+Proof.
+  split; [|split; [|split]].
+  - exact Visser_ILM_J5_via_Mon.
+  - exact Visser_J5_from_calculus_axioms.
+  - exact Visser_J5_Mon.
+  - intros n m phi Hnm.
+    induction Hnm as [|m' Hnm IH].
+    + exact (prov_id (Box n phi)).
+    + pose proof (Ax_Mon m' phi) as HAxM.
+      exact (prov_compose _ _ _ IH HAxM).
 Qed.
 
 Theorem Visser_Berarducci_arithmetic_J5 : forall (I : Form -> Form),
