@@ -13195,6 +13195,84 @@ Proof.
     apply Hnp. apply (proj1 (qbf_validity_iff_box_free_validity q)). exact Hall.
 Defined.
 
+Definition box_free_sat (phi : Form) : Prop := exists val, eval val phi = true.
+
+Definition box_free_unsat (phi : Form) : Prop := forall val, eval val phi = false.
+
+Theorem unsat_iff_provable_neg : forall phi, box_free phi ->
+  box_free_unsat phi <-> |- Neg phi.
+Proof.
+  intros phi Hbf. split.
+  - intros Hu.
+    apply trivial_in_provable. apply prop_completeness;
+      [apply box_free_Neg; exact Hbf|].
+    intro val. cbn. rewrite Hu. reflexivity.
+  - intros Hp val.
+    pose proof (provable_classically_valid _ Hp val) as Hcv.
+    cbn in Hcv. destruct (eval val phi); [discriminate|reflexivity].
+Qed.
+
+Theorem sat_iff_not_provable_neg : forall phi, box_free phi ->
+  box_free_sat phi <-> ~ |- Neg phi.
+Proof.
+  intros phi Hbf. split.
+  - intros [val Hsat] Hp.
+    pose proof (provable_classically_valid _ Hp val) as Hcv.
+    cbn in Hcv. rewrite Hsat in Hcv. discriminate.
+  - intros Hno.
+    destruct (decide_tautology (Neg phi)) eqn:E.
+    + exfalso. apply Hno.
+      apply trivial_in_provable. apply prop_completeness;
+        [apply box_free_Neg; exact Hbf|].
+      apply decide_tautology_correct. exact E.
+    + assert (Hbf' : box_free (Neg phi)) by (apply box_free_Neg; exact Hbf).
+      destruct (find_refuting_assignment (Neg phi) Hbf' E) as [val Hv].
+      exists val. cbn in Hv. destruct (eval val phi); [reflexivity|discriminate].
+Qed.
+
+Theorem box_free_unsat_decidable : forall phi, box_free phi ->
+  sumbool (box_free_unsat phi) (box_free_sat phi).
+Proof.
+  intros phi Hbf.
+  destruct (decidability_box_free_fragment (Neg phi) (box_free_Neg phi Hbf))
+    as [Hp|Hnp].
+  - left. apply (proj2 (unsat_iff_provable_neg phi Hbf)). exact Hp.
+  - right. apply (proj2 (sat_iff_not_provable_neg phi Hbf)). exact Hnp.
+Defined.
+
+Theorem box_free_validity_iff_no_refuter : forall phi, box_free phi ->
+  ((|- phi) <-> forall val, eval val phi = true) /\
+  ((~ |- phi) <-> (exists val, eval val phi = false)).
+Proof.
+  intros phi Hbf. split.
+  - split.
+    + intros Hp val. exact (eval_provable_true val phi Hp).
+    + intros Hv. apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+      intro val. exact (Hv val).
+  - split.
+    + intros Hnp.
+      destruct (decide_tautology phi) eqn:E.
+      * exfalso. apply Hnp.
+        apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+        apply decide_tautology_correct. exact E.
+      * destruct (find_refuting_assignment phi Hbf E) as [val Hv].
+        exists val. exact Hv.
+    + intros [val Hv] Hp.
+      pose proof (eval_provable_true val phi Hp) as H.
+      rewrite Hv in H. discriminate.
+Qed.
+
+Theorem box_free_coNP_complete_package : forall phi, box_free phi ->
+  (box_free_unsat phi <-> |- Neg phi) /\
+  (box_free_sat phi <-> ~ |- Neg phi) /\
+  ((~ |- phi) <-> (exists val, eval val phi = false)).
+Proof.
+  intros phi Hbf. split; [|split].
+  - exact (unsat_iff_provable_neg phi Hbf).
+  - exact (sat_iff_not_provable_neg phi Hbf).
+  - exact (proj2 (box_free_validity_iff_no_refuter phi Hbf)).
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
