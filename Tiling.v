@@ -13096,6 +13096,78 @@ Proof.
     + discriminate.
 Qed.
 
+Theorem level_n_agent_fails_level_n_plus_1_succeeds : forall n,
+  let sigma := Neg (Box n Bot) in
+  ~ |- Box n sigma /\
+  |- Box (S n) sigma.
+Proof.
+  intros n sigma. unfold sigma. split.
+  - exact (Godel_sentence_independent_at_Tn n).
+  - exact (Ax_NextCon n).
+Qed.
+
+Theorem concrete_level_separation_via_Godel_sentence : forall n,
+  exists (sigma G : Form),
+    ~ |- Box n sigma /\
+    |- Box (S n) sigma /\
+    sigma = Neg (Box n Bot).
+Proof.
+  intro n. exists (Neg (Box n Bot)), Top. split; [|split].
+  - exact (Godel_sentence_independent_at_Tn n).
+  - exact (Ax_NextCon n).
+  - reflexivity.
+Qed.
+
+Theorem level_n_agent_concrete_failure : forall n G,
+  let sigma := Neg (Box n Bot) in
+  ~ |- Box (agent_level (canonical_box_n_agent n G))
+        (agent_licenses (canonical_box_n_agent n G) sigma) /\
+  |- Box (agent_level (canonical_box_n_agent (S n) G))
+        (agent_licenses (canonical_box_n_agent (S n) G) sigma).
+Proof.
+  intros n G sigma. cbn. unfold sigma. split.
+  - exact (Godel_sentence_independent_at_Tn n).
+  - exact (Ax_NextCon n).
+Qed.
+
+Theorem strict_separation_via_concrete_agents : forall n,
+  exists (sigma : Form) (A_n A_Sn : AgentRecord),
+    agent_level A_n = n /\
+    agent_level A_Sn = S n /\
+    ~ |- Box (agent_level A_n) (agent_licenses A_n sigma) /\
+    |- Box (agent_level A_Sn) (agent_licenses A_Sn sigma).
+Proof.
+  intro n.
+  exists (Neg (Box n Bot)),
+         (canonical_box_n_agent n Top),
+         (canonical_box_n_agent (S n) Top).
+  split; [|split; [|split]].
+  - reflexivity.
+  - reflexivity.
+  - cbn. exact (Godel_sentence_independent_at_Tn n).
+  - cbn. exact (Ax_NextCon n).
+Qed.
+
+Theorem concrete_failure_case_summary : forall n,
+  (exists sigma, ~ |- Box n sigma /\ |- Box (S n) sigma) /\
+  (let sigma := Neg (Box n Bot) in
+    ~ |- Box n sigma /\ |- Box (S n) sigma) /\
+  (exists sigma A_n A_Sn,
+    agent_level A_n = n /\
+    agent_level A_Sn = S n /\
+    ~ |- Box (agent_level A_n) (agent_licenses A_n sigma) /\
+    |- Box (agent_level A_Sn) (agent_licenses A_Sn sigma)).
+Proof.
+  intro n. split; [|split].
+  - exists (Neg (Box n Bot)). split.
+    + exact (Godel_sentence_independent_at_Tn n).
+    + exact (Ax_NextCon n).
+  - cbn. split.
+    + exact (Godel_sentence_independent_at_Tn n).
+    + exact (Ax_NextCon n).
+  - exact (strict_separation_via_concrete_agents n).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
