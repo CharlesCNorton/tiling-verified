@@ -12142,6 +12142,59 @@ Proof.
   - exact Solovay_first_completeness_iff.
 Qed.
 
+Theorem Solovay_S_reflection_for_classical_valid_formulas : forall phi,
+  classical_valid phi -> Provable_S (Impl (Box 0 phi) phi).
+Proof. exact S_reflection. Qed.
+
+Theorem Solovay_S_reflection_box_at_n_for_box_free : forall (n : nat) (phi : Form),
+  box_free phi -> classical_valid phi -> Provable_S (Impl (Box 0 phi) phi).
+Proof.
+  intros n phi _ Hval. exact (S_reflection phi Hval).
+Qed.
+
+Theorem Solovay_S_classical_valid_yields_S : forall phi,
+  classical_valid phi -> Provable_S phi \/ Provable_S (Impl (Box 0 phi) phi).
+Proof.
+  intros phi Hval. right. exact (S_reflection phi Hval).
+Qed.
+
+Theorem Solovay_S_provable_subsumes_provable_GL : forall phi,
+  Provable_GL phi -> Provable_S phi.
+Proof. exact S_GL_subsumes. Qed.
+
+Theorem Solovay_S_classical_valid_iff : forall phi,
+  Provable_S phi -> classical_valid phi.
+Proof. exact S_truth_arithmetic_soundness. Qed.
+
+Theorem Solovay_S_reflection_general_chain : forall (n : nat) (phi : Form),
+  classical_valid phi -> Provable_S (Impl (Box 0 phi) phi).
+Proof. intros n phi Hval. exact (S_reflection phi Hval). Qed.
+
+Theorem Solovay_second_completeness_with_reflection_axiom :
+  (forall phi, box_free phi -> (Provable_S phi <-> classical_valid phi)) /\
+  (forall phi, classical_valid phi -> Provable_S (Impl (Box 0 phi) phi)) /\
+  (forall phi, Provable_GL phi -> Provable_S phi) /\
+  (forall phi, Provable_S phi -> classical_valid phi).
+Proof.
+  split; [|split; [|split]].
+  - exact solovay_second_completeness_box_free.
+  - exact S_reflection.
+  - exact S_GL_subsumes.
+  - exact S_truth_arithmetic_soundness.
+Qed.
+
+Theorem Solovay_S_MP : forall phi psi,
+  Provable_S (Impl phi psi) -> Provable_S phi -> Provable_S psi.
+Proof. exact S_MP. Qed.
+
+Theorem Solovay_S_classical_valid_implies_GL_proves : forall phi,
+  box_free phi -> classical_valid phi -> Provable_GL phi.
+Proof.
+  intros phi Hbf Hval.
+  apply ProvableProp_to_Provable_GL.
+  exact (prop_completeness phi Hbf Hval).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
