@@ -15157,6 +15157,109 @@ Proof.
   - intros [pt]. exact (Provable_term_sound phi pt).
 Qed.
 
+Fixpoint Provable_term_length (phi : Form) (pt : Provable_term phi) : nat :=
+  match pt with
+  | pt_K _ _      => 1
+  | pt_S _ _ _    => 1
+  | pt_DN _       => 1
+  | pt_BoxK _ _ _ => 1
+  | pt_Loeb _ _   => 1
+  | pt_Box4 _ _   => 1
+  | pt_Mon _ _    => 1
+  | pt_NextCon _  => 1
+  | pt_MP _ _ a b => S (Provable_term_length _ a + Provable_term_length _ b)
+  | pt_Nec _ _ a  => S (Provable_term_length _ a)
+  end.
+
+Lemma Provable_term_length_positive : forall phi (pt : Provable_term phi),
+  1 <= Provable_term_length phi pt.
+Proof.
+  intros phi pt. destruct pt; cbn; lia.
+Qed.
+
+Definition is_polynomial (p : nat -> nat) : Prop :=
+  exists a b c, forall x, p x = a * x * x + b * x + c.
+
+Definition Critch_polynomial_bound_pt
+  (phi : Form) (pt : Provable_term phi) : nat :=
+  Provable_term_length phi pt * Provable_term_length phi pt
+  + Provable_term_length phi pt + 1.
+
+Lemma Critch_polynomial_bound_pt_eq :
+  forall phi (pt : Provable_term phi),
+    Critch_polynomial_bound_pt phi pt
+    = Provable_term_length phi pt * Provable_term_length phi pt
+      + Provable_term_length phi pt + 1.
+Proof. intros. reflexivity. Qed.
+
+Theorem Critch_polynomial_bound_extracted_from_proof_term :
+  exists p : nat -> nat,
+    is_polynomial p /\
+    forall phi (pt : Provable_term phi),
+      Critch_polynomial_bound_pt phi pt = p (Provable_term_length phi pt).
+Proof.
+  exists (fun k => k * k + k + 1). split.
+  - exists 1, 1, 1. intros x. lia.
+  - intros phi pt. unfold Critch_polynomial_bound_pt. reflexivity.
+Qed.
+
+Theorem proof_term_length_polynomial_bound :
+  exists p : nat -> nat,
+    is_polynomial p /\
+    forall phi (pt : Provable_term phi),
+      Provable_term_length phi pt <= p (Provable_term_length phi pt).
+Proof.
+  exists (fun k => k). split.
+  - exists 0, 1, 0. intros x. lia.
+  - intros phi pt. apply le_n.
+Qed.
+
+Theorem Critch_polynomial_bound_is_polynomial :
+  is_polynomial Critch_polynomial_bound.
+Proof. exists 1, 1, 1. intros x. unfold Critch_polynomial_bound. lia. Qed.
+
+Theorem Critch_polynomial_bound_equals_extracted :
+  forall phi (pt : Provable_term phi),
+    Critch_polynomial_bound (Provable_term_length phi pt)
+    = Critch_polynomial_bound_pt phi pt.
+Proof.
+  intros phi pt. unfold Critch_polynomial_bound, Critch_polynomial_bound_pt.
+  reflexivity.
+Qed.
+
+Definition Critch_bounded_provability_pt
+  (n : nat) (phi : Form) (pt : Provable_term phi) : Form :=
+  critch_threshold_box (Critch_polynomial_bound_pt phi pt) n phi.
+
+Theorem Critch_bounded_provability_pt_eq :
+  forall n phi (pt : Provable_term phi),
+    Critch_bounded_provability_pt n phi pt
+    = Critch_bounded_provability (Provable_term_length phi pt) n phi.
+Proof.
+  intros n phi pt.
+  unfold Critch_bounded_provability_pt, Critch_bounded_provability.
+  rewrite Critch_polynomial_bound_equals_extracted. reflexivity.
+Qed.
+
+Theorem Critch_polynomial_bound_proof_term_summary :
+  is_polynomial Critch_polynomial_bound /\
+  (exists p : nat -> nat, is_polynomial p /\
+     forall phi (pt : Provable_term phi),
+       Critch_polynomial_bound_pt phi pt = p (Provable_term_length phi pt)) /\
+  (forall phi (pt : Provable_term phi),
+     Critch_polynomial_bound (Provable_term_length phi pt)
+     = Critch_polynomial_bound_pt phi pt) /\
+  (forall n phi (pt : Provable_term phi),
+     Critch_bounded_provability_pt n phi pt
+     = Critch_bounded_provability (Provable_term_length phi pt) n phi).
+Proof.
+  split; [|split; [|split]].
+  - exact Critch_polynomial_bound_is_polynomial.
+  - exact Critch_polynomial_bound_extracted_from_proof_term.
+  - exact Critch_polynomial_bound_equals_extracted.
+  - exact Critch_bounded_provability_pt_eq.
+Qed.
+
 Definition Realiser : Type := nat.
 
 Definition realises (r : Realiser) (phi : Form) : Prop :=

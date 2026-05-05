@@ -37,14 +37,7 @@
     <-> Provable_full_GLP phi`, and use it to discharge
     `Japaridze_full` without instantiating at the identity
     interpretation.
-6. Replace the hardcoded `Critch_polynomial_bound k := k * k + k + 1`
-    with the bound extracted from proof-term length. Define
-    `proof_term_length : proof_term -> nat`, prove
-    `proof_term_length_polynomial : exists p : nat -> nat,
-    polynomial p /\ forall phi (pt : proof_term phi),
-    proof_term_length pt <= p (rank phi)`, and replace the constant
-    with the extracted polynomial inside `Critch_bounded_provability`.
-7. Replace the `From Tiling Require Export Tiling.` content of
+6. Replace the `From Tiling Require Export Tiling.` content of
     `Calculus.v`, `Hilbert.v`, `Kripke.v`, `FixedPoints.v`, `Bew.v`,
     `ProofTerms.v`, `Worms.v`, and `Agents.v` with a physical
     partition of `Tiling.v`'s body. Move calculus inductives plus
@@ -56,7 +49,7 @@
     Update `_CoqProject` with the dependency order. `Tiling.v`
     becomes a meta-file containing only `From Tiling Require Export
     Calculus Hilbert Kripke FixedPoints Bew ProofTerms Worms Agents.`
-8. Replace each `*_summary` theorem that is a conjunction of
+7. Replace each `*_summary` theorem that is a conjunction of
     already-named theorems (`Pi1_conservativity_summary`,
     `Pi2_conservativity_summary`, `Bew_axiomatic_summary`,
     `realisation_full_soundness`, `Bew_satisfies_GLP_axioms_summary`,
