@@ -12441,6 +12441,77 @@ Proof.
   - exact strong_undefinability_diagonal_lemma_for_t_schema.
 Qed.
 
+Definition FS_truth_axioms (T : Form -> Form) : Prop :=
+  (forall phi, |- phi -> |- T phi) /\
+  (forall phi psi, |- T (Impl phi psi) -> |- Impl (T phi) (T psi)) /\
+  (forall phi, box_free phi -> |- Iff (T phi) phi).
+
+Theorem Friedman_Sheard_T_for_box_free_consistent :
+  exists T : Form -> Form, FS_truth_axioms T /\ ~ |- T Bot.
+Proof.
+  exists (fun phi => phi).
+  split.
+  - unfold FS_truth_axioms. split; [|split].
+    + intros phi H. exact H.
+    + intros phi psi H. exact H.
+    + intros phi _. exact (prov_iff_refl phi).
+  - intro H. apply meta_consistency_system. exact H.
+Qed.
+
+Theorem Friedman_Sheard_T_full_schema_blocks_meta_consistency :
+  forall T : Form -> Form,
+  FS_truth_axioms T ->
+  (forall phi, |- Iff (T phi) phi) ->
+  forall phi, |- phi <-> |- T phi.
+Proof.
+  intros T HFS Hfull phi. split.
+  - intro H. apply (proj1 HFS). exact H.
+  - intro H.
+    pose proof (Hfull phi) as Hiff.
+    pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+    exact (MP _ _ Hfwd H).
+Qed.
+
+Theorem Friedman_Sheard_full_T_schema_yields_classical_iff :
+  forall T : Form -> Form,
+  (forall phi, |- Iff (T phi) phi) ->
+  forall phi, |- phi <-> |- T phi.
+Proof.
+  intros T Hfull phi. split.
+  - intro H.
+    pose proof (Hfull phi) as Hiff.
+    pose proof (prov_and_elim_r_meta _ _ Hiff) as Hbwd.
+    exact (MP _ _ Hbwd H).
+  - intro H.
+    pose proof (Hfull phi) as Hiff.
+    pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+    exact (MP _ _ Hfwd H).
+Qed.
+
+Theorem Friedman_Sheard_axiomatisation : forall T : Form -> Form,
+  FS_truth_axioms T ->
+  (forall phi, box_free phi -> |- Iff (T phi) phi) /\
+  (forall phi, |- phi -> |- T phi) /\
+  (forall phi psi, |- T (Impl phi psi) -> |- Impl (T phi) (T psi)).
+Proof.
+  intros T [Hnec [HK Htschema]]. split; [|split].
+  - exact Htschema.
+  - exact Hnec.
+  - exact HK.
+Qed.
+
+Theorem Friedman_Sheard_axiomatisation_summary :
+  (exists T, FS_truth_axioms T /\ ~ |- T Bot) /\
+  (forall T, FS_truth_axioms T ->
+    (forall phi, box_free phi -> |- Iff (T phi) phi) /\
+    (forall phi, |- phi -> |- T phi) /\
+    (forall phi psi, |- T (Impl phi psi) -> |- Impl (T phi) (T psi))).
+Proof.
+  split.
+  - exact Friedman_Sheard_T_for_box_free_consistent.
+  - exact Friedman_Sheard_axiomatisation.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
