@@ -12766,6 +12766,29 @@ Proof.
   - assert (S k' - 1 = k') by lia. rewrite H. reflexivity.
 Qed.
 
+Theorem Visser_J5_via_Ax_BoxK_only : forall n phi psi,
+  |- Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi)).
+Proof.
+  intros n phi psi. exact (Ax_BoxK n phi psi).
+Qed.
+
+Theorem Visser_J5_via_Ax_BoxK_only_no_Mon : forall n phi psi,
+  |-no_mon Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi)).
+Proof.
+  intros n phi psi. apply NM_Ax_BoxK.
+Qed.
+
+Theorem Visser_J5_full_derivation_summary :
+  (forall n phi psi, |- Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi))) /\
+  (forall n phi psi, |-no_mon Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi))) /\
+  (forall n phi psi, |- Impl (Visser_interp n phi psi) (Impl (Box n phi) (Box n psi))).
+Proof.
+  split; [|split].
+  - exact Visser_J5_via_Ax_BoxK_only.
+  - exact Visser_J5_via_Ax_BoxK_only_no_Mon.
+  - exact Visser_J5_K_distribution.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
