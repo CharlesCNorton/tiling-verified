@@ -14497,6 +14497,106 @@ Proof.
   - apply PB_J2.
 Qed.
 
+Definition is_modal_definable_in_fragment
+  (P : modal_property) (frag : Form -> Prop) : Prop :=
+  exists phi : Form, frag phi /\ forall F V w, P F V w <-> forces F V w phi.
+
+Definition is_modal_definable_box_free (P : modal_property) : Prop :=
+  is_modal_definable_in_fragment P box_free.
+
+Definition is_modal_definable_closed (P : modal_property) : Prop :=
+  is_modal_definable_in_fragment P (fun phi => free_vars phi = []).
+
+Definition is_modal_definable_modal_depth_le
+  (k : nat) (P : modal_property) : Prop :=
+  is_modal_definable_in_fragment P (fun phi => modal_depth phi <= k).
+
+Theorem modal_definable_in_fragment_implies_definable : forall P frag,
+  is_modal_definable_in_fragment P frag -> is_modal_definable P.
+Proof.
+  intros P frag [phi [_ Hphi]]. exists phi. exact Hphi.
+Qed.
+
+Theorem modal_definable_in_fragment_implies_bisim_invariant : forall P frag,
+  is_modal_definable_in_fragment P frag -> is_bisim_invariant P.
+Proof.
+  intros P frag Hdf.
+  apply modal_definable_implies_bisim_invariant.
+  apply (modal_definable_in_fragment_implies_definable P frag). exact Hdf.
+Qed.
+
+Theorem modal_definable_box_free_implies_bisim_invariant : forall P,
+  is_modal_definable_box_free P -> is_bisim_invariant P.
+Proof.
+  intros P. apply modal_definable_in_fragment_implies_bisim_invariant.
+Qed.
+
+Theorem modal_definable_closed_implies_bisim_invariant : forall P,
+  is_modal_definable_closed P -> is_bisim_invariant P.
+Proof.
+  intros P. apply modal_definable_in_fragment_implies_bisim_invariant.
+Qed.
+
+Theorem modal_definable_modal_depth_implies_bisim_invariant : forall k P,
+  is_modal_definable_modal_depth_le k P -> is_bisim_invariant P.
+Proof.
+  intros k P. apply modal_definable_in_fragment_implies_bisim_invariant.
+Qed.
+
+Theorem modal_definable_box_free_witness : forall phi,
+  box_free phi ->
+  is_modal_definable_box_free (fun F V w => forces F V w phi).
+Proof.
+  intros phi Hbf. unfold is_modal_definable_box_free, is_modal_definable_in_fragment.
+  exists phi. split; [exact Hbf | intros; tauto].
+Qed.
+
+Theorem modal_definable_closed_witness : forall phi,
+  free_vars phi = [] ->
+  is_modal_definable_closed (fun F V w => forces F V w phi).
+Proof.
+  intros phi Hcl. unfold is_modal_definable_closed, is_modal_definable_in_fragment.
+  exists phi. split; [exact Hcl | intros; tauto].
+Qed.
+
+Theorem modal_definable_modal_depth_witness : forall k phi,
+  modal_depth phi <= k ->
+  is_modal_definable_modal_depth_le k (fun F V w => forces F V w phi).
+Proof.
+  intros k phi Hd.
+  unfold is_modal_definable_modal_depth_le, is_modal_definable_in_fragment.
+  exists phi. split; [exact Hd | intros; tauto].
+Qed.
+
+Theorem modal_definable_fragment_van_benthem : forall P frag,
+  is_modal_definable_in_fragment P frag ->
+  forall F1 F2 V1 V2 Z w1 w2,
+    Bisim F1 F2 V1 V2 Z -> Z w1 w2 ->
+    (P F1 V1 w1 <-> P F2 V2 w2).
+Proof.
+  intros P frag Hdf F1 F2 V1 V2 Z w1 w2 HB HZ.
+  pose proof (modal_definable_in_fragment_implies_bisim_invariant _ _ Hdf) as Hbi.
+  apply (Hbi F1 F2 V1 V2 Z w1 w2 HB HZ).
+Qed.
+
+Theorem modal_definable_strengthened_summary :
+  (forall P frag, is_modal_definable_in_fragment P frag -> is_modal_definable P) /\
+  (forall P frag, is_modal_definable_in_fragment P frag -> is_bisim_invariant P) /\
+  (forall phi, box_free phi ->
+     is_modal_definable_box_free (fun F V w => forces F V w phi)) /\
+  (forall phi, free_vars phi = [] ->
+     is_modal_definable_closed (fun F V w => forces F V w phi)) /\
+  (forall k phi, modal_depth phi <= k ->
+     is_modal_definable_modal_depth_le k (fun F V w => forces F V w phi)).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact modal_definable_in_fragment_implies_definable.
+  - exact modal_definable_in_fragment_implies_bisim_invariant.
+  - exact modal_definable_box_free_witness.
+  - exact modal_definable_closed_witness.
+  - exact modal_definable_modal_depth_witness.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
