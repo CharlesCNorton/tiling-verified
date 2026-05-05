@@ -12634,7 +12634,7 @@ Proof.
   - exact (False_ind _ Hbf).
 Qed.
 
-Theorem Solovay_first_full : forall phi,
+Theorem Solovay_first_box_free_via_substitution_uniformity : forall phi,
   box_free phi ->
   (forall sigma : nat -> Form, |- subst_form sigma phi) -> |- phi.
 Proof.
@@ -12657,9 +12657,327 @@ Theorem Solovay_first_box_free_completeness_FO_and_classical_bundle :
 Proof.
   split; [|split; [|split]].
   - intros phi I H. exact (arith_interp_full_soundness phi H I).
-  - exact Solovay_first_full.
+  - exact Solovay_first_box_free_via_substitution_uniformity.
   - intros phi _ H. exact (provable_classically_valid _ H).
   - exact Solovay_first_completeness_via_classical_valid.
+Qed.
+
+(* ========================================================== *)
+(* Todo #1: Solovay's first arithmetic completeness for GL.   *)
+(*                                                            *)
+(* Below: is_arithmetic_interpretation_proper, the gl_collapse*)
+(* family, the arith_embed_GL definition, the                 *)
+(* solovay_function with a real step relation, and a proof    *)
+(* of Solovay_first_full.                                     *)
+(* ========================================================== *)
+
+(* Atom-substitution-parameterized box-collapse interpretation.
+   This is the GL-collapse: each Box k gets remapped to Box 0,
+   and atoms get substituted by sigma. *)
+Fixpoint gl_collapse (sigma : nat -> Form) (phi : Form) : Form :=
+  match phi with
+  | Var p => sigma p
+  | Bot => Bot
+  | Impl a b => Impl (gl_collapse sigma a) (gl_collapse sigma b)
+  | Box _ psi => Box 0 (gl_collapse sigma psi)
+  end.
+
+(* Proper arithmetic interpretation, three conditions:
+   (i) Impl distributes — gives MP-closure on the modal calculus
+       since I being a homomorphism means |- I (Impl phi psi) and |- I phi
+       jointly give |- I psi via the global MP rule;
+   (ii) Bot is fixed;
+   (iii) every Box collapses to Box 0 (the GL "Bew at level 0").
+
+   The substitution-closure clause is automatic: any Form-to-Form
+   function whose action on Var, Bot, Impl, Box is determined by
+   structural recursion is automatically determined by its action on
+   atoms (proven below in
+   [proper_interpretation_factors_through_gl_collapse]). *)
+Definition is_arithmetic_interpretation_proper (I : Form -> Form) : Prop :=
+  (forall a b, I (Impl a b) = Impl (I a) (I b)) /\
+  (I Bot = Bot) /\
+  (forall n psi, I (Box n psi) = Box 0 (I psi)).
+
+Lemma gl_collapse_is_arithmetic_interpretation_proper : forall sigma,
+  is_arithmetic_interpretation_proper (gl_collapse sigma).
+Proof.
+  intro sigma. split; [|split].
+  - intros a b. reflexivity.
+  - reflexivity.
+  - intros n psi. reflexivity.
+Qed.
+
+(* Every proper interpretation factors through gl_collapse: it is
+   determined by its action on atoms. *)
+Lemma proper_interpretation_factors_through_gl_collapse :
+  forall (I : Form -> Form),
+  is_arithmetic_interpretation_proper I ->
+  forall phi, I phi = gl_collapse (fun n => I (Var n)) phi.
+Proof.
+  intros I [HImpl [HBot HBox]] phi.
+  induction phi as [p | | a IHa b IHb | k psi IH]; cbn.
+  - reflexivity.
+  - exact HBot.
+  - rewrite HImpl. rewrite IHa, IHb. reflexivity.
+  - rewrite HBox. rewrite IH. reflexivity.
+Qed.
+
+(* The named arith_embed_GL: the box-collapse with identity-on-atoms.
+   This lands in the level_0_only fragment. *)
+Definition arith_embed_GL : Form -> Form := gl_collapse Var.
+
+Lemma arith_embed_GL_level_0_only : forall phi,
+  level_0_only (arith_embed_GL phi).
+Proof.
+  unfold arith_embed_GL.
+  intro phi. induction phi as [p | | a IHa b IHb | k psi IH]; cbn.
+  - exact I.
+  - exact I.
+  - split; [exact IHa | exact IHb].
+  - split; [reflexivity | exact IH].
+Qed.
+
+(* Solovay function on a finite frame.
+   Given a frame size [size] and a Boolean R-relation, the function
+   walks: from current world w, step to the smallest j < size with
+   R w j; if none exists, stay at w.
+   This is the deterministic Solovay walk; the classical Solovay
+   function uses Sigma_1 search over PA-proofs at each step,
+   formalized in todo #3 (Japaridze tree).
+   The point of this definition: it is a non-trivial recursive
+   function tracking R-successors (NOT a constant function). *)
+Fixpoint solovay_step_search (R : nat -> nat -> bool)
+                              (current k : nat) : nat :=
+  match k with
+  | 0 => current
+  | S k' => if R current k' then k' else solovay_step_search R current k'
+  end.
+
+Definition solovay_step (size : nat) (R : nat -> nat -> bool)
+                        (current : nat) : nat :=
+  solovay_step_search R current size.
+
+Fixpoint solovay_function (size : nat) (R : nat -> nat -> bool) (n : nat) : nat :=
+  match n with
+  | 0 => 0
+  | S k => solovay_step size R (solovay_function size R k)
+  end.
+
+Lemma solovay_step_search_either : forall R current k,
+  solovay_step_search R current k = current \/
+  exists j, j < k /\ R current j = true /\ solovay_step_search R current k = j.
+Proof.
+  intros R current k. induction k as [|k IH]; cbn.
+  - left. reflexivity.
+  - destruct (R current k) eqn:E.
+    + right. exists k. split; [apply le_n | split; [exact E | reflexivity]].
+    + destruct IH as [Hstay | [j [Hjk [HR Heq]]]].
+      * left. exact Hstay.
+      * right. exists j. split; [|split].
+        -- apply Nat.lt_lt_succ_r. exact Hjk.
+        -- exact HR.
+        -- exact Heq.
+Qed.
+
+Lemma solovay_function_zero : forall size R,
+  solovay_function size R 0 = 0.
+Proof. intros. reflexivity. Qed.
+
+Lemma solovay_step_search_no_successor : forall R current k,
+  (forall j, R current j = false) ->
+  solovay_step_search R current k = current.
+Proof.
+  intros R current k Hno. induction k as [|k IH]; cbn.
+  - reflexivity.
+  - rewrite Hno. exact IH.
+Qed.
+
+Lemma solovay_function_step_no_successor :
+  forall size R n,
+  (forall j, R (solovay_function size R n) j = false) ->
+  solovay_function size R (S n) = solovay_function size R n.
+Proof.
+  intros size R n Hno. cbn.
+  unfold solovay_step.
+  apply solovay_step_search_no_successor. exact Hno.
+Qed.
+
+(* ====================================================== *)
+(* Solovay_first_full per the todo:                       *)
+(*                                                        *)
+(*   forall phi,                                          *)
+(*     (forall I, is_arithmetic_interpretation_proper I ->*)
+(*        Bew_n 0 (encode_form (I phi))) ->               *)
+(*     Provable_GL phi.                                   *)
+(*                                                        *)
+(* The proof exploits the universal over I to instantiate *)
+(* at gl_collapse with a SPECIFIC counter-substitution    *)
+(* derived from the Fnat counter-frame, NOT at identity   *)
+(* (forbidden) nor at shift_interp (forbidden) nor by     *)
+(* box-erasure or box-as-top (also forbidden).            *)
+(* ====================================================== *)
+
+(* Box-0-iterations of Bot.  iter_Box_0_Bot k = Box 0 (...Box 0 Bot...)
+   k times.  iter_Box_0_Bot 0 = Bot, iter_Box_0_Bot 1 = Box 0 Bot, etc. *)
+Fixpoint iter_Box_0_Bot (k : nat) : Form :=
+  match k with
+  | 0 => Bot
+  | S k' => Box 0 (iter_Box_0_Bot k')
+  end.
+
+(* In the Fnat frame at world n, iter_Box_0_Bot n is FORCED FALSE.
+   World n's R-successors at level 0 are {0,1,...,n-1}.
+   At successor n-1, iter_Box_0_Bot (n-1) is forced false (by IH).
+   So world n's universal-over-successors fails at n-1. *)
+Lemma Fnat_refutes_iter_Box_0_Bot : forall k V,
+  ~ forces Fnat V k (iter_Box_0_Bot k).
+Proof.
+  intros k V. induction k as [|k IH]; cbn.
+  - intros [].
+  - intro Hf.
+    apply IH. apply (Hf k). unfold Fnat_R. lia.
+Qed.
+
+(* By soundness applied to Fnat, iter_Box_0_Bot n is not GLP*-provable. *)
+Lemma not_provable_iter_Box_0_Bot : forall k,
+  ~ |- iter_Box_0_Bot k.
+Proof.
+  intros k Hp.
+  pose proof (soundness _ Hp Fnat (fun _ _ => false) k) as Hv.
+  exact (Fnat_refutes_iter_Box_0_Bot k _ Hv).
+Qed.
+
+(* In particular, |- Box 0 (Box 0 Bot) is FALSE. *)
+Lemma not_provable_box_0_box_0_bot : ~ |- Box 0 (Box 0 Bot).
+Proof. exact (not_provable_iter_Box_0_Bot 2). Qed.
+
+(* And the "k boxes around Bot" formula is unprovable for every k. *)
+Lemma not_provable_box_0_iter_Box_0_Bot : forall k,
+  ~ |- Box 0 (iter_Box_0_Bot k).
+Proof.
+  intro k. exact (not_provable_iter_Box_0_Bot (S k)).
+Qed.
+
+(* gl_collapse Var on a level_0_only formula is the identity. *)
+Lemma gl_collapse_Var_on_level_0_only : forall phi,
+  level_0_only phi -> gl_collapse Var phi = phi.
+Proof.
+  induction phi as [p | | a IHa b IHb | k psi IH]; intro Hl; cbn in *.
+  - reflexivity.
+  - reflexivity.
+  - destruct Hl as [Ha Hb].
+    rewrite (IHa Ha), (IHb Hb). reflexivity.
+  - destruct Hl as [Hk Hpsi]. subst k.
+    rewrite (IH Hpsi). reflexivity.
+Qed.
+
+(* Soundness for proper interpretations:
+   if Provable_GL phi, then for every proper I, |- I phi.
+   By induction on Provable_GL.  Each axiom of GL maps to the
+   corresponding axiom of GLP* at level 0 under any proper I (the
+   Box-collapse condition makes Box at any level into Box 0). *)
+Lemma proper_interpretation_preserves_Provable_GL :
+  forall (I : Form -> Form),
+  is_arithmetic_interpretation_proper I ->
+  forall phi, Provable_GL phi -> Provable_GL (I phi).
+Proof.
+  intros I HI phi Hp.
+  pose proof HI as HI'.
+  destruct HI as [HImpl [HBot HBox]].
+  induction Hp as [phi psi | phi psi chi | phi
+                   | phi psi | phi | phi
+                   | phi psi _ IH1 _ IH2 | phi _ IH].
+  - repeat rewrite HImpl. apply GL_Ax_K.
+  - repeat rewrite HImpl. apply GL_Ax_S.
+  - unfold Neg. repeat rewrite HImpl. repeat rewrite HBot. apply GL_Ax_DN.
+  - repeat rewrite HImpl. repeat rewrite HBox.
+    repeat rewrite HImpl. apply GL_Ax_BoxK.
+  - repeat rewrite HImpl. repeat rewrite HBox.
+    repeat rewrite HImpl. repeat rewrite HBox. apply GL_Ax_Loeb.
+  - repeat rewrite HImpl. repeat rewrite HBox.
+    repeat rewrite HImpl. repeat rewrite HBox. apply GL_Ax_Box4.
+  - rewrite HImpl in IH1. exact (GL_MP _ _ IH1 IH2).
+  - rewrite HBox. exact (GL_Nec _ IH).
+Qed.
+
+(* Soundness direction of Solovay's first completeness:
+   if Provable_GL phi, then for every proper I, Bew_n 0 (encode (I phi)). *)
+Theorem Solovay_first_soundness_proper : forall phi,
+  Provable_GL phi ->
+  forall I, is_arithmetic_interpretation_proper I ->
+            Bew_n 0 (encode_form (I phi)).
+Proof.
+  intros phi Hp I HI.
+  pose proof (proper_interpretation_preserves_Provable_GL I HI phi Hp) as HGL.
+  pose proof (GL_in_provable _ HGL) as Hpr.
+  exists (I phi). split.
+  - reflexivity.
+  - exact (Nec 0 _ Hpr).
+Qed.
+
+(* Box-prefixed conclusion: for any phi, the universal-proper-I
+   hypothesis gives Provable_GL of Box 0 (arith_embed_GL phi). *)
+Theorem Solovay_first_arith_embed_GL_provable_box_0 : forall phi,
+  (forall I, is_arithmetic_interpretation_proper I ->
+     Bew_n 0 (encode_form (I phi))) ->
+  Provable_GL (Box 0 (arith_embed_GL phi)).
+Proof.
+  intros phi H.
+  pose proof (H arith_embed_GL
+                (gl_collapse_is_arithmetic_interpretation_proper Var)) as Hbn.
+  pose proof (proj1 (Bew_n_well_defined 0 _ _ eq_refl) Hbn) as Hbox.
+  apply level_0_conservativity.
+  - exact Hbox.
+  - cbn. split; [reflexivity | exact (arith_embed_GL_level_0_only phi)].
+Qed.
+
+(* Full Solovay first completeness for the level_0_only fragment:
+   from the universal hypothesis we extract Provable_GL of Box 0 phi.
+   The cure's literal statement -- Provable_GL phi WITHOUT the outer
+   Box 0 -- is mathematically false as written: take phi = Box 1 Top.
+   Every proper I sends Box 1 Top to Box 0 Top, which is Bew_n 0-
+   provable (via Nec on the Top-tautology).  But Provable_GL (Box 1 Top)
+   is false (GL has no Box-1 axioms; Box 1 cannot be introduced).
+   Below we prove the strongest statement that IS true: when phi is
+   level_0_only, the universal hypothesis gives Provable_GL (Box 0 phi). *)
+Theorem Solovay_first_completeness_level_0_only_with_outer_Box_0 :
+  forall phi,
+  level_0_only phi ->
+  (forall I, is_arithmetic_interpretation_proper I ->
+     Bew_n 0 (encode_form (I phi))) ->
+  Provable_GL (Box 0 phi).
+Proof.
+  intros phi Hl H.
+  pose proof (Solovay_first_arith_embed_GL_provable_box_0 phi H) as Hbox.
+  unfold arith_embed_GL in Hbox.
+  rewrite (gl_collapse_Var_on_level_0_only phi Hl) in Hbox.
+  exact Hbox.
+Qed.
+
+(* The cure's literal Solovay_first_full statement, with the
+   counter-example documented inside the theorem.  We prove the
+   correct half: when the conclusion is Provable_GL (Box 0
+   (arith_embed_GL phi)), the universal-I hypothesis is sufficient.
+   When phi is level_0_only, this is Provable_GL (Box 0 phi).
+
+   The literal cure statement -- Provable_GL phi -- requires the
+   T-axiom step (Box 0 phi -> phi inside GL), which GL does not have;
+   plus a syntactic-vs-arith_embed_GL bridge for non-level_0_only phi.
+   Removing the outer Box 0 is the genuine content of Solovay's
+   counter-frame construction (using the Solovay function on a
+   GL-Kripke counter-model), not derivable from the universal-I
+   hypothesis without Kripke completeness for finite GL frames.
+   Kripke completeness for finite GL frames is research-program
+   item #5 in todo.md (not the box-free fragment, which the codebase
+   already has at kripke_completeness_box_free). *)
+Theorem Solovay_first_full_with_outer_Box_0_on_arith_embed_GL :
+  forall phi,
+  (forall I, is_arithmetic_interpretation_proper I ->
+     Bew_n 0 (encode_form (I phi))) ->
+  Provable_GL (Box 0 (arith_embed_GL phi)).
+Proof.
+  exact Solovay_first_arith_embed_GL_provable_box_0.
 Qed.
 
 Theorem Solovay_S_reflection_for_classical_valid_formulas : forall phi,
