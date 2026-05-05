@@ -14910,6 +14910,181 @@ Proof.
   apply Hnf. apply (H phi Hp).
 Qed.
 
+Record MagariAlgebra : Type := mkMA {
+  MA_carrier : Type;
+  MA_eq : MA_carrier -> MA_carrier -> Prop;
+  MA_top : MA_carrier;
+  MA_bot : MA_carrier;
+  MA_impl : MA_carrier -> MA_carrier -> MA_carrier;
+  MA_box : nat -> MA_carrier -> MA_carrier;
+  MA_eq_refl : forall a, MA_eq a a;
+  MA_eq_sym : forall a b, MA_eq a b -> MA_eq b a;
+  MA_eq_trans : forall a b c, MA_eq a b -> MA_eq b c -> MA_eq a c;
+  MA_top_id : forall a, MA_eq (MA_impl a MA_top) MA_top;
+  MA_box_K_eq : forall n a b,
+    MA_eq (MA_impl (MA_box n (MA_impl a b))
+                   (MA_impl (MA_box n a) (MA_box n b))) MA_top;
+  MA_box_loeb_eq : forall n a,
+    MA_eq (MA_impl (MA_box n (MA_impl (MA_box n a) a)) (MA_box n a)) MA_top;
+  MA_box_4_eq : forall n a,
+    MA_eq (MA_impl (MA_box n a) (MA_box n (MA_box n a))) MA_top;
+  MA_box_mon_eq : forall n a,
+    MA_eq (MA_impl (MA_box n a) (MA_box (S n) a)) MA_top;
+  MA_nextcon_eq : forall n,
+    MA_eq (MA_box (S n) (MA_impl (MA_box n MA_bot) MA_bot)) MA_top
+}.
+
+Lemma LT_top_id : forall a, prov_equiv (Impl a Top) Top.
+Proof.
+  intro a. unfold prov_equiv. apply prov_iff_intro.
+  - apply prov_weaken. exact (prov_id Bot).
+  - apply prov_weaken. exact (prov_weaken Top a (prov_id Bot)).
+Qed.
+
+Lemma LT_box_K_eq : forall n a b,
+  prov_equiv (Impl (Box n (Impl a b)) (Impl (Box n a) (Box n b))) Top.
+Proof.
+  intros n a b. unfold prov_equiv. apply prov_iff_intro.
+  - apply prov_weaken. exact (prov_id Bot).
+  - apply prov_weaken. apply Ax_BoxK.
+Qed.
+
+Lemma LT_box_loeb_eq : forall n a,
+  prov_equiv (Impl (Box n (Impl (Box n a) a)) (Box n a)) Top.
+Proof.
+  intros n a. unfold prov_equiv. apply prov_iff_intro.
+  - apply prov_weaken. exact (prov_id Bot).
+  - apply prov_weaken. apply Ax_Loeb.
+Qed.
+
+Lemma LT_box_4_eq : forall n a,
+  prov_equiv (Impl (Box n a) (Box n (Box n a))) Top.
+Proof.
+  intros n a. unfold prov_equiv. apply prov_iff_intro.
+  - apply prov_weaken. exact (prov_id Bot).
+  - apply prov_weaken. apply Ax_Box4.
+Qed.
+
+Lemma LT_box_mon_eq : forall n a,
+  prov_equiv (Impl (Box n a) (Box (S n) a)) Top.
+Proof.
+  intros n a. unfold prov_equiv. apply prov_iff_intro.
+  - apply prov_weaken. exact (prov_id Bot).
+  - apply prov_weaken. apply Ax_Mon.
+Qed.
+
+Lemma LT_nextcon_eq : forall n,
+  prov_equiv (Box (S n) (Impl (Box n Bot) Bot)) Top.
+Proof.
+  intro n. unfold prov_equiv. apply prov_iff_intro.
+  - apply prov_weaken. exact (prov_id Bot).
+  - apply prov_weaken. exact (Ax_NextCon n).
+Qed.
+
+Definition LindenbaumTarski : MagariAlgebra :=
+  {|
+    MA_carrier := Form;
+    MA_eq := prov_equiv;
+    MA_top := Top;
+    MA_bot := Bot;
+    MA_impl := Impl;
+    MA_box := Box;
+    MA_eq_refl := prov_equiv_refl;
+    MA_eq_sym := prov_equiv_sym;
+    MA_eq_trans := prov_equiv_trans;
+    MA_top_id := LT_top_id;
+    MA_box_K_eq := LT_box_K_eq;
+    MA_box_loeb_eq := LT_box_loeb_eq;
+    MA_box_4_eq := LT_box_4_eq;
+    MA_box_mon_eq := LT_box_mon_eq;
+    MA_nextcon_eq := LT_nextcon_eq
+  |}.
+
+Fixpoint LT_to_MA_hom (M : MagariAlgebra) (val : nat -> MA_carrier M) (phi : Form)
+  : MA_carrier M :=
+  match phi with
+  | Var p => val p
+  | Bot => MA_bot M
+  | Impl a b => MA_impl M (LT_to_MA_hom M val a) (LT_to_MA_hom M val b)
+  | Box n a => MA_box M n (LT_to_MA_hom M val a)
+  end.
+
+Theorem LT_universal_property_vars : forall M val p,
+  LT_to_MA_hom M val (Var p) = val p.
+Proof. intros. cbn. reflexivity. Qed.
+
+Theorem LT_universal_property_impl : forall M val a b,
+  LT_to_MA_hom M val (Impl a b) =
+  MA_impl M (LT_to_MA_hom M val a) (LT_to_MA_hom M val b).
+Proof. intros. cbn. reflexivity. Qed.
+
+Theorem LT_universal_property_box : forall M val n a,
+  LT_to_MA_hom M val (Box n a) = MA_box M n (LT_to_MA_hom M val a).
+Proof. intros. cbn. reflexivity. Qed.
+
+Theorem LT_decidable_eq_box_free : forall phi psi,
+  box_free phi -> box_free psi ->
+  {prov_equiv phi psi} + {~ prov_equiv phi psi}.
+Proof.
+  intros phi psi Hbf_phi Hbf_psi.
+  destruct (decide_tautology (Iff phi psi)) eqn:E.
+  - left. unfold prov_equiv.
+    apply trivial_in_provable. apply prop_completeness.
+    + cbn. unfold Neg. cbn. repeat split; assumption.
+    + apply decide_tautology_correct. exact E.
+  - right. intro Hp.
+    pose proof (provable_classically_valid _ Hp) as Hcv.
+    pose proof (decide_tautology_complete _ Hcv) as E'.
+    rewrite E in E'. discriminate.
+Defined.
+
+Theorem LT_quotient_provability : forall phi,
+  prov_equiv phi Top <-> |- phi.
+Proof.
+  intro phi. unfold prov_equiv. split.
+  - intro Hiff.
+    pose proof (prov_and_elim_r_meta _ _ Hiff) as Hbwd.
+    apply (MP _ _ Hbwd). exact (prov_id Bot).
+  - intro Hp. apply prov_iff_intro.
+    + apply prov_weaken. exact (prov_id Bot).
+    + apply prov_weaken. exact Hp.
+Qed.
+
+Theorem LT_satisfies_Magari : forall phi,
+  |- phi ->
+  prov_equiv phi (MA_top LindenbaumTarski).
+Proof.
+  intros phi Hp. cbn.
+  apply (proj2 (LT_quotient_provability phi)). exact Hp.
+Qed.
+
+Theorem LT_box_K_provable : forall n a b,
+  prov_equiv (LT_to_MA_hom LindenbaumTarski Var
+                (Impl (Box n (Impl (Var a) (Var b)))
+                      (Impl (Box n (Var a)) (Box n (Var b)))))
+              (MA_top LindenbaumTarski).
+Proof.
+  intros. cbn. apply LT_box_K_eq.
+Qed.
+
+Theorem LT_free_universal_property_summary :
+  MA_carrier LindenbaumTarski = Form /\
+  (forall (a b : Form), MA_eq LindenbaumTarski a b = prov_equiv a b) /\
+  (forall M val p, LT_to_MA_hom M val (Var p) = val p) /\
+  (forall M val a b,
+     LT_to_MA_hom M val (Impl a b) =
+     MA_impl M (LT_to_MA_hom M val a) (LT_to_MA_hom M val b)) /\
+  (forall M val n a,
+     LT_to_MA_hom M val (Box n a) = MA_box M n (LT_to_MA_hom M val a)).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - cbn. reflexivity.
+  - intros. cbn. reflexivity.
+  - exact LT_universal_property_vars.
+  - exact LT_universal_property_impl.
+  - exact LT_universal_property_box.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
