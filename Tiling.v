@@ -13940,6 +13940,57 @@ Proof.
   - exact (eval_provable_GLP val phi Hp).
 Qed.
 
+Fixpoint Sigma1_box_elim (phi : Form) : Form :=
+  match phi with
+  | Var p => Var p
+  | Bot => Bot
+  | Impl a b => Impl (Sigma1_box_elim a) (Sigma1_box_elim b)
+  | Box _ _ => Top
+  end.
+
+Lemma Sigma1_box_elim_box_free : forall phi, box_free (Sigma1_box_elim phi).
+Proof.
+  induction phi as [p | | a IHa b IHb | n psi IHpsi]; cbn.
+  - exact I.
+  - exact I.
+  - split; assumption.
+  - cbn. tauto.
+Qed.
+
+Lemma eval_Sigma1_box_elim : forall val phi,
+  eval val (Sigma1_box_elim phi) = eval val phi.
+Proof.
+  induction phi as [p | | a IHa b IHb | n psi IHpsi]; cbn.
+  - reflexivity.
+  - reflexivity.
+  - rewrite IHa, IHb. reflexivity.
+  - reflexivity.
+Qed.
+
+Theorem Sigma1_modal_classical_valid_iff_box_elim : forall phi,
+  classical_valid phi <-> classical_valid (Sigma1_box_elim phi).
+Proof.
+  intros phi. unfold classical_valid. split.
+  - intros Hphi val. rewrite eval_Sigma1_box_elim. apply Hphi.
+  - intros Helim val. rewrite <- eval_Sigma1_box_elim. apply Helim.
+Qed.
+
+Theorem Sigma1_modal_kalmar_via_box_elim : forall phi,
+  classical_valid phi -> |- (Sigma1_box_elim phi).
+Proof.
+  intros phi Hcv.
+  apply trivial_in_provable.
+  apply prop_completeness; [apply Sigma1_box_elim_box_free|].
+  apply (proj1 (Sigma1_modal_classical_valid_iff_box_elim phi)). exact Hcv.
+Qed.
+
+Theorem Sigma1_modal_kalmar_box_elim_decidable : forall phi,
+  sumbool (|- Sigma1_box_elim phi) (~ |- Sigma1_box_elim phi).
+Proof.
+  intro phi.
+  apply decidability_box_free_fragment. apply Sigma1_box_elim_box_free.
+Defined.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
