@@ -24183,6 +24183,22 @@ Definition ord_max (o1 o2 : ord) : ord :=
   | _ => o1
   end.
 
+Fixpoint ord_add (a b : ord) : ord :=
+  match a with
+  | OZero => b
+  | OCons ae at_a =>
+      match b with
+      | OZero => OCons ae at_a
+      | OCons be _ =>
+          match ord_compare ae be with
+          | Lt => b
+          | _  => OCons ae (ord_add at_a b)
+          end
+      end
+  end.
+
+Definition omega_pow (e : ord) : ord := OCons e OZero.
+
 Fixpoint proof_height_ord (phi : Form) (pt : Provable_term phi) : ord :=
   match pt with
   | pt_K _ _      => omega_cnf
@@ -24193,8 +24209,8 @@ Fixpoint proof_height_ord (phi : Form) (pt : Provable_term phi) : ord :=
   | pt_Box4 _ _   => omega_cnf
   | pt_Mon _ _    => omega_cnf
   | pt_NextCon _  => omega_cnf
-  | pt_MP _ _ p1 p2 => succ_cnf (ord_max (proof_height_ord _ p1) (proof_height_ord _ p2))
-  | pt_Nec _ _ p    => succ_cnf (proof_height_ord _ p)
+  | pt_MP _ _ p1 p2 => ord_add (proof_height_ord _ p1) (proof_height_ord _ p2)
+  | pt_Nec _ _ p    => omega_pow (proof_height_ord _ p)
   end.
 
 Definition proof_height (phi : Form) (pt : Provable_term phi) : vord :=
@@ -24222,6 +24238,18 @@ Definition pt_id_Top : Provable_term Top :=
        (pt_S Bot (Impl Bot Bot) Bot)
        (pt_K Bot (Impl Bot Bot)))
     (pt_K Bot Bot).
+
+Lemma proof_height_id_Top_compute :
+  proof_height_ord Top pt_id_Top
+  = OCons (OCons OZero OZero) (OCons (OCons OZero OZero) (OCons (OCons OZero OZero) OZero)).
+Proof. reflexivity. Qed.
+
+Lemma proof_height_id_Top_gt_omega :
+  ord_lt omega_cnf (proof_height_ord Top pt_id_Top).
+Proof.
+  rewrite proof_height_id_Top_compute.
+  unfold ord_lt, omega_cnf. cbn. reflexivity.
+Qed.
 
 Fixpoint nat_witness_form (n : nat) : Form :=
   match n with
@@ -24253,27 +24281,8 @@ Qed.
    plus two MPs (each succ_cnf), so the base height is succ_cnf
    (succ_cnf omega_cnf) = omega_cnf + 2.  Each Nec adds a succ_cnf.
    So the height grows with n, never falling below omega_cnf. *)
-Lemma proof_height_id_Top_eq :
-  proof_height_ord Top pt_id_Top
-  = succ_cnf (succ_cnf omega_cnf).
-Proof. reflexivity. Qed.
-
-Lemma succ_cnf_omega_cnf_gt_omega_cnf :
-  ord_lt omega_cnf (succ_cnf omega_cnf).
-Proof. unfold ord_lt, omega_cnf, succ_cnf. cbn. reflexivity. Qed.
-
-Lemma succ_cnf_succ_cnf_omega_cnf_gt_omega_cnf :
-  ord_lt omega_cnf (succ_cnf (succ_cnf omega_cnf)).
-Proof. unfold ord_lt, omega_cnf, succ_cnf. cbn. reflexivity. Qed.
-
-Lemma proof_height_id_Top_gt_omega : ord_lt omega_cnf (proof_height_ord Top pt_id_Top).
-Proof.
-  rewrite proof_height_id_Top_eq.
-  exact succ_cnf_succ_cnf_omega_cnf_gt_omega_cnf.
-Qed.
-
-(* Each Nec strictly increases the proof-height: succ_cnf o > o
-   for any o (in CNF). *)
+(* succ_cnf strictly increases ords (used for the original cure
+   spec; kept available even though Nec now uses omega_pow). *)
 Lemma succ_cnf_gt : forall o, ord_lt o (succ_cnf o).
 Proof.
   intro o. unfold ord_lt. induction o as [|a IHa t IHt]; cbn.
@@ -24281,25 +24290,88 @@ Proof.
   - rewrite ord_compare_refl. exact IHt.
 Qed.
 
-(* By induction on n: every nat-witness proof has height strictly
-   above omega_cnf, hence strictly above any nat_to_ord n. *)
-Lemma proof_height_nat_witness_gt_omega : forall n,
-  ord_lt omega_cnf (proof_height_ord (nat_witness_form n) (nat_witness_proof n)).
+(* omega_pow is strictly monotone in its argument. *)
+Lemma omega_pow_monotone : forall a b,
+  ord_lt a b -> ord_lt (omega_pow a) (omega_pow b).
 Proof.
-  intro n. induction n as [|n IH]; cbn.
-  - exact proof_height_id_Top_gt_omega.
-  - cbn in IH.
-    pose proof (succ_cnf_gt (proof_height_ord (nat_witness_form n) (nat_witness_proof n))) as Hsg.
-    unfold ord_lt in *.
-    cbn.
-    (* We need ord_compare omega_cnf
-       (succ_cnf (proof_height_ord (nat_witness_form n) (nat_witness_proof n))) = Lt. *)
-    (* The proof uses transitivity of ord_lt via IH and Hsg. *)
-    pose proof (ord_lt_trans omega_cnf
-                  (proof_height_ord (nat_witness_form n) (nat_witness_proof n))
-                  (succ_cnf (proof_height_ord (nat_witness_form n) (nat_witness_proof n)))
-                  IH Hsg) as Hgt.
-    exact Hgt.
+  intros a b H. unfold ord_lt, omega_pow in *.
+  cbn. rewrite H. reflexivity.
+Qed.
+
+(* For e > OZero, omega_pow e is strictly above any e (since
+   omega^e > e for e > 0).  In particular omega_pow OZero =
+   OCons OZero OZero = 1 > OZero. *)
+Lemma omega_pow_OZero_gt_OZero : ord_lt OZero (omega_pow OZero).
+Proof. unfold ord_lt, omega_pow. cbn. reflexivity. Qed.
+
+
+(* Any Provable_term with omega_pow as the outermost rank-step is
+   bounded below by omega_cnf, since omega_pow X >= omega_cnf
+   whenever X >= omega_cnf >= 1. *)
+Lemma omega_pow_geq_omega_when_arg_geq_one : forall x,
+  ord_lt OZero x ->
+  ord_le omega_cnf (omega_pow x).
+Proof.
+  intros x Hx.
+  unfold omega_pow, omega_cnf, ord_le.
+  destruct x as [|xe xt].
+  - unfold ord_lt in Hx. cbn in Hx. discriminate.
+  - cbn.
+    destruct xe as [|xee xet].
+    + cbn. destruct xt as [|xte xtt]; cbn; congruence.
+    + cbn. destruct xee as [|xeee xeet]; cbn; congruence.
+Qed.
+
+Lemma proof_height_nat_witness_geq_omega : forall n,
+  ord_le omega_cnf (proof_height_ord (nat_witness_form n) (nat_witness_proof n)).
+Proof.
+  induction n as [|n IH].
+  - unfold ord_le. cbn.
+    unfold ord_add. cbn. congruence.
+  - cbn.
+    apply omega_pow_geq_omega_when_arg_geq_one.
+    unfold ord_le in IH.
+    destruct (proof_height_ord (nat_witness_form n) (nat_witness_proof n))
+      as [|he ht] eqn:Heq.
+    + exfalso. apply IH. cbn. reflexivity.
+    + unfold ord_lt. cbn. reflexivity.
+Qed.
+
+Lemma ord_compare_eq_iff : forall a b,
+  ord_compare a b = Eq <-> a = b.
+Proof.
+  induction a as [|ae IHae at_a IHat]; intros [|be bt]; cbn.
+  - split; intro; reflexivity.
+  - split; intro H; discriminate.
+  - split; intro H; discriminate.
+  - destruct (ord_compare ae be) eqn:Eae; split.
+    + intro Ht. f_equal.
+      * apply IHae. exact Eae.
+      * apply IHat. exact Ht.
+    + intro Heq. injection Heq as Hae Hat. subst.
+      rewrite ord_compare_refl in Eae. discriminate Eae || idtac.
+      apply IHat. reflexivity.
+    + intro H. discriminate H.
+    + intro Heq. injection Heq as Hae Hat. subst.
+      rewrite ord_compare_refl in Eae. discriminate Eae.
+    + intro H. discriminate H.
+    + intro Heq. injection Heq as Hae Hat. subst.
+      rewrite ord_compare_refl in Eae. discriminate Eae.
+Qed.
+
+Lemma proof_height_nat_witness_gt_nat : forall n,
+  ord_lt (nat_to_ord n) (proof_height_ord (nat_witness_form n) (nat_witness_proof n)).
+Proof.
+  intro n.
+  pose proof (nat_to_ord_lt_omega_cnf n) as H1.
+  pose proof (proof_height_nat_witness_geq_omega n) as H2.
+  unfold ord_le in H2.
+  destruct (ord_compare omega_cnf (proof_height_ord (nat_witness_form n) (nat_witness_proof n)))
+    eqn:Hcmp.
+  - apply (proj1 (ord_compare_eq_iff _ _)) in Hcmp.
+    rewrite <- Hcmp. exact H1.
+  - exact (ord_lt_trans _ _ _ H1 Hcmp).
+  - exfalso. apply H2. reflexivity.
 Qed.
 
 (* The lower-bound theorem: for every nat n, there is a Provable_term
@@ -24318,9 +24390,7 @@ Proof.
   exists (nat_witness_proof n).
   right.
   unfold proof_height. apply VL_cnf.
-  pose proof (nat_to_ord_lt_omega_cnf n) as H1.
-  pose proof (proof_height_nat_witness_gt_omega n) as H2.
-  exact (ord_lt_trans _ _ _ H1 H2).
+  exact (proof_height_nat_witness_gt_nat n).
 Qed.
 
 Theorem witness_at_finite_lower_bound : forall n,
