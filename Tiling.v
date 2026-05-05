@@ -17709,6 +17709,83 @@ Proof.
     exact (Stone_image_consistency w phi Hw_phi Hw_neg).
 Qed.
 
+Definition Esakia_LT_to_dual : Form -> canonical_world_max -> Prop := Stone_image.
+
+Definition Esakia_dual_to_LT : (canonical_world_max -> Prop) -> Form -> Prop :=
+  fun S phi => forall w, S w -> Stone_image phi w.
+
+Theorem Esakia_duality_objects_LT_to_frame :
+  forall phi, |- phi -> forall (w : canonical_world_max), Stone_image phi w.
+Proof. exact Stone_image_provable_universal. Qed.
+
+Theorem Esakia_duality_objects_frame_to_LT :
+  forall phi, (forall (w : canonical_world_max), Stone_image phi w) -> |- phi.
+Proof. apply Stone_duality_provability_iff_universal. Qed.
+
+Theorem Esakia_duality_objects_iff :
+  forall phi, |- phi <-> forall (w : canonical_world_max), Stone_image phi w.
+Proof. exact Stone_duality_provability_iff_universal. Qed.
+
+Definition Esakia_LT_morphism (phi psi : Form) : Prop := |- Impl phi psi.
+
+Theorem Esakia_LT_morphism_refl : forall phi, Esakia_LT_morphism phi phi.
+Proof. intros phi. unfold Esakia_LT_morphism. apply prov_id. Qed.
+
+Theorem Esakia_LT_morphism_trans : forall phi psi chi,
+  Esakia_LT_morphism phi psi ->
+  Esakia_LT_morphism psi chi ->
+  Esakia_LT_morphism phi chi.
+Proof.
+  intros phi psi chi Hpq Hqr. unfold Esakia_LT_morphism in *.
+  exact (prov_compose _ _ _ Hpq Hqr).
+Qed.
+
+Definition Esakia_frame_morphism (S T : canonical_world_max -> Prop) : Prop :=
+  forall w, S w -> T w.
+
+Theorem Esakia_frame_morphism_refl : forall S, Esakia_frame_morphism S S.
+Proof. intros S w H. exact H. Qed.
+
+Theorem Esakia_frame_morphism_trans : forall S T U,
+  Esakia_frame_morphism S T ->
+  Esakia_frame_morphism T U ->
+  Esakia_frame_morphism S U.
+Proof. intros S T U Hst Htu w Hs. apply Htu. apply Hst. exact Hs. Qed.
+
+Theorem Esakia_LT_to_frame_morphism_functor : forall phi psi,
+  Esakia_LT_morphism phi psi ->
+  Esakia_frame_morphism (Stone_image phi) (Stone_image psi).
+Proof.
+  intros phi psi Hpq w Hw_phi.
+  unfold Esakia_LT_morphism in Hpq.
+  apply (Stone_image_modus_ponens w phi psi).
+  - apply Stone_image_provable_universal. exact Hpq.
+  - exact Hw_phi.
+Qed.
+
+Theorem Esakia_duality_morphism_preservation :
+  (forall phi, Esakia_LT_morphism phi phi) /\
+  (forall phi psi chi,
+    Esakia_LT_morphism phi psi ->
+    Esakia_LT_morphism psi chi ->
+    Esakia_LT_morphism phi chi) /\
+  (forall S, Esakia_frame_morphism S S) /\
+  (forall S T U,
+    Esakia_frame_morphism S T ->
+    Esakia_frame_morphism T U ->
+    Esakia_frame_morphism S U) /\
+  (forall phi psi,
+    Esakia_LT_morphism phi psi ->
+    Esakia_frame_morphism (Stone_image phi) (Stone_image psi)).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact Esakia_LT_morphism_refl.
+  - exact Esakia_LT_morphism_trans.
+  - exact Esakia_frame_morphism_refl.
+  - exact Esakia_frame_morphism_trans.
+  - exact Esakia_LT_to_frame_morphism_functor.
+Qed.
+
 Lemma forces_box_free_iff_eval_const : forall (F : Frame) val w phi,
   box_free phi ->
   (forces F (fun _ => val) w phi <-> eval val phi = true).
