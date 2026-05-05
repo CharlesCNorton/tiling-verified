@@ -13072,6 +13072,129 @@ Proof.
   - exact Hb.
 Qed.
 
+Inductive qbf : Type :=
+  | qb_lit : bool -> qbf
+  | qb_var : nat -> qbf
+  | qb_neg : qbf -> qbf
+  | qb_and : qbf -> qbf -> qbf
+  | qb_or : qbf -> qbf -> qbf
+  | qb_forall : nat -> qbf -> qbf
+  | qb_exists : nat -> qbf -> qbf.
+
+Fixpoint qbf_eval (val : nat -> bool) (q : qbf) : bool :=
+  match q with
+  | qb_lit b => b
+  | qb_var p => val p
+  | qb_neg q' => negb (qbf_eval val q')
+  | qb_and a b => andb (qbf_eval val a) (qbf_eval val b)
+  | qb_or a b => orb (qbf_eval val a) (qbf_eval val b)
+  | qb_forall p q' =>
+      andb (qbf_eval (update_val val p true) q')
+           (qbf_eval (update_val val p false) q')
+  | qb_exists p q' =>
+      orb (qbf_eval (update_val val p true) q')
+          (qbf_eval (update_val val p false) q')
+  end.
+
+Fixpoint qbf_to_form (q : qbf) : Form :=
+  match q with
+  | qb_lit true => Top
+  | qb_lit false => Bot
+  | qb_var p => Var p
+  | qb_neg q' => Neg (qbf_to_form q')
+  | qb_and a b => And (qbf_to_form a) (qbf_to_form b)
+  | qb_or a b => Or (qbf_to_form a) (qbf_to_form b)
+  | qb_forall p q' =>
+      And (Subst p Top (qbf_to_form q')) (Subst p Bot (qbf_to_form q'))
+  | qb_exists p q' =>
+      Or (Subst p Top (qbf_to_form q')) (Subst p Bot (qbf_to_form q'))
+  end.
+
+Lemma box_free_And_pair : forall X Y, box_free X -> box_free Y -> box_free (And X Y).
+Proof. intros X Y HX HY. unfold And, Neg. cbn. tauto. Qed.
+
+Lemma box_free_Or_pair : forall X Y, box_free X -> box_free Y -> box_free (Or X Y).
+Proof. intros X Y HX HY. unfold Or, Neg. cbn. tauto. Qed.
+
+Lemma qbf_to_form_box_free : forall q, box_free (qbf_to_form q).
+Proof.
+  induction q; cbn.
+  - destruct b; cbn; tauto.
+  - exact I.
+  - apply box_free_Neg. exact IHq.
+  - apply box_free_And_pair; assumption.
+  - apply box_free_Or_pair; assumption.
+  - apply box_free_And_pair.
+    + apply box_free_Subst; [exact IHq | exact box_free_Top].
+    + apply box_free_Subst; [exact IHq | exact box_free_Bot].
+  - apply box_free_Or_pair.
+    + apply box_free_Subst; [exact IHq | exact box_free_Top].
+    + apply box_free_Subst; [exact IHq | exact box_free_Bot].
+Qed.
+
+Lemma eval_Top_true_form : forall val, eval val Top = true.
+Proof. intro val. cbn. reflexivity. Qed.
+
+Lemma eval_Bot_false_form : forall val, eval val Bot = false.
+Proof. intro val. cbn. reflexivity. Qed.
+
+Lemma eval_Neg_form : forall val phi, eval val (Neg phi) = negb (eval val phi).
+Proof. intros val phi. cbn. destruct (eval val phi); reflexivity. Qed.
+
+Lemma eval_And_form : forall val phi psi,
+  eval val (And phi psi) = andb (eval val phi) (eval val psi).
+Proof.
+  intros. unfold And, Neg. cbn.
+  destruct (eval val phi), (eval val psi); reflexivity.
+Qed.
+
+Theorem qbf_to_form_correct : forall q val,
+  qbf_eval val q = eval val (qbf_to_form q).
+Proof.
+  induction q; intro val.
+  - destruct b; cbn; reflexivity.
+  - cbn. reflexivity.
+  - cbn [qbf_eval qbf_to_form]. rewrite IHq, eval_Neg_form. reflexivity.
+  - cbn [qbf_eval qbf_to_form]. rewrite IHq1, IHq2, eval_And_form. reflexivity.
+  - cbn [qbf_eval qbf_to_form]. rewrite IHq1, IHq2, eval_Or. reflexivity.
+  - cbn [qbf_eval qbf_to_form]. rewrite eval_And_form.
+    rewrite (eval_Subst_box_free val n Top _ (qbf_to_form_box_free q)).
+    rewrite (eval_Subst_box_free val n Bot _ (qbf_to_form_box_free q)).
+    rewrite eval_Top_true_form, eval_Bot_false_form.
+    rewrite <- (IHq (update_val val n true)), <- (IHq (update_val val n false)).
+    reflexivity.
+  - cbn [qbf_eval qbf_to_form]. rewrite eval_Or.
+    rewrite (eval_Subst_box_free val n Top _ (qbf_to_form_box_free q)).
+    rewrite (eval_Subst_box_free val n Bot _ (qbf_to_form_box_free q)).
+    rewrite eval_Top_true_form, eval_Bot_false_form.
+    rewrite <- (IHq (update_val val n true)), <- (IHq (update_val val n false)).
+    reflexivity.
+Qed.
+
+Theorem qbf_validity_iff_box_free_validity : forall q,
+  (forall val, qbf_eval val q = true) <-> |- qbf_to_form q.
+Proof.
+  intro q. split.
+  - intros Hval.
+    apply trivial_in_provable. apply prop_completeness;
+      [exact (qbf_to_form_box_free q)|].
+    intro val. rewrite <- (qbf_to_form_correct q val). exact (Hval val).
+  - intros Hp val.
+    pose proof (provable_classically_valid _ Hp val) as Hcv.
+    rewrite (qbf_to_form_correct q val). exact Hcv.
+Qed.
+
+Theorem qbf_validity_decidable : forall q,
+  sumbool (forall val, qbf_eval val q = true) (~ forall val, qbf_eval val q = true).
+Proof.
+  intro q.
+  destruct (decidability_box_free_fragment (qbf_to_form q) (qbf_to_form_box_free q))
+    as [Hp | Hnp].
+  - left. apply (proj2 (qbf_validity_iff_box_free_validity q)). exact Hp.
+  - right. intro Hall.
+    apply Hnp. apply (proj1 (qbf_validity_iff_box_free_validity q)). exact Hall.
+Defined.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
