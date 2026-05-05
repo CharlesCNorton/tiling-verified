@@ -24401,3 +24401,175 @@ Proof.
   destruct (witness_at_for_finite_alpha n) as [phi [pt Hle]].
   exists phi, pt. exact Hle.
 Qed.
+
+(* Recursive witness construction over arbitrary CNF ords.
+   Given o : ord, builds a Form phi and a Provable_term proof pt
+   such that the proof's rank ord_le-dominates o.
+   Recursion structure: for OCons a t, recurse on a (giving a
+   proof of rank >= a, then Nec'd to give rank >= ω^a) and on t
+   (giving a proof of rank >= t), then combine via MP-then-K to
+   get a proof of rank >= ord_add (ω^a) t = OCons a t (when t's
+   leading exp < a, i.e. o is in CNF). *)
+Fixpoint witness_at_for_ord_form (o : ord) : Form :=
+  match o with
+  | OZero => Top
+  | OCons a _ => Box 0 (witness_at_for_ord_form a)
+  end.
+
+Fixpoint witness_at_for_ord_proof (o : ord) :
+  Provable_term (witness_at_for_ord_form o) :=
+  match o return Provable_term (witness_at_for_ord_form o) with
+  | OZero => pt_id_Top
+  | OCons a t =>
+      let p_a := witness_at_for_ord_proof a in
+      let p_a_box : Provable_term (Box 0 (witness_at_for_ord_form a))
+        := pt_Nec 0 (witness_at_for_ord_form a) p_a in
+      let p_t := witness_at_for_ord_proof t in
+      let pK := pt_K (Box 0 (witness_at_for_ord_form a))
+                     (witness_at_for_ord_form t) in
+      let p1 := pt_MP _ _ pK p_a_box in
+      pt_MP _ _ p1 p_t
+  end.
+
+(* The transitivity of ord_lt for arbitrary CNF (the codebase's
+   [ord_lt_trans] is for the wf_ord/cnf-restricted version; here
+   we use the unrestricted ord_compare-based one). *)
+Lemma ord_lt_trans_unrestricted : forall a b c,
+  ord_lt a b -> ord_lt b c -> ord_lt a c.
+Proof. intros a b c. exact (ord_lt_trans a b c). Qed.
+
+(* OCons _ _ is strictly greater than OZero. *)
+Lemma OZero_lt_OCons : forall e t, ord_lt OZero (OCons e t).
+Proof. intros e t. unfold ord_lt. cbn. reflexivity. Qed.
+
+(* Reflexivity of ord_le. *)
+Lemma ord_le_refl : forall o, ord_le o o.
+Proof.
+  intro o. unfold ord_le. rewrite ord_compare_refl. discriminate.
+Qed.
+
+(* Strict-implies-le. *)
+Lemma ord_lt_le : forall a b, ord_lt a b -> ord_le a b.
+Proof.
+  intros a b H. unfold ord_le, ord_lt in *. rewrite H. discriminate.
+Qed.
+
+(* ord_add of two OCons-shaped ords is OCons-shaped. *)
+Lemma ord_add_OCons_OCons_OCons : forall ae at_a be bt,
+  exists e t, ord_add (OCons ae at_a) (OCons be bt) = OCons e t.
+Proof.
+  intros ae at_a be bt. cbn.
+  destruct (ord_compare ae be); eauto.
+Qed.
+
+(* Every Provable_term has positive proof_height_ord (= OCons-shaped). *)
+Lemma proof_height_ord_OCons_shape :
+  forall (phi : Form) (pt : Provable_term phi),
+  exists e t, proof_height_ord phi pt = OCons e t.
+Proof.
+  intros phi pt. induction pt; try (cbn; eauto; fail).
+  - cbn. unfold omega_cnf. eauto.
+  - cbn. unfold omega_cnf. eauto.
+  - cbn. unfold omega_cnf. eauto.
+  - cbn. unfold omega_cnf. eauto.
+  - cbn. unfold omega_cnf. eauto.
+  - cbn. unfold omega_cnf. eauto.
+  - cbn. unfold omega_cnf. eauto.
+  - cbn. unfold omega_cnf. eauto.
+  - cbn.
+    destruct IHpt1 as [e1 [t1 H1]].
+    destruct IHpt2 as [e2 [t2 H2]].
+    rewrite H1, H2.
+    apply ord_add_OCons_OCons_OCons.
+  - cbn. unfold omega_pow. eauto.
+Qed.
+
+(* The proof_height of witness_at_for_ord_proof always exceeds OZero. *)
+Lemma proof_height_witness_at_for_ord_proof_pos : forall o,
+  ord_lt OZero (proof_height_ord (witness_at_for_ord_form o)
+                                  (witness_at_for_ord_proof o)).
+Proof.
+  intro o.
+  destruct (proof_height_ord_OCons_shape (witness_at_for_ord_form o)
+                                          (witness_at_for_ord_proof o))
+    as [e [t Heq]].
+  rewrite Heq. unfold ord_lt. cbn. reflexivity.
+Qed.
+
+(* Basic ord_le/ord_lt arithmetic. *)
+Lemma ord_le_lt_trans : forall a b c,
+  ord_le a b -> ord_lt b c -> ord_lt a c.
+Proof.
+  intros a b c Hab Hbc. unfold ord_le, ord_lt in *.
+  destruct (ord_compare a b) eqn:Eab.
+  - apply ord_compare_eq_iff in Eab. rewrite Eab. exact Hbc.
+  - exact (ord_lt_trans _ _ _ Eab Hbc).
+  - exfalso. apply Hab. reflexivity.
+Qed.
+
+Lemma ord_lt_le_trans : forall a b c,
+  ord_lt a b -> ord_le b c -> ord_lt a c.
+Proof.
+  intros a b c Hab Hbc. unfold ord_le, ord_lt in *.
+  destruct (ord_compare b c) eqn:Ebc.
+  - apply ord_compare_eq_iff in Ebc. rewrite <- Ebc. exact Hab.
+  - exact (ord_lt_trans _ _ _ Hab Ebc).
+  - exfalso. apply Hbc. reflexivity.
+Qed.
+
+Lemma ord_le_trans : forall a b c,
+  ord_le a b -> ord_le b c -> ord_le a c.
+Proof.
+  intros a b c Hab Hbc. unfold ord_le in *.
+  destruct (ord_compare a c) eqn:Eac.
+  - congruence.
+  - congruence.
+  - destruct (ord_compare a b) eqn:Eab.
+    + apply ord_compare_eq_iff in Eab. rewrite Eab in Eac.
+      exfalso. apply Hbc. exact Eac.
+    + assert (Hab2 : ord_lt a b) by exact Eab.
+      destruct (ord_compare b c) eqn:Ebc.
+      * apply ord_compare_eq_iff in Ebc.
+        rewrite Ebc in Hab2. unfold ord_lt in Hab2.
+        rewrite Eac in Hab2. discriminate.
+      * pose proof (ord_lt_trans _ _ _ Hab2 Ebc) as H.
+        unfold ord_lt in H. rewrite Eac in H. discriminate.
+      * exfalso. apply Hbc. reflexivity.
+    + exfalso. apply Hab. reflexivity.
+Qed.
+
+(* The CNF condition: t's leading exp < a => ord_add (omega_pow a) t = OCons a t. *)
+Lemma ord_add_omega_pow_t_when_t_is_OZero : forall a,
+  ord_add (omega_pow a) OZero = OCons a OZero.
+Proof. intro a. cbn. reflexivity. Qed.
+
+Lemma ord_add_omega_pow_OCons_when_lt :
+  forall a be bt,
+  ord_compare a be = Gt ->
+  ord_add (omega_pow a) (OCons be bt) = OCons a (OCons be bt).
+Proof.
+  intros a be bt H. unfold omega_pow. cbn. rewrite H. reflexivity.
+Qed.
+
+Lemma ord_add_omega_pow_OCons_when_eq :
+  forall a bt,
+  ord_add (omega_pow a) (OCons a bt) = OCons a (OCons a bt).
+Proof.
+  intros a bt. unfold omega_pow. cbn. rewrite ord_compare_refl. reflexivity.
+Qed.
+
+(* For wf_ord (OCons a t): t's leading exp is strictly less than a,
+   or t is OZero.  In both cases, ord_add (omega_pow a) t = OCons a t. *)
+Lemma ord_add_omega_pow_wf : forall a t,
+  wf_ord (OCons a t) ->
+  ord_add (omega_pow a) t = OCons a t.
+Proof.
+  intros a t Hwf. cbn in Hwf.
+  destruct Hwf as [_ [_ Hcond]].
+  destruct t as [|te tt].
+  - apply ord_add_omega_pow_t_when_t_is_OZero.
+  - apply ord_add_omega_pow_OCons_when_lt.
+    pose proof (ord_compare_antisym te a) as Hsym.
+    rewrite Hcond in Hsym.
+    destruct (ord_compare a te); cbn in Hsym; congruence.
+Qed.
