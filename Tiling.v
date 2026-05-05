@@ -13415,6 +13415,98 @@ Proof.
     rewrite E in E'. discriminate.
 Defined.
 
+Lemma forces_const_box_free : forall (F : Frame) val w phi,
+  box_free phi ->
+  (forces F (fun _ => val) w phi <-> eval val phi = true).
+Proof.
+  intros F val w phi Hbf. revert w.
+  induction phi as [p | | a IHa b IHb | n psi IHpsi]; intros w; cbn in *.
+  - tauto.
+  - split. intros []. discriminate.
+  - destruct Hbf as [Hbfa Hbfb].
+    pose proof (IHa Hbfa w) as Hia.
+    pose proof (IHb Hbfb w) as Hib.
+    split.
+    + intros Himp.
+      destruct (classic (forces F (fun _ => val) w a)) as [Ha | Hna].
+      * pose proof (proj1 Hia Ha) as Heva.
+        pose proof (Himp Ha) as Hb.
+        pose proof (proj1 Hib Hb) as Hevb.
+        rewrite Heva, Hevb. cbn. reflexivity.
+      * assert (Heva : eval val a = false).
+        { case_eq (eval val a); intros Hev; [|reflexivity].
+          exfalso. apply Hna. apply (proj2 Hia). exact Hev. }
+        rewrite Heva. cbn. reflexivity.
+    + intros Heval Ha.
+      pose proof (proj1 Hia Ha) as Heva. rewrite Heva in Heval. cbn in Heval.
+      apply (proj2 Hib). exact Heval.
+  - exfalso; exact Hbf.
+Qed.
+
+Theorem provable_box_box_free_iff_provable : forall n psi,
+  box_free psi -> (|- Box n psi) <-> (|- psi).
+Proof.
+  intros n psi Hbf. split.
+  - intro Hboxn.
+    apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+    intro val.
+    pose proof (soundness _ Hboxn Fnat (fun _ => val) (S n)) as Hf.
+    cbn in Hf.
+    assert (Hr : Fnat_R n (S n) n) by (unfold Fnat_R; split; lia).
+    pose proof (Hf n Hr) as Hforces.
+    apply (proj1 (forces_const_box_free Fnat val n psi Hbf)).
+    exact Hforces.
+  - intro Hpsi. apply Nec. exact Hpsi.
+Qed.
+
+Theorem decidability_box_box_free : forall n psi,
+  box_free psi -> sumbool (|- Box n psi) (~ |- Box n psi).
+Proof.
+  intros n psi Hbf.
+  destruct (decidability_box_free_fragment psi Hbf) as [Hp | Hnp].
+  - left. apply (proj2 (provable_box_box_free_iff_provable n psi Hbf)). exact Hp.
+  - right. intro Habs. apply Hnp.
+    apply (proj1 (provable_box_box_free_iff_provable n psi Hbf)). exact Habs.
+Defined.
+
+Theorem bimodal_box_free_levels_interchangeable : forall n m psi,
+  box_free psi ->
+  (|- Box n psi) <-> (|- Box m psi).
+Proof.
+  intros n m psi Hbf.
+  rewrite (provable_box_box_free_iff_provable n psi Hbf).
+  rewrite (provable_box_box_free_iff_provable m psi Hbf).
+  tauto.
+Qed.
+
+Theorem bimodal_distinct_levels_decidable : forall n m psi,
+  box_free psi ->
+  sumbool ((|- Box n psi) /\ (|- Box m psi))
+          (~ (|- Box n psi) /\ ~ (|- Box m psi)).
+Proof.
+  intros n m psi Hbf.
+  destruct (decidability_box_box_free n psi Hbf) as [Hn | Hn].
+  - left. split.
+    + exact Hn.
+    + apply (proj1 (bimodal_box_free_levels_interchangeable n m psi Hbf)). exact Hn.
+  - right. split.
+    + exact Hn.
+    + intro Hm. apply Hn.
+      apply (proj2 (bimodal_box_free_levels_interchangeable n m psi Hbf)). exact Hm.
+Defined.
+
+Theorem bimodal_does_not_collapse_in_general :
+  exists n m phi, n <> m /\ (|- Box m phi) /\ ~ (|- Box n phi).
+Proof.
+  exists 0, 1, (Neg (Box 0 Bot)). split; [|split].
+  - lia.
+  - exact (Ax_NextCon 0).
+  - intro H.
+    pose proof (godel_second 0) as HG2.
+    pose proof (MP _ _ HG2 H) as Hbot.
+    exact (meta_consistency_every_level 0 Hbot).
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
