@@ -14125,6 +14125,104 @@ Proof.
   - exact K_refuted_in_neighborhood.
 Qed.
 
+Inductive ival : Type := iBot | iMid | iTop.
+
+Definition iimpl (a b : ival) : ival :=
+  match a with
+  | iBot => iTop
+  | iMid => match b with
+            | iBot => iBot
+            | iMid => iTop
+            | iTop => iTop
+            end
+  | iTop => b
+  end.
+
+Fixpoint ieval (val : nat -> ival) (phi : Form) : ival :=
+  match phi with
+  | Var p => val p
+  | Bot => iBot
+  | Impl X Y => iimpl (ieval val X) (ieval val Y)
+  | Box _ _ => iTop
+  end.
+
+Theorem ieval_K : forall val X Y,
+  ieval val (Impl X (Impl Y X)) = iTop.
+Proof.
+  intros val X Y. cbn.
+  destruct (ieval val X), (ieval val Y); cbn; reflexivity.
+Qed.
+
+Theorem ieval_S : forall val X Y Z,
+  ieval val (Impl (Impl X (Impl Y Z)) (Impl (Impl X Y) (Impl X Z))) = iTop.
+Proof.
+  intros val X Y Z. cbn.
+  destruct (ieval val X), (ieval val Y), (ieval val Z); cbn; reflexivity.
+Qed.
+
+Theorem ieval_BoxK : forall val n X Y,
+  ieval val (Impl (Box n (Impl X Y)) (Impl (Box n X) (Box n Y))) = iTop.
+Proof. intros. cbn. reflexivity. Qed.
+
+Theorem ieval_Loeb : forall val n X,
+  ieval val (Impl (Box n (Impl (Box n X) X)) (Box n X)) = iTop.
+Proof. intros. cbn. reflexivity. Qed.
+
+Theorem ieval_Box4 : forall val n X,
+  ieval val (Impl (Box n X) (Box n (Box n X))) = iTop.
+Proof. intros. cbn. reflexivity. Qed.
+
+Theorem ieval_Mon : forall val n X,
+  ieval val (Impl (Box n X) (Box (S n) X)) = iTop.
+Proof. intros. cbn. reflexivity. Qed.
+
+Theorem ieval_NextCon : forall val n,
+  ieval val (Box (S n) (Neg (Box n Bot))) = iTop.
+Proof. intros. cbn. reflexivity. Qed.
+
+Theorem ieval_MP_preserves : forall val A B,
+  ieval val (Impl A B) = iTop -> ieval val A = iTop -> ieval val B = iTop.
+Proof.
+  intros val A B Himpl HA. cbn in Himpl.
+  rewrite HA in Himpl. cbn in Himpl. exact Himpl.
+Qed.
+
+Theorem ieval_Nec_preserves : forall val n phi,
+  ieval val (Box n phi) = iTop.
+Proof. intros. cbn. reflexivity. Qed.
+
+Theorem ieval_DN_fails :
+  exists val phi, ieval val (Impl (Neg (Neg phi)) phi) <> iTop.
+Proof.
+  exists (fun _ => iMid). exists (Var 0). cbn. discriminate.
+Qed.
+
+Theorem Ax_DN_independence :
+  exists val phi,
+    (forall X Y, ieval val (Impl X (Impl Y X)) = iTop) /\
+    (forall X Y Z,
+       ieval val (Impl (Impl X (Impl Y Z)) (Impl (Impl X Y) (Impl X Z))) = iTop) /\
+    (forall n X Y,
+       ieval val (Impl (Box n (Impl X Y)) (Impl (Box n X) (Box n Y))) = iTop) /\
+    (forall n X,
+       ieval val (Impl (Box n (Impl (Box n X) X)) (Box n X)) = iTop) /\
+    (forall n X, ieval val (Impl (Box n X) (Box n (Box n X))) = iTop) /\
+    (forall n X, ieval val (Impl (Box n X) (Box (S n) X)) = iTop) /\
+    (forall n, ieval val (Box (S n) (Neg (Box n Bot))) = iTop) /\
+    ieval val (Impl (Neg (Neg phi)) phi) <> iTop.
+Proof.
+  exists (fun _ => iMid). exists (Var 0).
+  split; [|split; [|split; [|split; [|split; [|split; [|split]]]]]].
+  - intros. apply (ieval_K (fun _ => iMid)).
+  - intros. apply (ieval_S (fun _ => iMid)).
+  - intros. apply (ieval_BoxK (fun _ => iMid)).
+  - intros. apply (ieval_Loeb (fun _ => iMid)).
+  - intros. apply (ieval_Box4 (fun _ => iMid)).
+  - intros. apply (ieval_Mon (fun _ => iMid)).
+  - intros. apply (ieval_NextCon (fun _ => iMid)).
+  - cbn. discriminate.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
