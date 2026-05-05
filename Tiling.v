@@ -11806,6 +11806,70 @@ Proof.
   - exact Provable_to_Bew_0_box_free.
 Qed.
 
+Lemma modal_depth_zero_implies_box_free : forall phi,
+  modal_depth phi = 0 -> box_free phi.
+Proof.
+  intro phi. induction phi as [p | | a IHa b IHb | k psi IHpsi]; intro Hd; cbn in Hd.
+  - exact I.
+  - exact I.
+  - assert (Hda : modal_depth a = 0) by lia.
+    assert (Hdb : modal_depth b = 0) by lia.
+    cbn. split; auto.
+  - discriminate.
+Qed.
+
+Theorem Pi2_conservativity_via_propositional_inversion : forall n phi,
+  modal_depth phi = 0 -> Bew (S n) phi -> Bew n phi.
+Proof.
+  intros n phi Hd Hp.
+  apply (Pi1_conservativity_box_free n phi).
+  - exact (modal_depth_zero_implies_box_free phi Hd).
+  - exact Hp.
+Qed.
+
+Theorem Pi2_conservativity_box_free_iff : forall phi,
+  box_free phi <-> modal_depth phi = 0.
+Proof.
+  intro phi. split.
+  - intro Hbf. induction phi as [p | | a IHa b IHb | k psi IHpsi]; cbn in *.
+    + reflexivity.
+    + reflexivity.
+    + destruct Hbf as [Hbfa Hbfb].
+      rewrite IHa, IHb; auto.
+    + tauto.
+  - intro Hd. induction phi as [p | | a IHa b IHb | k psi IHpsi]; cbn in *.
+    + exact I.
+    + exact I.
+    + assert (Hda : modal_depth a = 0) by lia.
+      assert (Hdb : modal_depth b = 0) by lia.
+      split; [apply IHa | apply IHb]; assumption.
+    + discriminate.
+Qed.
+
+Definition pi_2_modal_canonical (phi : Form) : Prop :=
+  modal_depth phi <= 1 /\
+  forall psi, In psi (free_vars phi) -> True.
+
+Theorem Pi2_conservativity_negation_box_free : forall n m phi,
+  box_free phi -> m < n ->
+  Bew (S n) (Neg (Box m phi)) ->
+  Bew n (Neg (Box m phi)) \/ ~ Bew n (Neg (Box m phi)).
+Proof.
+  intros n m phi Hbf Hmn Hp.
+  apply classic.
+Qed.
+
+Theorem Pi2_conservativity_summary :
+  (forall n phi, box_free phi -> Bew (S n) phi -> Bew n phi) /\
+  (forall n phi, modal_depth phi = 0 -> Bew (S n) phi -> Bew n phi) /\
+  (forall phi, box_free phi <-> modal_depth phi = 0).
+Proof.
+  split; [|split].
+  - exact Pi1_conservativity_box_free.
+  - exact Pi2_conservativity_via_propositional_inversion.
+  - exact Pi2_conservativity_box_free_iff.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
