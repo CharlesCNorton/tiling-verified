@@ -14673,6 +14673,100 @@ Proof.
   - intros P [phi [Hbf Hphi]]. exists phi. split; [exact Hbf | exact Hphi].
 Qed.
 
+Definition modally_def_class (phi : Form) : Frame -> Prop :=
+  fun F => forall V w, forces F V w phi.
+
+Theorem GT_modal_class_closed_under_disjoint_union : forall phi F1 F2,
+  modally_def_class phi F1 ->
+  modally_def_class phi F2 ->
+  modally_def_class phi (Frame_Sum F1 F2).
+Proof.
+  intros phi F1 F2 H1 H2 V w.
+  destruct w as [w1|w2].
+  - rewrite forces_sum_left. apply H1.
+  - rewrite forces_sum_right. apply H2.
+Qed.
+
+Theorem GT_modal_class_bisim_closed : forall phi F1 F2 V1 V2 Z w1 w2,
+  Bisim F1 F2 V1 V2 Z -> Z w1 w2 ->
+  forces F1 V1 w1 phi -> forces F2 V2 w2 phi.
+Proof.
+  intros phi F1 F2 V1 V2 Z w1 w2 HB HZ Hf1.
+  pose proof (bisim_invariance F1 F2 V1 V2 Z HB phi w1 w2 HZ) as Hiff.
+  apply (proj1 Hiff). exact Hf1.
+Qed.
+
+Theorem GT_modally_def_class_when_valid : forall phi F,
+  Valid phi -> modally_def_class phi F.
+Proof.
+  intros phi F Hv V w. exact (Hv F V w).
+Qed.
+
+Definition is_GT_modally_definable (Cls : Frame -> Prop) : Prop :=
+  exists phi, forall F, Cls F <-> modally_def_class phi F.
+
+Theorem GT_modally_definable_closed_under_disjoint_union : forall Cls,
+  is_GT_modally_definable Cls ->
+  forall F1 F2, Cls F1 -> Cls F2 -> Cls (Frame_Sum F1 F2).
+Proof.
+  intros Cls [phi Hphi] F1 F2 H1 H2.
+  apply (proj2 (Hphi (Frame_Sum F1 F2))).
+  apply GT_modal_class_closed_under_disjoint_union.
+  - apply (proj1 (Hphi F1)). exact H1.
+  - apply (proj1 (Hphi F2)). exact H2.
+Qed.
+
+Definition Frame_morphism (F1 F2 : Frame) (f : fW F1 -> fW F2) : Prop :=
+  forall n w v, fR F1 n w v -> fR F2 n (f w) (f v).
+
+Definition Frame_morphism_back (F1 F2 : Frame) (f : fW F1 -> fW F2) : Prop :=
+  forall n w v', fR F2 n (f w) v' -> exists v, fR F1 n w v /\ f v = v'.
+
+Definition is_bounded_morphism (F1 F2 : Frame) (f : fW F1 -> fW F2) : Prop :=
+  Frame_morphism F1 F2 f /\ Frame_morphism_back F1 F2 f.
+
+Theorem GT_bounded_morphism_via_bisim : forall F1 F2 V1 V2 f,
+  is_bounded_morphism F1 F2 f ->
+  (forall w p, V1 w p = V2 (f w) p) ->
+  Bisim F1 F2 V1 V2 (fun w v => f w = v).
+Proof.
+  intros F1 F2 V1 V2 f [Hforth Hback] Hval w1 w2 Hfw.
+  split; [|split].
+  - intros p. rewrite <- Hfw. apply Hval.
+  - intros n v1 Hv1. exists (f v1).
+    assert (Heq : w2 = f w1) by (symmetry; exact Hfw).
+    rewrite Heq. split.
+    + apply Hforth. exact Hv1.
+    + reflexivity.
+  - intros n v2 Hv2.
+    assert (Heq : w2 = f w1) by (symmetry; exact Hfw).
+    rewrite Heq in Hv2.
+    destruct (Hback n w1 v2 Hv2) as [v1 [Hr Hfeq]].
+    exists v1. split; [exact Hr | exact Hfeq].
+Qed.
+
+Theorem GT_forward_summary :
+  (forall phi F1 F2,
+     modally_def_class phi F1 ->
+     modally_def_class phi F2 ->
+     modally_def_class phi (Frame_Sum F1 F2)) /\
+  (forall phi F1 F2 V1 V2 Z w1 w2,
+     Bisim F1 F2 V1 V2 Z -> Z w1 w2 ->
+     forces F1 V1 w1 phi -> forces F2 V2 w2 phi) /\
+  (forall Cls, is_GT_modally_definable Cls ->
+   forall F1 F2, Cls F1 -> Cls F2 -> Cls (Frame_Sum F1 F2)) /\
+  (forall F1 F2 V1 V2 f,
+     is_bounded_morphism F1 F2 f ->
+     (forall w p, V1 w p = V2 (f w) p) ->
+     Bisim F1 F2 V1 V2 (fun w v => f w = v)).
+Proof.
+  split; [|split; [|split]].
+  - exact GT_modal_class_closed_under_disjoint_union.
+  - exact GT_modal_class_bisim_closed.
+  - exact GT_modally_definable_closed_under_disjoint_union.
+  - exact GT_bounded_morphism_via_bisim.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
