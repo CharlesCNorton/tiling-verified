@@ -12662,15 +12662,6 @@ Proof.
   - exact Solovay_first_completeness_via_classical_valid.
 Qed.
 
-(* ========================================================== *)
-(* Todo #1: Solovay's first arithmetic completeness for GL.   *)
-(*                                                            *)
-(* Below: is_arithmetic_interpretation_proper, the gl_collapse*)
-(* family, the arith_embed_GL definition, the                 *)
-(* solovay_function with a real step relation, and a proof    *)
-(* of Solovay_first_full.                                     *)
-(* ========================================================== *)
-
 (* Atom-substitution-parameterized box-collapse interpretation.
    This is the GL-collapse: each Box k gets remapped to Box 0,
    and atoms get substituted by sigma. *)
@@ -12916,8 +12907,6 @@ Proof.
   - exact (Nec 0 _ Hpr).
 Qed.
 
-(* Box-prefixed conclusion: for any phi, the universal-proper-I
-   hypothesis gives Provable_GL of Box 0 (arith_embed_GL phi). *)
 Theorem Solovay_first_arith_embed_GL_provable_box_0 : forall phi,
   (forall I, is_arithmetic_interpretation_proper I ->
      Bew_n 0 (encode_form (I phi))) ->
@@ -12932,15 +12921,6 @@ Proof.
   - cbn. split; [reflexivity | exact (arith_embed_GL_level_0_only phi)].
 Qed.
 
-(* Full Solovay first completeness for the level_0_only fragment:
-   from the universal hypothesis we extract Provable_GL of Box 0 phi.
-   The cure's literal statement -- Provable_GL phi WITHOUT the outer
-   Box 0 -- is mathematically false as written: take phi = Box 1 Top.
-   Every proper I sends Box 1 Top to Box 0 Top, which is Bew_n 0-
-   provable (via Nec on the Top-tautology).  But Provable_GL (Box 1 Top)
-   is false (GL has no Box-1 axioms; Box 1 cannot be introduced).
-   Below we prove the strongest statement that IS true: when phi is
-   level_0_only, the universal hypothesis gives Provable_GL (Box 0 phi). *)
 Theorem Solovay_first_completeness_level_0_only_with_outer_Box_0 :
   forall phi,
   level_0_only phi ->
@@ -12955,22 +12935,6 @@ Proof.
   exact Hbox.
 Qed.
 
-(* The cure's literal Solovay_first_full statement, with the
-   counter-example documented inside the theorem.  We prove the
-   correct half: when the conclusion is Provable_GL (Box 0
-   (arith_embed_GL phi)), the universal-I hypothesis is sufficient.
-   When phi is level_0_only, this is Provable_GL (Box 0 phi).
-
-   The literal cure statement -- Provable_GL phi -- requires the
-   T-axiom step (Box 0 phi -> phi inside GL), which GL does not have;
-   plus a syntactic-vs-arith_embed_GL bridge for non-level_0_only phi.
-   Removing the outer Box 0 is the genuine content of Solovay's
-   counter-frame construction (using the Solovay function on a
-   GL-Kripke counter-model), not derivable from the universal-I
-   hypothesis without Kripke completeness for finite GL frames.
-   Kripke completeness for finite GL frames is research-program
-   item #5 in todo.md (not the box-free fragment, which the codebase
-   already has at kripke_completeness_box_free). *)
 Theorem Solovay_first_full_with_outer_Box_0_on_arith_embed_GL :
   forall phi,
   (forall I, is_arithmetic_interpretation_proper I ->
@@ -13108,13 +13072,6 @@ Proof.
   - exact S_reflection.
 Qed.
 
-(* ========================================================== *)
-(* Todo #2: Solovay's second arithmetic completeness for S.   *)
-(*                                                            *)
-(* Below: arith_embed_S distinct from arith_embed_GL,         *)
-(* standard_model_satisfies, soundness, partial completeness, *)
-(* and explicit counter-example for the literal cure.         *)
-(* ========================================================== *)
 
 (* arith_embed_S: extends arith_embed_GL by pairing each Box-collapse
    with an explicit truth marker.  Each Box k phi becomes
@@ -13185,10 +13142,6 @@ Proof.
   apply classical_valid_gl_collapse. exact Hcv.
 Qed.
 
-(* Soundness for S: every S-theorem is classically valid under
-   every proper I.  Note: this gives the "classical-valid I phi"
-   half of the cure's hypothesis-pair.  The "Bew_n 0" half follows
-   from arith soundness combined with the GL soundness (todo #1). *)
 Theorem Solovay_second_soundness_proper_classical : forall phi,
   Provable_S phi ->
   forall I, is_arithmetic_interpretation_proper I ->
@@ -13199,39 +13152,6 @@ Proof.
   exact (S_truth_arithmetic_soundness _ Hp).
 Qed.
 
-(* Solovay-second completeness for level_0_only phi.
-
-   For phi with only Box 0 (= GL-language formulas): from the
-   universal hypothesis that EVERY proper I gives BOTH Bew_n 0
-   provability AND classical truth, we extract Provable_S phi.
-
-   The key ingredient over Solovay-first: S has the reflection
-   axiom Impl (Box 0 X) X for classical-valid X.  Applied to phi:
-   from Provable_GL (Box 0 phi) (todo #1's partial conclusion) and
-   classical_valid phi (the second half of the hypothesis), we
-   derive Provable_S phi by S_GL_subsumes + S_reflection + S_MP.
-
-   This is exactly where S exceeds GL: GL cannot eliminate the
-   outer Box 0; S can, via reflection at classical-valid formulas.
-
-   The literal cure -- forall phi (no level_0_only) -- is FALSE.
-   Counter-example: phi = Box 1 Top.  Every proper I sends Box 1 Top
-   to Box 0 (I Top) = Box 0 Top.  Bew_n 0 (encode (Box 0 Top))
-   holds: |- Box 0 (Box 0 Top) by Nec twice on prov_id Bot.
-   classical_valid (Box 0 Top) holds: every Bool valuation makes
-   Box-headed forms true.  So both halves of the hypothesis are
-   satisfied.  But Provable_S (Box 1 Top) fails: Provable_S has
-   three constructors -- S_GL_subsumes (which requires Provable_GL,
-   and GL has no Box 1 axioms so cannot derive Box 1 Top),
-   S_reflection (which produces only Impl-shaped conclusions), and
-   S_MP (which preserves shapes but cannot introduce Box 1).  So
-   Box 1 Top is unreachable in Provable_S, and the cure-statement
-   fails for it.
-
-   This is the same structural counter as todo #1: the level-
-   distinction in polymodal Box is invisible to arithmetic
-   interpretations, so theorems that require level-distinctions to
-   refute do not arithmetize. *)
 Theorem Solovay_second_completeness_level_0_only : forall phi,
   level_0_only phi ->
   (forall I, is_arithmetic_interpretation_proper I ->
@@ -13266,21 +13186,6 @@ Theorem Solovay_second_full_for_level_0_only : forall phi,
   Provable_S phi.
 Proof. exact Solovay_second_completeness_level_0_only. Qed.
 
-(* The "Provable_GL never produces outer Box (S k)" lemma fails to
-   go through by a simple structural induction: GL_MP's conclusion
-   is the second projection of the implication, which the IH on
-   Provable_GL phi (the antecedent) does not directly constrain.
-   Whether Provable_GL produces outer Box (S k) at all is itself
-   non-trivial -- via GL_Ax_DN with schematic phi := Box (S k) X,
-   the axiom Impl (Neg (Neg (Box (S k) X))) (Box (S k) X) is in
-   Provable_GL, and MP would extract Box (S k) X if the antecedent
-   is independently provable.  Whether Provable_GL (Neg (Neg
-   (Box (S k) X))) holds reduces to itself.  Resolving this needs
-   GL Kripke completeness for finite frames (research-program
-   item #5) or a stronger structural invariant.  We do not prove
-   the counter-example for Solovay_second_full here; the partial
-   completeness for level_0_only phi is what is actually
-   established. *)
 
 Theorem Solovay_S_MP : forall phi psi,
   Provable_S (Impl phi psi) -> Provable_S phi -> Provable_S psi.
