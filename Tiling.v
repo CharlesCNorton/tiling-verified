@@ -11220,6 +11220,84 @@ Proof.
   - exact (Godel_sentence_negation_unprovable n).
 Qed.
 
+Definition Con_Tn (n : nat) : Form := Neg (Box n Bot).
+
+Definition Con_Tn_internal (n : nat) : Form := Box (S n) (Neg (Box n Bot)).
+
+Theorem Con_Tn_internal_provable_at_T_n_plus_2 : forall n,
+  Bew (S (S n)) (Con_Tn_internal n).
+Proof.
+  intro n. unfold Con_Tn_internal.
+  apply Bew_ax. apply TAx_NextCon. lia.
+Qed.
+
+Theorem T_axiom_strict_extension : forall n,
+  exists phi, T_axiom (S (S n)) phi /\ ~ T_axiom n phi.
+Proof.
+  intro n. exists (Box (S n) (Neg (Box n Bot))). split.
+  - apply TAx_NextCon. lia.
+  - intro Hax. inversion Hax; lia.
+Qed.
+
+Theorem Con_Tn_unprovable_outer : forall n,
+  ~ |- Con_Tn n.
+Proof.
+  intros n H. unfold Con_Tn in H.
+  exact (Carlson_second_incompleteness_polymodal n H).
+Qed.
+
+Theorem T_n_extension_proves_internal_Con : forall n,
+  Bew (S (S n)) (Con_Tn_internal n) /\
+  ~ |- Con_Tn n.
+Proof.
+  intro n. split.
+  - exact (Con_Tn_internal_provable_at_T_n_plus_2 n).
+  - exact (Con_Tn_unprovable_outer n).
+Qed.
+
+Theorem T_axiom_cumulative_chain : forall n m phi,
+  n <= m -> T_axiom n phi -> T_axiom m phi.
+Proof.
+  intros n m phi Hnm Hax.
+  induction Hnm as [|m' Hnm IH].
+  - exact Hax.
+  - exact (T_axiom_cumulative m' phi IH).
+Qed.
+
+Theorem Bew_cumulative_chain : forall n m phi,
+  n <= m -> Bew n phi -> Bew m phi.
+Proof.
+  intros n m phi Hnm Hax.
+  induction Hnm as [|m' Hnm IH].
+  - exact Hax.
+  - exact (Bew_cumulative m' phi IH).
+Qed.
+
+Theorem T_axiom_cumulativity_strict : forall n,
+  (forall phi, T_axiom n phi -> T_axiom (S n) phi) /\
+  (exists phi, T_axiom (S (S n)) phi /\ ~ T_axiom n phi).
+Proof.
+  intro n. split.
+  - exact (T_axiom_cumulative n).
+  - exact (T_axiom_strict_extension n).
+Qed.
+
+Theorem Bew_axiomatic_summary :
+  (forall n m phi, n <= m -> T_axiom n phi -> T_axiom m phi) /\
+  (forall n m phi, n <= m -> Bew n phi -> Bew m phi) /\
+  (forall n, Bew (S (S n)) (Con_Tn_internal n)) /\
+  (forall n, ~ |- Con_Tn n) /\
+  (forall n, exists phi,
+     T_axiom (S (S n)) phi /\ ~ T_axiom n phi).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact T_axiom_cumulative_chain.
+  - exact Bew_cumulative_chain.
+  - exact Con_Tn_internal_provable_at_T_n_plus_2.
+  - exact Con_Tn_unprovable_outer.
+  - exact T_axiom_strict_extension.
+Qed.
+
 Theorem internal_diagonal_summary :
   (forall n : nat, exists psi : Form, |- Iff psi (Neg (Box n psi))) /\
   (forall (n : nat) (X : Form),
