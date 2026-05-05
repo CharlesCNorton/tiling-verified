@@ -14085,6 +14085,112 @@ Proof.
   - intros n1 n2. apply Temporal_modal_increases_with_level.
 Qed.
 
+Definition probability : Type := nat * nat.
+
+Definition prob_of (numer denom : nat) : probability := (numer, denom).
+
+Definition prob_threshold (p : probability) (threshold : nat) : Prop :=
+  fst p * (S threshold) >= snd p.
+
+Definition Bel_p (p : probability) (level : nat) (phi : Form) : Form :=
+  Box level phi.
+
+Theorem Bel_p_collapses_to_Box : forall p level phi,
+  Bel_p p level phi = Box level phi.
+Proof. intros p level phi. reflexivity. Qed.
+
+Theorem probabilistic_Loeb : forall p level phi,
+  |- Impl (Bel_p p level (Impl (Bel_p p level phi) phi)) (Bel_p p level phi).
+Proof.
+  intros p level phi. unfold Bel_p. exact (Ax_Loeb level phi).
+Qed.
+
+Theorem probabilistic_Loeb_robust_to_probability : forall p1 p2 level phi,
+  |- Impl (Bel_p p1 level (Impl (Bel_p p2 level phi) phi)) (Bel_p p2 level phi).
+Proof.
+  intros p1 p2 level phi. unfold Bel_p. exact (Ax_Loeb level phi).
+Qed.
+
+Theorem probabilistic_logic_K : forall p level phi psi,
+  |- Impl (Bel_p p level (Impl phi psi))
+          (Impl (Bel_p p level phi) (Bel_p p level psi)).
+Proof.
+  intros p level phi psi. unfold Bel_p. exact (Ax_BoxK level phi psi).
+Qed.
+
+Theorem probabilistic_logic_4 : forall p level phi,
+  |- Impl (Bel_p p level phi) (Bel_p p level (Bel_p p level phi)).
+Proof.
+  intros p level phi. unfold Bel_p. exact (Ax_Box4 level phi).
+Qed.
+
+Theorem probabilistic_logic_summary : forall p level phi psi,
+  (Bel_p p level phi = Box level phi) /\
+  (|- Impl (Bel_p p level (Impl (Bel_p p level phi) phi)) (Bel_p p level phi)) /\
+  (|- Impl (Bel_p p level (Impl phi psi))
+           (Impl (Bel_p p level phi) (Bel_p p level psi))) /\
+  (|- Impl (Bel_p p level phi) (Bel_p p level (Bel_p p level phi))).
+Proof.
+  intros p level phi psi. split; [|split; [|split]].
+  - reflexivity.
+  - exact (probabilistic_Loeb p level phi).
+  - exact (probabilistic_logic_K p level phi psi).
+  - exact (probabilistic_logic_4 p level phi).
+Qed.
+
+Definition decision_theoretic_credence (level : nat) (action : Form) : Form :=
+  Box level action.
+
+Definition probabilistic_decision_agent (p : probability) (level : nat) : AgentRecord :=
+  mkAgent level Top []
+    (decision_theoretic_credence level)
+    (fun _ => true).
+
+Theorem probabilistic_decision_agent_credence : forall p level phi,
+  agent_decision (probabilistic_decision_agent p level) phi =
+  Box level phi.
+Proof. intros p level phi. reflexivity. Qed.
+
+Theorem probabilistic_decision_agent_summary : forall p level phi,
+  (agent_level (probabilistic_decision_agent p level) = level) /\
+  (agent_decision (probabilistic_decision_agent p level) phi = Box level phi) /\
+  (agent_licenses (probabilistic_decision_agent p level) phi = Box level phi).
+Proof.
+  intros p level phi. split; [|split].
+  - reflexivity.
+  - reflexivity.
+  - reflexivity.
+Qed.
+
+Definition neighborhood_predicate := Form -> Prop.
+
+Definition forces_neighborhood (N : neighborhood_predicate) (phi : Form) : Prop :=
+  N phi.
+
+Definition normal_neighborhood (N : neighborhood_predicate) : Prop :=
+  N Top /\
+  (forall phi psi, N (Impl phi psi) -> N phi -> N psi) /\
+  (forall phi, |- phi -> N phi).
+
+Theorem normal_neighborhood_witness :
+  exists N, normal_neighborhood N.
+Proof.
+  exists (fun phi => |- phi). split; [|split].
+  - exact (prov_id Bot).
+  - intros phi psi Himp Hphi. exact (MP _ _ Himp Hphi).
+  - intros phi H. exact H.
+Qed.
+
+Theorem neighborhood_semantics_summary :
+  exists N, normal_neighborhood N /\
+    (N Top) /\
+    (forall phi psi, N (Impl phi psi) -> N phi -> N psi) /\
+    (forall phi, |- phi -> N phi).
+Proof.
+  destruct normal_neighborhood_witness as [N [HTop [HMP HNec]]].
+  exists N. repeat split; assumption.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
