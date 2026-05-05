@@ -15242,6 +15242,113 @@ Proof.
   - exact MT_box_free_locally_finite.
 Qed.
 
+Record FrameMorphism (F1 F2 : Frame) : Type := mkFM {
+  fmm_map : fW F1 -> fW F2;
+  fmm_forth : forall n w v, fR F1 n w v -> fR F2 n (fmm_map w) (fmm_map v);
+  fmm_back : forall n w v', fR F2 n (fmm_map w) v' ->
+                             exists v, fR F1 n w v /\ fmm_map v = v'
+}.
+
+Arguments fmm_map {F1 F2} _.
+Arguments fmm_forth {F1 F2} _.
+Arguments fmm_back {F1 F2} _.
+
+Definition fm_identity (F : Frame) : FrameMorphism F F :=
+  {| fmm_map := fun w => w;
+     fmm_forth := fun n w v H => H;
+     fmm_back := fun n w v' H => ex_intro _ v' (conj H eq_refl) |}.
+
+Definition fm_compose (F1 F2 F3 : Frame)
+  (f : FrameMorphism F1 F2) (g : FrameMorphism F2 F3) : FrameMorphism F1 F3.
+Proof.
+  refine {| fmm_map := fun w => fmm_map g (fmm_map f w);
+            fmm_forth := _;
+            fmm_back := _ |}.
+  - intros n w v Hwv. apply (fmm_forth g). apply (fmm_forth f). exact Hwv.
+  - intros n w v' Hg.
+    pose proof (fmm_back g n (fmm_map f w) v' Hg) as [v'' [Hfv' Heq]].
+    pose proof (fmm_back f n w v'' Hfv') as [v [Hwv Heq2]].
+    exists v. split.
+    + exact Hwv.
+    + rewrite Heq2. exact Heq.
+Defined.
+
+Theorem fm_identity_left : forall F1 F2 (f : FrameMorphism F1 F2),
+  forall w, fmm_map (fm_compose F1 F1 F2 (fm_identity F1) f) w = fmm_map f w.
+Proof. intros. cbn. reflexivity. Qed.
+
+Theorem fm_identity_right : forall F1 F2 (f : FrameMorphism F1 F2),
+  forall w, fmm_map (fm_compose F1 F2 F2 f (fm_identity F2)) w = fmm_map f w.
+Proof. intros. cbn. reflexivity. Qed.
+
+Theorem fm_compose_assoc : forall F1 F2 F3 F4
+  (f : FrameMorphism F1 F2) (g : FrameMorphism F2 F3) (h : FrameMorphism F3 F4),
+  forall w,
+    fmm_map (fm_compose F1 F2 F4 f (fm_compose F2 F3 F4 g h)) w =
+    fmm_map (fm_compose F1 F3 F4 (fm_compose F1 F2 F3 f g) h) w.
+Proof. intros. cbn. reflexivity. Qed.
+
+Theorem frame_morphism_induces_bisim : forall F1 F2 V1 V2 (f : FrameMorphism F1 F2),
+  (forall w p, V1 w p = V2 (fmm_map f w) p) ->
+  Bisim F1 F2 V1 V2 (fun w v => fmm_map f w = v).
+Proof.
+  intros F1 F2 V1 V2 f Hval w1 w2 Hfw.
+  split; [|split].
+  - intros p. rewrite <- Hfw. apply Hval.
+  - intros n v1 Hv1. exists (fmm_map f v1).
+    assert (Heq : w2 = fmm_map f w1) by (symmetry; exact Hfw).
+    rewrite Heq. split.
+    + apply (fmm_forth f). exact Hv1.
+    + reflexivity.
+  - intros n v2 Hv2.
+    assert (Heq : w2 = fmm_map f w1) by (symmetry; exact Hfw).
+    rewrite Heq in Hv2.
+    destruct (fmm_back f n w1 v2 Hv2) as [v1 [Hr Hfeq]].
+    exists v1. split; [exact Hr | exact Hfeq].
+Qed.
+
+Theorem frame_morphism_pulls_back_truth : forall F1 F2 V1 V2 (f : FrameMorphism F1 F2),
+  (forall w p, V1 w p = V2 (fmm_map f w) p) ->
+  forall phi w,
+    forces F1 V1 w phi <-> forces F2 V2 (fmm_map f w) phi.
+Proof.
+  intros F1 F2 V1 V2 f Hval phi w.
+  apply (bisim_invariance F1 F2 V1 V2 (fun w v => fmm_map f w = v)).
+  - apply frame_morphism_induces_bisim. exact Hval.
+  - reflexivity.
+Qed.
+
+Definition GlobalSection (phi : Form) : Prop :=
+  forall (F : Frame) V w, forces F V w phi.
+
+Theorem provable_is_global_section : forall phi,
+  |- phi -> GlobalSection phi.
+Proof. exact soundness. Qed.
+
+Theorem global_section_preserved_by_morphisms : forall phi,
+  GlobalSection phi ->
+  forall F1 F2 V1 V2 (f : FrameMorphism F1 F2),
+    (forall w p, V1 w p = V2 (fmm_map f w) p) ->
+    forall w, forces F1 V1 w phi.
+Proof.
+  intros phi Hg F1 F2 V1 V2 f Hval w. apply Hg.
+Qed.
+
+Theorem categorical_semantics_summary :
+  (forall F1 F2 V1 V2 (f : FrameMorphism F1 F2),
+     (forall w p, V1 w p = V2 (fmm_map f w) p) ->
+     Bisim F1 F2 V1 V2 (fun w v => fmm_map f w = v)) /\
+  (forall phi, |- phi -> GlobalSection phi) /\
+  (forall F1 F2 V1 V2 (f : FrameMorphism F1 F2),
+     (forall w p, V1 w p = V2 (fmm_map f w) p) ->
+     forall phi w, forces F1 V1 w phi <-> forces F2 V2 (fmm_map f w) phi).
+Proof.
+  split; [|split].
+  - exact frame_morphism_induces_bisim.
+  - exact provable_is_global_section.
+  - exact frame_morphism_pulls_back_truth.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
