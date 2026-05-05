@@ -11758,6 +11758,54 @@ Theorem modal_Loeb_arithmetic : forall n phi,
   Bew_n n (encode_form phi).
 Proof. exact HBL_Loeb_Bew_n. Qed.
 
+Lemma ProvableProp_to_Bew_0 : forall phi,
+  ProvableProp phi -> Bew 0 phi.
+Proof.
+  intros phi H. induction H.
+  - apply Bew_ax. apply TAx_K.
+  - apply Bew_ax. apply TAx_S.
+  - apply Bew_ax. apply TAx_DN.
+  - exact (Bew_MP _ _ _ IHProvableProp1 IHProvableProp2).
+Qed.
+
+Lemma Provable_to_Bew_0_box_free : forall phi,
+  box_free phi -> |- phi -> Bew 0 phi.
+Proof.
+  intros phi Hbf Hp.
+  apply ProvableProp_to_Bew_0.
+  apply prop_completeness; [exact Hbf|].
+  exact (provable_classically_valid phi Hp).
+Qed.
+
+Theorem Pi1_conservativity_box_free : forall n phi,
+  box_free phi -> Bew (S n) phi -> Bew n phi.
+Proof.
+  intros n phi Hbf Hp.
+  pose proof (Bew_to_Provable _ _ Hp) as Hpr.
+  pose proof (Provable_to_Bew_0_box_free phi Hbf Hpr) as Hbew0.
+  exact (Bew_cumulative_chain 0 n phi (Nat.le_0_l n) Hbew0).
+Qed.
+
+Theorem Pi1_conservativity_box_free_chain : forall n m phi,
+  box_free phi -> Bew m phi -> Bew n phi.
+Proof.
+  intros n m phi Hbf Hp.
+  pose proof (Bew_to_Provable _ _ Hp) as Hpr.
+  pose proof (Provable_to_Bew_0_box_free phi Hbf Hpr) as Hbew0.
+  exact (Bew_cumulative_chain 0 n phi (Nat.le_0_l n) Hbew0).
+Qed.
+
+Theorem Pi1_conservativity_summary :
+  (forall n phi, box_free phi -> Bew (S n) phi -> Bew n phi) /\
+  (forall n m phi, box_free phi -> Bew m phi -> Bew n phi) /\
+  (forall phi, box_free phi -> |- phi -> Bew 0 phi).
+Proof.
+  split; [|split].
+  - exact Pi1_conservativity_box_free.
+  - exact Pi1_conservativity_box_free_chain.
+  - exact Provable_to_Bew_0_box_free.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
