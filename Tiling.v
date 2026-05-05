@@ -13991,6 +13991,76 @@ Proof.
   apply decidability_box_free_fragment. apply Sigma1_box_elim_box_free.
 Defined.
 
+Inductive sp_form : Type :=
+  | sp_top : sp_form
+  | sp_and : sp_form -> sp_form -> sp_form
+  | sp_box : nat -> sp_form -> sp_form.
+
+Fixpoint sp_to_form (s : sp_form) : Form :=
+  match s with
+  | sp_top => Top
+  | sp_and a b => And (sp_to_form a) (sp_to_form b)
+  | sp_box n a => Box n (sp_to_form a)
+  end.
+
+Inductive RC_proves : sp_form -> sp_form -> Prop :=
+  | RC_refl : forall a, RC_proves a a
+  | RC_and_l : forall a b, RC_proves (sp_and a b) a
+  | RC_and_r : forall a b, RC_proves (sp_and a b) b
+  | RC_and_intro : forall a b c,
+      RC_proves a b -> RC_proves a c -> RC_proves a (sp_and b c)
+  | RC_box_mono : forall n a b,
+      RC_proves a b -> RC_proves (sp_box n a) (sp_box n b)
+  | RC_box_dup : forall n a, RC_proves (sp_box n a) (sp_box n (sp_box n a))
+  | RC_box_mon_levels : forall n a, RC_proves (sp_box n a) (sp_box (S n) a)
+  | RC_top_intro : forall a, RC_proves a sp_top
+  | RC_trans : forall a b c, RC_proves a b -> RC_proves b c -> RC_proves a c.
+
+Theorem RC_soundness : forall a b,
+  RC_proves a b -> |- Impl (sp_to_form a) (sp_to_form b).
+Proof.
+  intros a b H. induction H; cbn.
+  - apply prov_id.
+  - apply prov_and_elim_l.
+  - apply prov_and_elim_r.
+  - apply prov_and_intro_under; assumption.
+  - apply prov_box_imp. exact IHRC_proves.
+  - apply Ax_Box4.
+  - apply Ax_Mon.
+  - apply prov_weaken. exact (prov_id Bot).
+  - apply (prov_compose _ (sp_to_form b)); assumption.
+Qed.
+
+Theorem RC_provable_implies_provable_iff : forall a b,
+  RC_proves a b -> RC_proves b a -> |- Iff (sp_to_form a) (sp_to_form b).
+Proof.
+  intros a b Hab Hba.
+  apply prov_and_intro_meta.
+  - apply RC_soundness. exact Hab.
+  - apply RC_soundness. exact Hba.
+Qed.
+
+Lemma sp_to_form_closed : forall s, free_vars (sp_to_form s) = [].
+Proof.
+  induction s as [| a IHa b IHb | n a IHa]; cbn.
+  - reflexivity.
+  - unfold And, Neg. cbn.
+    rewrite IHa, IHb. rewrite app_nil_r. reflexivity.
+  - exact IHa.
+Qed.
+
+Theorem RC_top_universal : forall a, RC_proves a sp_top.
+Proof. exact RC_top_intro. Qed.
+
+Theorem RC_provable_top_lift : forall a n,
+  |- sp_to_form a -> |- Box n (sp_to_form a).
+Proof.
+  intros a n H. apply Nec. exact H.
+Qed.
+
+Theorem RC_sp_top_provable : |- sp_to_form sp_top.
+Proof. cbn. exact (prov_id Bot). Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
