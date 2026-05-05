@@ -14619,6 +14619,84 @@ Theorem game_semantics_determinacy_well_founded : forall pos,
   verifier_winning_position pos \/ falsifier_winning_position pos.
 Proof. exact game_semantics_complementary. Qed.
 
+Fixpoint forces_bool_three (V : Three -> nat -> bool) (w : Three) (phi : Form) : bool :=
+  match phi with
+  | Var p => V w p
+  | Bot => false
+  | Impl X Y => orb (negb (forces_bool_three V w X)) (forces_bool_three V w Y)
+  | Box _ psi =>
+    match w with
+    | T0 => true
+    | T1 => forces_bool_three V T0 psi
+    | T2 => andb (forces_bool_three V T1 psi) (forces_bool_three V T0 psi)
+    end
+  end.
+
+Theorem forces_bool_three_correct : forall V w phi,
+  forces_nc F_strict_no_NC V w phi <-> forces_bool_three V w phi = true.
+Proof.
+  intros V w phi. revert w.
+  induction phi as [p | | a IHa b IHb | k psi IHpsi]; intro w.
+  - cbn. tauto.
+  - cbn. split.
+    + intro H. contradiction.
+    + intro H. discriminate.
+  - cbn. specialize (IHa w). specialize (IHb w).
+    split.
+    + intro Himp. destruct (forces_bool_three V w a) eqn:Ea.
+      * destruct IHa as [IfA IbA]. destruct IHb as [IfB IbB].
+        pose proof (IbA eq_refl) as Ha.
+        pose proof (Himp Ha) as Hb.
+        pose proof (IfB Hb) as Hbb.
+        rewrite Hbb. apply Bool.orb_true_iff. right. reflexivity.
+      * cbn. reflexivity.
+    + intros Hor Ha.
+      destruct IHa as [IfA IbA]. destruct IHb as [IfB IbB].
+      apply IfA in Ha. rewrite Ha in Hor.
+      cbn in Hor. apply IbB. exact Hor.
+  - cbn. destruct w.
+    + split.
+      * intros _. reflexivity.
+      * intros _ v Hv. exfalso. exact (R3_no_target_T0 k v Hv).
+    + pose proof (IHpsi T0) as IHt0.
+      destruct IHt0 as [If0 Ib0]. split.
+      * intro Hb. apply If0. apply Hb.
+        unfold R3. exact I.
+      * intro Hbool. intros v Hv.
+        unfold R3 in Hv. destruct v; try contradiction.
+        apply Ib0. exact Hbool.
+    + pose proof (IHpsi T0) as IHt0.
+      pose proof (IHpsi T1) as IHt1.
+      destruct IHt0 as [If0 Ib0]. destruct IHt1 as [If1 Ib1].
+      rewrite Bool.andb_true_iff. split.
+      * intro Hb. split.
+        -- apply If1. apply Hb. unfold R3. exact I.
+        -- apply If0. apply Hb. unfold R3. exact I.
+      * intros [Hb1 Hb0] v Hv.
+        unfold R3 in Hv.
+        destruct v; try contradiction.
+        -- apply Ib0. exact Hb0.
+        -- apply Ib1. exact Hb1.
+Qed.
+
+Theorem game_determinacy_constructive : forall V w phi,
+  {forces_nc F_strict_no_NC V w phi} + {~ forces_nc F_strict_no_NC V w phi}.
+Proof.
+  intros V w phi.
+  destruct (forces_bool_three V w phi) eqn:E.
+  - left. apply forces_bool_three_correct. exact E.
+  - right. intro H. apply forces_bool_three_correct in H.
+    rewrite E in H. discriminate.
+Qed.
+
+Theorem game_determinacy_constructive_summary_correct : forall V w phi,
+  forces_nc F_strict_no_NC V w phi <-> forces_bool_three V w phi = true.
+Proof. exact forces_bool_three_correct. Qed.
+
+Theorem game_determinacy_constructive_summary_decidable : forall V w phi,
+  {forces_nc F_strict_no_NC V w phi} + {~ forces_nc F_strict_no_NC V w phi}.
+Proof. exact game_determinacy_constructive. Qed.
+
 Definition PDL_program : Type := list nat.
 
 Fixpoint PDL_to_GLP_form (program : PDL_program) (phi : Form) : Form :=
@@ -14755,6 +14833,70 @@ Proof.
   - intro X. exact (fixed_point_loeb_witness n X).
 Qed.
 
+Inductive Provable_term : Form -> Type :=
+  | pt_K       : forall phi psi,
+      Provable_term (Impl phi (Impl psi phi))
+  | pt_S       : forall phi psi chi,
+      Provable_term (Impl (Impl phi (Impl psi chi))
+                       (Impl (Impl phi psi) (Impl phi chi)))
+  | pt_DN      : forall phi,
+      Provable_term (Impl (Neg (Neg phi)) phi)
+  | pt_BoxK    : forall n phi psi,
+      Provable_term (Impl (Box n (Impl phi psi))
+                       (Impl (Box n phi) (Box n psi)))
+  | pt_Loeb    : forall n phi,
+      Provable_term (Impl (Box n (Impl (Box n phi) phi)) (Box n phi))
+  | pt_Box4    : forall n phi,
+      Provable_term (Impl (Box n phi) (Box n (Box n phi)))
+  | pt_Mon     : forall n phi,
+      Provable_term (Impl (Box n phi) (Box (S n) phi))
+  | pt_NextCon : forall n,
+      Provable_term (Box (S n) (Neg (Box n Bot)))
+  | pt_MP      : forall phi psi,
+      Provable_term (Impl phi psi) -> Provable_term phi -> Provable_term psi
+  | pt_Nec     : forall n phi,
+      Provable_term phi -> Provable_term (Box n phi).
+
+Theorem Provable_term_sound : forall phi, Provable_term phi -> |- phi.
+Proof.
+  intros phi pt. induction pt.
+  - exact (Ax_K phi psi).
+  - exact (Ax_S phi psi chi).
+  - exact (Ax_DN phi).
+  - exact (Ax_BoxK n phi psi).
+  - exact (Ax_Loeb n phi).
+  - exact (Ax_Box4 n phi).
+  - exact (Ax_Mon n phi).
+  - exact (Ax_NextCon n).
+  - exact (MP _ _ IHpt1 IHpt2).
+  - exact (Nec n _ IHpt).
+Qed.
+
+Theorem provable_to_inhabited_Provable_term : forall phi,
+  |- phi -> inhabited (Provable_term phi).
+Proof.
+  intros phi H. induction H.
+  - exact (inhabits (pt_K phi psi)).
+  - exact (inhabits (pt_S phi psi chi)).
+  - exact (inhabits (pt_DN phi)).
+  - exact (inhabits (pt_BoxK n phi psi)).
+  - exact (inhabits (pt_Loeb n phi)).
+  - exact (inhabits (pt_Box4 n phi)).
+  - exact (inhabits (pt_Mon n phi)).
+  - exact (inhabits (pt_NextCon n)).
+  - destruct IHProvable1 as [pt1]. destruct IHProvable2 as [pt2].
+    exact (inhabits (pt_MP _ _ pt1 pt2)).
+  - destruct IHProvable as [pt]. exact (inhabits (pt_Nec n _ pt)).
+Qed.
+
+Theorem Provable_term_iff_inhabited : forall phi,
+  |- phi <-> inhabited (Provable_term phi).
+Proof.
+  intros phi. split.
+  - exact (provable_to_inhabited_Provable_term phi).
+  - intros [pt]. exact (Provable_term_sound phi pt).
+Qed.
+
 Definition Realiser : Type := nat.
 
 Definition realises (r : Realiser) (phi : Form) : Prop :=
@@ -14768,14 +14910,15 @@ Theorem realiser_existence_for_provable : forall phi,
   |- phi -> exists r, realises r phi.
 Proof. intros phi H. exists 0. unfold realises. exact H. Qed.
 
-Definition Curry_Howard_witness (phi : Form) : Type := { _ : nat | |- phi }.
+Definition Curry_Howard_witness (phi : Form) : Type := Provable_term phi.
 
-Theorem Curry_Howard_correspondence : forall phi,
-  |- phi -> Curry_Howard_witness phi.
-Proof.
-  intros phi H. unfold Curry_Howard_witness.
-  exists 0. exact H.
-Qed.
+Theorem Curry_Howard_correspondence_inhabited : forall phi,
+  |- phi -> inhabited (Curry_Howard_witness phi).
+Proof. exact provable_to_inhabited_Provable_term. Qed.
+
+Theorem Curry_Howard_witness_extraction : forall phi,
+  Curry_Howard_witness phi -> |- phi.
+Proof. exact Provable_term_sound. Qed.
 
 Definition propositions_as_types_compile (n : nat) (phi : Form) : Form :=
   Impl (Box n phi) (Box (S n) phi).
@@ -14790,16 +14933,21 @@ Theorem propositions_as_types_compile_chain : forall n phi,
   |- Impl (Box n phi) (Box (S n) phi).
 Proof. intros n phi. exact (Ax_Mon n phi). Qed.
 
+Definition propositions_as_types_compile_Provable_term : forall n phi,
+  Provable_term (Impl (Box n phi) (Box (S n) phi)).
+Proof. intros n phi. exact (pt_Mon n phi). Defined.
+
 Definition HoTT_box_n_universe (n : nat) (phi : Form) : Type :=
-  { _ : nat | |- Box n phi }.
+  Provable_term (Box n phi).
 
 Theorem HoTT_box_n_universe_inhabited : forall n phi,
-  |- Box n phi -> HoTT_box_n_universe n phi.
-Proof.
-  intros n phi H. exists 0. exact H.
-Qed.
+  |- Box n phi -> inhabited (HoTT_box_n_universe n phi).
+Proof. intros n phi H. exact (provable_to_inhabited_Provable_term _ H). Qed.
 
 Definition graded_comonad_action (n : nat) (phi : Form) : Form := Box n phi.
+
+Definition graded_comonad_carrier (n : nat) (phi : Form) : Type :=
+  Provable_term (graded_comonad_action n phi).
 
 Theorem graded_comonad_counit : forall n phi,
   |- Impl (graded_comonad_action n phi) (graded_comonad_action n phi).
@@ -14811,6 +14959,13 @@ Proof.
   intros n phi. unfold graded_comonad_action. exact (Ax_Box4 n phi).
 Qed.
 
+Definition graded_comonad_comultiplication_Provable_term : forall n phi,
+  Provable_term (Impl (graded_comonad_action n phi)
+                   (graded_comonad_action n (graded_comonad_action n phi))).
+Proof.
+  intros n phi. unfold graded_comonad_action. exact (pt_Box4 n phi).
+Defined.
+
 Theorem graded_comonad_summary : forall n phi,
   (graded_comonad_action n phi = Box n phi) /\
   (|- Impl (graded_comonad_action n phi) (graded_comonad_action n phi)) /\
@@ -14820,6 +14975,17 @@ Proof.
   - reflexivity.
   - exact (graded_comonad_counit n phi).
   - exact (graded_comonad_comultiplication n phi).
+Qed.
+
+Theorem Provable_term_curry_howard_summary :
+  (forall phi, Provable_term phi -> |- phi) /\
+  (forall phi, |- phi -> inhabited (Provable_term phi)) /\
+  (forall phi, |- phi <-> inhabited (Provable_term phi)).
+Proof.
+  split; [|split].
+  - exact Provable_term_sound.
+  - exact provable_to_inhabited_Provable_term.
+  - exact Provable_term_iff_inhabited.
 Qed.
 
 Definition Reverse_math_strength (n : nat) : Prop :=

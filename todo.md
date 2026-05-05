@@ -68,17 +68,7 @@
     `wf_vord` induction, and prove
     `transfinite_collapse_at_nat : forall n phi, Provable_transfinite
     (nat_to_ord n) phi <-> |- Box n phi`.
-10. Replace `Realiser := nat`, `Curry_Howard_witness phi :=
-    { _ : nat | |- phi }`, `HoTT_box_n_universe`, and
-    `graded_comonad_action` with an actual proof-term type. Define
-    `Inductive proof_term : Form -> Type` with constructors `pt_K`,
-    `pt_S`, `pt_DN`, `pt_BoxK`, `pt_Loeb`, `pt_Box4`, `pt_Mon`,
-    `pt_NextCon`, `pt_MP`, `pt_Nec`. Prove `proof_term_sound : forall
-    phi, proof_term phi -> |- phi` and `provable_to_proof_term :
-    forall phi, |- phi -> proof_term phi`. Use `proof_term phi` as
-    the realiser type, the Curry-Howard witness, the HoTT universe
-    element, and the graded-comonad carrier.
-11. Replace `Reverse_math_strength` and
+10. Replace `Reverse_math_strength` and
     `primitive_recursive_arithmetic_strength` with an explicit
     RM-hierarchy. Define `Inductive RM_subsystem : Type := RCA_0 |
     WKL_0 | ACA_0 | ATR_0 | Pi11_CA_0`, define `RM_provable :
@@ -88,14 +78,7 @@
     in RCA_0, `Bew_PA_HBL_summary` in WKL_0,
     `polymodal_sambin_existence` in ACA_0,
     `proof_theoretic_ordinal_summary` in ATR_0.
-12. Replace `game_semantics_complementary`'s `apply classic` with a
-    constructive determinacy proof. Use the converse-WF property of
-    the Frame to do well-founded induction on `fR`, constructing a
-    winning strategy for verifier or falsifier at each position.
-    Prove `game_determinacy_constructive : forall pos,
-    verifier_winning_position pos + falsifier_winning_position pos`
-    returning a Type-level disjunction without LEM.
-13. Replace the `From Tiling Require Export Tiling.` content of
+11. Replace the `From Tiling Require Export Tiling.` content of
     `Calculus.v`, `Hilbert.v`, `Kripke.v`, `FixedPoints.v`, `Bew.v`,
     `ProofTerms.v`, `Worms.v`, and `Agents.v` with a physical
     partition of `Tiling.v`'s body. Move calculus inductives plus
@@ -107,7 +90,7 @@
     Update `_CoqProject` with the dependency order. `Tiling.v`
     becomes a meta-file containing only `From Tiling Require Export
     Calculus Hilbert Kripke FixedPoints Bew ProofTerms Worms Agents.`
-14. Replace each `*_summary` theorem that is a conjunction of
+12. Replace each `*_summary` theorem that is a conjunction of
     already-named theorems (`Pi1_conservativity_summary`,
     `Pi2_conservativity_summary`, `Bew_axiomatic_summary`,
     `realisation_full_soundness`, `Bew_satisfies_GLP_axioms_summary`,
