@@ -15690,3 +15690,21 @@ Theorem finite_frame_property_box_free_uniform : forall phi,
   box_free phi -> ~ |- phi ->
   exists (F : Frame) V w, ~ forces F V w phi.
 Proof. exact kripke_completeness_box_free_via_frame. Qed.
+
+Theorem FMP_effective_bound_box_free : forall phi,
+  box_free phi -> ~ |- phi ->
+  exists (V : fW F0 -> nat -> bool) (w : fW F0), ~ forces F0 V w phi.
+Proof. exact finite_frame_property_box_free_F0. Qed.
+
+Theorem FMP_F0_size_two : exists (a b : fW F0), a <> b.
+Proof. exists true, false. discriminate. Qed.
+
+Theorem FMP_modal_depth_zero_via_F0 : forall phi,
+  box_free phi -> ~ |- phi ->
+  modal_depth phi = 0 /\
+  exists (V : fW F0 -> nat -> bool) (w : fW F0), ~ forces F0 V w phi.
+Proof.
+  intros phi Hbf Hnp. split.
+  - exact (box_free_modal_depth_zero phi Hbf).
+  - exact (FMP_effective_bound_box_free phi Hbf Hnp).
+Qed.
