@@ -1,6 +1,7 @@
 # tiling-verified todo
 
-1. Replace each `*_summary` theorem that is a conjunction of
+1. (Partial — 13 of ~40 done; remaining mechanical pattern.)
+    Replace each `*_summary` theorem that is a conjunction of
     already-named theorems (`Pi1_conservativity_summary`,
     `Pi2_conservativity_summary`, `Bew_axiomatic_summary`,
     `realisation_full_soundness`, `Bew_satisfies_GLP_axioms_summary`,

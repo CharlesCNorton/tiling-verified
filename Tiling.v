@@ -11096,6 +11096,36 @@ Proof.
   - exact Bew_n_monotonicity.
 Qed.
 
+Theorem Bew_n_HBL_summary_strengthened :
+  (forall n phi, |- phi -> Bew_n n (encode_form phi)) /\
+  (forall n phi psi,
+     Bew_n n (encode_form (Impl phi psi)) ->
+     Bew_n n (encode_form phi) ->
+     Bew_n n (encode_form psi)) /\
+  (forall n phi,
+     Bew_n n (encode_form phi) ->
+     Bew_n n (encode_form (Box n phi))) /\
+  (forall n phi,
+     Bew_n n (encode_form (Impl (Box n phi) phi)) ->
+     Bew_n n (encode_form phi)) /\
+  (forall n phi,
+     Bew_n n (encode_form phi) ->
+     Bew_n (S n) (encode_form phi)) /\
+  (forall n m phi, n <= m -> Bew_n n (encode_form phi) ->
+     Bew_n m (encode_form phi)).
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - exact HBL1_necessitation_Bew_n.
+  - exact HBL2_K_Bew_n.
+  - exact HBL3_4_Bew_n.
+  - exact HBL_Loeb_Bew_n.
+  - exact Bew_n_monotonicity.
+  - intros n m phi Hnm.
+    induction Hnm as [|m' Hnm IH].
+    + intro Hb. exact Hb.
+    + intro Hb. exact (Bew_n_monotonicity m' phi (IH Hb)).
+Qed.
+
 Theorem Bew_n_replaces_primitive_Box :
   forall n phi, |- Box n phi <-> Bew_n n (encode_form phi).
 Proof.
@@ -11231,6 +11261,25 @@ Proof.
   - exact (Godel_sentence_provable_at_Tn_plus_1 n).
   - exact (Godel_sentence_unprovable_outer n).
   - exact (Godel_sentence_negation_unprovable n).
+Qed.
+
+Theorem Godel_sentence_summary_strengthened : forall n,
+  |- Iff (Godel_sentence_at n) (Neg (Box n (Godel_sentence_at n))) /\
+  (~ |- Box n (Godel_sentence_at n)) /\
+  (|- Box (S n) (Godel_sentence_at n)) /\
+  (~ |- Godel_sentence_at n) /\
+  (~ |- Neg (Godel_sentence_at n)) /\
+  ((|- Box (S n) (Godel_sentence_at n)) /\ (~ |- Box n (Godel_sentence_at n))).
+Proof.
+  intro n. split; [|split; [|split; [|split; [|split]]]].
+  - exact (Godel_sentence_diagonal n).
+  - exact (Godel_sentence_independent_at_Tn n).
+  - exact (Godel_sentence_provable_at_Tn_plus_1 n).
+  - exact (Godel_sentence_unprovable_outer n).
+  - exact (Godel_sentence_negation_unprovable n).
+  - split.
+    + exact (Godel_sentence_provable_at_Tn_plus_1 n).
+    + exact (Godel_sentence_independent_at_Tn n).
 Qed.
 
 Definition Con_Tn (n : nat) : Form := Neg (Box n Bot).
@@ -11505,6 +11554,24 @@ Proof.
   - exact T_axiom_strict_extension.
 Qed.
 
+Theorem Bew_axiomatic_summary_strengthened :
+  (forall n m phi, n <= m -> T_axiom n phi -> T_axiom m phi) /\
+  (forall n m phi, n <= m -> Bew n phi -> Bew m phi) /\
+  (forall n, Bew (S (S n)) (Con_Tn_internal n)) /\
+  (forall n, ~ |- Con_Tn n) /\
+  (forall n, exists phi,
+     T_axiom (S (S n)) phi /\ ~ T_axiom n phi) /\
+  (forall n, ~ Bew n Bot).
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - exact T_axiom_cumulative_chain.
+  - exact Bew_cumulative_chain.
+  - exact Con_Tn_internal_provable_at_T_n_plus_2.
+  - exact Con_Tn_unprovable_outer.
+  - exact T_axiom_strict_extension.
+  - exact Bew_consistent.
+Qed.
+
 Definition modal_calculus_carrier (P : Form -> Prop) : Prop :=
   (forall phi psi, P (Impl phi (Impl psi phi))) /\
   (forall phi psi chi,
@@ -11720,6 +11787,24 @@ Proof.
   split.
   - exact tower_bypass_non_vacuous.
   - exact tower_bypass_witness_via_Top.
+Qed.
+
+Theorem tower_bypass_summary_strengthened :
+  (forall n, exists phi,
+     ~ |- Box n (Neg (Box n (Impl phi Bot))) /\
+     |- Box (S n) (Neg (Box n (Impl phi Bot)))) /\
+  (forall n,
+     ~ |- Box n (Con_extended n Top) /\
+     |- Box (S n) (Con_extended n Top)) /\
+  (forall n, exists phi,
+     |- Box (S n) phi /\ ~ |- Box n phi).
+Proof.
+  split; [|split].
+  - exact tower_bypass_non_vacuous.
+  - exact tower_bypass_witness_via_Top.
+  - intro n. exists (Con_extended n Top).
+    pose proof (tower_bypass_witness_via_Top n) as [Hno Hyes].
+    split; [exact Hyes | exact Hno].
 Qed.
 
 Definition arithmetic_realisation := Form -> Form.
