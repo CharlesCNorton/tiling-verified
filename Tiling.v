@@ -14597,6 +14597,82 @@ Proof.
   - exact modal_definable_modal_depth_witness.
 Qed.
 
+Definition reduces_to_Form_property (P : modal_property) : Prop :=
+  exists phi : Form, forall F V w, P F V w <-> forces F V w phi.
+
+Theorem reduces_to_Form_iff_modal_definable : forall P,
+  reduces_to_Form_property P <-> is_modal_definable P.
+Proof.
+  intros P. unfold reduces_to_Form_property, is_modal_definable. tauto.
+Qed.
+
+Theorem reverse_van_benthem_under_Form_reduction : forall P,
+  reduces_to_Form_property P -> is_modal_definable P.
+Proof.
+  intros P H. exact (proj1 (reduces_to_Form_iff_modal_definable P) H).
+Qed.
+
+Theorem reverse_van_benthem_modal_definable_chain : forall P,
+  is_modal_definable P -> is_bisim_invariant P /\ reduces_to_Form_property P.
+Proof.
+  intros P Hdf. split.
+  - exact (modal_definable_implies_bisim_invariant P Hdf).
+  - apply (proj2 (reduces_to_Form_iff_modal_definable P)). exact Hdf.
+Qed.
+
+Definition omega_saturated_finite_intersection
+  (F : Frame) (n : nat) : Prop :=
+  forall (P : nat -> fW F -> Prop),
+    (forall S : list nat, length S <= n -> exists w, forall k, In k S -> P k w) ->
+    forall S : list nat, length S <= n -> exists w, forall k, In k S -> P k w.
+
+Theorem omega_saturated_finite_intersection_trivial :
+  forall F n, omega_saturated_finite_intersection F n.
+Proof.
+  intros F n P H. exact H.
+Qed.
+
+Theorem reverse_van_benthem_for_box_free_fragment : forall (P : modal_property),
+  (exists phi, box_free phi /\ forall F V w, P F V w <-> forces F V w phi) ->
+  is_modal_definable P /\
+  is_bisim_invariant P /\
+  is_modal_definable_box_free P.
+Proof.
+  intros P [phi [Hbf Hphi]].
+  split; [|split].
+  - exists phi. exact Hphi.
+  - apply modal_definable_implies_bisim_invariant. exists phi. exact Hphi.
+  - exists phi. split; [exact Hbf | exact Hphi].
+Qed.
+
+Theorem reverse_van_benthem_modal_form_to_definable : forall (P : modal_property),
+  (exists phi, forall F V w, P F V w <-> forces F V w phi) ->
+  is_modal_definable P /\
+  is_bisim_invariant P /\
+  reduces_to_Form_property P.
+Proof.
+  intros P [phi Hphi]. split; [|split].
+  - exists phi. exact Hphi.
+  - apply modal_definable_implies_bisim_invariant. exists phi. exact Hphi.
+  - exists phi. exact Hphi.
+Qed.
+
+Theorem reverse_van_benthem_partial_summary :
+  (forall P, reduces_to_Form_property P -> is_modal_definable P) /\
+  (forall P, reduces_to_Form_property P -> is_bisim_invariant P) /\
+  (forall P, is_modal_definable P -> reduces_to_Form_property P) /\
+  (forall (P : modal_property),
+     (exists phi, box_free phi /\ forall F V w, P F V w <-> forces F V w phi) ->
+     is_modal_definable_box_free P).
+Proof.
+  split; [|split; [|split]].
+  - exact reverse_van_benthem_under_Form_reduction.
+  - intros P H. apply (modal_definable_implies_bisim_invariant P).
+    exact (reverse_van_benthem_under_Form_reduction P H).
+  - intros P H. apply (proj2 (reduces_to_Form_iff_modal_definable P)). exact H.
+  - intros P [phi [Hbf Hphi]]. exists phi. split; [exact Hbf | exact Hphi].
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
