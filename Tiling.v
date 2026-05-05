@@ -14267,6 +14267,69 @@ Proof.
   - exact nb4_axiom4.
 Qed.
 
+Theorem minimality_witnesses_specific_theorems :
+  (|- Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot)) /\
+  ~ (|-no_loeb Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot)) /\
+  (|- Impl (Box 0 (Var 0)) (Box 1 (Var 0))) /\
+  ~ (|-no_mon Impl (Box 0 (Var 0)) (Box 1 (Var 0))) /\
+  (|- Box 1 (Neg (Box 0 Bot))) /\
+  ~ (|-no_nc Box 1 (Neg (Box 0 Bot))).
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - apply Ax_Loeb.
+  - exact loeb_axiom_needs_Loeb.
+  - apply Ax_Mon.
+  - exact mon_axiom_needs_Mon.
+  - apply Ax_NextCon.
+  - exact consistency_chain_needs_NC.
+Qed.
+
+Theorem minimality_DN_witness_specific :
+  (forall phi, |- Impl (Neg (Neg phi)) phi) /\
+  (exists val phi, ieval val (Impl (Neg (Neg phi)) phi) <> iTop).
+Proof.
+  split.
+  - exact Ax_DN.
+  - exact ieval_DN_fails.
+Qed.
+
+Theorem minimality_BoxK_witness_specific :
+  (forall n phi psi, |- Impl (Box n (Impl phi psi))
+                           (Impl (Box n phi) (Box n psi))) /\
+  (exists (NF : NeighFrame) (V : fW_neigh NF -> nat -> bool) (w : fW_neigh NF),
+     ~ forces_neigh NF V w
+         (Impl (Box 0 (Impl (Var 0) Bot))
+               (Impl (Box 0 (Var 0)) (Box 0 Bot)))).
+Proof.
+  split.
+  - exact Ax_BoxK.
+  - exact Ax_BoxK_refuted_in_neighborhood_explicit.
+Qed.
+
+Theorem minimality_axiom_set_complete :
+  ((|- Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot)) /\
+   ~ (|-no_loeb Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot)) /\
+   (|- Impl (Box 0 (Var 0)) (Box 1 (Var 0))) /\
+   ~ (|-no_mon Impl (Box 0 (Var 0)) (Box 1 (Var 0))) /\
+   (|- Box 1 (Neg (Box 0 Bot))) /\
+   ~ (|-no_nc Box 1 (Neg (Box 0 Bot)))) /\
+  ((forall phi, |- Impl (Neg (Neg phi)) phi) /\
+   (exists val phi, ieval val (Impl (Neg (Neg phi)) phi) <> iTop)) /\
+  ((forall n phi psi, |- Impl (Box n (Impl phi psi))
+                            (Impl (Box n phi) (Box n psi))) /\
+   (exists (NF : NeighFrame) (V : fW_neigh NF -> nat -> bool) (w : fW_neigh NF),
+      ~ forces_neigh NF V w
+          (Impl (Box 0 (Impl (Var 0) Bot))
+                (Impl (Box 0 (Var 0)) (Box 0 Bot))))) /\
+  (forall n A, |-no_b4 Impl (Box n A) (Box n (Box n A))).
+Proof.
+  split; [|split; [|split]].
+  - exact minimality_witnesses_specific_theorems.
+  - exact minimality_DN_witness_specific.
+  - exact minimality_BoxK_witness_specific.
+  - exact nb4_axiom4.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
