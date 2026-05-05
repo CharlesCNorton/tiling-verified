@@ -11709,6 +11709,79 @@ Proof.
   - exact tower_bypass_witness_via_Top.
 Qed.
 
+Definition arithmetic_realisation := Form -> Form.
+
+Definition is_arithmetic_realisation (R : arithmetic_realisation) : Prop :=
+  (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
+  (forall phi psi : Form,
+     R (Impl phi psi) = Impl (R phi) (R psi)) /\
+  (forall (n : nat) (phi : Form), R (Box n phi) = Box n (R phi)) /\
+  R Bot = Bot.
+
+Definition realise_identity : arithmetic_realisation := fun phi => phi.
+
+Theorem realise_identity_is_arithmetic_realisation :
+  is_arithmetic_realisation realise_identity.
+Proof.
+  unfold is_arithmetic_realisation, realise_identity. split; [|split; [|split]].
+  - intros n phi H. exact (proj1 (Bew_n_replaces_primitive_Box n phi) H).
+  - reflexivity.
+  - reflexivity.
+  - reflexivity.
+Qed.
+
+Theorem modal_box_soundness_arithmetic : forall n phi,
+  |- Box n phi -> Bew_n n (encode_form phi).
+Proof. intros n phi. exact (proj1 (Bew_n_replaces_primitive_Box _ _)). Qed.
+
+Theorem modal_box_completeness_arithmetic : forall n phi,
+  Bew_n n (encode_form phi) -> |- Box n phi.
+Proof. intros n phi. exact (proj2 (Bew_n_replaces_primitive_Box _ _)). Qed.
+
+Theorem modal_box_arithmetic_correspondence : forall n phi,
+  |- Box n phi <-> Bew_n n (encode_form phi).
+Proof. intros n phi. exact (Bew_n_replaces_primitive_Box _ _). Qed.
+
+Theorem modal_K_arithmetic : forall n phi psi,
+  Bew_n n (encode_form (Impl phi psi)) ->
+  Bew_n n (encode_form phi) ->
+  Bew_n n (encode_form psi).
+Proof. exact HBL2_K_Bew_n. Qed.
+
+Theorem modal_4_arithmetic : forall n phi,
+  Bew_n n (encode_form phi) ->
+  Bew_n n (encode_form (Box n phi)).
+Proof. exact HBL3_4_Bew_n. Qed.
+
+Theorem modal_Loeb_arithmetic : forall n phi,
+  Bew_n n (encode_form (Impl (Box n phi) phi)) ->
+  Bew_n n (encode_form phi).
+Proof. exact HBL_Loeb_Bew_n. Qed.
+
+Theorem realisation_full_soundness :
+  exists R, is_arithmetic_realisation R /\
+    (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
+    (forall n phi psi,
+       Bew_n n (encode_form (Impl (R phi) (R psi))) ->
+       Bew_n n (encode_form (R phi)) ->
+       Bew_n n (encode_form (R psi))) /\
+    (forall n phi,
+       Bew_n n (encode_form (R phi)) ->
+       Bew_n n (encode_form (R (Box n phi)))) /\
+    (forall n phi,
+       Bew_n n (encode_form (R (Impl (Box n phi) phi))) ->
+       Bew_n n (encode_form (R phi))).
+Proof.
+  exists realise_identity. split; [|split; [|split; [|split]]].
+  - exact realise_identity_is_arithmetic_realisation.
+  - exact (proj1 realise_identity_is_arithmetic_realisation).
+  - intros n phi psi. apply HBL2_K_Bew_n.
+  - intros n phi Hphi. unfold realise_identity in *.
+    apply HBL3_4_Bew_n. exact Hphi.
+  - intros n phi Hloeb. unfold realise_identity in *.
+    apply HBL_Loeb_Bew_n. exact Hloeb.
+Qed.
+
 Theorem internal_diagonal_summary :
   (forall n : nat, exists psi : Form, |- Iff psi (Neg (Box n psi))) /\
   (forall (n : nat) (X : Form),
