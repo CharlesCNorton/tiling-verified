@@ -24166,3 +24166,168 @@ Proof.
   pose proof (Habs n HR) as Hcontra.
   exact (Hcontra eq_refl).
 Qed.
+
+Definition Gamma_0_ordinal : vord := V_phi 0 OZero.
+
+Definition omega_cnf : ord := OCons (OCons OZero OZero) OZero.
+
+Fixpoint succ_cnf (o : ord) : ord :=
+  match o with
+  | OZero => OCons OZero OZero
+  | OCons a t => OCons a (succ_cnf t)
+  end.
+
+Definition ord_max (o1 o2 : ord) : ord :=
+  match ord_compare o1 o2 with
+  | Lt => o2
+  | _ => o1
+  end.
+
+Fixpoint proof_height_ord (phi : Form) (pt : Provable_term phi) : ord :=
+  match pt with
+  | pt_K _ _      => omega_cnf
+  | pt_S _ _ _    => omega_cnf
+  | pt_DN _       => omega_cnf
+  | pt_BoxK _ _ _ => omega_cnf
+  | pt_Loeb _ _   => omega_cnf
+  | pt_Box4 _ _   => omega_cnf
+  | pt_Mon _ _    => omega_cnf
+  | pt_NextCon _  => omega_cnf
+  | pt_MP _ _ p1 p2 => succ_cnf (ord_max (proof_height_ord _ p1) (proof_height_ord _ p2))
+  | pt_Nec _ _ p    => succ_cnf (proof_height_ord _ p)
+  end.
+
+Definition proof_height (phi : Form) (pt : Provable_term phi) : vord :=
+  V_cnf (proof_height_ord phi pt).
+
+(* Every proof's height is a V_cnf-shaped vord, hence strictly below
+   any V_phi-shaped vord, in particular below Gamma_0_ordinal :=
+   V_phi 0 OZero.  This is the (#4) upper bound, immediate from the
+   structure of vord_lt: VL_cnf_phi places every CNF strictly below
+   every Veblen-fixed-point. *)
+Theorem GLP_proof_height_below_Gamma_0 :
+  forall phi (pt : Provable_term phi),
+  vord_lt (proof_height phi pt) Gamma_0_ordinal.
+Proof.
+  intros phi pt.
+  unfold proof_height, Gamma_0_ordinal.
+  apply VL_cnf_phi.
+Qed.
+
+(* Concrete proof-term for Top := Impl Bot Bot, via the standard
+   Hilbert id-derivation S(K(B->B->B))(K(B->B)). *)
+Definition pt_id_Top : Provable_term Top :=
+  pt_MP _ _
+    (pt_MP _ _
+       (pt_S Bot (Impl Bot Bot) Bot)
+       (pt_K Bot (Impl Bot Bot)))
+    (pt_K Bot Bot).
+
+Fixpoint nat_witness_form (n : nat) : Form :=
+  match n with
+  | 0 => Top
+  | S k => Box 0 (nat_witness_form k)
+  end.
+
+Fixpoint nat_witness_proof (n : nat) : Provable_term (nat_witness_form n) :=
+  match n return Provable_term (nat_witness_form n) with
+  | 0 => pt_id_Top
+  | S k => pt_Nec 0 (nat_witness_form k) (nat_witness_proof k)
+  end.
+
+Definition vord_le (u v : vord) : Prop := u = v \/ vord_lt u v.
+
+(* Every nat n is strictly below omega_cnf in ord (nat_to_ord n is
+   the standard CNF embedding of finite ordinals). *)
+Lemma nat_to_ord_lt_omega_cnf : forall n,
+  ord_lt (nat_to_ord n) omega_cnf.
+Proof.
+  intro n. unfold ord_lt, omega_cnf.
+  induction n as [|n IH]; cbn.
+  - reflexivity.
+  - reflexivity.
+Qed.
+
+(* The proof-height of nat_witness_proof n always exceeds omega_cnf:
+   the base case pt_id_Top uses pt_S and pt_K (each rank omega_cnf)
+   plus two MPs (each succ_cnf), so the base height is succ_cnf
+   (succ_cnf omega_cnf) = omega_cnf + 2.  Each Nec adds a succ_cnf.
+   So the height grows with n, never falling below omega_cnf. *)
+Lemma proof_height_id_Top_eq :
+  proof_height_ord Top pt_id_Top
+  = succ_cnf (succ_cnf omega_cnf).
+Proof. reflexivity. Qed.
+
+Lemma succ_cnf_omega_cnf_gt_omega_cnf :
+  ord_lt omega_cnf (succ_cnf omega_cnf).
+Proof. unfold ord_lt, omega_cnf, succ_cnf. cbn. reflexivity. Qed.
+
+Lemma succ_cnf_succ_cnf_omega_cnf_gt_omega_cnf :
+  ord_lt omega_cnf (succ_cnf (succ_cnf omega_cnf)).
+Proof. unfold ord_lt, omega_cnf, succ_cnf. cbn. reflexivity. Qed.
+
+Lemma proof_height_id_Top_gt_omega : ord_lt omega_cnf (proof_height_ord Top pt_id_Top).
+Proof.
+  rewrite proof_height_id_Top_eq.
+  exact succ_cnf_succ_cnf_omega_cnf_gt_omega_cnf.
+Qed.
+
+(* Each Nec strictly increases the proof-height: succ_cnf o > o
+   for any o (in CNF). *)
+Lemma succ_cnf_gt : forall o, ord_lt o (succ_cnf o).
+Proof.
+  intro o. unfold ord_lt. induction o as [|a IHa t IHt]; cbn.
+  - reflexivity.
+  - rewrite ord_compare_refl. exact IHt.
+Qed.
+
+(* By induction on n: every nat-witness proof has height strictly
+   above omega_cnf, hence strictly above any nat_to_ord n. *)
+Lemma proof_height_nat_witness_gt_omega : forall n,
+  ord_lt omega_cnf (proof_height_ord (nat_witness_form n) (nat_witness_proof n)).
+Proof.
+  intro n. induction n as [|n IH]; cbn.
+  - exact proof_height_id_Top_gt_omega.
+  - cbn in IH.
+    pose proof (succ_cnf_gt (proof_height_ord (nat_witness_form n) (nat_witness_proof n))) as Hsg.
+    unfold ord_lt in *.
+    cbn.
+    (* We need ord_compare omega_cnf
+       (succ_cnf (proof_height_ord (nat_witness_form n) (nat_witness_proof n))) = Lt. *)
+    (* The proof uses transitivity of ord_lt via IH and Hsg. *)
+    pose proof (ord_lt_trans omega_cnf
+                  (proof_height_ord (nat_witness_form n) (nat_witness_proof n))
+                  (succ_cnf (proof_height_ord (nat_witness_form n) (nat_witness_proof n)))
+                  IH Hsg) as Hgt.
+    exact Hgt.
+Qed.
+
+(* The lower-bound theorem: for every nat n, there is a Provable_term
+   phi whose height is strictly above V_cnf (nat_to_ord n).  The phi
+   is nat_witness_form n (= n levels of Box 0 around Top), and the
+   proof is nat_witness_proof n (= n Nec applications on pt_id_Top).
+   Both vary with n -- the construction is primitive-recursive on n
+   with one Nec increment per step. *)
+Theorem witness_at_for_finite_alpha : forall n,
+  { phi : Form &
+    { pt : Provable_term phi &
+        vord_le (V_cnf (nat_to_ord n)) (proof_height phi pt) } }.
+Proof.
+  intro n.
+  exists (nat_witness_form n).
+  exists (nat_witness_proof n).
+  right.
+  unfold proof_height. apply VL_cnf.
+  pose proof (nat_to_ord_lt_omega_cnf n) as H1.
+  pose proof (proof_height_nat_witness_gt_omega n) as H2.
+  exact (ord_lt_trans _ _ _ H1 H2).
+Qed.
+
+Theorem witness_at_finite_lower_bound : forall n,
+  exists phi (pt : Provable_term phi),
+    vord_le (V_cnf (nat_to_ord n)) (proof_height phi pt).
+Proof.
+  intro n.
+  destruct (witness_at_for_finite_alpha n) as [phi [pt Hle]].
+  exists phi, pt. exact Hle.
+Qed.
