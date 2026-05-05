@@ -13763,6 +13763,82 @@ Theorem decide_sat_extract_no : forall cnf Hno,
   decide_sat cnf = sat_no cnf Hno -> forall val, sat_cnf_eval val cnf = false.
 Proof. intros cnf Hno _ val. exact (Hno val). Qed.
 
+Fixpoint forces_fnat_closed (phi : Form) (w : nat) : bool :=
+  match phi with
+  | Var _ => false
+  | Bot => false
+  | Impl X Y => orb (negb (forces_fnat_closed X w)) (forces_fnat_closed Y w)
+  | Box n psi => forallb (fun v => forces_fnat_closed psi v) (seq n (w - n))
+  end.
+
+Lemma forces_fnat_closed_iff : forall phi w (V : nat -> nat -> bool),
+  free_vars phi = [] ->
+  (forces_fnat_closed phi w = true <-> forces Fnat V w phi).
+Proof.
+  intros phi.
+  induction phi as [p | | X IHX Y IHY | n psi IHpsi]; intros w V Hcl.
+  - cbn in Hcl. discriminate Hcl.
+  - cbn. split; [discriminate | intros []].
+  - cbn in Hcl. apply app_eq_nil in Hcl. destruct Hcl as [HXcl HYcl].
+    pose proof (IHX w V HXcl) as HX_iff.
+    pose proof (IHY w V HYcl) as HY_iff.
+    cbn.
+    split.
+    + intros Hor HfX.
+      destruct (forces_fnat_closed X w) eqn:EX,
+               (forces_fnat_closed Y w) eqn:EY;
+        cbn in Hor; try discriminate.
+      * apply HY_iff. reflexivity.
+      * apply HY_iff. reflexivity.
+      * exfalso.
+        assert (Hbad : false = true) by (apply HX_iff; exact HfX).
+        discriminate Hbad.
+    + intros Hforces_impl.
+      destruct (forces_fnat_closed X w) eqn:EX,
+               (forces_fnat_closed Y w) eqn:EY; cbn; try reflexivity.
+      exfalso.
+      assert (HfX_prop : forces Fnat V w X) by (apply HX_iff; reflexivity).
+      pose proof (Hforces_impl HfX_prop) as HfY_prop.
+      assert (Hbad : false = true) by (apply HY_iff; exact HfY_prop).
+      discriminate Hbad.
+  - cbn in Hcl. cbn.
+    split.
+    + intros Hfb v HR.
+      rewrite forallb_forall in Hfb.
+      assert (Hin : In v (seq n (w - n))).
+      { apply in_seq. unfold Fnat_R in HR. lia. }
+      apply (proj1 (IHpsi v V Hcl)). apply Hfb. exact Hin.
+    + intros Hforces.
+      rewrite forallb_forall. intros v Hv_in.
+      apply (proj2 (IHpsi v V Hcl)).
+      apply Hforces.
+      apply in_seq in Hv_in.
+      unfold Fnat_R. split; lia.
+Qed.
+
+Theorem provable_implies_forces_fnat_closed : forall phi w,
+  free_vars phi = [] -> |- phi -> forces_fnat_closed phi w = true.
+Proof.
+  intros phi w Hcl Hp.
+  apply (proj2 (forces_fnat_closed_iff phi w (fun _ _ => true) Hcl)).
+  exact (soundness phi Hp Fnat (fun _ _ => true) w).
+Qed.
+
+Theorem closed_fragment_decision_sound : forall phi w,
+  free_vars phi = [] ->
+  forces_fnat_closed phi w = false -> ~ |- phi.
+Proof.
+  intros phi w Hcl Hd Hp.
+  pose proof (provable_implies_forces_fnat_closed phi w Hcl Hp) as H.
+  rewrite H in Hd. discriminate.
+Qed.
+
+Theorem closed_fragment_decision_total : forall phi w,
+  forces_fnat_closed phi w = true \/ forces_fnat_closed phi w = false.
+Proof.
+  intros phi w. destruct (forces_fnat_closed phi w); [left | right]; reflexivity.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
