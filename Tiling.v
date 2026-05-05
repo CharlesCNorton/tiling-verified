@@ -13257,6 +13257,60 @@ Proof.
   - exact (Vingean_reflection_for_consistency_provable_at_level_n_plus_2 n).
 Qed.
 
+Definition no_panic_at (n : nat) : Form := Neg (Box n Bot).
+
+Theorem no_panic_provable_at_outer_level : forall n,
+  |- Box (S n) (no_panic_at n).
+Proof.
+  intro n. unfold no_panic_at. exact (Ax_NextCon n).
+Qed.
+
+Theorem no_panic_self_modification : forall n,
+  ~ |- Box n Bot /\ |- Box (S n) (no_panic_at n).
+Proof.
+  intro n. split.
+  - exact (meta_consistency_every_level n).
+  - exact (no_panic_provable_at_outer_level n).
+Qed.
+
+Theorem reflective_trust_propagates_consistency : forall n,
+  |- Box (S n) (no_panic_at n) /\
+  ~ |- Box n (no_panic_at n).
+Proof.
+  intro n. split.
+  - exact (no_panic_provable_at_outer_level n).
+  - exact (Godel_sentence_independent_at_Tn n).
+Qed.
+
+Theorem no_panic_reflective_trust_self_modifying_agent : forall n,
+  let trust_level := S n in
+  let panic_level := n in
+  |- Box trust_level (no_panic_at panic_level) /\
+  ~ |- Box panic_level Bot /\
+  ~ |- Box panic_level (no_panic_at panic_level).
+Proof.
+  intros n trust_level panic_level. split; [|split].
+  - exact (no_panic_provable_at_outer_level n).
+  - exact (meta_consistency_every_level n).
+  - exact (Godel_sentence_independent_at_Tn n).
+Qed.
+
+Theorem no_panic_reflective_trust_summary : forall n,
+  (|- Box (S n) (no_panic_at n)) /\
+  (~ |- Box n Bot) /\
+  (~ |- Box n (no_panic_at n)) /\
+  (let trust := S n in
+   |- Box trust (no_panic_at n) /\ ~ |- Box n Bot).
+Proof.
+  intro n. split; [|split; [|split]].
+  - exact (no_panic_provable_at_outer_level n).
+  - exact (meta_consistency_every_level n).
+  - exact (Godel_sentence_independent_at_Tn n).
+  - cbn. split.
+    + exact (no_panic_provable_at_outer_level n).
+    + exact (meta_consistency_every_level n).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
