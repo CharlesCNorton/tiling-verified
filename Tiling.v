@@ -10814,6 +10814,58 @@ Proof.
   exact (prov_equiv_trans _ _ _ HFI HGIsym).
 Qed.
 
+Definition sambin_fixed_point_modality (F : nat -> Form -> Form) : Prop :=
+  (forall n phi, |- phi -> |- F n phi) /\
+  (forall n phi psi, |- Impl (F n (Impl phi psi)) (Impl (F n phi) (F n psi))) /\
+  (forall n phi, |- Iff (F n phi) (Box n (Impl (F n phi) phi))).
+
+Theorem sambin_fixed_point_modality_to_box :
+  forall F, sambin_fixed_point_modality F ->
+  forall n phi, |- Iff (F n phi) (Box n phi).
+Proof.
+  intros F [_ [_ Hfp]] n phi.
+  exact (fixed_point_unique_loeb_form_canonical n phi (F n phi) (Hfp n phi)).
+Qed.
+
+Theorem licenses_axiomatic_uniqueness_categorical :
+  forall F, sambin_fixed_point_modality F ->
+  forall n phi, |- Iff (F n phi) (licenses n phi).
+Proof.
+  intros F HF n phi. unfold licenses.
+  exact (sambin_fixed_point_modality_to_box F HF n phi).
+Qed.
+
+Theorem licenses_satisfies_sambin_fixed_point :
+  sambin_fixed_point_modality licenses.
+Proof.
+  unfold sambin_fixed_point_modality, licenses. split; [|split].
+  - intros n phi H. exact (Nec n _ H).
+  - intros n phi psi. exact (Ax_BoxK n phi psi).
+  - intros n phi. exact (fixed_point_loeb_witness n phi).
+Qed.
+
+Theorem T_kappa_satisfies_sambin_fixed_point :
+  sambin_fixed_point_modality T_kappa.
+Proof.
+  unfold sambin_fixed_point_modality, T_kappa. split; [|split].
+  - intros n phi H. exact (Nec n _ H).
+  - intros n phi psi. exact (Ax_BoxK n phi psi).
+  - intros n phi. exact (fixed_point_loeb_witness n phi).
+Qed.
+
+Theorem sambin_fixed_point_modality_uniqueness_pairwise :
+  forall F G,
+  sambin_fixed_point_modality F ->
+  sambin_fixed_point_modality G ->
+  forall n phi, |- Iff (F n phi) (G n phi).
+Proof.
+  intros F G HF HG n phi.
+  pose proof (sambin_fixed_point_modality_to_box F HF n phi) as HFB.
+  pose proof (sambin_fixed_point_modality_to_box G HG n phi) as HGB.
+  pose proof (prov_iff_sym _ _ HGB) as HGBsym.
+  exact (prov_equiv_trans _ _ _ HFB HGBsym).
+Qed.
+
 Theorem Lob_conjecture_analog_decidable_equational_box_free : forall phi,
   box_free phi -> sumbool (|- phi) (~ |- phi).
 Proof. exact decidability_box_free_fragment. Qed.
