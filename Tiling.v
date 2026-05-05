@@ -14061,6 +14061,70 @@ Qed.
 Theorem RC_sp_top_provable : |- sp_to_form sp_top.
 Proof. cbn. exact (prov_id Bot). Qed.
 
+Inductive Provable_no_BoxK : Form -> Prop :=
+  | NK_Ax_K : forall phi psi, Provable_no_BoxK (Impl phi (Impl psi phi))
+  | NK_Ax_S : forall phi psi chi,
+      Provable_no_BoxK (Impl (Impl phi (Impl psi chi))
+                              (Impl (Impl phi psi) (Impl phi chi)))
+  | NK_Ax_DN : forall phi, Provable_no_BoxK (Impl (Neg (Neg phi)) phi)
+  | NK_Ax_Loeb : forall n phi,
+      Provable_no_BoxK (Impl (Box n (Impl (Box n phi) phi)) (Box n phi))
+  | NK_Ax_Box4 : forall n phi,
+      Provable_no_BoxK (Impl (Box n phi) (Box n (Box n phi)))
+  | NK_Ax_Mon : forall n phi,
+      Provable_no_BoxK (Impl (Box n phi) (Box (S n) phi))
+  | NK_Ax_NextCon : forall n, Provable_no_BoxK (Box (S n) (Neg (Box n Bot)))
+  | NK_MP : forall phi psi,
+      Provable_no_BoxK (Impl phi psi) -> Provable_no_BoxK phi -> Provable_no_BoxK psi
+  | NK_Nec : forall n phi, Provable_no_BoxK phi -> Provable_no_BoxK (Box n phi).
+
+Theorem Provable_no_BoxK_subset_of_Provable : forall phi,
+  Provable_no_BoxK phi -> |- phi.
+Proof.
+  intros phi H. induction H.
+  - apply Ax_K.
+  - apply Ax_S.
+  - apply Ax_DN.
+  - apply Ax_Loeb.
+  - apply Ax_Box4.
+  - apply Ax_Mon.
+  - apply Ax_NextCon.
+  - exact (MP _ _ IHProvable_no_BoxK1 IHProvable_no_BoxK2).
+  - exact (Nec _ _ IHProvable_no_BoxK).
+Qed.
+
+Theorem Ax_BoxK_specific_provable :
+  |- Impl (Box 0 (Impl (Var 0) Bot))
+         (Impl (Box 0 (Var 0)) (Box 0 Bot)).
+Proof. apply (Ax_BoxK 0 (Var 0) Bot). Qed.
+
+Theorem Ax_BoxK_refuted_in_neighborhood_explicit :
+  exists (NF : NeighFrame) (V : fW_neigh NF -> nat -> bool) (w : fW_neigh NF),
+    ~ forces_neigh NF V w
+        (Impl (Box 0 (Impl (Var 0) Bot))
+              (Impl (Box 0 (Var 0)) (Box 0 Bot))).
+Proof.
+  exists F_K_refuter.
+  exists (fun (w : bool) (_ : nat) => if w then true else false).
+  exists true.
+  exact K_refuted_in_neighborhood.
+Qed.
+
+Theorem BoxK_independence_via_neighborhood :
+  exists (phi : Form) (NF : NeighFrame)
+         (V : fW_neigh NF -> nat -> bool) (w : fW_neigh NF),
+    |- phi /\ ~ forces_neigh NF V w phi.
+Proof.
+  exists (Impl (Box 0 (Impl (Var 0) Bot))
+              (Impl (Box 0 (Var 0)) (Box 0 Bot))).
+  exists F_K_refuter.
+  exists (fun (w : bool) (_ : nat) => if w then true else false).
+  exists true.
+  split.
+  - apply Ax_BoxK_specific_provable.
+  - exact K_refuted_in_neighborhood.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
