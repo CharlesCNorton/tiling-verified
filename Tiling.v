@@ -13628,6 +13628,141 @@ Proof.
       subst sf. cbn. rewrite Hval. cbn. reflexivity.
 Qed.
 
+Inductive sat_atom : Type :=
+  | SAtom_pos : nat -> sat_atom
+  | SAtom_neg : nat -> sat_atom.
+
+Definition sat_clause : Type := list sat_atom.
+Definition sat_cnf : Type := list sat_clause.
+
+Definition sat_atom_eval (val : nat -> bool) (a : sat_atom) : bool :=
+  match a with
+  | SAtom_pos p => val p
+  | SAtom_neg p => negb (val p)
+  end.
+
+Definition sat_clause_eval (val : nat -> bool) (c : sat_clause) : bool :=
+  existsb (sat_atom_eval val) c.
+
+Definition sat_cnf_eval (val : nat -> bool) (cnf : sat_cnf) : bool :=
+  forallb (sat_clause_eval val) cnf.
+
+Definition sat_satisfiable (cnf : sat_cnf) : Prop :=
+  exists val, sat_cnf_eval val cnf = true.
+
+Definition sat_atom_to_form (a : sat_atom) : Form :=
+  match a with
+  | SAtom_pos p => Var p
+  | SAtom_neg p => Neg (Var p)
+  end.
+
+Fixpoint sat_clause_to_form (c : sat_clause) : Form :=
+  match c with
+  | [] => Bot
+  | a :: rest => Or (sat_atom_to_form a) (sat_clause_to_form rest)
+  end.
+
+Fixpoint sat_cnf_to_form (cnf : sat_cnf) : Form :=
+  match cnf with
+  | [] => Top
+  | c :: rest => And (sat_clause_to_form c) (sat_cnf_to_form rest)
+  end.
+
+Lemma eval_sat_atom_to_form : forall val a,
+  eval val (sat_atom_to_form a) = sat_atom_eval val a.
+Proof.
+  intros val [p | p]; cbn; [reflexivity|].
+  destruct (val p); reflexivity.
+Qed.
+
+Lemma eval_sat_clause_to_form : forall val c,
+  eval val (sat_clause_to_form c) = sat_clause_eval val c.
+Proof.
+  intros val c. induction c as [|a rest IH].
+  - cbn. reflexivity.
+  - cbn [sat_clause_to_form sat_clause_eval existsb].
+    rewrite eval_Or, IH, eval_sat_atom_to_form. reflexivity.
+Qed.
+
+Lemma eval_sat_cnf_to_form : forall val cnf,
+  eval val (sat_cnf_to_form cnf) = sat_cnf_eval val cnf.
+Proof.
+  intros val cnf. induction cnf as [|c rest IH].
+  - cbn. reflexivity.
+  - cbn [sat_cnf_to_form sat_cnf_eval forallb].
+    rewrite eval_And_form, IH, eval_sat_clause_to_form. reflexivity.
+Qed.
+
+Lemma sat_atom_to_form_box_free : forall a, box_free (sat_atom_to_form a).
+Proof.
+  intros [p | p].
+  - exact I.
+  - apply box_free_Neg. exact I.
+Qed.
+
+Lemma sat_clause_to_form_box_free : forall c, box_free (sat_clause_to_form c).
+Proof.
+  induction c as [|a rest IH].
+  - exact I.
+  - cbn. apply box_free_Or_pair.
+    + apply sat_atom_to_form_box_free.
+    + exact IH.
+Qed.
+
+Lemma sat_cnf_to_form_box_free : forall cnf, box_free (sat_cnf_to_form cnf).
+Proof.
+  induction cnf as [|c rest IH].
+  - cbn. tauto.
+  - cbn. apply box_free_And_pair.
+    + apply sat_clause_to_form_box_free.
+    + exact IH.
+Qed.
+
+Theorem sat_satisfiable_iff_form_satisfiable : forall cnf,
+  sat_satisfiable cnf <-> exists val, eval val (sat_cnf_to_form cnf) = true.
+Proof.
+  intros cnf. unfold sat_satisfiable. split.
+  - intros [val Hsat]. exists val. rewrite eval_sat_cnf_to_form. exact Hsat.
+  - intros [val Hev]. exists val. rewrite <- eval_sat_cnf_to_form. exact Hev.
+Qed.
+
+Theorem sat_satisfiable_iff_neg_unprovable : forall cnf,
+  sat_satisfiable cnf <-> ~ |- Neg (sat_cnf_to_form cnf).
+Proof.
+  intros cnf.
+  rewrite sat_satisfiable_iff_form_satisfiable.
+  rewrite (sat_iff_not_provable_neg (sat_cnf_to_form cnf)
+                                    (sat_cnf_to_form_box_free cnf)).
+  unfold box_free_sat. tauto.
+Qed.
+
+Inductive sat_outcome (cnf : sat_cnf) : Type :=
+  | sat_yes : forall val, sat_cnf_eval val cnf = true -> sat_outcome cnf
+  | sat_no : (forall val, sat_cnf_eval val cnf = false) -> sat_outcome cnf.
+
+Definition decide_sat : forall cnf, sat_outcome cnf.
+Proof.
+  intro cnf.
+  pose proof (sat_cnf_to_form_box_free cnf) as Hbf.
+  destruct (decide_tautology (Neg (sat_cnf_to_form cnf))) eqn:E.
+  - apply sat_no. intro val.
+    pose proof (decide_tautology_correct _ E val) as H.
+    rewrite eval_Neg_form in H. rewrite eval_sat_cnf_to_form in H.
+    destruct (sat_cnf_eval val cnf) eqn:E'; cbn in H; [discriminate | reflexivity].
+  - destruct (find_refuting_assignment _ (box_free_Neg _ Hbf) E) as [val Hv].
+    apply sat_yes with (val := val).
+    rewrite eval_Neg_form in Hv. rewrite eval_sat_cnf_to_form in Hv.
+    destruct (sat_cnf_eval val cnf) eqn:E'; cbn in Hv; [reflexivity | discriminate].
+Defined.
+
+Theorem decide_sat_extract_yes : forall cnf val Hsat,
+  decide_sat cnf = sat_yes cnf val Hsat -> sat_cnf_eval val cnf = true.
+Proof. intros cnf val Hsat _. exact Hsat. Qed.
+
+Theorem decide_sat_extract_no : forall cnf Hno,
+  decide_sat cnf = sat_no cnf Hno -> forall val, sat_cnf_eval val cnf = false.
+Proof. intros cnf Hno _ val. exact (Hno val). Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
