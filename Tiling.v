@@ -14767,6 +14767,90 @@ Proof.
   - exact GT_bounded_morphism_via_bisim.
 Qed.
 
+Theorem sahlqvist_NextCon_iff_successor : forall (F : Frame_no_NC),
+  (forall n V w, forces_nc F V w (Box (S n) (Neg (Box n Bot)))) <->
+  (forall n w v, fR_nc F (S n) w v -> exists u, fR_nc F n v u).
+Proof.
+  intros F. split.
+  - intros Hforces n w v Hr.
+    pose proof (Hforces n (fun _ _ => true) w) as Hf.
+    cbn in Hf.
+    pose proof (Hf v Hr) as Hneg.
+    apply NNPP.
+    intro Hno_succ.
+    apply Hneg.
+    intros u Hru.
+    exfalso. apply Hno_succ. exists u. exact Hru.
+  - intros Hsucc n V w. cbn. intros v Hwv Hbox.
+    destruct (Hsucc n w v Hwv) as [u Hvu].
+    exact (Hbox u Hvu).
+Qed.
+
+Theorem sahlqvist_Mon_iff_inclusion : forall (F : Frame_no_Mon),
+  (forall n V w, forces_nm F V w (Impl (Box n (Var 0)) (Box (S n) (Var 0)))) <->
+  (forall n w v, fR_nm F (S n) w v -> fR_nm F n w v).
+Proof.
+  intros F. split.
+  - intros Hforces n w v Hsuc.
+    apply NNPP. intro Hno.
+    pose proof (Hforces n
+      (fun (x : fW_nm F) (_ : nat) =>
+         if excluded_middle_informative (x = v) then false else true) w) as Hf.
+    cbn in Hf.
+    assert (HboxN : forall x : fW_nm F, fR_nm F n w x ->
+      (if excluded_middle_informative (x = v) then false else true) = true).
+    { intros x Hwx.
+      destruct (excluded_middle_informative (x = v)) as [Heq | Hne].
+      - subst x. exfalso. apply Hno. exact Hwx.
+      - reflexivity. }
+    pose proof (Hf HboxN v Hsuc) as Hv0.
+    destruct (excluded_middle_informative (v = v)) as [_ | Hne].
+    + discriminate.
+    + apply Hne. reflexivity.
+  - intros Hincl n V w Hbox v Hsuc.
+    apply Hbox. apply Hincl. exact Hsuc.
+Qed.
+
+Theorem sahlqvist_Box4_iff_transitivity_via_Frame :
+  forall (F : Frame),
+  (forall n w v u, fR F n w v -> fR F n v u -> fR F n w u) /\
+  (forall n V w, forces F V w (Impl (Box n (Var 0)) (Box n (Box n (Var 0))))).
+Proof.
+  intros F. split.
+  - exact (fR_trans F).
+  - intros n V w Hbox v Hwv u Hvu.
+    apply Hbox. exact (fR_trans F n w v u Hwv Hvu).
+Qed.
+
+Theorem sahlqvist_Loeb_iff_converse_wf_via_Frame : forall (F : Frame),
+  (forall n, well_founded (fun u v => fR F n v u)) /\
+  (forall n V w phi, forces F V w (Impl (Box n (Impl (Box n phi) phi)) (Box n phi))).
+Proof.
+  intros F. split.
+  - exact (fR_wf F).
+  - intros n V w phi Hbox v Hwv.
+    pose proof (fR_wf F n) as Hwf.
+    set (P := fun u => fR F n w u -> forces F V u phi).
+    cut (P v); [intro Hpv; exact (Hpv Hwv) |].
+    apply (well_founded_ind Hwf P).
+    intros u IH. unfold P. intro Hwu.
+    apply (Hbox u Hwu). intros u' Huu'.
+    apply (IH u' Huu' (fR_trans F n w u u' Hwu Huu')).
+Qed.
+
+Theorem sahlqvist_correspondence_summary :
+  (forall (F : Frame_no_NC),
+     (forall n V w, forces_nc F V w (Box (S n) (Neg (Box n Bot)))) <->
+     (forall n w v, fR_nc F (S n) w v -> exists u, fR_nc F n v u)) /\
+  (forall (F : Frame_no_Mon),
+     (forall n V w, forces_nm F V w (Impl (Box n (Var 0)) (Box (S n) (Var 0)))) <->
+     (forall n w v, fR_nm F (S n) w v -> fR_nm F n w v)).
+Proof.
+  split.
+  - exact sahlqvist_NextCon_iff_successor.
+  - exact sahlqvist_Mon_iff_inclusion.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
