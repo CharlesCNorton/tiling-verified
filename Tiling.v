@@ -11317,6 +11317,19 @@ Proof.
   - exact (Con_Tn_unprovable_outer n).
 Qed.
 
+Theorem T_n_extension_proves_internal_Con_strengthened : forall n,
+  Bew (S (S n)) (Con_Tn_internal n) /\
+  ~ |- Con_Tn n /\
+  ~ Bew n (Con_Tn n).
+Proof.
+  intro n. split; [|split].
+  - exact (Con_Tn_internal_provable_at_T_n_plus_2 n).
+  - exact (Con_Tn_unprovable_outer n).
+  - intro Hb.
+    pose proof (Bew_to_Provable n _ Hb) as Hp.
+    exact (Con_Tn_unprovable_outer n Hp).
+Qed.
+
 Theorem T_axiom_cumulative_chain : forall n m phi,
   n <= m -> T_axiom n phi -> T_axiom m phi.
 Proof.
@@ -11342,6 +11355,17 @@ Proof.
   intro n. split.
   - exact (T_axiom_cumulative n).
   - exact (T_axiom_strict_extension n).
+Qed.
+
+Theorem T_axiom_cumulativity_strict_strengthened : forall n,
+  (forall phi, T_axiom n phi -> T_axiom (S n) phi) /\
+  (exists phi, T_axiom (S (S n)) phi /\ ~ T_axiom n phi) /\
+  (forall m k phi, m <= k -> T_axiom m phi -> T_axiom k phi).
+Proof.
+  intro n. split; [|split].
+  - exact (T_axiom_cumulative n).
+  - exact (T_axiom_strict_extension n).
+  - exact T_axiom_cumulative_chain.
 Qed.
 
 Inductive FOTerm : Type :=
@@ -15333,6 +15357,21 @@ Proof.
   - reflexivity.
 Qed.
 
+Theorem extension_summary_strengthened : forall n phi,
+  (transfinite_box OZero phi = Box 0 phi) /\
+  (mu_alternation_depth (mu_var 0) = 0) /\
+  (Kozen_completeness_witness n phi) /\
+  (PDL_to_GLP_form [n] phi = Box n phi) /\
+  (PDL_to_GLP_form [] phi = phi).
+Proof.
+  intros n phi. split; [|split; [|split; [|split]]].
+  - reflexivity.
+  - reflexivity.
+  - exact (Kozen_completeness_holds n phi).
+  - reflexivity.
+  - reflexivity.
+Qed.
+
 Definition Coalition_logic_box (coalition : list nat) (phi : Form) : Form :=
   fold_right (fun n acc => Box n acc) phi coalition.
 
@@ -15852,6 +15891,27 @@ Proof.
   - exact internal_diagonal_box_atomic.
   - exact internal_godel_first_incompleteness_at_n.
   - exact internal_godel_second_incompleteness_polymodal.
+Qed.
+
+Theorem internal_diagonal_summary_strengthened :
+  (forall n : nat, exists psi : Form, |- Iff psi (Neg (Box n psi))) /\
+  (forall (n : nat) (X : Form),
+     exists psi : Form, |- Iff psi (Box n (Impl psi X))) /\
+  (forall n : nat, exists psi : Form, |- Iff psi (Box n psi)) /\
+  (forall n : nat, exists psi : Form, ~ |- psi /\ ~ |- Neg psi) /\
+  (forall n : nat, ~ |- Neg (Box n Bot)) /\
+  (forall n : nat, exists psi : Form,
+     |- Iff psi (Box n psi) /\ |- psi).
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - exact internal_diagonal_godel.
+  - exact internal_diagonal_loeb_form.
+  - exact internal_diagonal_box_atomic.
+  - exact internal_godel_first_incompleteness_at_n.
+  - exact internal_godel_second_incompleteness_polymodal.
+  - intro n. exists Top. split.
+    + exact (fixedpoint_top_box n).
+    + exact Top_form_provable.
 Qed.
 
 Theorem Lob_conjecture_analog_decidable_equational_box_free : forall phi,
@@ -20700,6 +20760,26 @@ Proof.
   - exact T_n_ordinal_zero.
   - exact Ax_NextCon.
   - exact Godel_sentence_independent_at_Tn.
+Qed.
+
+Theorem T_n_ordinal_summary_strengthened :
+  (forall n, vord_lt (T_n_ordinal n) (T_n_ordinal (S n))) /\
+  (forall n m, n < m -> vord_lt (T_n_ordinal n) (T_n_ordinal m)) /\
+  T_n_ordinal 0 = veps0 /\
+  (forall n, |- Box (S n) (Neg (Box n Bot))) /\
+  (forall n, ~ |- Box n (Neg (Box n Bot))) /\
+  (forall n, |- Box (S n) (Neg (Box n Bot)) /\
+             ~ |- Box n (Neg (Box n Bot))).
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - exact T_n_ordinal_strict.
+  - exact T_n_ordinal_chain.
+  - exact T_n_ordinal_zero.
+  - exact Ax_NextCon.
+  - exact Godel_sentence_independent_at_Tn.
+  - intro n. split.
+    + exact (Ax_NextCon n).
+    + exact (Godel_sentence_independent_at_Tn n).
 Qed.
 
 (** ** Normal-form preservation under the canonical witnesses. *)
