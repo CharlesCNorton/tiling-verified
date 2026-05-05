@@ -11133,6 +11133,93 @@ Theorem internal_godel_second_incompleteness_polymodal : forall n,
   ~ |- Neg (Box n Bot).
 Proof. exact Carlson_second_incompleteness_polymodal. Qed.
 
+Definition Godel_sentence_at (n : nat) : Form := Neg (Box n Bot).
+
+Theorem Godel_sentence_diagonal : forall n,
+  |- Iff (Godel_sentence_at n) (Neg (Box n (Godel_sentence_at n))).
+Proof.
+  intro n. unfold Godel_sentence_at.
+  apply prov_iff_intro.
+  - apply (MP _ _ (prov_contrapos (Box n (Neg (Box n Bot))) (Box n Bot))).
+    exact (godel_second n).
+  - apply (MP _ _ (prov_contrapos (Box n Bot) (Box n (Neg (Box n Bot))))).
+    apply prov_box_imp. exact (prov_explosion (Neg (Box n Bot))).
+Qed.
+
+Theorem Godel_sentence_iff_neg_Bew_n : forall n,
+  |- Iff (Godel_sentence_at n)
+        (Neg (Box n (Godel_sentence_at n))) /\
+  (~ Bew_n n (encode_form (Godel_sentence_at n))) /\
+  Bew_n (S n) (encode_form (Godel_sentence_at n)).
+Proof.
+  intro n. split; [|split].
+  - exact (Godel_sentence_diagonal n).
+  - intro H.
+    pose proof (proj1 (Bew_n_well_defined n _ _ eq_refl) H) as Hp.
+    unfold Godel_sentence_at in Hp.
+    pose proof (godel_second n) as Hgs.
+    pose proof (MP _ _ Hgs Hp) as Hbox_bot.
+    apply (meta_consistency_every_level n). exact Hbox_bot.
+  - exists (Godel_sentence_at n). split; [reflexivity|].
+    unfold Godel_sentence_at. exact (Ax_NextCon n).
+Qed.
+
+Theorem Godel_sentence_independent_at_Tn : forall n,
+  ~ |- Box n (Godel_sentence_at n).
+Proof.
+  intros n H.
+  unfold Godel_sentence_at in H.
+  pose proof (godel_second n) as Hgs.
+  pose proof (MP _ _ Hgs H) as Hbox_bot.
+  apply (meta_consistency_every_level n). exact Hbox_bot.
+Qed.
+
+Theorem Godel_sentence_provable_at_Tn_plus_1 : forall n,
+  |- Box (S n) (Godel_sentence_at n).
+Proof.
+  intro n. unfold Godel_sentence_at. exact (Ax_NextCon n).
+Qed.
+
+Theorem Godel_sentence_strict_separation : forall n,
+  (~ |- Box n (Godel_sentence_at n)) /\
+  (|- Box (S n) (Godel_sentence_at n)).
+Proof.
+  intro n. split.
+  - exact (Godel_sentence_independent_at_Tn n).
+  - exact (Godel_sentence_provable_at_Tn_plus_1 n).
+Qed.
+
+Theorem Godel_sentence_unprovable_outer : forall n,
+  ~ |- Godel_sentence_at n.
+Proof.
+  intros n H. unfold Godel_sentence_at in H.
+  exact (Carlson_second_incompleteness_polymodal n H).
+Qed.
+
+Theorem Godel_sentence_negation_unprovable : forall n,
+  ~ |- Neg (Godel_sentence_at n).
+Proof.
+  intros n H. unfold Godel_sentence_at in H.
+  pose proof (Ax_DN (Box n Bot)) as HDN.
+  pose proof (MP _ _ HDN H) as Hbox_bot.
+  apply (meta_consistency_every_level n). exact Hbox_bot.
+Qed.
+
+Theorem Godel_sentence_summary : forall n,
+  |- Iff (Godel_sentence_at n) (Neg (Box n (Godel_sentence_at n))) /\
+  (~ |- Box n (Godel_sentence_at n)) /\
+  (|- Box (S n) (Godel_sentence_at n)) /\
+  (~ |- Godel_sentence_at n) /\
+  (~ |- Neg (Godel_sentence_at n)).
+Proof.
+  intro n. split; [|split; [|split; [|split]]].
+  - exact (Godel_sentence_diagonal n).
+  - exact (Godel_sentence_independent_at_Tn n).
+  - exact (Godel_sentence_provable_at_Tn_plus_1 n).
+  - exact (Godel_sentence_unprovable_outer n).
+  - exact (Godel_sentence_negation_unprovable n).
+Qed.
+
 Theorem internal_diagonal_summary :
   (forall n : nat, exists psi : Form, |- Iff psi (Neg (Box n psi))) /\
   (forall (n : nat) (X : Form),
