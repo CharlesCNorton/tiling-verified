@@ -1,11 +1,6 @@
 # tiling-verified todo
 
-1. Replace `Solovay_second_completeness_with_reflection_axiom` with
-    the full Solovay-S theorem for arbitrary `phi`. Construct
-    `arith_interp_S : Form -> FOFormula` with the T-schema for true
-    sentences, and prove `Solovay_second_full : forall phi, (forall
-    I, FOProvesTn 0 (I (arith_interp_S phi))) -> Provable_S phi`.
-2. Replace `Japaridze_arithmetic_completeness_general` with a
+1. Replace `Japaridze_arithmetic_completeness_general` with a
     Solovay-tree construction. Define `Solovay_tree : Form -> nat ->
     FOFormula` returning the Solovay-tree node at each level, prove
     the modal-image theorem
@@ -14,7 +9,7 @@
     <-> Provable_full_GLP phi`, and use it to discharge
     `Japaridze_full` without instantiating at the identity
     interpretation.
-3. Replace the `From Tiling Require Export Tiling.` content of
+2. Replace the `From Tiling Require Export Tiling.` content of
     `Calculus.v`, `Hilbert.v`, `Kripke.v`, `FixedPoints.v`, `Bew.v`,
     `ProofTerms.v`, `Worms.v`, and `Agents.v` with a physical
     partition of `Tiling.v`'s body. Move calculus inductives plus
@@ -26,7 +21,7 @@
     Update `_CoqProject` with the dependency order. `Tiling.v`
     becomes a meta-file containing only `From Tiling Require Export
     Calculus Hilbert Kripke FixedPoints Bew ProofTerms Worms Agents.`
-4. Replace each `*_summary` theorem that is a conjunction of
+3. Replace each `*_summary` theorem that is a conjunction of
     already-named theorems (`Pi1_conservativity_summary`,
     `Pi2_conservativity_summary`, `Bew_axiomatic_summary`,
     `realisation_full_soundness`, `Bew_satisfies_GLP_axioms_summary`,

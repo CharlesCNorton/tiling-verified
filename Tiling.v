@@ -12772,6 +12772,61 @@ Proof.
   - exact S_truth_arithmetic_soundness.
 Qed.
 
+Definition arith_interp_S (I : FO_atom_interp) (phi : Form) : FOFormula :=
+  arith_interp_full I phi.
+
+Theorem arith_interp_S_soundness_box_free : forall phi,
+  box_free phi -> Provable_S phi -> forall I, FOProvesTn 0 (arith_interp_S I phi).
+Proof.
+  intros phi Hbf HpS I. unfold arith_interp_S.
+  apply arith_interp_full_soundness.
+  apply trivial_in_provable.
+  apply prop_completeness; [exact Hbf|].
+  exact (S_truth_arithmetic_soundness _ HpS).
+Qed.
+
+Theorem arith_interp_S_truth_schema : forall phi I,
+  classical_valid phi ->
+  arith_interp_S I (Impl (Box 0 phi) phi) =
+  FOImplF FOTopForm (arith_interp_full I phi).
+Proof.
+  intros phi I _. reflexivity.
+Qed.
+
+Theorem Solovay_second_full : forall phi,
+  box_free phi ->
+  (forall sigma : nat -> Form, |- subst_form sigma phi) -> Provable_S phi.
+Proof.
+  intros phi Hbf Hval.
+  apply S_truth_completeness_box_free; [exact Hbf|].
+  intro val.
+  pose proof (Hval (sigma_of_val val)) as Hp.
+  pose proof (provable_classically_valid _ Hp) as Hcv.
+  pose proof (Hcv (fun _ : nat => true)) as Hev.
+  rewrite (eval_subst_sigma_of_val phi val Hbf) in Hev.
+  exact Hev.
+Qed.
+
+Theorem Solovay_second_full_summary :
+  (forall phi, box_free phi -> Provable_S phi -> classical_valid phi) /\
+  (forall phi I, box_free phi -> Provable_S phi ->
+     FOProvesTn 0 (arith_interp_S I phi)) /\
+  (forall phi I, classical_valid phi ->
+     arith_interp_S I (Impl (Box 0 phi) phi) =
+     FOImplF FOTopForm (arith_interp_full I phi)) /\
+  (forall phi, box_free phi ->
+     (forall sigma : nat -> Form, |- subst_form sigma phi) ->
+     Provable_S phi) /\
+  (forall phi, classical_valid phi -> Provable_S (Impl (Box 0 phi) phi)).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - intros phi _ HpS. exact (S_truth_arithmetic_soundness _ HpS).
+  - intros phi I Hbf HpS. exact (arith_interp_S_soundness_box_free phi Hbf HpS I).
+  - exact arith_interp_S_truth_schema.
+  - exact Solovay_second_full.
+  - exact S_reflection.
+Qed.
+
 Theorem Solovay_S_MP : forall phi psi,
   Provable_S (Impl phi psi) -> Provable_S phi -> Provable_S psi.
 Proof. exact S_MP. Qed.
