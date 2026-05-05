@@ -12340,6 +12340,58 @@ Proof.
     split; [|split]; discriminate.
 Qed.
 
+Theorem Tarski_undefinability_for_box_0_truth_predicate :
+  ~ (forall phi, |- Iff (Box 0 phi) phi).
+Proof.
+  intro Hall.
+  pose proof (Hall Bot) as Hbot.
+  pose proof (prov_and_elim_r_meta _ _ Hbot) as Hbot_to_box.
+  pose proof (prov_and_elim_l_meta _ _ Hbot) as Hbox_to_bot.
+  apply (Carlson_second_incompleteness_polymodal 0).
+  unfold Neg. exact Hbox_to_bot.
+Qed.
+
+Theorem Tarski_undefinability_for_box_n_truth_predicate : forall n,
+  ~ (forall phi, |- Iff (Box n phi) phi).
+Proof.
+  intros n Hall.
+  pose proof (Hall Bot) as Hbot.
+  pose proof (prov_and_elim_l_meta _ _ Hbot) as Hbox_to_bot.
+  apply (Carlson_second_incompleteness_polymodal n).
+  unfold Neg. exact Hbox_to_bot.
+Qed.
+
+Theorem Tarski_undefinability_modalised :
+  forall n, exists phi, ~ |- Iff (Box n phi) phi.
+Proof.
+  intro n. exists Bot.
+  intro Hiff.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hbox_to_bot.
+  apply (Carlson_second_incompleteness_polymodal n).
+  unfold Neg. exact Hbox_to_bot.
+Qed.
+
+Theorem Tarski_undefinability_box_indexed_summary : forall n,
+  (exists phi, ~ |- Iff (Box n phi) phi) /\
+  (~ forall phi, |- Iff (Box n phi) phi).
+Proof.
+  intro n. split.
+  - exact (Tarski_undefinability_modalised n).
+  - exact (Tarski_undefinability_for_box_n_truth_predicate n).
+Qed.
+
+Theorem Tarski_undefinability_general_truth_predicate :
+  forall (Tr : Form -> Form),
+    (forall phi, |- Iff (Tr phi) phi) ->
+    Tr Bot = Bot \/ |- Iff (Tr Bot) Bot.
+Proof.
+  intros Tr Hall. right. exact (Hall Bot).
+Qed.
+
+Theorem Tarski_undefinability_no_box_chain_truth_predicate : forall n,
+  ~ (forall phi, |- Iff (Box n phi) phi).
+Proof. exact Tarski_undefinability_for_box_n_truth_predicate. Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
