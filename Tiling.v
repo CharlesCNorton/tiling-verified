@@ -10732,6 +10732,88 @@ Proof.
   exact (prov_equiv_trans _ _ _ HFI HGIsym).
 Qed.
 
+Definition glp_pre_modality (F : nat -> Form -> Form) : Prop :=
+  (forall n phi, |- phi -> |- F n phi) /\
+  (forall n phi psi, |- Impl (F n (Impl phi psi)) (Impl (F n phi) (F n psi))) /\
+  (forall n phi, |- Impl (F n phi) (F (S n) phi)) /\
+  (forall n phi, |- Impl (F n (Impl (F n phi) phi)) (F n phi)).
+
+Theorem glp_pre_modality_top_holds : glp_pre_modality (fun _ _ => Top).
+Proof.
+  unfold glp_pre_modality. split; [|split; [|split]].
+  - intros _ _ _. apply prov_id.
+  - intros n phi psi. apply prov_weaken. apply prov_id.
+  - intros n phi. apply prov_id.
+  - intros n phi. apply prov_id.
+Qed.
+
+Theorem glp_pre_modality_does_not_pin_box :
+  exists F, glp_pre_modality F /\
+  exists n phi, ~ |- Iff (F n phi) (Box n phi).
+Proof.
+  exists (fun _ _ => Top). split.
+  - exact glp_pre_modality_top_holds.
+  - exists 0, Bot.
+    intro Hiff.
+    pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+    pose proof (MP _ _ Hfwd (prov_id Bot)) as Hcons.
+    apply meta_consistency_box_0. exact Hcons.
+Qed.
+
+Definition glp_modality_aligned (F : nat -> Form -> Form) : Prop :=
+  glp_pre_modality F /\
+  (forall n phi, |- Impl (Box n phi) (F n phi)) /\
+  (forall n phi, |- Impl (F n phi) (Box n phi)).
+
+Theorem licenses_universal_property_categorical :
+  forall F, glp_modality_aligned F ->
+  forall n phi, |- Iff (F n phi) (Box n phi).
+Proof.
+  intros F [_ [HBoxF HFBox]] n phi.
+  apply prov_and_intro_meta.
+  - exact (HFBox n phi).
+  - exact (HBoxF n phi).
+Qed.
+
+Theorem licenses_satisfies_universal_property :
+  glp_modality_aligned licenses.
+Proof.
+  unfold glp_modality_aligned, licenses. split; [|split].
+  - unfold glp_pre_modality. split; [|split; [|split]].
+    + intros n phi H. exact (Nec n _ H).
+    + intros n phi psi. exact (Ax_BoxK n phi psi).
+    + intros n phi. exact (Ax_Mon n phi).
+    + intros n phi. exact (Ax_Loeb n phi).
+  - intros n phi. exact (prov_id (Box n phi)).
+  - intros n phi. exact (prov_id (Box n phi)).
+Qed.
+
+Theorem T_kappa_satisfies_universal_property :
+  glp_modality_aligned T_kappa.
+Proof.
+  unfold glp_modality_aligned, T_kappa. split; [|split].
+  - unfold glp_pre_modality. split; [|split; [|split]].
+    + intros n phi H. exact (Nec n _ H).
+    + intros n phi psi. exact (Ax_BoxK n phi psi).
+    + intros n phi. exact (Ax_Mon n phi).
+    + intros n phi. exact (Ax_Loeb n phi).
+  - intros n phi. exact (prov_id (Box n phi)).
+  - intros n phi. exact (prov_id (Box n phi)).
+Qed.
+
+Theorem licenses_universal_property_uniqueness :
+  forall F G,
+  glp_modality_aligned F ->
+  glp_modality_aligned G ->
+  forall n phi, |- Iff (F n phi) (G n phi).
+Proof.
+  intros F G HF HG n phi.
+  pose proof (licenses_universal_property_categorical F HF n phi) as HFI.
+  pose proof (licenses_universal_property_categorical G HG n phi) as HGI.
+  pose proof (prov_iff_sym _ _ HGI) as HGIsym.
+  exact (prov_equiv_trans _ _ _ HFI HGIsym).
+Qed.
+
 Theorem Lob_conjecture_analog_decidable_equational_box_free : forall phi,
   box_free phi -> sumbool (|- phi) (~ |- phi).
 Proof. exact decidability_box_free_fragment. Qed.
