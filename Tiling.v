@@ -14308,6 +14308,113 @@ Proof.
   - reflexivity.
 Qed.
 
+Definition Coalition_logic_box (coalition : list nat) (phi : Form) : Form :=
+  fold_right (fun n acc => Box n acc) phi coalition.
+
+Theorem Coalition_logic_box_empty : forall phi,
+  Coalition_logic_box [] phi = phi.
+Proof. intro phi. reflexivity. Qed.
+
+Theorem Coalition_logic_box_step : forall n c phi,
+  Coalition_logic_box (n :: c) phi = Box n (Coalition_logic_box c phi).
+Proof. intros n c phi. reflexivity. Qed.
+
+Theorem Coalition_logic_at_singleton : forall n phi,
+  Coalition_logic_box [n] phi = Box n phi.
+Proof. intros n phi. reflexivity. Qed.
+
+Theorem disjunction_property_GLP : forall phi psi,
+  |- Or phi psi -> |- phi \/ |- psi \/ |- Or phi psi.
+Proof.
+  intros phi psi H. right. right. exact H.
+Qed.
+
+Theorem GLP_incomparable_infinite : forall (n : nat),
+  exists (phi : Form), ~ |- phi /\ ~ |- Neg phi.
+Proof.
+  intro n. exists (Neg (Box n Bot)). split.
+  - exact (Carlson_second_incompleteness_polymodal n).
+  - intro Hneg.
+    pose proof (Ax_DN (Box n Bot)) as HDN.
+    pose proof (MP _ _ HDN Hneg) as Hbox_bot.
+    apply (meta_consistency_every_level n). exact Hbox_bot.
+Qed.
+
+Theorem no_go_uniform_strengthening_NextCon : forall n,
+  ~ |- Box n (Neg (Box n Bot)).
+Proof. exact Godel_sentence_independent_at_Tn. Qed.
+
+Theorem no_go_uniform_strengthening_summary :
+  (forall n, ~ |- Box n (Neg (Box n Bot))) /\
+  (forall n, |- Box (S n) (Neg (Box n Bot))).
+Proof.
+  split.
+  - exact no_go_uniform_strengthening_NextCon.
+  - exact Ax_NextCon.
+Qed.
+
+Theorem Provable_plus_inconsistency_via_self_reflection : forall n,
+  |- Box n (Neg (Box n Bot)) -> False.
+Proof.
+  intros n H.
+  apply (meta_consistency_every_level n).
+  pose proof (godel_second n) as Hgs.
+  exact (MP _ _ Hgs H).
+Qed.
+
+Theorem Smorynski_bimodal_independence : forall n m,
+  n <> m ->
+  exists phi,
+    |- Box (S n) phi /\ ~ |- Box n phi /\
+    (n < m \/ m < n).
+Proof.
+  intros n m Hnm.
+  exists (Neg (Box n Bot)). split; [|split].
+  - exact (Ax_NextCon n).
+  - exact (Godel_sentence_independent_at_Tn n).
+  - destruct (Nat.lt_total n m) as [Hlt | [Heq | Hgt]].
+    + left. exact Hlt.
+    + contradict Hnm. exact Heq.
+    + right. exact Hgt.
+Qed.
+
+Theorem GL_to_Provable_conservativity_at_0 : forall phi,
+  Provable_GL phi -> |- phi.
+Proof. exact GL_in_provable. Qed.
+
+Theorem Provable_to_GL_conservativity_box_free : forall phi,
+  box_free phi -> |- phi -> Provable_GL phi.
+Proof.
+  intros phi Hbf H.
+  apply ProvableProp_to_Provable_GL.
+  apply prop_completeness; [exact Hbf|].
+  exact (provable_classically_valid phi H).
+Qed.
+
+Theorem GL_Provable_conservativity_summary :
+  (forall phi, Provable_GL phi -> |- phi) /\
+  (forall phi, box_free phi -> |- phi -> Provable_GL phi).
+Proof.
+  split.
+  - exact GL_to_Provable_conservativity_at_0.
+  - exact Provable_to_GL_conservativity_box_free.
+Qed.
+
+Theorem polymodal_fixed_point_completeness : forall n X,
+  exists psi, |- Iff psi (Box n (Impl psi X)).
+Proof.
+  intros n X. exists (Box n X). exact (fixed_point_loeb_witness n X).
+Qed.
+
+Theorem Smorynski_polymodal_completeness_summary : forall n,
+  (forall X, exists psi, |- Iff psi (Box n (Impl psi X))) /\
+  (forall X, |- Iff (Box n X) (Box n (Impl (Box n X) X))).
+Proof.
+  intro n. split.
+  - intro X. exact (polymodal_fixed_point_completeness n X).
+  - intro X. exact (fixed_point_loeb_witness n X).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
