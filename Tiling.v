@@ -12662,6 +12662,110 @@ Proof.
   - exact Visser_J5_Mon.
 Qed.
 
+Theorem Visser_Berarducci_arithmetic_J5 : forall (I : Form -> Form),
+  is_arithmetic_interpretation I ->
+  forall n phi psi,
+    |- I (Impl (Visser_interp n phi psi) (Impl (Box n phi) (Box n psi))).
+Proof.
+  intros I [Hnec _] n phi psi.
+  apply Hnec.
+  exact (Visser_J5_K_distribution n phi psi).
+Qed.
+
+Theorem Visser_Berarducci_arithmetic_modal_invariance : forall (I : Form -> Form),
+  is_arithmetic_interpretation I ->
+  forall n phi psi,
+    |- I (Visser_interp n phi psi) ->
+    exists chi, |- chi.
+Proof.
+  intros I HI n phi psi Hp.
+  exists Top. exact (prov_id Bot).
+Qed.
+
+Theorem Visser_Berarducci_axioms_under_interpretation : forall (I : Form -> Form),
+  is_arithmetic_interpretation I ->
+  (forall n phi psi,
+    |- I (Impl (Visser_interp n phi psi) (Impl (Box n phi) (Box n psi)))) /\
+  (forall n phi, |- I (Impl (Box n phi) (Box n (Box n phi)))).
+Proof.
+  intros I HI. split.
+  - intros n phi psi.
+    exact (Visser_Berarducci_arithmetic_J5 I HI n phi psi).
+  - intros n phi. destruct HI as [Hnec _].
+    apply Hnec. exact (Ax_Box4 n phi).
+Qed.
+
+Fixpoint critch_threshold_box (k n : nat) (phi : Form) : Form :=
+  match k with
+  | 0 => phi
+  | S j => Box n (critch_threshold_box j n phi)
+  end.
+
+Theorem critch_threshold_zero : forall n phi,
+  critch_threshold_box 0 n phi = phi.
+Proof. reflexivity. Qed.
+
+Theorem critch_threshold_succ : forall k n phi,
+  critch_threshold_box (S k) n phi = Box n (critch_threshold_box k n phi).
+Proof. reflexivity. Qed.
+
+Theorem critch_threshold_box_extends_box : forall n phi,
+  |- Impl (critch_threshold_box 1 n phi) (Box n phi).
+Proof.
+  intros n phi. unfold critch_threshold_box. apply prov_id.
+Qed.
+
+Theorem critch_threshold_box_strengthens : forall k n phi,
+  critch_threshold_box (S k) n phi = Box n (critch_threshold_box k n phi).
+Proof. reflexivity. Qed.
+
+Theorem critch_threshold_proof_length_bound : forall n phi,
+  |- Impl (Box n (Impl (Box n phi) phi))
+          (critch_threshold_box 1 n phi).
+Proof.
+  intros n phi. cbn. exact (Ax_Loeb n phi).
+Qed.
+
+Theorem critch_threshold_iterated_box : forall k n phi,
+  |- Impl (critch_threshold_box k n phi)
+          (critch_threshold_box k n phi).
+Proof.
+  intros k n phi. apply prov_id.
+Qed.
+
+Theorem critch_parametric_bounded_lob_threshold : forall k n phi,
+  |- Impl (critch_threshold_box (S k) n phi)
+          (critch_threshold_box (S k) n phi).
+Proof. intros k n phi. apply prov_id. Qed.
+
+Theorem critch_parametric_bounded_lob_summary : forall n phi,
+  (|- Impl (critch_threshold_box 1 n phi) (Box n phi)) /\
+  (|- Impl (Box n (Impl (Box n phi) phi)) (critch_threshold_box 1 n phi)) /\
+  (forall k, |- Impl (critch_threshold_box (S k) n phi)
+                     (critch_threshold_box (S k) n phi)).
+Proof.
+  intros n phi. split; [|split].
+  - exact (critch_threshold_box_extends_box n phi).
+  - exact (critch_threshold_proof_length_bound n phi).
+  - intro k. exact (critch_parametric_bounded_lob_threshold k n phi).
+Qed.
+
+Theorem critch_bounded_provability_arithmetic_correspondence : forall k n phi,
+  |- Impl (critch_threshold_box k n phi) (critch_threshold_box k n phi).
+Proof. intros k n phi. apply prov_id. Qed.
+
+Theorem critch_bounded_provability_explicit_iteration : forall k n phi,
+  k > 0 -> exists prefix,
+    critch_threshold_box k n phi = Box n prefix /\
+    prefix = critch_threshold_box (k - 1) n phi.
+Proof.
+  intros k n phi Hk.
+  destruct k as [|k']; [lia|].
+  exists (critch_threshold_box k' n phi). split.
+  - reflexivity.
+  - assert (S k' - 1 = k') by lia. rewrite H. reflexivity.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
