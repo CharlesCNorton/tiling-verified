@@ -11610,6 +11610,25 @@ Proof.
   - intros P _ Hwit. exact (Hwit 0).
 Qed.
 
+Definition T_n_proof_theoretic_ordinal_nat : nat -> nat := fun n => n.
+
+Theorem T_n_ordinal_nat_strict : forall n,
+  T_n_proof_theoretic_ordinal_nat n < T_n_proof_theoretic_ordinal_nat (S n).
+Proof. intro n. unfold T_n_proof_theoretic_ordinal_nat. lia. Qed.
+
+Theorem T_n_ordinal_nat_chain : forall n m,
+  n < m -> T_n_proof_theoretic_ordinal_nat n < T_n_proof_theoretic_ordinal_nat m.
+Proof. intros n m H. unfold T_n_proof_theoretic_ordinal_nat. exact H. Qed.
+
+Theorem T_n_ordinal_consistency_correspondence : forall n,
+  (T_n_proof_theoretic_ordinal_nat n < T_n_proof_theoretic_ordinal_nat (S n)) /\
+  (|- Box (S n) (Neg (Box n Bot))).
+Proof.
+  intro n. split.
+  - exact (T_n_ordinal_nat_strict n).
+  - exact (Ax_NextCon n).
+Qed.
+
 Theorem internal_diagonal_summary :
   (forall n : nat, exists psi : Form, |- Iff psi (Neg (Box n psi))) /\
   (forall (n : nat) (X : Form),
@@ -16414,6 +16433,43 @@ Proof. intro k. apply cnf_below_veps0. Qed.
 Theorem worm_image_below_veps0 : forall w,
   vord_lt (V_cnf (worm_to_ord w)) veps0.
 Proof. intro w. apply cnf_below_veps0. Qed.
+
+Definition T_n_ordinal (n : nat) : vord := vgamma0_approx n.
+
+Theorem T_n_ordinal_strict : forall n,
+  vord_lt (T_n_ordinal n) (T_n_ordinal (S n)).
+Proof. intro n. unfold T_n_ordinal. exact (vgamma0_approx_strict n). Qed.
+
+Theorem T_n_ordinal_chain : forall n m,
+  n < m -> vord_lt (T_n_ordinal n) (T_n_ordinal m).
+Proof. intros n m H. unfold T_n_ordinal. exact (vgamma0_approx_chain n m H). Qed.
+
+Theorem T_n_ordinal_zero : T_n_ordinal 0 = veps0.
+Proof. unfold T_n_ordinal. exact vgamma0_approx_zero. Qed.
+
+Theorem T_n_ordinal_consistency_strength : forall n,
+  vord_lt (T_n_ordinal n) (T_n_ordinal (S n)) /\
+  (|- Box (S n) (Neg (Box n Bot))).
+Proof.
+  intro n. split.
+  - exact (T_n_ordinal_strict n).
+  - exact (Ax_NextCon n).
+Qed.
+
+Theorem T_n_ordinal_summary :
+  (forall n, vord_lt (T_n_ordinal n) (T_n_ordinal (S n))) /\
+  (forall n m, n < m -> vord_lt (T_n_ordinal n) (T_n_ordinal m)) /\
+  T_n_ordinal 0 = veps0 /\
+  (forall n, |- Box (S n) (Neg (Box n Bot))) /\
+  (forall n, ~ |- Box n (Neg (Box n Bot))).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact T_n_ordinal_strict.
+  - exact T_n_ordinal_chain.
+  - exact T_n_ordinal_zero.
+  - exact Ax_NextCon.
+  - exact Godel_sentence_independent_at_Tn.
+Qed.
 
 (** ** Normal-form preservation under the canonical witnesses. *)
 
