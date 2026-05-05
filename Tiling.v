@@ -13482,6 +13482,49 @@ Proof.
   - exact (genuine_FairBot_PrudentBot_distinct n).
 Qed.
 
+Theorem FairBot_self_consistency : forall n,
+  |- genuine_FairBot n Cooperate_action.
+Proof. exact genuine_FairBot_provable_when_opp_eq_cooperate. Qed.
+
+Theorem FairBot_vs_FairBot_mutual_cooperation : forall n,
+  |- genuine_FairBot n Cooperate_action /\
+  |- genuine_FairBot n Cooperate_action.
+Proof.
+  intro n. split.
+  - exact (FairBot_self_consistency n).
+  - exact (FairBot_self_consistency n).
+Qed.
+
+Theorem FairBot_vs_FairBot_mutual_cooperation_via_iff : forall n,
+  |- Iff (genuine_FairBot n Cooperate_action) (Box n Top).
+Proof.
+  intro n. unfold genuine_FairBot.
+  pose proof (Nec n _ (prov_iff_refl Cooperate_action)) as Hrefl.
+  apply prov_iff_intro.
+  - pose proof (Ax_K (Box n Top) (Box n (Iff Cooperate_action Cooperate_action))) as Hk.
+    apply (MP _ _ Hk).
+    pose proof (prov_box_top n) as Hbtop.
+    exact Hbtop.
+  - pose proof (Ax_K (Box n (Iff Cooperate_action Cooperate_action)) (Box n Top)) as Hk.
+    apply (MP _ _ Hk). exact Hrefl.
+Qed.
+
+Theorem FairBot_vs_DefectBot_does_not_cooperate : forall n,
+  genuine_FairBot n Defect_action <> Cooperate_action.
+Proof.
+  intro n. unfold genuine_FairBot, Defect_action, Cooperate_action.
+  discriminate.
+Qed.
+
+Theorem FairBot_vs_DefectBot_defection_summary : forall n,
+  genuine_FairBot n Defect_action <> Cooperate_action /\
+  genuine_FairBot n Defect_action <> genuine_FairBot n Cooperate_action.
+Proof.
+  intro n. split.
+  - exact (FairBot_vs_DefectBot_does_not_cooperate n).
+  - unfold genuine_FairBot, Defect_action, Cooperate_action. discriminate.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
