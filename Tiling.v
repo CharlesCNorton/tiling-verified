@@ -11629,6 +11629,86 @@ Proof.
   - exact (Ax_NextCon n).
 Qed.
 
+Definition Con_extended (n : nat) (phi : Form) : Form :=
+  Neg (Box n (Impl phi Bot)).
+
+Lemma impl_top_bot_implies_bot : |- Impl (Impl Top Bot) Bot.
+Proof. exact (prov_neg_top_anything Bot). Qed.
+
+Lemma bot_implies_impl_top_bot : |- Impl Bot (Impl Top Bot).
+Proof. exact (prov_explosion (Impl Top Bot)). Qed.
+
+Lemma box_impl_top_bot_iff_box_bot : forall n,
+  |- Iff (Box n (Impl Top Bot)) (Box n Bot).
+Proof.
+  intro n. apply prov_iff_intro.
+  - pose proof (Nec n _ impl_top_bot_implies_bot) as Hnec.
+    pose proof (Ax_BoxK n (Impl Top Bot) Bot) as HK.
+    exact (MP _ _ HK Hnec).
+  - pose proof (Nec n _ bot_implies_impl_top_bot) as Hnec.
+    pose proof (Ax_BoxK n Bot (Impl Top Bot)) as HK.
+    exact (MP _ _ HK Hnec).
+Qed.
+
+Lemma neg_box_impl_top_bot_iff_neg_box_bot : forall n,
+  |- Iff (Neg (Box n (Impl Top Bot))) (Neg (Box n Bot)).
+Proof.
+  intro n.
+  pose proof (box_impl_top_bot_iff_box_bot n) as Hiff.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+  pose proof (prov_and_elim_r_meta _ _ Hiff) as Hbwd.
+  apply prov_iff_intro.
+  - exact (MP _ _ (prov_contrapos (Box n Bot) (Box n (Impl Top Bot))) Hbwd).
+  - exact (MP _ _ (prov_contrapos (Box n (Impl Top Bot)) (Box n Bot)) Hfwd).
+Qed.
+
+Theorem tower_bypass_witness_via_Top : forall n,
+  ~ |- Box n (Con_extended n Top) /\
+  |- Box (S n) (Con_extended n Top).
+Proof.
+  intro n. unfold Con_extended.
+  pose proof (neg_box_impl_top_bot_iff_neg_box_bot n) as Hiff.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+  pose proof (prov_and_elim_r_meta _ _ Hiff) as Hbwd.
+  split.
+  - intro H.
+    pose proof (Nec n _ Hfwd) as Hfwd_n.
+    pose proof (Ax_BoxK n (Neg (Box n (Impl Top Bot))) (Neg (Box n Bot))) as HK.
+    pose proof (MP _ _ HK Hfwd_n) as Hstep.
+    pose proof (MP _ _ Hstep H) as HnegBoxBot.
+    apply (Godel_sentence_independent_at_Tn n).
+    unfold Godel_sentence_at. exact HnegBoxBot.
+  - pose proof (Ax_NextCon n) as HnxC.
+    pose proof (Nec (S n) _ Hbwd) as Hbwd_Sn.
+    pose proof (Ax_BoxK (S n) (Neg (Box n Bot)) (Neg (Box n (Impl Top Bot)))) as HK.
+    pose proof (MP _ _ HK Hbwd_Sn) as Hstep.
+    exact (MP _ _ Hstep HnxC).
+Qed.
+
+Theorem tower_bypass_non_vacuous : forall n,
+  exists phi,
+    ~ |- Box n (Neg (Box n (Impl phi Bot))) /\
+    |- Box (S n) (Neg (Box n (Impl phi Bot))).
+Proof.
+  intro n. exists Top.
+  pose proof (tower_bypass_witness_via_Top n) as [Hno Hyes].
+  unfold Con_extended in Hno, Hyes.
+  split; assumption.
+Qed.
+
+Theorem tower_bypass_summary :
+  (forall n, exists phi,
+     ~ |- Box n (Neg (Box n (Impl phi Bot))) /\
+     |- Box (S n) (Neg (Box n (Impl phi Bot)))) /\
+  (forall n,
+     ~ |- Box n (Con_extended n Top) /\
+     |- Box (S n) (Con_extended n Top)).
+Proof.
+  split.
+  - exact tower_bypass_non_vacuous.
+  - exact tower_bypass_witness_via_Top.
+Qed.
+
 Theorem internal_diagonal_summary :
   (forall n : nat, exists psi : Form, |- Iff psi (Neg (Box n psi))) /\
   (forall (n : nat) (X : Form),
