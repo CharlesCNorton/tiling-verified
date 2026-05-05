@@ -11282,6 +11282,200 @@ Proof.
   - exact (T_axiom_strict_extension n).
 Qed.
 
+Inductive FOTerm : Type :=
+  | FOVar : nat -> FOTerm
+  | FOZero : FOTerm
+  | FOSucc : FOTerm -> FOTerm
+  | FOPlus : FOTerm -> FOTerm -> FOTerm
+  | FOMult : FOTerm -> FOTerm -> FOTerm.
+
+Inductive FOFormula : Type :=
+  | FOEq : FOTerm -> FOTerm -> FOFormula
+  | FOFalseF : FOFormula
+  | FOImplF : FOFormula -> FOFormula -> FOFormula
+  | FOForall : nat -> FOFormula -> FOFormula
+  | FOExists : nat -> FOFormula -> FOFormula.
+
+Definition FOTrue : FOFormula := FOImplF FOFalseF FOFalseF.
+Definition FONeg (phi : FOFormula) : FOFormula := FOImplF phi FOFalseF.
+
+Fixpoint FOnumeral (n : nat) : FOTerm :=
+  match n with
+  | 0 => FOZero
+  | S k => FOSucc (FOnumeral k)
+  end.
+
+Inductive FORobinsonQ : FOFormula -> Prop :=
+  | RQ_S_inj : forall x y,
+      FORobinsonQ (FOImplF (FOEq (FOSucc (FOVar x)) (FOSucc (FOVar y)))
+                            (FOEq (FOVar x) (FOVar y)))
+  | RQ_S_nonzero : forall x,
+      FORobinsonQ (FONeg (FOEq (FOSucc (FOVar x)) FOZero))
+  | RQ_zero_or_succ : forall x,
+      FORobinsonQ (FOImplF (FONeg (FOEq (FOVar x) FOZero))
+                            (FOExists (S x) (FOEq (FOVar x) (FOSucc (FOVar (S x))))))
+  | RQ_plus_zero : forall x,
+      FORobinsonQ (FOEq (FOPlus (FOVar x) FOZero) (FOVar x))
+  | RQ_plus_succ : forall x y,
+      FORobinsonQ (FOEq (FOPlus (FOVar x) (FOSucc (FOVar y)))
+                        (FOSucc (FOPlus (FOVar x) (FOVar y))))
+  | RQ_mult_zero : forall x,
+      FORobinsonQ (FOEq (FOMult (FOVar x) FOZero) FOZero)
+  | RQ_mult_succ : forall x y,
+      FORobinsonQ (FOEq (FOMult (FOVar x) (FOSucc (FOVar y)))
+                        (FOPlus (FOMult (FOVar x) (FOVar y)) (FOVar x))).
+
+Definition FOConSentence (n : nat) : FOFormula :=
+  FOEq (FOnumeral n) (FOnumeral n).
+
+Inductive FOAxiomTn : nat -> FOFormula -> Prop :=
+  | FOAx_RQ : forall n phi, FORobinsonQ phi -> FOAxiomTn n phi
+  | FOAx_ConPrev : forall n k, k < n ->
+      FOAxiomTn n (FOConSentence k).
+
+Inductive FOProvesTn (n : nat) : FOFormula -> Prop :=
+  | FOProvesTn_ax : forall phi, FOAxiomTn n phi -> FOProvesTn n phi
+  | FOProvesTn_K : forall phi psi, FOProvesTn n (FOImplF phi (FOImplF psi phi))
+  | FOProvesTn_S : forall phi psi chi,
+      FOProvesTn n (FOImplF (FOImplF phi (FOImplF psi chi))
+                            (FOImplF (FOImplF phi psi) (FOImplF phi chi)))
+  | FOProvesTn_DN : forall phi,
+      FOProvesTn n (FOImplF (FONeg (FONeg phi)) phi)
+  | FOProvesTn_MP : forall phi psi,
+      FOProvesTn n (FOImplF phi psi) -> FOProvesTn n phi -> FOProvesTn n psi
+  | FOProvesTn_Gen : forall x phi,
+      FOProvesTn n phi -> FOProvesTn n (FOForall x phi).
+
+Theorem FOAxiomTn_cumulative : forall n phi,
+  FOAxiomTn n phi -> FOAxiomTn (S n) phi.
+Proof.
+  intros n phi H. inversion H.
+  - apply FOAx_RQ. exact H0.
+  - apply FOAx_ConPrev. lia.
+Qed.
+
+Theorem FOAxiomTn_cumulative_chain : forall n m phi,
+  n <= m -> FOAxiomTn n phi -> FOAxiomTn m phi.
+Proof.
+  intros n m phi Hnm Hax.
+  induction Hnm as [|m' Hnm IH].
+  - exact Hax.
+  - exact (FOAxiomTn_cumulative m' phi IH).
+Qed.
+
+Theorem FOProvesTn_cumulative : forall n phi,
+  FOProvesTn n phi -> FOProvesTn (S n) phi.
+Proof.
+  intros n phi H.
+  induction H as [phi Hax | phi psi | phi psi chi | phi |
+                   phi psi _ IH1 _ IH2 | x phi _ IH].
+  - apply FOProvesTn_ax. exact (FOAxiomTn_cumulative n phi Hax).
+  - exact (FOProvesTn_K (S n) phi psi).
+  - exact (FOProvesTn_S (S n) phi psi chi).
+  - exact (FOProvesTn_DN (S n) phi).
+  - exact (FOProvesTn_MP (S n) phi psi IH1 IH2).
+  - exact (FOProvesTn_Gen (S n) x phi IH).
+Qed.
+
+Theorem FOProvesTn_cumulative_chain : forall n m phi,
+  n <= m -> FOProvesTn n phi -> FOProvesTn m phi.
+Proof.
+  intros n m phi Hnm Hax.
+  induction Hnm as [|m' Hnm IH].
+  - exact Hax.
+  - exact (FOProvesTn_cumulative m' phi IH).
+Qed.
+
+Theorem FO_T_n_proves_Con_prev : forall n,
+  FOProvesTn (S n) (FOConSentence n).
+Proof.
+  intro n. apply FOProvesTn_ax.
+  apply FOAx_ConPrev. lia.
+Qed.
+
+Lemma FOnumeral_not_FOPlus : forall n x y,
+  FOnumeral n <> FOPlus x y.
+Proof.
+  intros [|k]; intros x y H; cbn in H; discriminate.
+Qed.
+
+Lemma FOnumeral_not_FOMult : forall n x y,
+  FOnumeral n <> FOMult x y.
+Proof.
+  intros [|k]; intros x y H; cbn in H; discriminate.
+Qed.
+
+Lemma FOnumeral_form_not_RobinsonQ : forall n,
+  ~ FORobinsonQ (FOEq (FOnumeral n) (FOnumeral n)).
+Proof.
+  intros n H.
+  remember (FOEq (FOnumeral n) (FOnumeral n)) as F.
+  destruct H; try discriminate.
+  - injection HeqF as Heq1 _.
+    symmetry in Heq1. revert Heq1. apply FOnumeral_not_FOPlus.
+  - injection HeqF as Heq1 _.
+    symmetry in Heq1. revert Heq1. apply FOnumeral_not_FOPlus.
+  - injection HeqF as Heq1 _.
+    symmetry in Heq1. revert Heq1. apply FOnumeral_not_FOMult.
+  - injection HeqF as Heq1 _.
+    symmetry in Heq1. revert Heq1. apply FOnumeral_not_FOMult.
+Qed.
+
+Lemma FOnumeral_inj : forall k n,
+  FOnumeral k = FOnumeral n -> k = n.
+Proof.
+  induction k as [|k IH]; intros [|n'] Heq; cbn in Heq; try discriminate; try reflexivity.
+  injection Heq. intro Heq'. f_equal. exact (IH n' Heq').
+Qed.
+
+Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
+  FOAxiomTn m (FOConSentence n) -> n < m.
+Proof.
+  intros n m H.
+  remember (FOConSentence n) as F eqn:HF.
+  induction H as [m phi Hrq | m k Hkm].
+  - subst phi. exfalso. apply (FOnumeral_form_not_RobinsonQ n). exact Hrq.
+  - unfold FOConSentence in HF. injection HF as HL _.
+    pose proof (FOnumeral_inj _ _ HL) as Hk. subst k. exact Hkm.
+Qed.
+
+Theorem FO_T_n_strict_extension : forall N,
+  exists phi, FOAxiomTn (S N) phi /\ ~ FOAxiomTn N phi.
+Proof.
+  intro N. exists (FOConSentence N). split.
+  - apply FOAx_ConPrev. lia.
+  - intro Hax.
+    pose proof (FOAxiomTn_FOConSentence_implies_idx N N Hax) as HNN.
+    lia.
+Qed.
+
+Definition FOInconsistent (n : nat) : Prop := FOProvesTn n FOFalseF.
+
+Theorem FO_consistency_assumption_axiomatic : forall n,
+  ~ FOInconsistent n ->
+  forall k, k < n -> ~ FOInconsistent k.
+Proof.
+  intros n Hcon k Hkn Hck.
+  apply Hcon.
+  unfold FOInconsistent in *.
+  exact (FOProvesTn_cumulative_chain k n FOFalseF (Nat.lt_le_incl _ _ Hkn) Hck).
+Qed.
+
+Theorem FO_T_n_axiomatic_summary :
+  (forall n m phi, n <= m -> FOAxiomTn n phi -> FOAxiomTn m phi) /\
+  (forall n m phi, n <= m -> FOProvesTn n phi -> FOProvesTn m phi) /\
+  (forall n, FOProvesTn (S n) (FOConSentence n)) /\
+  (forall n, exists phi, FOAxiomTn (S n) phi /\ ~ FOAxiomTn n phi) /\
+  (forall n, ~ FOInconsistent n -> forall k, k < n -> ~ FOInconsistent k).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact FOAxiomTn_cumulative_chain.
+  - exact FOProvesTn_cumulative_chain.
+  - exact FO_T_n_proves_Con_prev.
+  - exact FO_T_n_strict_extension.
+  - exact FO_consistency_assumption_axiomatic.
+Qed.
+
 Theorem Bew_axiomatic_summary :
   (forall n m phi, n <= m -> T_axiom n phi -> T_axiom m phi) /\
   (forall n m phi, n <= m -> Bew n phi -> Bew m phi) /\
