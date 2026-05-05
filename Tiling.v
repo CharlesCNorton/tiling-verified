@@ -14330,6 +14330,70 @@ Proof.
   - exact nb4_axiom4.
 Qed.
 
+Theorem strict_weakening_Mon_infinite : forall n,
+  (|- Impl (Box n (Var 0)) (Box (S n) (Var 0))) /\
+  ~ (|-no_mon Impl (Box n (Var 0)) (Box (S n) (Var 0))).
+Proof. exact separation_Mon_at. Qed.
+
+Theorem strict_weakening_NC_infinite : forall n, 1 <= n ->
+  (|- Box n (Neg (Box 0 Bot))) /\
+  ~ (|-no_nc Box n (Neg (Box 0 Bot))).
+Proof. exact separation_NC_at. Qed.
+
+Theorem strict_weakening_DN_infinite : forall p,
+  (|- Impl (Neg (Neg (Var p))) (Var p)) /\
+  ieval (fun _ => iMid) (Impl (Neg (Neg (Var p))) (Var p)) <> iTop.
+Proof.
+  intro p. split.
+  - apply Ax_DN.
+  - cbn. discriminate.
+Qed.
+
+Theorem strict_weakening_distinct_Mon_instances : forall n m,
+  n <> m ->
+  Impl (Box n (Var 0)) (Box (S n) (Var 0)) <>
+  Impl (Box m (Var 0)) (Box (S m) (Var 0)).
+Proof.
+  intros n m Hne H. inversion H. apply Hne. exact H1.
+Qed.
+
+Theorem strict_weakening_distinct_DN_instances : forall p q,
+  p <> q ->
+  Impl (Neg (Neg (Var p))) (Var p) <>
+  Impl (Neg (Neg (Var q))) (Var q).
+Proof.
+  intros p q Hne H. inversion H. apply Hne. exact H1.
+Qed.
+
+Theorem strict_weakening_NC_distinct : forall n m,
+  n <> m ->
+  Box n (Neg (Box 0 Bot)) <> Box m (Neg (Box 0 Bot)).
+Proof.
+  intros n m Hne H. inversion H. apply Hne. exact H1.
+Qed.
+
+Theorem strict_weakening_infinite_complete :
+  (forall n, (|- Impl (Box n (Var 0)) (Box (S n) (Var 0))) /\
+             ~ (|-no_mon Impl (Box n (Var 0)) (Box (S n) (Var 0)))) /\
+  (forall n, 1 <= n -> (|- Box n (Neg (Box 0 Bot))) /\
+                        ~ (|-no_nc Box n (Neg (Box 0 Bot)))) /\
+  (forall p, (|- Impl (Neg (Neg (Var p))) (Var p)) /\
+             ieval (fun _ => iMid) (Impl (Neg (Neg (Var p))) (Var p)) <> iTop) /\
+  (forall n m, n <> m ->
+    Impl (Box n (Var 0)) (Box (S n) (Var 0)) <>
+    Impl (Box m (Var 0)) (Box (S m) (Var 0))) /\
+  (forall p q, p <> q ->
+    Impl (Neg (Neg (Var p))) (Var p) <>
+    Impl (Neg (Neg (Var q))) (Var q)).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact separation_Mon_at.
+  - exact separation_NC_at.
+  - exact strict_weakening_DN_infinite.
+  - exact strict_weakening_distinct_Mon_instances.
+  - exact strict_weakening_distinct_DN_instances.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
