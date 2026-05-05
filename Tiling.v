@@ -14223,6 +14223,50 @@ Proof.
   - cbn. discriminate.
 Qed.
 
+Theorem axiom_independence_full_matrix :
+  (exists val phi, ieval val (Impl (Neg (Neg phi)) phi) <> iTop) /\
+  (exists (phi : Form) (NF : NeighFrame)
+          (V : fW_neigh NF -> nat -> bool) (w : fW_neigh NF),
+     |- phi /\ ~ forces_neigh NF V w phi) /\
+  ~ (|-no_loeb Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot)) /\
+  ~ (|-no_mon Impl (Box 0 (Var 0)) (Box 1 (Var 0))) /\
+  ~ (|-no_nc Box 1 (Neg (Box 0 Bot))) /\
+  (forall n A, |-no_b4 Impl (Box n A) (Box n (Box n A))).
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - exact ieval_DN_fails.
+  - exact BoxK_independence_via_neighborhood.
+  - exact loeb_axiom_needs_Loeb.
+  - exact mon_axiom_needs_Mon.
+  - exact consistency_chain_needs_NC.
+  - exact nb4_axiom4.
+Qed.
+
+Theorem axiom_pairwise_independence_summary :
+  let DN_ax := fun phi => Impl (Neg (Neg phi)) phi in
+  let BoxK_inst := Impl (Box 0 (Impl (Var 0) Bot))
+                        (Impl (Box 0 (Var 0)) (Box 0 Bot)) in
+  let Loeb_inst := Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot) in
+  let Mon_inst := Impl (Box 0 (Var 0)) (Box 1 (Var 0)) in
+  let NC_inst := Box 1 (Neg (Box 0 Bot)) in
+  (exists val phi, ieval val (DN_ax phi) <> iTop) /\
+  (exists (NF : NeighFrame) (V : fW_neigh NF -> nat -> bool) (w : fW_neigh NF),
+     ~ forces_neigh NF V w BoxK_inst) /\
+  ~ |-no_loeb Loeb_inst /\
+  ~ |-no_mon Mon_inst /\
+  ~ |-no_nc NC_inst /\
+  (forall n A, |-no_b4 Impl (Box n A) (Box n (Box n A))).
+Proof.
+  cbn.
+  split; [|split; [|split; [|split; [|split]]]].
+  - exact ieval_DN_fails.
+  - exact Ax_BoxK_refuted_in_neighborhood_explicit.
+  - exact loeb_axiom_needs_Loeb.
+  - exact mon_axiom_needs_Mon.
+  - exact consistency_chain_needs_NC.
+  - exact nb4_axiom4.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
