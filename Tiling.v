@@ -24573,3 +24573,37 @@ Proof.
     rewrite Hcond in Hsym.
     destruct (ord_compare a te); cbn in Hsym; congruence.
 Qed.
+
+(* ord_compare on omega_pow distributes through the argument. *)
+Lemma ord_compare_omega_pow : forall a b,
+  ord_compare (omega_pow a) (omega_pow b) = ord_compare a b.
+Proof.
+  intros a b. unfold omega_pow. cbn.
+  destruct (ord_compare a b) eqn:E; reflexivity.
+Qed.
+
+Lemma omega_pow_monotone_le : forall a b,
+  ord_le a b -> ord_le (omega_pow a) (omega_pow b).
+Proof.
+  intros a b Hab. unfold ord_le in *.
+  rewrite ord_compare_omega_pow. exact Hab.
+Qed.
+
+Lemma omega_pow_monotone_lt : forall a b,
+  ord_lt a b -> ord_lt (omega_pow a) (omega_pow b).
+Proof.
+  intros a b Hab. unfold ord_lt in *.
+  rewrite ord_compare_omega_pow. exact Hab.
+Qed.
+
+(* Tail-lt-leading for wf_ord: when wf_ord (OCons e t), ord_lt t (OCons e t). *)
+Lemma wf_ord_OCons_tail_lt : forall e t,
+  wf_ord (OCons e t) -> ord_lt t (OCons e t).
+Proof.
+  intros e t Hwf. unfold ord_lt.
+  destruct t as [|te tt]; cbn.
+  - reflexivity.
+  - cbn in Hwf. destruct Hwf as [_ [_ Hcond]].
+    rewrite Hcond. reflexivity.
+Qed.
+
