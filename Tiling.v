@@ -1845,7 +1845,7 @@ Proof.
   - exact consistency_chain_needs_NC.
 Qed.
 
-Theorem Vingean_strict_no_NC_summary_strengthened : forall n,
+Theorem Vingean_strict_no_NC_calculus_and_frame_simultaneous : forall n,
   (~ |-no_nc Box (S n) (Box (S n) (Neg (Box n Bot)))) /\
   (~ forces_nc F_strict_no_NC V_const_three T2
                (Box (S n) (Box (S n) (Neg (Box n Bot))))) /\
@@ -10945,7 +10945,7 @@ Proof.
   - exact Bew_PA_internal_4.
 Qed.
 
-Theorem Bew_PA_HBL_summary_strengthened :
+Theorem Bew_PA_HBL_with_external_Loeb_consequence :
   (forall phi, |- phi -> Bew_PA (encode_form phi)) /\
   (forall phi psi,
      Bew_PA (encode_form (Impl phi psi)) ->
@@ -11096,7 +11096,7 @@ Proof.
   - exact Bew_n_monotonicity.
 Qed.
 
-Theorem Bew_n_HBL_summary_strengthened :
+Theorem Bew_n_HBL_with_chain_monotonicity :
   (forall n phi, |- phi -> Bew_n n (encode_form phi)) /\
   (forall n phi psi,
      Bew_n n (encode_form (Impl phi psi)) ->
@@ -11263,7 +11263,7 @@ Proof.
   - exact (Godel_sentence_negation_unprovable n).
 Qed.
 
-Theorem Godel_sentence_summary_strengthened : forall n,
+Theorem Godel_sentence_with_strict_level_pair : forall n,
   |- Iff (Godel_sentence_at n) (Neg (Box n (Godel_sentence_at n))) /\
   (~ |- Box n (Godel_sentence_at n)) /\
   (|- Box (S n) (Godel_sentence_at n)) /\
@@ -11317,7 +11317,7 @@ Proof.
   - exact (Con_Tn_unprovable_outer n).
 Qed.
 
-Theorem T_n_extension_proves_internal_Con_strengthened : forall n,
+Theorem T_n_extension_internal_Con_with_Bew_unprovability : forall n,
   Bew (S (S n)) (Con_Tn_internal n) /\
   ~ |- Con_Tn n /\
   ~ Bew n (Con_Tn n).
@@ -11357,7 +11357,7 @@ Proof.
   - exact (T_axiom_strict_extension n).
 Qed.
 
-Theorem T_axiom_cumulativity_strict_strengthened : forall n,
+Theorem T_axiom_cumulativity_with_chain : forall n,
   (forall phi, T_axiom n phi -> T_axiom (S n) phi) /\
   (exists phi, T_axiom (S (S n)) phi /\ ~ T_axiom n phi) /\
   (forall m k phi, m <= k -> T_axiom m phi -> T_axiom k phi).
@@ -11578,7 +11578,7 @@ Proof.
   - exact T_axiom_strict_extension.
 Qed.
 
-Theorem Bew_axiomatic_summary_strengthened :
+Theorem Bew_axiomatic_with_unconditional_consistency :
   (forall n m phi, n <= m -> T_axiom n phi -> T_axiom m phi) /\
   (forall n m phi, n <= m -> Bew n phi -> Bew m phi) /\
   (forall n, Bew (S (S n)) (Con_Tn_internal n)) /\
@@ -11813,7 +11813,7 @@ Proof.
   - exact tower_bypass_witness_via_Top.
 Qed.
 
-Theorem tower_bypass_summary_strengthened :
+Theorem tower_bypass_with_strict_level_witness :
   (forall n, exists phi,
      ~ |- Box n (Neg (Box n (Impl phi Bot))) /\
      |- Box (S n) (Neg (Box n (Impl phi Bot)))) /\
@@ -11928,7 +11928,7 @@ Proof.
   - exact Provable_to_Bew_0_box_free.
 Qed.
 
-Theorem Pi1_conservativity_summary_strengthened :
+Theorem Pi1_conservativity_with_level_uniformity_iff :
   (forall n phi, box_free phi -> Bew (S n) phi -> Bew n phi) /\
   (forall n m phi, box_free phi -> Bew m phi -> Bew n phi) /\
   (forall phi, box_free phi -> |- phi -> Bew 0 phi) /\
@@ -12029,7 +12029,7 @@ Proof.
   exfalso. exact (not_Bew_Neg_Box_arbitrary (S n) k phi Hb).
 Qed.
 
-Theorem Pi2_depth1_conservativity_summary :
+Theorem Pi2_depth1_conservativity_with_Provable_and_Bew_unsatisfiability :
   (forall n k phi, k < n -> box_free phi ->
      Bew (S n) (Neg (Box k phi)) -> Bew n (Neg (Box k phi))) /\
   (forall k phi, ~ |- Neg (Box k phi)) /\
@@ -12052,7 +12052,7 @@ Proof.
   - exact Pi2_conservativity_box_free_iff.
 Qed.
 
-Theorem Pi2_conservativity_summary_strengthened :
+Theorem Pi2_conservativity_with_classical_validity_iff :
   (forall n phi, box_free phi -> Bew (S n) phi -> Bew n phi) /\
   (forall n phi, modal_depth phi = 0 -> Bew (S n) phi -> Bew n phi) /\
   (forall phi, box_free phi <-> modal_depth phi = 0) /\
@@ -12174,7 +12174,7 @@ Proof.
   - exact Friedman_translation_box_free.
 Qed.
 
-Theorem Friedman_negative_translation_summary_strengthened :
+Theorem Friedman_negative_translation_with_joint_premise_closure :
   (forall phi, |- phi <-> |- neg_translate phi) /\
   (forall phi, |- Iff phi (neg_translate phi)) /\
   (forall phi, box_free phi -> |- Iff phi (neg_translate phi)) /\
@@ -12238,7 +12238,7 @@ Proof.
   - exact T_n_consistent_under_meta.
 Qed.
 
-Theorem relative_consistency_summary_strengthened :
+Theorem relative_consistency_with_unconditional_Bew_consistency :
   (forall n, ~ |- Bot -> Con_Bew n) /\
   (~ |- Bot -> Con_Bew 0) /\
   (~ Bew 0 Bot) /\
@@ -12318,7 +12318,7 @@ Proof.
   exact (Hcon0 Htrans).
 Qed.
 
-Theorem Con_T0_implies_Con_Tn_summary :
+Theorem Con_T0_implies_Con_Tn_with_translation_equations :
   (forall n phi, Bew n phi -> Bew 0 (untower_translate phi)) /\
   (~ Bew 0 Bot -> forall n, ~ Bew n Bot) /\
   (untower_translate Bot = Bot) /\
@@ -12368,7 +12368,7 @@ Proof.
   - exact strict_extension_at_each_level.
 Qed.
 
-Theorem Bew_proof_level_strict_separation_summary_strengthened :
+Theorem Bew_proof_level_strict_separation_with_chain_witness :
   (forall n, exists phi, T_axiom (S (S n)) phi /\ ~ T_axiom n phi) /\
   (forall n, exists phi,
      T_axiom (S (S n)) phi /\
@@ -12440,7 +12440,7 @@ Proof.
   - exact (Bew_consistent n).
 Qed.
 
-Theorem Bew_satisfies_GLP_axioms_summary_strengthened : forall n,
+Theorem Bew_satisfies_GLP_axioms_with_uniform_consistency : forall n,
   ((forall k phi psi, k < n ->
      Bew n (Impl (Box k (Impl phi psi)) (Impl (Box k phi) (Box k psi)))) /\
    (forall k phi, k < n ->
@@ -12520,7 +12520,7 @@ Proof.
   - cbn. exact (Nec n _ (IHProvable sigma)).
 Qed.
 
-Theorem Solovay_first_completeness_summary_strengthened :
+Theorem Solovay_first_completeness_with_substitution_uniformity_iff :
   (forall phi, box_free phi -> valid_under_all_interps phi -> |- phi) /\
   (forall phi, box_free phi -> classical_valid phi -> |- phi) /\
   (forall phi, box_free phi -> (|- phi <-> classical_valid phi)) /\
@@ -12595,7 +12595,7 @@ Proof.
   - exact (FOProvesTn_FOTopForm 0).
 Qed.
 
-Theorem arith_interp_full_soundness_summary :
+Theorem arith_interp_full_soundness_with_definitional_equations :
   (forall phi I, |- phi -> FOProvesTn 0 (arith_interp_full I phi)) /\
   (forall I, arith_interp_full I Bot = FOFalseF) /\
   (forall I p, arith_interp_full I (Var p) = I p) /\
@@ -12648,7 +12648,7 @@ Proof.
   exact Hev.
 Qed.
 
-Theorem Solovay_first_full_summary :
+Theorem Solovay_first_box_free_completeness_FO_and_classical_bundle :
   (forall phi I, |- phi -> FOProvesTn 0 (arith_interp_full I phi)) /\
   (forall phi, box_free phi ->
      (forall sigma : nat -> Form, |- subst_form sigma phi) -> |- phi) /\
@@ -12703,7 +12703,7 @@ Proof.
   - exact S_truth_arithmetic_soundness.
 Qed.
 
-Theorem Solovay_second_completeness_with_reflection_axiom_strengthened :
+Theorem Solovay_second_completeness_with_disjunctive_classical_iff :
   (forall phi, box_free phi -> (Provable_S phi <-> classical_valid phi)) /\
   (forall phi, classical_valid phi -> Provable_S (Impl (Box 0 phi) phi)) /\
   (forall phi, Provable_GL phi -> Provable_S phi) /\
@@ -12762,7 +12762,7 @@ Proof.
   exact Hev.
 Qed.
 
-Theorem Solovay_second_full_summary :
+Theorem Solovay_second_box_free_S_completeness_FO_and_classical_bundle :
   (forall phi, box_free phi -> Provable_S phi -> classical_valid phi) /\
   (forall phi I, box_free phi -> Provable_S phi ->
      FOProvesTn 0 (arith_interp_S I phi)) /\
@@ -12825,10 +12825,12 @@ Proof.
   exact (GLP_MP _ _ HSK2 HK1).
 Qed.
 
-Definition Solovay_tree (phi : Form) (level : nat) : FOFormula :=
+Definition arith_interp_full_constant_top_image_ignoring_level
+  (phi : Form) (level : nat) : FOFormula :=
   arith_interp_full (fun _ => FOTopForm) phi.
 
-Theorem Solovay_tree_validates_implies_GLP : forall phi,
+Theorem universal_arithmetic_interpretation_implies_GLP_via_shift_interp_MP :
+  forall phi,
   (forall I : Form -> Form, is_arithmetic_interpretation I ->
      Provable_full_GLP (I phi)) ->
   Provable_full_GLP phi.
@@ -12849,12 +12851,13 @@ Proof.
   exact (GLP_MP _ _ Hp Provable_full_GLP_Top_form).
 Qed.
 
-Theorem Japaridze_full_summary :
+Theorem Japaridze_full_via_shift_interp_MP_bundle :
   is_arithmetic_interpretation shift_interp /\
   Provable_full_GLP Top_form /\
   (forall phi, (forall I, is_arithmetic_interpretation I ->
        Provable_full_GLP (I phi)) -> Provable_full_GLP phi) /\
-  (forall phi level, Solovay_tree phi level
+  (forall phi level,
+     arith_interp_full_constant_top_image_ignoring_level phi level
      = arith_interp_full (fun _ => FOTopForm) phi) /\
   (forall phi, (forall I : Form -> Form, is_arithmetic_interpretation I ->
        Provable_full_GLP (I phi)) -> Provable_full_GLP phi).
@@ -12864,7 +12867,7 @@ Proof.
   - exact Provable_full_GLP_Top_form.
   - exact Japaridze_full.
   - intros phi level. reflexivity.
-  - exact Solovay_tree_validates_implies_GLP.
+  - exact universal_arithmetic_interpretation_implies_GLP_via_shift_interp_MP.
 Qed.
 
 Theorem Japaridze_arithmetic_completeness_classical_valid_box_free : forall phi,
@@ -12895,7 +12898,7 @@ Proof.
   - exact solovay_polymodal_box_free.
 Qed.
 
-Theorem Japaridze_arithmetic_completeness_summary_strengthened :
+Theorem Japaridze_arithmetic_completeness_with_box_licensure :
   (forall phi,
     (forall I, is_arithmetic_interpretation I -> Provable_full_GLP (I phi)) ->
     Provable_full_GLP phi) /\
@@ -13068,7 +13071,7 @@ Proof.
   - exact (Tarski_undefinability_for_box_n_truth_predicate n).
 Qed.
 
-Theorem Tarski_undefinability_box_indexed_summary_strengthened : forall n,
+Theorem Tarski_undefinability_box_indexed_with_higher_levels : forall n,
   (exists phi, ~ |- Iff (Box n phi) phi) /\
   (~ forall phi, |- Iff (Box n phi) phi) /\
   (forall n', n <= n' -> ~ forall phi, |- Iff (Box n' phi) phi).
@@ -13140,7 +13143,7 @@ Proof.
   - exact strong_undefinability_diagonal_lemma_for_t_schema.
 Qed.
 
-Theorem strong_undefinability_summary_strengthened :
+Theorem strong_undefinability_with_concrete_Bot_witness :
   (forall n, ~ (forall phi, |- Iff (Box n phi) phi)) /\
   (forall n, ~ |- liar_modal_at n) /\
   (forall (Tr : Form -> Form) n,
@@ -13230,7 +13233,7 @@ Proof.
   - exact Friedman_Sheard_axiomatisation.
 Qed.
 
-Theorem Friedman_Sheard_axiomatisation_summary_strengthened :
+Theorem Friedman_Sheard_axiomatisation_with_identity_FS_model :
   (exists T, FS_truth_axioms T /\ ~ |- T Bot) /\
   (forall T, FS_truth_axioms T ->
     (forall phi, box_free phi -> |- Iff (T phi) phi) /\
@@ -13335,7 +13338,7 @@ Proof.
   - exact Tr_partial_evaluates_box_free.
 Qed.
 
-Theorem Tr_partial_hierarchy_summary_strengthened :
+Theorem Tr_partial_hierarchy_with_box_free_depth_zero :
   (forall n phi, modal_depth phi <= n -> |- Iff (Tr_partial n phi) phi) /\
   (forall n phi, modal_depth phi > n -> |- Impl (Box (S n) phi) (Tr_partial n phi)) /\
   (forall n, ~ |- Tr_partial n Bot) /\
@@ -13431,7 +13434,7 @@ Proof.
   - exact Visser_J5_Mon.
 Qed.
 
-Theorem Visser_J5_full_summary_strengthened :
+Theorem Visser_J5_with_chain_Mon_implication :
   (forall n phi psi, |- Impl (Box n (Impl phi psi)) (Box (S n) (Impl phi psi))) /\
   (forall n phi, |- Impl (Box n phi) (Box (S n) phi)) /\
   (forall n phi psi, |- Impl (Visser_interp n phi psi) (Visser_interp (S n) phi psi)) /\
@@ -13575,7 +13578,7 @@ Proof.
   - exact Visser_J5_K_distribution.
 Qed.
 
-Theorem Visser_J5_full_derivation_summary_strengthened :
+Theorem Visser_J5_full_derivation_with_interp_definitional_unfold :
   (forall n phi psi, |- Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi))) /\
   (forall n phi psi, |-no_mon Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi))) /\
   (forall n phi psi, |- Impl (Visser_interp n phi psi) (Impl (Box n phi) (Box n psi))) /\
@@ -13641,7 +13644,7 @@ Proof.
   - exact (Critch_bounded_provability_extends_box k n phi).
 Qed.
 
-Theorem Critch_bounded_provability_summary_strengthened : forall k n phi,
+Theorem Critch_bounded_provability_with_closed_polynomial_form : forall k n phi,
   (Critch_bounded_provability k n phi =
    critch_threshold_box (Critch_polynomial_bound k) n phi) /\
   (forall k1 k2, k1 <= k2 ->
@@ -13735,7 +13738,7 @@ Proof.
   intros k n G phi. split; [|split; [|split]]; reflexivity.
 Qed.
 
-Theorem concrete_bounded_agent_summary_strengthened : forall k n G phi,
+Theorem concrete_bounded_agent_with_decision_function_equation : forall k n G phi,
   bpa_resource (concrete_bounded_agent k n G) = k /\
   bpa_level (concrete_bounded_agent k n G) = n /\
   bpa_goal (concrete_bounded_agent k n G) = G /\
@@ -13832,7 +13835,7 @@ Proof.
   - exact canonical_box_n_agent_box_licenses_equals_box.
 Qed.
 
-Theorem agent_record_summary_strengthened :
+Theorem agent_record_with_canonical_field_equations :
   (forall A sigma, agent_licenses A sigma =
     (if agent_verification A sigma then agent_decision A sigma else Bot)) /\
   (forall A sigma, Box_licenses_via_agent A sigma =
@@ -13914,7 +13917,7 @@ Proof.
   - exact (successor_inspector_blocks_when_proof_fails n G p sigma).
 Qed.
 
-Theorem successor_inspector_summary_strengthened : forall n G p sigma,
+Theorem successor_inspector_with_record_field_equations : forall n G p sigma,
   (agent_decision (successor_inspector_agent n G p) sigma = Box n sigma) /\
   (agent_licenses (successor_inspector_agent n G p) sigma =
     (if p sigma then Box n sigma else Bot)) /\
@@ -14023,7 +14026,7 @@ Proof.
   - exact (strict_separation_via_concrete_agents n).
 Qed.
 
-Theorem concrete_failure_case_summary_strengthened : forall n,
+Theorem concrete_failure_case_with_level_successor_equation : forall n,
   (exists sigma, ~ |- Box n sigma /\ |- Box (S n) sigma) /\
   (let sigma := Neg (Box n Bot) in
     ~ |- Box n sigma /\ |- Box (S n) sigma) /\
@@ -14108,7 +14111,7 @@ Proof.
   - exact (goal_preservation_tiling_concrete n s G).
 Qed.
 
-Theorem non_trivial_action_summary_strengthened : forall n s G p,
+Theorem non_trivial_action_with_universal_atom_distinctness : forall n s G p,
   (non_trivial_action (Var p) <> Var p) /\
   (|- Impl s (non_trivial_action s)) /\
   (|- Impl s G ->
@@ -14164,7 +14167,7 @@ Proof.
   - exact (Vingean_reflection_for_consistency_provable_at_level_n_plus_2 n).
 Qed.
 
-Theorem Vingean_reflection_summary_strengthened : forall n,
+Theorem Vingean_reflection_definitional_iff : forall n,
   (forall phi, |- Vingean_reflection_at n phi -> |- Box (S n) phi) /\
   (|- Vingean_reflection_at n (Neg (Box n Bot))) /\
   (|- Box (S (S n)) (Vingean_reflection_at n (Neg (Box n Bot)))) /\
@@ -14233,7 +14236,7 @@ Proof.
     + exact (meta_consistency_every_level n).
 Qed.
 
-Theorem no_panic_reflective_trust_summary_strengthened : forall n,
+Theorem no_panic_reflective_trust_with_strict_level_gap : forall n,
   (|- Box (S n) (no_panic_at n)) /\
   (~ |- Box n Bot) /\
   (~ |- Box n (no_panic_at n)) /\
@@ -14310,7 +14313,7 @@ Proof.
   - intro n. exact (T_kappa_agent_strict_separation n G).
 Qed.
 
-Theorem T_kappa_agent_correspondence_summary_strengthened : forall G,
+Theorem T_kappa_agent_correspondence_with_field_equations : forall G,
   (forall n phi, agent_licenses (T_kappa_agent G n) phi = phi) /\
   (forall n phi,
     |- Box n phi <-> |- Box (agent_level (T_kappa_agent G n))
@@ -14418,7 +14421,7 @@ Proof.
   - exact genuine_FairBot_PrudentBot_distinct.
 Qed.
 
-Theorem cooperate_action_summary_strengthened :
+Theorem cooperate_action_with_pairwise_action_distinctness :
   (Cooperate_action <> Top) /\
   (Cooperate_action <> Bot) /\
   (Cooperate_action <> Defect_action) /\
@@ -14465,7 +14468,7 @@ Proof.
   - exact (genuine_FairBot_PrudentBot_distinct n).
 Qed.
 
-Theorem FairBot_vs_PrudentBot_concrete_summary_strengthened : forall n,
+Theorem FairBot_vs_PrudentBot_concrete_with_joint_provability : forall n,
   (|- genuine_FairBot n Cooperate_action) /\
   (|- genuine_PrudentBot n Cooperate_action) /\
   (forall p, genuine_FairBot n (Var p) <> genuine_PrudentBot n (Var p)) /\
@@ -14524,7 +14527,7 @@ Proof.
   - unfold genuine_FairBot, Defect_action, Cooperate_action. discriminate.
 Qed.
 
-Theorem FairBot_vs_DefectBot_defection_summary_strengthened : forall n,
+Theorem FairBot_vs_DefectBot_defection_with_action_distinctness : forall n,
   genuine_FairBot n Defect_action <> Cooperate_action /\
   genuine_FairBot n Defect_action <> genuine_FairBot n Cooperate_action /\
   Defect_action <> Cooperate_action.
@@ -14588,7 +14591,7 @@ Proof.
   - exists Cooperate_action. exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
 Qed.
 
-Theorem PrudentBot_dominance_summary_strengthened : forall n,
+Theorem PrudentBot_dominance_with_substitution_stable_form : forall n,
   (|- genuine_PrudentBot n Cooperate_action) /\
   (|- Iff (Box n Cooperate_action)
          (Box n (Impl (Box n Cooperate_action) Cooperate_action))) /\
@@ -14675,7 +14678,7 @@ Proof.
   - exact (Pudlak_speedup_at_each_level n).
 Qed.
 
-Theorem Pudlak_speedup_summary_strengthened : forall n,
+Theorem Pudlak_speedup_with_strict_extension_witness : forall n,
   (forall phi, ~ |- Box n phi -> |- Box (S n) phi -> |- Pudlak_speedup_at (S n) phi) /\
   (exists phi, ~ |- Pudlak_speedup_at n phi /\ |- Pudlak_speedup_at (S n) phi) /\
   (exists phi, |- Box (S n) phi /\ ~ |- Box n phi).
@@ -14719,7 +14722,7 @@ Proof.
   - exact (Ax_NextCon n).
 Qed.
 
-Theorem quantitative_Loeb_obstacle_summary_strengthened : forall n,
+Theorem quantitative_Loeb_obstacle_with_arithmetic_unfolds : forall n,
   (Loeb_obstacle_strength n = n + 1) /\
   (~ |- Box n (Neg (Box n Bot))) /\
   (|- Box (S n) (Neg (Box n Bot))) /\
@@ -14923,7 +14926,7 @@ Proof.
   - exact GLP_proof_theoretic_ordinal_total_compare.
 Qed.
 
-Theorem proof_theoretic_ordinal_summary_strengthened :
+Theorem proof_theoretic_ordinal_with_pairwise_ord_existential :
   (forall w, exists o, worm_to_ord w = o) /\
   (forall w1 w2,
     ord_compare (worm_to_ord w1) (worm_to_ord w2) = Lt \/
@@ -15313,7 +15316,7 @@ Proof.
   - exact (probabilistic_logic_4 p level phi).
 Qed.
 
-Theorem probabilistic_logic_summary_strengthened : forall p level phi psi,
+Theorem probabilistic_logic_with_cross_probability_Loeb : forall p level phi psi,
   (Bel_p p level phi = Box level phi) /\
   (|- Impl (Bel_p p level (Impl (Bel_p p level phi) phi)) (Bel_p p level phi)) /\
   (|- Impl (Bel_p p level (Impl phi psi))
@@ -15404,7 +15407,7 @@ Proof.
   - reflexivity.
 Qed.
 
-Theorem probabilistic_decision_agent_summary_strengthened : forall p level phi,
+Theorem probabilistic_decision_agent_with_record_field_equations : forall p level phi,
   (agent_level (probabilistic_decision_agent p level) = level) /\
   (agent_decision (probabilistic_decision_agent p level) phi = Box level phi) /\
   (agent_licenses (probabilistic_decision_agent p level) phi = Box level phi) /\
@@ -15448,7 +15451,7 @@ Proof.
   exists N. repeat split; assumption.
 Qed.
 
-Theorem neighborhood_semantics_summary_strengthened :
+Theorem neighborhood_semantics_with_provability_iff_witness :
   exists N, normal_neighborhood N /\
     (N Top) /\
     (forall phi psi, N (Impl phi psi) -> N phi -> N psi) /\
@@ -15760,7 +15763,7 @@ Proof.
   - reflexivity.
 Qed.
 
-Theorem extension_summary_strengthened : forall n phi,
+Theorem extension_with_empty_coalition_equation : forall n phi,
   (transfinite_box OZero phi = Box 0 phi) /\
   (mu_alternation_depth (mu_var 0) = 0) /\
   (Kozen_completeness_witness n phi) /\
@@ -15931,7 +15934,7 @@ Proof.
   - intros phi pt. unfold Critch_polynomial_bound_pt. reflexivity.
 Qed.
 
-Theorem proof_term_length_polynomial_bound :
+Theorem Provable_term_length_bounded_by_identity_polynomial_in_self :
   exists p : nat -> nat,
     is_polynomial p /\
     forall phi (pt : Provable_term phi),
@@ -15969,7 +15972,7 @@ Proof.
   rewrite Critch_polynomial_bound_equals_extracted. reflexivity.
 Qed.
 
-Theorem Critch_polynomial_bound_proof_term_summary :
+Theorem Critch_polynomial_bound_proof_term_extraction_bundle :
   is_polynomial Critch_polynomial_bound /\
   (exists p : nat -> nat, is_polynomial p /\
      forall phi (pt : Provable_term phi),
@@ -16068,7 +16071,7 @@ Proof.
   - exact (graded_comonad_comultiplication n phi).
 Qed.
 
-Theorem Provable_term_curry_howard_summary :
+Theorem Provable_term_inhabited_iff_Provable_bundle :
   (forall phi, Provable_term phi -> |- phi) /\
   (forall phi, |- phi -> inhabited (Provable_term phi)) /\
   (forall phi, |- phi <-> inhabited (Provable_term phi)).
@@ -16104,18 +16107,22 @@ Proof. intros s t u Hst Htu. unfold RM_subsystem_le in *. apply (PeanoNat.Nat.le
 Lemma RM_RCA_0_minimal : forall s, RM_subsystem_le RCA_0 s.
 Proof. intro s. unfold RM_subsystem_le. cbn. apply PeanoNat.Nat.le_0_l. Qed.
 
-Definition RM_provable (s : RM_subsystem) (P : Prop) : Prop := P.
+Definition RM_subsystem_meta_label_identity_no_calculus_content
+  (s : RM_subsystem) (P : Prop) : Prop := P.
 
-Lemma RM_provable_monotone : forall s t P,
-  RM_subsystem_le s t -> RM_provable s P -> RM_provable t P.
+Lemma RM_subsystem_meta_label_identity_no_calculus_content_monotone :
+  forall s t P,
+  RM_subsystem_le s t ->
+  RM_subsystem_meta_label_identity_no_calculus_content s P ->
+  RM_subsystem_meta_label_identity_no_calculus_content t P.
 Proof. intros s t P _ HP. exact HP. Qed.
 
-Theorem meta_consistency_system_RM_strength :
-  RM_provable RCA_0 (~ |- Bot).
-Proof. unfold RM_provable. exact meta_consistency_system. Qed.
+Theorem meta_consistency_system_RCA_0_meta_label_only :
+  RM_subsystem_meta_label_identity_no_calculus_content RCA_0 (~ |- Bot).
+Proof. unfold RM_subsystem_meta_label_identity_no_calculus_content. exact meta_consistency_system. Qed.
 
-Theorem Bew_PA_HBL_summary_RM_strength :
-  RM_provable WKL_0
+Theorem Bew_PA_HBL_summary_WKL_0_meta_label_only :
+  RM_subsystem_meta_label_identity_no_calculus_content WKL_0
     ((forall phi, |- phi -> Bew_PA (encode_form phi)) /\
      (forall phi psi,
         Bew_PA (encode_form (Impl phi psi)) ->
@@ -16128,18 +16135,18 @@ Theorem Bew_PA_HBL_summary_RM_strength :
         |- Impl (Box n (Impl (Box n phi) phi)) (Box n phi)) /\
      (forall n phi,
         |- Impl (Box n phi) (Box n (Box n phi)))).
-Proof. unfold RM_provable. exact Bew_PA_HBL_summary. Qed.
+Proof. unfold RM_subsystem_meta_label_identity_no_calculus_content. exact Bew_PA_HBL_summary. Qed.
 
-Theorem polymodal_sambin_existence_RM_strength :
-  RM_provable ACA_0
+Theorem polymodal_sambin_existence_ACA_0_meta_label_only :
+  RM_subsystem_meta_label_identity_no_calculus_content ACA_0
     (forall sys : loeb_system,
        exists psis, length psis = length sys /\
          Forall2 (fun ne psi => match ne with (n, X) =>
            |- Iff psi (Box n (Impl psi X)) end) sys psis).
-Proof. unfold RM_provable. exact polymodal_sambin_existence. Qed.
+Proof. unfold RM_subsystem_meta_label_identity_no_calculus_content. exact polymodal_sambin_existence. Qed.
 
-Theorem proof_theoretic_ordinal_summary_RM_strength :
-  RM_provable ATR_0
+Theorem proof_theoretic_ordinal_summary_ATR_0_meta_label_only :
+  RM_subsystem_meta_label_identity_no_calculus_content ATR_0
     ((forall w, exists o, worm_to_ord w = o) /\
      (forall w1 w2,
         ord_compare (worm_to_ord w1) (worm_to_ord w2) = Lt \/
@@ -16149,36 +16156,46 @@ Theorem proof_theoretic_ordinal_summary_RM_strength :
         ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Lt \/
         ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Eq \/
         ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Gt)).
-Proof. unfold RM_provable. exact proof_theoretic_ordinal_summary. Qed.
+Proof. unfold RM_subsystem_meta_label_identity_no_calculus_content. exact proof_theoretic_ordinal_summary. Qed.
 
-Theorem RM_hierarchy_summary :
-  RM_provable RCA_0 (~ |- Bot) /\
-  RM_provable WKL_0 (forall phi, |- phi -> Bew_PA (encode_form phi)) /\
-  RM_provable ACA_0
+Theorem RM_meta_label_examples_with_no_subsystem_internal_content :
+  RM_subsystem_meta_label_identity_no_calculus_content RCA_0 (~ |- Bot) /\
+  RM_subsystem_meta_label_identity_no_calculus_content WKL_0
+    (forall phi, |- phi -> Bew_PA (encode_form phi)) /\
+  RM_subsystem_meta_label_identity_no_calculus_content ACA_0
     (forall sys : loeb_system,
        exists psis, length psis = length sys /\
          Forall2 (fun ne psi => match ne with (n, X) =>
            |- Iff psi (Box n (Impl psi X)) end) sys psis) /\
-  RM_provable ATR_0
+  RM_subsystem_meta_label_identity_no_calculus_content ATR_0
     (forall w, exists o, worm_to_ord w = o) /\
-  (forall s t P, RM_subsystem_le s t -> RM_provable s P -> RM_provable t P).
+  (forall s t P, RM_subsystem_le s t ->
+    RM_subsystem_meta_label_identity_no_calculus_content s P ->
+    RM_subsystem_meta_label_identity_no_calculus_content t P).
 Proof.
   split; [|split; [|split; [|split]]].
-  - exact meta_consistency_system_RM_strength.
-  - unfold RM_provable. exact HBL1_necessitation_arithmetic.
-  - exact polymodal_sambin_existence_RM_strength.
-  - unfold RM_provable. exact GLP_proof_theoretic_ordinal_eps0_lower_bound.
-  - exact RM_provable_monotone.
+  - exact meta_consistency_system_RCA_0_meta_label_only.
+  - unfold RM_subsystem_meta_label_identity_no_calculus_content.
+    exact HBL1_necessitation_arithmetic.
+  - exact polymodal_sambin_existence_ACA_0_meta_label_only.
+  - unfold RM_subsystem_meta_label_identity_no_calculus_content.
+    exact GLP_proof_theoretic_ordinal_eps0_lower_bound.
+  - exact RM_subsystem_meta_label_identity_no_calculus_content_monotone.
 Qed.
 
-Definition Reverse_math_strength (s : RM_subsystem) (P : Prop) : Prop :=
-  RM_provable s P.
+Definition Reverse_math_strength_as_meta_label_alias
+  (s : RM_subsystem) (P : Prop) : Prop :=
+  RM_subsystem_meta_label_identity_no_calculus_content s P.
 
-Definition primitive_recursive_arithmetic_strength : Prop :=
-  RM_provable RCA_0 (~ |- Bot).
+Definition primitive_recursive_arithmetic_meta_label_at_RCA_0 : Prop :=
+  RM_subsystem_meta_label_identity_no_calculus_content RCA_0 (~ |- Bot).
 
-Theorem PRA_strength_holds : primitive_recursive_arithmetic_strength.
-Proof. unfold primitive_recursive_arithmetic_strength. exact meta_consistency_system_RM_strength. Qed.
+Theorem primitive_recursive_arithmetic_meta_label_holds_via_meta_consistency :
+  primitive_recursive_arithmetic_meta_label_at_RCA_0.
+Proof.
+  unfold primitive_recursive_arithmetic_meta_label_at_RCA_0.
+  exact meta_consistency_system_RCA_0_meta_label_only.
+Qed.
 
 Fixpoint box_free_bool (phi : Form) : bool :=
   match phi with
@@ -16280,7 +16297,7 @@ Proof.
     apply HBL_Loeb_Bew_n. exact Hloeb.
 Qed.
 
-Theorem realisation_full_soundness_strengthened :
+Theorem realisation_full_soundness_with_identity_witness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
     (forall n phi psi,
@@ -16323,7 +16340,7 @@ Proof.
   - exact internal_godel_second_incompleteness_polymodal.
 Qed.
 
-Theorem internal_diagonal_summary_strengthened :
+Theorem internal_diagonal_with_Top_box_fixed_point :
   (forall n : nat, exists psi : Form, |- Iff psi (Neg (Box n psi))) /\
   (forall (n : nat) (X : Form),
      exists psi : Form, |- Iff psi (Box n (Impl psi X))) /\
@@ -20961,7 +20978,7 @@ Proof.
   - exact frame_morphism_pulls_back_truth.
 Qed.
 
-Theorem categorical_semantics_summary_strengthened :
+Theorem categorical_semantics_with_morphism_soundness :
   (forall F1 F2 V1 V2 (f : FrameMorphism F1 F2),
      (forall w p, V1 w p = V2 (fmm_map f w) p) ->
      Bisim F1 F2 V1 V2 (fun w v => fmm_map f w = v)) /\
@@ -21216,7 +21233,7 @@ Proof.
   - exact Godel_sentence_independent_at_Tn.
 Qed.
 
-Theorem T_n_ordinal_summary_strengthened :
+Theorem T_n_ordinal_with_NextCon_Godel_pair :
   (forall n, vord_lt (T_n_ordinal n) (T_n_ordinal (S n))) /\
   (forall n m, n < m -> vord_lt (T_n_ordinal n) (T_n_ordinal m)) /\
   T_n_ordinal 0 = veps0 /\
