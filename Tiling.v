@@ -15708,3 +15708,24 @@ Proof.
   - exact (box_free_modal_depth_zero phi Hbf).
   - exact (FMP_effective_bound_box_free phi Hbf Hnp).
 Qed.
+
+Theorem selection_theorem_identity_bisimulation : forall (F : Frame) V w,
+  exists Z : fW F -> fW F -> Prop, Bisim F F V V Z /\ Z w w.
+Proof.
+  intros F V w. exists (@eq (fW F)). split.
+  - apply bisim_id.
+  - reflexivity.
+Qed.
+
+Theorem selection_theorem_pointed_bisimilar : forall (F : Frame) V w phi,
+  forces F V w phi <-> exists (F' : Frame) V' (w' : fW F'),
+                       (exists Z, Bisim F F' V V' Z /\ Z w w') /\
+                       forces F' V' w' phi.
+Proof.
+  intros F V w phi. split.
+  - intro H. exists F, V, w. split.
+    + exists (@eq (fW F)). split. apply bisim_id. reflexivity.
+    + exact H.
+  - intros [F' [V' [w' [[Z [HB HZ]] Hf]]]].
+    apply (bisim_invariance F F' V V' Z HB phi w w' HZ). exact Hf.
+Qed.
