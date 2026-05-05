@@ -12013,6 +12013,41 @@ Proof.
   - exact T_n_consistent_under_meta.
 Qed.
 
+Theorem T_axiom_strict_extension_at_level : forall n,
+  exists phi, T_axiom (S (S n)) phi /\ ~ T_axiom (S n) phi.
+Proof.
+  intro n. exists (Box (S n) (Neg (Box n Bot))). split.
+  - apply TAx_NextCon. lia.
+  - intro Hax. inversion Hax; lia.
+Qed.
+
+Theorem T_axiom_proof_level_strict_separation : forall n,
+  exists phi,
+    T_axiom (S (S n)) phi /\
+    ~ T_axiom (S n) phi /\
+    Bew (S (S n)) phi.
+Proof.
+  intro n. exists (Box (S n) (Neg (Box n Bot))).
+  split; [|split].
+  - apply TAx_NextCon. lia.
+  - intro Hax. inversion Hax; lia.
+  - apply Bew_ax. apply TAx_NextCon. lia.
+Qed.
+
+Theorem Bew_proof_level_strict_separation_summary :
+  (forall n, exists phi, T_axiom (S (S n)) phi /\ ~ T_axiom n phi) /\
+  (forall n, exists phi,
+     T_axiom (S (S n)) phi /\
+     ~ T_axiom (S n) phi /\
+     Bew (S (S n)) phi) /\
+  (forall n, exists phi, |- Box (S n) phi /\ ~ |- Box n phi).
+Proof.
+  split; [|split].
+  - exact T_axiom_strict_extension.
+  - exact T_axiom_proof_level_strict_separation.
+  - exact strict_extension_at_each_level.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
