@@ -1845,6 +1845,24 @@ Proof.
   - exact consistency_chain_needs_NC.
 Qed.
 
+Theorem Vingean_strict_no_NC_summary_strengthened : forall n,
+  (~ |-no_nc Box (S n) (Box (S n) (Neg (Box n Bot)))) /\
+  (~ forces_nc F_strict_no_NC V_const_three T2
+               (Box (S n) (Box (S n) (Neg (Box n Bot))))) /\
+  (~ |-no_nc Box 1 (Neg (Box 0 Bot))) /\
+  (~ forces_nc F_strict_no_NC V_const_three T2
+               (Box (S n) (Box (S n) (Neg (Box n Bot)))) /\
+   ~ |-no_nc Box (S n) (Box (S n) (Neg (Box n Bot)))).
+Proof.
+  intro n. split; [|split; [|split]].
+  - exact (Vingean_reflection_strict_no_NC n).
+  - exact (F_strict_refutes_doubly_boxed n).
+  - exact consistency_chain_needs_NC.
+  - split.
+    + exact (F_strict_refutes_doubly_boxed n).
+    + exact (Vingean_reflection_strict_no_NC n).
+Qed.
+
 (** ** [Top] is a fixed point of [phi(p) := Box n p].
 
     A concrete fixed point: [|- Iff Top (Box n Top)].  Both [Top]
@@ -10927,6 +10945,31 @@ Proof.
   - exact Bew_PA_internal_4.
 Qed.
 
+Theorem Bew_PA_HBL_summary_strengthened :
+  (forall phi, |- phi -> Bew_PA (encode_form phi)) /\
+  (forall phi psi,
+     Bew_PA (encode_form (Impl phi psi)) ->
+     Bew_PA (encode_form phi) ->
+     Bew_PA (encode_form psi)) /\
+  (forall n phi,
+     Bew_PA (encode_form (Box n phi)) ->
+     Bew_PA (encode_form (Box n (Box n phi)))) /\
+  (forall n phi,
+     |- Impl (Box n (Impl (Box n phi) phi)) (Box n phi)) /\
+  (forall n phi,
+     |- Impl (Box n phi) (Box n (Box n phi))) /\
+  (forall n phi, |- Box n (Impl (Box n phi) phi) -> |- Box n phi).
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - exact HBL1_necessitation_arithmetic.
+  - exact HBL2_K_arithmetic.
+  - exact HBL3_internal_4_arithmetic.
+  - exact Bew_PA_internal_Loeb.
+  - exact Bew_PA_internal_4.
+  - intros n phi Hp.
+    exact (MP _ _ (Ax_Loeb n phi) Hp).
+Qed.
+
 Theorem Bew_PA_consistency : ~ Bew_PA (encode_form Bot).
 Proof.
   intro H. destruct H as [phi [Henc Hp]].
@@ -11776,6 +11819,26 @@ Proof.
   - exact Provable_to_Bew_0_box_free.
 Qed.
 
+Theorem Pi1_conservativity_summary_strengthened :
+  (forall n phi, box_free phi -> Bew (S n) phi -> Bew n phi) /\
+  (forall n m phi, box_free phi -> Bew m phi -> Bew n phi) /\
+  (forall phi, box_free phi -> |- phi -> Bew 0 phi) /\
+  (forall n m phi, box_free phi -> (Bew n phi <-> Bew m phi)) /\
+  (forall phi, box_free phi -> (|- phi <-> Bew 0 phi)).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact Pi1_conservativity_box_free.
+  - exact Pi1_conservativity_box_free_chain.
+  - exact Provable_to_Bew_0_box_free.
+  - intros n m phi Hbf. split.
+    + intro Hbn. exact (Pi1_conservativity_box_free_chain m n phi Hbf Hbn).
+    + intro Hbm. exact (Pi1_conservativity_box_free_chain n m phi Hbf Hbm).
+  - intros phi Hbf. split.
+    + intro Hp. exact (Provable_to_Bew_0_box_free phi Hbf Hp).
+    + intro Hb0. exact (Bew_to_Provable 0 phi Hb0).
+Qed.
+
+
 Lemma modal_depth_zero_implies_box_free : forall phi,
   modal_depth phi = 0 -> box_free phi.
 Proof.
@@ -11878,6 +11941,33 @@ Proof.
   - exact Pi1_conservativity_box_free.
   - exact Pi2_conservativity_via_propositional_inversion.
   - exact Pi2_conservativity_box_free_iff.
+Qed.
+
+Theorem Pi2_conservativity_summary_strengthened :
+  (forall n phi, box_free phi -> Bew (S n) phi -> Bew n phi) /\
+  (forall n phi, modal_depth phi = 0 -> Bew (S n) phi -> Bew n phi) /\
+  (forall phi, box_free phi <-> modal_depth phi = 0) /\
+  (forall n m phi, modal_depth phi = 0 -> (Bew n phi <-> Bew m phi)) /\
+  (forall phi, modal_depth phi = 0 ->
+     (|- phi <-> classical_valid phi)).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact Pi1_conservativity_box_free.
+  - exact Pi2_conservativity_via_propositional_inversion.
+  - exact Pi2_conservativity_box_free_iff.
+  - intros n m phi Hd. split.
+    + intro Hbn. apply (Pi1_conservativity_box_free_chain m n phi).
+      * exact (modal_depth_zero_implies_box_free phi Hd).
+      * exact Hbn.
+    + intro Hbm. apply (Pi1_conservativity_box_free_chain n m phi).
+      * exact (modal_depth_zero_implies_box_free phi Hd).
+      * exact Hbm.
+  - intros phi Hd.
+    pose proof (modal_depth_zero_implies_box_free phi Hd) as Hbf.
+    split.
+    + exact (provable_classically_valid phi).
+    + intro Hcv. apply trivial_in_provable.
+      exact (prop_completeness phi Hbf Hcv).
 Qed.
 
 Fixpoint neg_translate (phi : Form) : Form :=
@@ -12021,6 +12111,25 @@ Proof.
   - exact T_0_consistent_under_meta.
   - exact (proj1 Con_Bew_T_0_strictly_weaker_than_meta).
   - exact T_n_consistent_under_meta.
+Qed.
+
+Theorem relative_consistency_summary_strengthened :
+  (forall n, ~ |- Bot -> Con_Bew n) /\
+  (~ |- Bot -> Con_Bew 0) /\
+  (~ Bew 0 Bot) /\
+  (forall n, ~ |- Bot -> ~ Bew n Bot) /\
+  (forall n, ~ Bew n Bot) /\
+  (forall n m, ~ Bew n Bot <-> ~ Bew m Bot).
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - exact relative_consistency_via_meta.
+  - exact T_0_consistent_under_meta.
+  - exact (proj1 Con_Bew_T_0_strictly_weaker_than_meta).
+  - exact T_n_consistent_under_meta.
+  - exact Bew_consistent.
+  - intros n m. split; intros _ Hbot.
+    + exact (Bew_consistent _ Hbot).
+    + exact (Bew_consistent _ Hbot).
 Qed.
 
 Definition untower_top : Form := Impl Bot Bot.
@@ -12228,6 +12337,47 @@ Proof.
   - exact Solovay_first_completeness_iff.
 Qed.
 
+Lemma Provable_subst_form : forall chi,
+  |- chi -> forall sigma, |- subst_form sigma chi.
+Proof.
+  intros chi H. induction H; intro sigma.
+  - cbn. exact (Ax_K _ _).
+  - cbn. exact (Ax_S _ _ _).
+  - cbn. exact (Ax_DN _).
+  - cbn. exact (Ax_BoxK n _ _).
+  - cbn. exact (Ax_Loeb n _).
+  - cbn. exact (Ax_Box4 n _).
+  - cbn. exact (Ax_Mon n _).
+  - cbn. exact (Ax_NextCon n).
+  - cbn in IHProvable1. exact (MP _ _ (IHProvable1 sigma) (IHProvable2 sigma)).
+  - cbn. exact (Nec n _ (IHProvable sigma)).
+Qed.
+
+Theorem Solovay_first_completeness_summary_strengthened :
+  (forall phi, box_free phi -> valid_under_all_interps phi -> |- phi) /\
+  (forall phi, box_free phi -> classical_valid phi -> |- phi) /\
+  (forall phi, box_free phi -> (|- phi <-> classical_valid phi)) /\
+  (forall phi, box_free phi ->
+     (|- phi <-> valid_under_all_interps phi)) /\
+  (forall phi, box_free phi ->
+     (classical_valid phi <-> valid_under_all_interps phi)).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact Solovay_first_completeness_box_free_fragment.
+  - exact Solovay_first_completeness_via_classical_valid.
+  - exact Solovay_first_completeness_iff.
+  - intros phi1 Hbf. split.
+    + intros Hp sigma. unfold arith_interp.
+      exact (Provable_subst_form phi1 Hp sigma).
+    + exact (Solovay_first_completeness_box_free_fragment phi1 Hbf).
+  - intros phi2 Hbf. split.
+    + intros Hcv sigma. unfold arith_interp.
+      pose proof (Solovay_first_completeness_via_classical_valid phi2 Hbf Hcv) as Hp.
+      exact (Provable_subst_form phi2 Hp sigma).
+    + intros Hval. apply (provable_classically_valid phi2).
+      exact (Solovay_first_completeness_box_free_fragment phi2 Hbf Hval).
+Qed.
+
 Definition FO_atom_interp : Type := nat -> FOFormula.
 
 Definition FOTopForm : FOFormula := FOImplF FOFalseF FOFalseF.
@@ -12384,6 +12534,30 @@ Proof.
   - exact S_reflection.
   - exact S_GL_subsumes.
   - exact S_truth_arithmetic_soundness.
+Qed.
+
+Theorem Solovay_second_completeness_with_reflection_axiom_strengthened :
+  (forall phi, box_free phi -> (Provable_S phi <-> classical_valid phi)) /\
+  (forall phi, classical_valid phi -> Provable_S (Impl (Box 0 phi) phi)) /\
+  (forall phi, Provable_GL phi -> Provable_S phi) /\
+  (forall phi, Provable_S phi -> classical_valid phi) /\
+  (forall phi, classical_valid phi <->
+     Provable_S phi \/ Provable_S (Impl (Box 0 phi) phi)).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact solovay_second_completeness_box_free.
+  - exact S_reflection.
+  - exact S_GL_subsumes.
+  - exact S_truth_arithmetic_soundness.
+  - intros phi. split.
+    + exact (Solovay_S_classical_valid_yields_S phi).
+    + intros [Hp | Hp].
+      * exact (S_truth_arithmetic_soundness _ Hp).
+      * pose proof (S_truth_arithmetic_soundness _ Hp) as Hcv.
+        intro val. specialize (Hcv val). cbn in Hcv.
+        destruct (eval val phi); cbn in Hcv.
+        -- reflexivity.
+        -- exact Hcv.
 Qed.
 
 Definition arith_interp_S (I : FO_atom_interp) (phi : Form) : FOFormula :=
@@ -12552,6 +12726,31 @@ Proof.
   - exact Japaridze_arithmetic_completeness_general.
   - exact Japaridze_arithmetic_completeness_classical_valid_box_free.
   - exact solovay_polymodal_box_free.
+Qed.
+
+Theorem Japaridze_arithmetic_completeness_summary_strengthened :
+  (forall phi,
+    (forall I, is_arithmetic_interpretation I -> Provable_full_GLP (I phi)) ->
+    Provable_full_GLP phi) /\
+  (forall phi, box_free phi ->
+    (forall I, is_arithmetic_interpretation I -> classical_valid (I phi)) ->
+    Provable_full_GLP phi) /\
+  (forall phi, box_free phi ->
+    (Provable_full_GLP phi <-> classical_valid phi)) /\
+  (forall phi,
+    (forall I, is_arithmetic_interpretation I -> Provable_full_GLP (I phi)) ->
+    Provable_full_GLP phi /\
+    (forall k, Provable_full_GLP (Box k phi))).
+Proof.
+  split; [|split; [|split]].
+  - exact Japaridze_arithmetic_completeness_general.
+  - exact Japaridze_arithmetic_completeness_classical_valid_box_free.
+  - exact solovay_polymodal_box_free.
+  - intros phi H. split.
+    + exact (Japaridze_arithmetic_completeness_general phi H).
+    + intro k.
+      pose proof (H (licenses k) (licenses_is_arithmetic_interpretation k)) as Hp.
+      unfold licenses in Hp. exact Hp.
 Qed.
 
 Theorem Japaridze_completeness_via_identity_and_licenses : forall phi,
@@ -14176,6 +14375,30 @@ Proof.
   - exact GLP_proof_theoretic_ordinal_eps0_lower_bound.
   - exact worm_to_ord_total_in_GLP.
   - exact GLP_proof_theoretic_ordinal_total_compare.
+Qed.
+
+Theorem proof_theoretic_ordinal_summary_strengthened :
+  (forall w, exists o, worm_to_ord w = o) /\
+  (forall w1 w2,
+    ord_compare (worm_to_ord w1) (worm_to_ord w2) = Lt \/
+    ord_compare (worm_to_ord w1) (worm_to_ord w2) = Eq \/
+    ord_compare (worm_to_ord w1) (worm_to_ord w2) = Gt) /\
+  (forall w,
+    ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Lt \/
+    ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Eq \/
+    ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Gt) /\
+  (forall w, exists o, worm_to_ord w = o /\
+     (ord_compare o Veblen_eps0_ordinal = Lt \/
+      ord_compare o Veblen_eps0_ordinal = Eq \/
+      ord_compare o Veblen_eps0_ordinal = Gt)).
+Proof.
+  split; [|split; [|split]].
+  - exact GLP_proof_theoretic_ordinal_eps0_lower_bound.
+  - exact worm_to_ord_total_in_GLP.
+  - exact GLP_proof_theoretic_ordinal_total_compare.
+  - intro w. exists (worm_to_ord w). split.
+    + reflexivity.
+    + exact (GLP_proof_theoretic_ordinal_total_compare w).
 Qed.
 
 Definition Veblen_phi_function (level : nat) (alpha : ord) : ord :=
