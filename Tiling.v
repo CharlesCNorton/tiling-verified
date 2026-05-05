@@ -13311,6 +13311,62 @@ Proof.
     + exact (meta_consistency_every_level n).
 Qed.
 
+Definition T_kappa_agent (G : Form) : nat -> AgentRecord :=
+  fun n => mkAgent n G []
+    (fun phi => phi)
+    (fun phi => true).
+
+Theorem T_kappa_agent_at_n_licenses : forall n G phi,
+  agent_licenses (T_kappa_agent G n) phi = phi.
+Proof.
+  intros n G phi. unfold T_kappa_agent.
+  cbn. reflexivity.
+Qed.
+
+Theorem T_kappa_agent_at_n_box : forall n G phi,
+  Box_licenses_via_agent (T_kappa_agent G n) phi = Box n phi.
+Proof.
+  intros n G phi. unfold T_kappa_agent.
+  cbn. reflexivity.
+Qed.
+
+Theorem T_kappa_agent_correspondence_box_n : forall n G phi,
+  |- Box n phi <->
+  |- Box (agent_level (T_kappa_agent G n))
+        (agent_licenses (T_kappa_agent G n) phi).
+Proof.
+  intros n G phi. cbn. tauto.
+Qed.
+
+Theorem T_kappa_agent_strict_separation : forall n G,
+  exists phi,
+    ~ |- Box (agent_level (T_kappa_agent G n))
+          (agent_licenses (T_kappa_agent G n) phi) /\
+    |- Box (agent_level (T_kappa_agent G (S n)))
+          (agent_licenses (T_kappa_agent G (S n)) phi).
+Proof.
+  intros n G. exists (Neg (Box n Bot)). split.
+  - cbn. exact (Godel_sentence_independent_at_Tn n).
+  - cbn. exact (Ax_NextCon n).
+Qed.
+
+Theorem T_kappa_agent_correspondence_summary : forall G,
+  (forall n phi, agent_licenses (T_kappa_agent G n) phi = phi) /\
+  (forall n phi,
+    |- Box n phi <-> |- Box (agent_level (T_kappa_agent G n))
+                          (agent_licenses (T_kappa_agent G n) phi)) /\
+  (forall n, exists phi,
+    ~ |- Box (agent_level (T_kappa_agent G n))
+          (agent_licenses (T_kappa_agent G n) phi) /\
+    |- Box (agent_level (T_kappa_agent G (S n)))
+          (agent_licenses (T_kappa_agent G (S n)) phi)).
+Proof.
+  intro G. split; [|split].
+  - intros n phi. exact (T_kappa_agent_at_n_licenses n G phi).
+  - intros n phi. exact (T_kappa_agent_correspondence_box_n n G phi).
+  - intro n. exact (T_kappa_agent_strict_separation n G).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
