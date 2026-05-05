@@ -76,18 +76,7 @@ choice is named and forbidden alternatives are listed.
     redefining `Gamma_0_ordinal := Veblen_eps0_ordinal`, returning
     `OZero` for every derivation, or returning a constant.
 
-5. **Proof-theoretic ordinal of GLP, lower bound at every alpha < Gamma_0.**
-    Construct, primitive-recursively in the ordinal-code,
-    `witness_at : forall (alpha : vord), vord_lt alpha Gamma_0_ordinal ->
-    sigT (fun phi : Form => |- phi /\ vord_le alpha (proof_height phi (witness_proof alpha)))`.
-    The construction must be by explicit recursion on `alpha`,
-    using the worm hierarchy with explicit increments. Prove the
-    construction terminates and produces strictly larger heights.
-    Forbidden: returning `Bot` and citing `prov_explosion`,
-    returning a constant phi and claiming the height is unbounded,
-    using classical choice to extract from existence.
-
-6. **Real reverse-mathematics formalization with internal subsystem
+5. **Real reverse-mathematics formalization with internal subsystem
     calculi.** Define, for each `s : RM_subsystem`, an INDUCTIVE
     relation `RM_provable_real : RM_subsystem -> Form -> Prop` whose
     constructors include exactly the comprehension/induction axioms
@@ -102,7 +91,7 @@ choice is named and forbidden alternatives are listed.
     `RM_provable_real s P := |- P` (collapses across subsystems), or
     making the hierarchy non-strict.
 
-7. **Pi_2-conservativity of GLP over GL, theorem-level (not vacuous).**
+6. **Pi_2-conservativity of GLP over GL, theorem-level (not vacuous).**
     Define `is_Pi_2 : Form -> Prop` as the standard arithmetic class:
     `forall n, exists m, R(n, m)` shape with `R` Sigma_0_1.
     Prove `Pi_2_conservativity : forall phi,
@@ -117,7 +106,7 @@ choice is named and forbidden alternatives are listed.
     showing the hypothesis is universally false (Carlson-vacuity);
     restricting to `phi = Bot`; reducing to `box_free`.
 
-8. **Beklemishev worm reduction with strict ordinal-descent invariant.**
+7. **Beklemishev worm reduction with strict ordinal-descent invariant.**
     Define `beklemishev_reduce : Worm -> Worm` by the actual
     Beklemishev step (split at the head, recurse on the tail with
     explicit head-substitution, NOT one-pass insertion sort). Prove
@@ -129,7 +118,7 @@ choice is named and forbidden alternatives are listed.
     `beklemishev_reduce w := []` (immediate-empty), or returning the
     same worm (trivial fixed point).
 
-9. **Lindenbaum-Tarski algebra of GLP is the FREE polymodal Magari
+8. **Lindenbaum-Tarski algebra of GLP is the FREE polymodal Magari
     algebra.** Define `polymodal_Magari_algebra` as a record with a
     Boolean-algebra carrier, family of necessitation operators
     `box_op : nat -> carrier -> carrier`, validity of K, Loeb, Mon at
@@ -143,7 +132,7 @@ choice is named and forbidden alternatives are listed.
     `epi`, instantiating `A := LT_GLP` (collapses to identity),
     skipping the morphism-laws check.
 
-10. **Decidability of full GLP at every level.**
+9. **Decidability of full GLP at every level.**
     Construct `glp_decide : forall phi, sumbool (|- phi) (~ |- phi)`
     by structural recursion that proceeds case-by-case on the modal
     depth of `phi`. The procedure must terminate in primitive-
@@ -155,7 +144,7 @@ choice is named and forbidden alternatives are listed.
     excluded-middle), restricting to `box_free` and falling back to
     `decide_tautology`, deferring to a hypothetical normaliser.
 
-11. **Curry-Howard realizer extraction with computational content.**
+10. **Curry-Howard realizer extraction with computational content.**
     Define `lambda_box : Type` as a typed lambda calculus with
     explicit box-introduction (graded by level), box-elimination,
     pair, app, abs, and `loeb_fixpoint : forall n phi,
@@ -171,7 +160,7 @@ choice is named and forbidden alternatives are listed.
     (trivial functor), `nf := extract_realizer phi pt` (no
     reduction).
 
-12. **Polymodal Craig interpolation.**
+11. **Polymodal Craig interpolation.**
     Define `box_levels : Form -> list nat` and `var_set : Form -> list nat`
     by structural recursion. Prove
     `craig_interpolation_polymodal : forall phi psi,
@@ -185,7 +174,7 @@ choice is named and forbidden alternatives are listed.
     existence. Forbidden: `chi := phi` (no constraint on
     `var_set psi`-side), `chi := psi`, `chi := Top`, `chi := Bot`.
 
-13. **Sambin fixed-point uniqueness for arbitrary modalised contexts.**
+12. **Sambin fixed-point uniqueness for arbitrary modalised contexts.**
     Define `modalised_in_p : (Form -> Form) -> Prop` saying that
     every occurrence of the bound variable in `C p` is under at
     least one `Box _`. Prove
@@ -199,7 +188,7 @@ choice is named and forbidden alternatives are listed.
     restricting to `C` with `box_levels` a singleton,
     returning `prov_iff_refl psi1` and noting `psi1 = psi2`.
 
-14. **Carlson polymodal second incompleteness with explicit
+13. **Carlson polymodal second incompleteness with explicit
     super-polynomial speedup.** Define `proof_length_in_T_n : forall n phi,
     Bew n phi -> nat` by structural recursion on the Bew-derivation,
     counting axiom-leaves and rule-applications. Define
@@ -213,7 +202,7 @@ choice is named and forbidden alternatives are listed.
     sides), `proof_length_in_T_n _ _ _ := S O` (constant), or
     using existing `Pudlak_speedup_at` as the witness.
 
-15. **Stone-duality category-equivalence.** Define
+14. **Stone-duality category-equivalence.** Define
     `Record LT_category : Type` and `Record canonical_frame_category : Type`
     with explicit object-types, hom-types, identity, composition,
     associativity, and unit-laws. Define functors
@@ -228,7 +217,7 @@ choice is named and forbidden alternatives are listed.
     duality to provability), citing
     `Stone_duality_provability_iff_universal` as the discharge.
 
-16. **Yudkowsky-Herreshoff tiling theorem under arithmetic
+15. **Yudkowsky-Herreshoff tiling theorem under arithmetic
     interpretation, with explicit goal-preservation chain.** Define
     `tiling_chain : AgentRecord -> nat -> Form` as the n-fold
     self-modification of the agent's decision under its own
