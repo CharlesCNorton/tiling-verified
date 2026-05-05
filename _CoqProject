@@ -1,5 +1,6 @@
 -Q . Tiling
 
 Calculus.v
+Hilbert.v
 Tiling.v
 Examples.v
