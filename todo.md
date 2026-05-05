@@ -44,17 +44,7 @@
     polynomial p /\ forall phi (pt : proof_term phi),
     proof_term_length pt <= p (rank phi)`, and replace the constant
     with the extracted polynomial inside `Critch_bounded_provability`.
-7. Replace `Reverse_math_strength` and
-    `primitive_recursive_arithmetic_strength` with an explicit
-    RM-hierarchy. Define `Inductive RM_subsystem : Type := RCA_0 |
-    WKL_0 | ACA_0 | ATR_0 | Pi11_CA_0`, define `RM_provable :
-    RM_subsystem -> Form -> Prop`, and for each major theorem in
-    the development prove `<theorem>_RM_strength : RM_provable
-    <minimal_subsystem> <theorem>`. At minimum: `meta_consistency_system`
-    in RCA_0, `Bew_PA_HBL_summary` in WKL_0,
-    `polymodal_sambin_existence` in ACA_0,
-    `proof_theoretic_ordinal_summary` in ATR_0.
-8. Replace the `From Tiling Require Export Tiling.` content of
+7. Replace the `From Tiling Require Export Tiling.` content of
     `Calculus.v`, `Hilbert.v`, `Kripke.v`, `FixedPoints.v`, `Bew.v`,
     `ProofTerms.v`, `Worms.v`, and `Agents.v` with a physical
     partition of `Tiling.v`'s body. Move calculus inductives plus
@@ -66,7 +56,7 @@
     Update `_CoqProject` with the dependency order. `Tiling.v`
     becomes a meta-file containing only `From Tiling Require Export
     Calculus Hilbert Kripke FixedPoints Bew ProofTerms Worms Agents.`
-9. Replace each `*_summary` theorem that is a conjunction of
+8. Replace each `*_summary` theorem that is a conjunction of
     already-named theorems (`Pi1_conservativity_summary`,
     `Pi2_conservativity_summary`, `Bew_axiomatic_summary`,
     `realisation_full_soundness`, `Bew_satisfies_GLP_axioms_summary`,
