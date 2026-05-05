@@ -12048,6 +12048,57 @@ Proof.
   - exact strict_extension_at_each_level.
 Qed.
 
+Theorem Bew_validates_GLP_axioms : forall n,
+  (forall phi psi, Bew n (Impl phi (Impl psi phi))) /\
+  (forall phi psi chi,
+    Bew n (Impl (Impl phi (Impl psi chi))
+                (Impl (Impl phi psi) (Impl phi chi)))) /\
+  (forall phi, Bew n (Impl (Neg (Neg phi)) phi)) /\
+  (forall k phi psi, k < n ->
+    Bew n (Impl (Box k (Impl phi psi)) (Impl (Box k phi) (Box k psi)))) /\
+  (forall k phi, k < n ->
+    Bew n (Impl (Box k (Impl (Box k phi) phi)) (Box k phi))) /\
+  (forall k phi, k < n ->
+    Bew n (Impl (Box k phi) (Box k (Box k phi)))) /\
+  (forall k phi, S k < n ->
+    Bew n (Impl (Box k phi) (Box (S k) phi))) /\
+  (forall k, S k < n ->
+    Bew n (Box (S k) (Neg (Box k Bot)))) /\
+  (forall phi psi, Bew n (Impl phi psi) -> Bew n phi -> Bew n psi) /\
+  (forall k phi, k < n -> Bew n phi -> Bew n (Box k phi)).
+Proof.
+  intro n. split; [|split; [|split; [|split; [|split; [|split; [|split; [|split; [|split]]]]]]]].
+  - intros phi psi. apply Bew_ax. apply TAx_K.
+  - intros phi psi chi. apply Bew_ax. apply TAx_S.
+  - intros phi. apply Bew_ax. apply TAx_DN.
+  - intros k phi psi Hk. apply Bew_ax. apply TAx_BoxK; assumption.
+  - intros k phi Hk. apply Bew_ax. apply TAx_Loeb; assumption.
+  - intros k phi Hk. apply Bew_ax. apply TAx_Box4; assumption.
+  - intros k phi Hk. apply Bew_ax. apply TAx_Mon; assumption.
+  - intros k Hk. apply Bew_ax. apply TAx_NextCon; assumption.
+  - intros phi psi. apply Bew_MP.
+  - intros k phi Hk H. apply Bew_Nec; assumption.
+Qed.
+
+Theorem Bew_satisfies_GLP_axioms_summary : forall n,
+  ((forall k phi psi, k < n ->
+     Bew n (Impl (Box k (Impl phi psi)) (Impl (Box k phi) (Box k psi)))) /\
+   (forall k phi, k < n ->
+     Bew n (Impl (Box k (Impl (Box k phi) phi)) (Box k phi))) /\
+   (forall k phi, k < n ->
+     Bew n (Impl (Box k phi) (Box k (Box k phi)))) /\
+   (forall k phi, k < n ->
+     Bew n phi -> Bew n (Box k phi)) /\
+   (forall phi psi, Bew n (Impl phi psi) -> Bew n phi -> Bew n psi)) /\
+  (forall phi, Bew n phi -> |- phi) /\
+  (~ Bew n Bot).
+Proof.
+  intro n. split; [|split].
+  - exact (Bew_HBL_conditions n).
+  - exact (Bew_to_Provable n).
+  - exact (Bew_consistent n).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
