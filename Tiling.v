@@ -12409,6 +12409,82 @@ Proof.
   - exact T_n_consistent_under_meta.
 Qed.
 
+Definition untower_top : Form := Impl Bot Bot.
+
+Fixpoint untower_translate (phi : Form) : Form :=
+  match phi with
+  | Var p => Var p
+  | Bot => Bot
+  | Impl a b => Impl (untower_translate a) (untower_translate b)
+  | Box _ _ => untower_top
+  end.
+
+Lemma Bew_0_untower_top : Bew 0 untower_top.
+Proof.
+  apply ProvableProp_to_Bew_0. unfold untower_top.
+  pose proof (PAx_K Bot Bot) as HK1.
+  pose proof (PAx_K Bot (Impl Bot Bot)) as HK2.
+  pose proof (PAx_S Bot (Impl Bot Bot) Bot) as HS.
+  pose proof (PMP _ _ HS HK2) as HSK2.
+  exact (PMP _ _ HSK2 HK1).
+Qed.
+
+Lemma Bew_0_id_top : Bew 0 (Impl untower_top untower_top).
+Proof.
+  apply ProvableProp_to_Bew_0.
+  pose proof (PAx_K untower_top untower_top) as HK1.
+  pose proof (PAx_K untower_top (Impl untower_top untower_top)) as HK2.
+  pose proof (PAx_S untower_top (Impl untower_top untower_top) untower_top) as HS.
+  pose proof (PMP _ _ HS HK2) as HSK2.
+  exact (PMP _ _ HSK2 HK1).
+Qed.
+
+Lemma Bew_0_K_top_top :
+  Bew 0 (Impl untower_top (Impl untower_top untower_top)).
+Proof.
+  apply Bew_ax. apply TAx_K.
+Qed.
+
+Theorem untower_translation : forall n phi,
+  Bew n phi -> Bew 0 (untower_translate phi).
+Proof.
+  intros n phi H. induction H as [phi Hax | phi psi _ IH1 _ IH2 | k phi Hk _ IH].
+  - induction Hax.
+    + cbn. apply Bew_ax. apply TAx_K.
+    + cbn. apply Bew_ax. apply TAx_S.
+    + cbn. apply Bew_ax. apply TAx_DN.
+    + cbn. exact Bew_0_K_top_top.
+    + cbn. exact Bew_0_id_top.
+    + cbn. exact Bew_0_id_top.
+    + cbn. exact Bew_0_id_top.
+    + cbn. exact Bew_0_untower_top.
+  - cbn in IH1. exact (Bew_MP _ _ _ IH1 IH2).
+  - cbn. exact Bew_0_untower_top.
+Qed.
+
+Theorem Con_T0_implies_Con_Tn : ~ Bew 0 Bot -> forall n, ~ Bew n Bot.
+Proof.
+  intros Hcon0 n Hbn.
+  pose proof (untower_translation n Bot Hbn) as Htrans.
+  cbn in Htrans.
+  exact (Hcon0 Htrans).
+Qed.
+
+Theorem Con_T0_implies_Con_Tn_summary :
+  (forall n phi, Bew n phi -> Bew 0 (untower_translate phi)) /\
+  (~ Bew 0 Bot -> forall n, ~ Bew n Bot) /\
+  (untower_translate Bot = Bot) /\
+  (forall k phi, untower_translate (Box k phi) = untower_top) /\
+  (forall n, ~ Bew n Bot).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact untower_translation.
+  - exact Con_T0_implies_Con_Tn.
+  - reflexivity.
+  - intros k phi. reflexivity.
+  - exact Bew_consistent.
+Qed.
+
 Theorem T_axiom_strict_extension_at_level : forall n,
   exists phi, T_axiom (S (S n)) phi /\ ~ T_axiom (S n) phi.
 Proof.
