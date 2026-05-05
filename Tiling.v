@@ -12099,6 +12099,49 @@ Proof.
   - exact (Bew_consistent n).
 Qed.
 
+Definition arith_interp (sigma : nat -> Form) (phi : Form) : Form :=
+  subst_form sigma phi.
+
+Definition valid_under_all_interps (phi : Form) : Prop :=
+  forall sigma, |- arith_interp sigma phi.
+
+Theorem Solovay_first_completeness_box_free_fragment : forall phi,
+  box_free phi -> valid_under_all_interps phi -> |- phi.
+Proof.
+  intros phi Hbf Hval.
+  pose proof (Hval Var) as Hp.
+  unfold arith_interp in Hp.
+  rewrite (subst_form_id phi) in Hp.
+  exact Hp.
+Qed.
+
+Theorem Solovay_first_completeness_via_classical_valid : forall phi,
+  box_free phi -> classical_valid phi -> |- phi.
+Proof.
+  intros phi Hbf Hval.
+  apply trivial_in_provable.
+  apply prop_completeness; assumption.
+Qed.
+
+Theorem Solovay_first_completeness_iff : forall phi,
+  box_free phi -> (|- phi <-> classical_valid phi).
+Proof.
+  intros phi Hbf. split.
+  - exact (provable_classically_valid phi).
+  - exact (Solovay_first_completeness_via_classical_valid phi Hbf).
+Qed.
+
+Theorem Solovay_first_completeness_summary :
+  (forall phi, box_free phi -> valid_under_all_interps phi -> |- phi) /\
+  (forall phi, box_free phi -> classical_valid phi -> |- phi) /\
+  (forall phi, box_free phi -> (|- phi <-> classical_valid phi)).
+Proof.
+  split; [|split].
+  - exact Solovay_first_completeness_box_free_fragment.
+  - exact Solovay_first_completeness_via_classical_valid.
+  - exact Solovay_first_completeness_iff.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
