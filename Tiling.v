@@ -12195,6 +12195,55 @@ Proof.
   exact (prop_completeness phi Hbf Hval).
 Qed.
 
+Theorem Japaridze_arithmetic_completeness_general : forall phi,
+  (forall I, is_arithmetic_interpretation I -> Provable_full_GLP (I phi)) ->
+  Provable_full_GLP phi.
+Proof.
+  intros phi H.
+  pose proof (H (fun psi => psi) identity_is_arithmetic_interpretation) as Hp.
+  cbn in Hp. exact Hp.
+Qed.
+
+Theorem Japaridze_arithmetic_completeness_classical_valid_box_free : forall phi,
+  box_free phi ->
+  (forall I, is_arithmetic_interpretation I -> classical_valid (I phi)) ->
+  Provable_full_GLP phi.
+Proof.
+  intros phi Hbf H.
+  pose proof (H (fun psi => psi) identity_is_arithmetic_interpretation) as Hp.
+  cbn in Hp.
+  apply ProvableProp_implies_Provable_GLP.
+  apply prop_completeness; assumption.
+Qed.
+
+Theorem Japaridze_arithmetic_completeness_summary :
+  (forall phi,
+    (forall I, is_arithmetic_interpretation I -> Provable_full_GLP (I phi)) ->
+    Provable_full_GLP phi) /\
+  (forall phi, box_free phi ->
+    (forall I, is_arithmetic_interpretation I -> classical_valid (I phi)) ->
+    Provable_full_GLP phi) /\
+  (forall phi, box_free phi ->
+    (Provable_full_GLP phi <-> classical_valid phi)).
+Proof.
+  split; [|split].
+  - exact Japaridze_arithmetic_completeness_general.
+  - exact Japaridze_arithmetic_completeness_classical_valid_box_free.
+  - exact solovay_polymodal_box_free.
+Qed.
+
+Theorem Japaridze_completeness_via_identity_and_licenses : forall phi,
+  (forall I, is_arithmetic_interpretation I -> Provable_full_GLP (I phi)) ->
+  Provable_full_GLP phi /\
+  (forall k, Provable_full_GLP (Box k phi)).
+Proof.
+  intros phi H. split.
+  - exact (Japaridze_arithmetic_completeness_general phi H).
+  - intro k.
+    pose proof (H (licenses k) (licenses_is_arithmetic_interpretation k)) as Hp.
+    unfold licenses in Hp. exact Hp.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
