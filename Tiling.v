@@ -13507,6 +13507,41 @@ Proof.
     exact (meta_consistency_every_level 0 Hbot).
 Qed.
 
+Inductive box_free_full_decision (phi : Form) : Type :=
+  | BFD_full_provable : forall pt : proof_term,
+      decide_tautology phi = true ->
+      denote_proof_term pt = Some phi ->
+      |- phi ->
+      box_free_full_decision phi
+  | BFD_full_refuted : forall val,
+      decide_tautology phi = false ->
+      eval val phi = false ->
+      box_free_full_decision phi.
+
+Definition decide_box_free_full : forall phi, box_free phi -> box_free_full_decision phi.
+Proof.
+  intros phi Hbf.
+  destruct (decide_tautology phi) eqn:E.
+  - assert (Hp : |- phi).
+    { apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+      apply decide_tautology_correct. exact E. }
+    destruct (constructive_indefinite_description
+                (fun pt => denote_proof_term pt = Some phi)
+                (provable_to_proof_term phi Hp)) as [pt Hpt].
+    apply BFD_full_provable with (pt := pt); assumption.
+  - destruct (find_refuting_assignment phi Hbf E) as [val Hval].
+    apply BFD_full_refuted with (val := val); assumption.
+Defined.
+
+Theorem decide_box_free_full_provable_extract : forall phi pt
+  (Hd : decide_tautology phi = true)
+  (Hpt : denote_proof_term pt = Some phi)
+  (Hp : |- phi),
+  exists pt', denote_proof_term pt' = Some phi /\ |- phi.
+Proof.
+  intros phi pt Hd Hpt Hp. exists pt. split; assumption.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
