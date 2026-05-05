@@ -24596,6 +24596,35 @@ Proof.
   rewrite ord_compare_omega_pow. exact Hab.
 Qed.
 
+(* Strict ord_lt-through-leading: when a < a', OCons a t < OCons a' t' *)
+Lemma ord_lt_OCons_leading : forall a t a' t',
+  ord_lt a a' -> ord_lt (OCons a t) (OCons a' t').
+Proof.
+  intros a t a' t' H. apply ord_lt_OCons_head. exact H.
+Qed.
+
+(* When the leading is equal and tails compare ord_le, OCons-form ord_le. *)
+Lemma ord_le_OCons_when_eq_leading : forall a t1 t2,
+  ord_le t1 t2 -> ord_le (OCons a t1) (OCons a t2).
+Proof.
+  intros a t1 t2 H. unfold ord_le, ord_lt in *.
+  cbn. rewrite ord_compare_refl. exact H.
+Qed.
+
+(* OCons a t1 ≤ OCons a' t2 when a < a' (purely from leading exp). *)
+Lemma ord_le_OCons_leading_lt : forall a t1 a' t2,
+  ord_lt a a' -> ord_le (OCons a t1) (OCons a' t2).
+Proof.
+  intros a t1 a' t2 H. apply ord_lt_le. apply ord_lt_OCons_head. exact H.
+Qed.
+
+(* Helper: omega_cnf is positive. *)
+Lemma omega_cnf_pos : ord_lt OZero omega_cnf.
+Proof. unfold ord_lt, omega_cnf. cbn. reflexivity. Qed.
+
+(* Helper: if omega_pow X has leading exp X, the result of ord_add ω
+   (omega_pow X) has leading exp X (when X >= 1, which it is for positive X). *)
+
 (* Tail-lt-leading for wf_ord: when wf_ord (OCons e t), ord_lt t (OCons e t). *)
 Lemma wf_ord_OCons_tail_lt : forall e t,
   wf_ord (OCons e t) -> ord_lt t (OCons e t).
