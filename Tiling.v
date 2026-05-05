@@ -8917,6 +8917,22 @@ Proof.
   intro W. destruct W; cbn; discriminate.
 Qed.
 
+Lemma ord_compare_le_trans : forall A B C,
+  ord_compare A B <> Gt ->
+  ord_compare B C <> Gt ->
+  ord_compare A C <> Gt.
+Proof.
+  intros A B C HAB HBC.
+  destruct (ord_compare A B) eqn:EAB; try contradiction.
+  - apply ord_compare_eq_iff_eq in EAB. subst B.
+    exact HBC.
+  - destruct (ord_compare B C) eqn:EBC; try contradiction.
+    + apply ord_compare_eq_iff_eq in EBC. subst C.
+      rewrite EAB. discriminate.
+    + pose proof (ord_lt_trans A B C EAB EBC) as Hlt.
+      unfold ord_lt in Hlt. rewrite Hlt. discriminate.
+Qed.
+
 Lemma insert_asc_le_lift : forall a u w,
   ord_compare (worm_to_ord u) (worm_to_ord w) <> Gt ->
   ord_compare (worm_to_ord (insert_asc a u)) (worm_to_ord (a :: w)) <> Gt.
@@ -14549,6 +14565,102 @@ Proof. intro phi. reflexivity. Qed.
 Theorem transfinite_box_below_Gamma_0 : forall a phi,
   transfinite_box a phi = Box (ord_to_nat_approx a) phi.
 Proof. intros a phi. reflexivity. Qed.
+
+Inductive Provable_transfinite : ord -> Form -> Prop :=
+  | PTfin_K : forall a phi psi,
+      Provable_transfinite a (Impl phi (Impl psi phi))
+  | PTfin_S : forall a phi psi chi,
+      Provable_transfinite a
+        (Impl (Impl phi (Impl psi chi))
+              (Impl (Impl phi psi) (Impl phi chi)))
+  | PTfin_DN : forall a phi,
+      Provable_transfinite a (Impl (Neg (Neg phi)) phi)
+  | PTfin_BoxK : forall a b phi psi, ord_compare b a <> Gt ->
+      Provable_transfinite a
+        (Impl (Box (ord_to_nat_approx b) (Impl phi psi))
+              (Impl (Box (ord_to_nat_approx b) phi)
+                    (Box (ord_to_nat_approx b) psi)))
+  | PTfin_Loeb : forall a b phi, ord_compare b a <> Gt ->
+      Provable_transfinite a
+        (Impl (Box (ord_to_nat_approx b)
+                   (Impl (Box (ord_to_nat_approx b) phi) phi))
+              (Box (ord_to_nat_approx b) phi))
+  | PTfin_Box4 : forall a b phi, ord_compare b a <> Gt ->
+      Provable_transfinite a
+        (Impl (Box (ord_to_nat_approx b) phi)
+              (Box (ord_to_nat_approx b) (Box (ord_to_nat_approx b) phi)))
+  | PTfin_Mon : forall a b phi, ord_compare (OCons OZero b) a <> Gt ->
+      Provable_transfinite a
+        (Impl (Box (ord_to_nat_approx b) phi)
+              (Box (ord_to_nat_approx (OCons OZero b)) phi))
+  | PTfin_NextCon : forall a b, ord_compare (OCons OZero b) a <> Gt ->
+      Provable_transfinite a
+        (Box (ord_to_nat_approx (OCons OZero b))
+             (Neg (Box (ord_to_nat_approx b) Bot)))
+  | PTfin_MP : forall a phi psi,
+      Provable_transfinite a (Impl phi psi) ->
+      Provable_transfinite a phi ->
+      Provable_transfinite a psi
+  | PTfin_Nec : forall a b phi, ord_compare b a <> Gt ->
+      Provable_transfinite a phi ->
+      Provable_transfinite a (Box (ord_to_nat_approx b) phi).
+
+Theorem Provable_transfinite_cumulative : forall a b phi,
+  ord_compare a b <> Gt ->
+  Provable_transfinite a phi -> Provable_transfinite b phi.
+Proof.
+  intros a b phi Hab H. revert b Hab. induction H; intros b' Hab.
+  - apply PTfin_K.
+  - apply PTfin_S.
+  - apply PTfin_DN.
+  - apply PTfin_BoxK. exact (ord_compare_le_trans b a b' H Hab).
+  - apply PTfin_Loeb. exact (ord_compare_le_trans b a b' H Hab).
+  - apply PTfin_Box4. exact (ord_compare_le_trans b a b' H Hab).
+  - apply PTfin_Mon. exact (ord_compare_le_trans (OCons OZero b) a b' H Hab).
+  - apply PTfin_NextCon. exact (ord_compare_le_trans (OCons OZero b) a b' H Hab).
+  - apply PTfin_MP with phi.
+    + apply IHProvable_transfinite1. exact Hab.
+    + apply IHProvable_transfinite2. exact Hab.
+  - apply PTfin_Nec.
+    + exact (ord_compare_le_trans b a b' H Hab).
+    + apply IHProvable_transfinite. exact Hab.
+Qed.
+
+Theorem Provable_transfinite_to_provable : forall a phi,
+  Provable_transfinite a phi -> |- phi.
+Proof.
+  intros a phi H. induction H.
+  - apply Ax_K.
+  - apply Ax_S.
+  - apply Ax_DN.
+  - apply Ax_BoxK.
+  - apply Ax_Loeb.
+  - apply Ax_Box4.
+  - apply Ax_Mon.
+  - apply Ax_NextCon.
+  - exact (MP _ _ IHProvable_transfinite1 IHProvable_transfinite2).
+  - exact (Nec _ _ IHProvable_transfinite).
+Qed.
+
+Theorem ord_to_nat_approx_nat_to_ord : forall n,
+  ord_to_nat_approx (nat_to_ord n) = n.
+Proof.
+  induction n as [|n IH]; cbn.
+  - reflexivity.
+  - f_equal. exact IH.
+Qed.
+
+Theorem Provable_transfinite_summary : forall a phi,
+  (forall b, ord_compare a b <> Gt ->
+     Provable_transfinite a phi -> Provable_transfinite b phi) /\
+  (Provable_transfinite a phi -> |- phi) /\
+  (forall n, ord_to_nat_approx (nat_to_ord n) = n).
+Proof.
+  intros a phi. split; [|split].
+  - intros b Hab H. exact (Provable_transfinite_cumulative a b phi Hab H).
+  - exact (Provable_transfinite_to_provable a phi).
+  - exact ord_to_nat_approx_nat_to_ord.
+Qed.
 
 Inductive mu_GLP_formula : Type :=
   | mu_var : nat -> mu_GLP_formula

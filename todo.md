@@ -60,15 +60,7 @@
     forall level phi, |- Impl (Bel_p p level (Impl (Bel_p p level
     phi) phi)) (Bel_p p level phi)` whose proof references `p`
     non-trivially.
-9. Replace `transfinite_box level phi := Box (ord_to_nat_approx
-    level) phi` with a genuinely transfinite calculus. Define
-    `Inductive Provable_transfinite : ord -> Form -> Prop` indexed by
-    `ord`, prove cumulativity `forall a b phi, ord_lt a b ->
-    Provable_transfinite a phi -> Provable_transfinite b phi` by
-    `wf_vord` induction, and prove
-    `transfinite_collapse_at_nat : forall n phi, Provable_transfinite
-    (nat_to_ord n) phi <-> |- Box n phi`.
-10. Replace `Reverse_math_strength` and
+9. Replace `Reverse_math_strength` and
     `primitive_recursive_arithmetic_strength` with an explicit
     RM-hierarchy. Define `Inductive RM_subsystem : Type := RCA_0 |
     WKL_0 | ACA_0 | ATR_0 | Pi11_CA_0`, define `RM_provable :
@@ -78,7 +70,7 @@
     in RCA_0, `Bew_PA_HBL_summary` in WKL_0,
     `polymodal_sambin_existence` in ACA_0,
     `proof_theoretic_ordinal_summary` in ATR_0.
-11. Replace the `From Tiling Require Export Tiling.` content of
+10. Replace the `From Tiling Require Export Tiling.` content of
     `Calculus.v`, `Hilbert.v`, `Kripke.v`, `FixedPoints.v`, `Bew.v`,
     `ProofTerms.v`, `Worms.v`, and `Agents.v` with a physical
     partition of `Tiling.v`'s body. Move calculus inductives plus
@@ -90,7 +82,7 @@
     Update `_CoqProject` with the dependency order. `Tiling.v`
     becomes a meta-file containing only `From Tiling Require Export
     Calculus Hilbert Kripke FixedPoints Bew ProofTerms Worms Agents.`
-12. Replace each `*_summary` theorem that is a conjunction of
+11. Replace each `*_summary` theorem that is a conjunction of
     already-named theorems (`Pi1_conservativity_summary`,
     `Pi2_conservativity_summary`, `Bew_axiomatic_summary`,
     `realisation_full_soundness`, `Bew_satisfies_GLP_axioms_summary`,
