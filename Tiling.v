@@ -12589,6 +12589,79 @@ Proof.
   - exact Tr_partial_evaluates_box_free.
 Qed.
 
+Definition Visser_interp (n : nat) (phi psi : Form) : Form :=
+  Box n (Impl phi psi).
+
+Theorem Visser_J5_K_distribution : forall n phi psi,
+  |- Impl (Visser_interp n phi psi) (Impl (Box n phi) (Box n psi)).
+Proof.
+  intros n phi psi. unfold Visser_interp.
+  exact (Ax_BoxK n phi psi).
+Qed.
+
+Theorem Visser_J2_transitivity : forall n phi psi chi,
+  |- Impl (Visser_interp n phi psi)
+          (Impl (Visser_interp n psi chi) (Visser_interp n phi chi)).
+Proof.
+  intros n phi psi chi. unfold Visser_interp.
+  pose proof (Nec n _ (prov_compose_internal phi psi chi)) as Hnec.
+  pose proof (Ax_BoxK n (Impl psi chi)
+                          (Impl (Impl phi psi) (Impl phi chi))) as HK.
+  pose proof (MP _ _ HK Hnec) as Hstep1.
+  pose proof (Ax_BoxK n (Impl phi psi) (Impl phi chi)) as HK2.
+  pose proof (prov_compose _ _ _ Hstep1 HK2) as Hstep2.
+  apply prov_perm. exact Hstep2.
+Qed.
+
+Theorem Visser_J5_Mon : forall n phi psi,
+  |- Impl (Visser_interp n phi psi) (Visser_interp (S n) phi psi).
+Proof.
+  intros n phi psi. unfold Visser_interp.
+  exact (Ax_Mon n (Impl phi psi)).
+Qed.
+
+Theorem Visser_ILM_J5_via_Mon : forall n phi psi,
+  |- Impl (Box n (Impl phi psi)) (Box (S n) (Impl phi psi)).
+Proof.
+  intros n phi psi. exact (Ax_Mon n (Impl phi psi)).
+Qed.
+
+Theorem Visser_J5_from_calculus_axioms : forall n phi,
+  |- Impl (Box n phi) (Box (S n) phi).
+Proof. intros n phi. exact (Ax_Mon n phi). Qed.
+
+Theorem Visser_J6_box_4 : forall n phi,
+  |- Impl (Box n phi) (Box n (Box n phi)).
+Proof. intros n phi. exact (Ax_Box4 n phi). Qed.
+
+Theorem Visser_ILP_axioms_summary : forall n,
+  (forall phi psi,
+    |- Impl (Visser_interp n phi psi) (Impl (Box n phi) (Box n psi))) /\
+  (forall phi psi chi,
+    |- Impl (Visser_interp n phi psi)
+            (Impl (Visser_interp n psi chi) (Visser_interp n phi chi))) /\
+  (forall phi psi,
+    |- Impl (Visser_interp n phi psi) (Visser_interp (S n) phi psi)) /\
+  (forall phi, |- Impl (Box n phi) (Box n (Box n phi))).
+Proof.
+  intro n. split; [|split; [|split]].
+  - exact (Visser_J5_K_distribution n).
+  - exact (Visser_J2_transitivity n).
+  - exact (Visser_J5_Mon n).
+  - exact (Visser_J6_box_4 n).
+Qed.
+
+Theorem Visser_J5_full_summary :
+  (forall n phi psi, |- Impl (Box n (Impl phi psi)) (Box (S n) (Impl phi psi))) /\
+  (forall n phi, |- Impl (Box n phi) (Box (S n) phi)) /\
+  (forall n phi psi, |- Impl (Visser_interp n phi psi) (Visser_interp (S n) phi psi)).
+Proof.
+  split; [|split].
+  - exact Visser_ILM_J5_via_Mon.
+  - exact Visser_J5_from_calculus_axioms.
+  - exact Visser_J5_Mon.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
