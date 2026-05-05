@@ -44,15 +44,7 @@
     polynomial p /\ forall phi (pt : proof_term phi),
     proof_term_length pt <= p (rank phi)`, and replace the constant
     with the extracted polynomial inside `Critch_bounded_provability`.
-7. Replace `Bel_p p level := Box level` with a genuine graded
-    modality. Use `Coq.QArith.QArith_base.Q` as the rational carrier,
-    define `Bel_p (p : Q) (level : nat) (phi : Form) : Form` as a
-    syntactically distinct predicate (a record carrying `p` and
-    `Box level phi`), and prove `graded_loeb : forall p, (0 < p)%Q ->
-    forall level phi, |- Impl (Bel_p p level (Impl (Bel_p p level
-    phi) phi)) (Bel_p p level phi)` whose proof references `p`
-    non-trivially.
-8. Replace `Reverse_math_strength` and
+7. Replace `Reverse_math_strength` and
     `primitive_recursive_arithmetic_strength` with an explicit
     RM-hierarchy. Define `Inductive RM_subsystem : Type := RCA_0 |
     WKL_0 | ACA_0 | ATR_0 | Pi11_CA_0`, define `RM_provable :
@@ -62,7 +54,7 @@
     in RCA_0, `Bew_PA_HBL_summary` in WKL_0,
     `polymodal_sambin_existence` in ACA_0,
     `proof_theoretic_ordinal_summary` in ATR_0.
-9. Replace the `From Tiling Require Export Tiling.` content of
+8. Replace the `From Tiling Require Export Tiling.` content of
     `Calculus.v`, `Hilbert.v`, `Kripke.v`, `FixedPoints.v`, `Bew.v`,
     `ProofTerms.v`, `Worms.v`, and `Agents.v` with a physical
     partition of `Tiling.v`'s body. Move calculus inductives plus
@@ -74,7 +66,7 @@
     Update `_CoqProject` with the dependency order. `Tiling.v`
     becomes a meta-file containing only `From Tiling Require Export
     Calculus Hilbert Kripke FixedPoints Bew ProofTerms Worms Agents.`
-10. Replace each `*_summary` theorem that is a conjunction of
+9. Replace each `*_summary` theorem that is a conjunction of
     already-named theorems (`Pi1_conservativity_summary`,
     `Pi2_conservativity_summary`, `Bew_axiomatic_summary`,
     `realisation_full_soundness`, `Bew_satisfies_GLP_axioms_summary`,

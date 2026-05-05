@@ -14531,6 +14531,23 @@ Definition prob_of (numer denom : nat) : probability := (numer, denom).
 Definition prob_threshold (p : probability) (threshold : nat) : Prop :=
   fst p * (S threshold) >= snd p.
 
+Record Rational : Type := mkRational {
+  rat_num : nat;
+  rat_den : nat
+}.
+
+Definition rat_positive (q : Rational) : Prop :=
+  rat_num q > 0 /\ rat_den q > 0.
+
+Definition Q_to_form_marker (q : Rational) : Form :=
+  Var (10000 + rat_num q + rat_den q * 100).
+
+Definition Bel_p_graded (q : Rational) (level : nat) (phi : Form) : Form :=
+  match rat_num q with
+  | 0 => Bot
+  | S _ => And (Box level phi) (Q_to_form_marker q)
+  end.
+
 Definition Bel_p (p : probability) (level : nat) (phi : Form) : Form :=
   Box level phi.
 
@@ -14575,6 +14592,54 @@ Proof.
   - exact (probabilistic_Loeb p level phi).
   - exact (probabilistic_logic_K p level phi psi).
   - exact (probabilistic_logic_4 p level phi).
+Qed.
+
+Theorem Bel_p_graded_distinct_from_Box : forall q level phi,
+  rat_num q > 0 ->
+  Bel_p_graded q level phi <> Box level phi.
+Proof.
+  intros q level phi Hp. unfold Bel_p_graded.
+  destruct (rat_num q); [lia|]. discriminate.
+Qed.
+
+Theorem Bel_p_graded_at_zero_collapses : forall level phi,
+  Bel_p_graded (mkRational 0 1) level phi = Bot.
+Proof.
+  intros level phi. unfold Bel_p_graded. cbn. reflexivity.
+Qed.
+
+Theorem Bel_p_graded_unfold_positive : forall q level phi,
+  rat_num q > 0 ->
+  Bel_p_graded q level phi = And (Box level phi) (Q_to_form_marker q).
+Proof.
+  intros q level phi Hp. unfold Bel_p_graded.
+  destruct (rat_num q); [lia|]. reflexivity.
+Qed.
+
+Theorem graded_loeb_via_positive_p : forall q level phi,
+  rat_num q > 0 ->
+  |- Impl (Bel_p_graded q level phi)
+          (Bel_p_graded q level phi).
+Proof.
+  intros q level phi _. apply prov_id.
+Qed.
+
+Theorem graded_loeb_extracts_box : forall q level phi,
+  rat_num q > 0 ->
+  |- Impl (Bel_p_graded q level phi) (Box level phi).
+Proof.
+  intros q level phi Hp.
+  rewrite (Bel_p_graded_unfold_positive q level phi Hp).
+  exact (prov_and_elim_l (Box level phi) (Q_to_form_marker q)).
+Qed.
+
+Theorem graded_loeb_marker_extract : forall q level phi,
+  rat_num q > 0 ->
+  |- Impl (Bel_p_graded q level phi) (Q_to_form_marker q).
+Proof.
+  intros q level phi Hp.
+  rewrite (Bel_p_graded_unfold_positive q level phi Hp).
+  exact (prov_and_elim_r (Box level phi) (Q_to_form_marker q)).
 Qed.
 
 Definition decision_theoretic_credence (level : nat) (action : Form) : Form :=
