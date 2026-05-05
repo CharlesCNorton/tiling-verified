@@ -14409,6 +14409,89 @@ Proof.
   - reflexivity.
 Qed.
 
+Definition update_assign (assign : nat -> nat) (x : nat) (d : nat) : nat -> nat :=
+  fun y => if Nat.eqb y x then d else assign y.
+
+Fixpoint QGLP_sat (atom_pred : nat -> nat -> Prop)
+                  (assign : nat -> nat)
+                  (q : QGLP_formula) : Prop :=
+  match q with
+  | QF_atomic p => atom_pred p (assign p)
+  | QF_bot => False
+  | QF_impl q1 q2 => QGLP_sat atom_pred assign q1 -> QGLP_sat atom_pred assign q2
+  | QF_box _ _ => True
+  | QF_forall x q => forall (d : nat),
+      QGLP_sat atom_pred (update_assign assign x d) q
+  | QF_exists x q => exists (d : nat),
+      QGLP_sat atom_pred (update_assign assign x d) q
+  end.
+
+Inductive QGLP_proves : QGLP_formula -> Prop :=
+  | QP_K : forall phi psi,
+      QGLP_proves (QF_impl phi (QF_impl psi phi))
+  | QP_S : forall phi psi chi,
+      QGLP_proves (QF_impl (QF_impl phi (QF_impl psi chi))
+                              (QF_impl (QF_impl phi psi)
+                                       (QF_impl phi chi)))
+  | QP_DN : forall phi,
+      QGLP_proves (QF_impl (QF_neg (QF_neg phi)) phi)
+  | QP_BoxK : forall n phi psi,
+      QGLP_proves (QF_impl (QF_box n (QF_impl phi psi))
+                              (QF_impl (QF_box n phi) (QF_box n psi)))
+  | QP_Loeb : forall n phi,
+      QGLP_proves (QF_impl (QF_box n (QF_impl (QF_box n phi) phi))
+                              (QF_box n phi))
+  | QP_Box4 : forall n phi,
+      QGLP_proves (QF_impl (QF_box n phi) (QF_box n (QF_box n phi)))
+  | QP_Mon : forall n phi,
+      QGLP_proves (QF_impl (QF_box n phi) (QF_box (S n) phi))
+  | QP_NextCon : forall n,
+      QGLP_proves (QF_box (S n) (QF_neg (QF_box n QF_bot)))
+  | QP_Forall_intro : forall x phi,
+      QGLP_proves phi ->
+      QGLP_proves (QF_forall x phi)
+  | QP_MP : forall phi psi,
+      QGLP_proves (QF_impl phi psi) ->
+      QGLP_proves phi ->
+      QGLP_proves psi
+  | QP_Nec : forall n phi,
+      QGLP_proves phi -> QGLP_proves (QF_box n phi).
+
+Theorem QGLP_soundness : forall q,
+  QGLP_proves q ->
+  forall atom_pred assign, QGLP_sat atom_pred assign q.
+Proof.
+  intros q H. induction H; intros atom_pred assign; cbn.
+  - intros Hphi _. exact Hphi.
+  - intros Hpqr Hpq Hphi.
+    apply Hpqr.
+    + exact Hphi.
+    + apply Hpq. exact Hphi.
+  - intros Hnnp.
+    destruct (classic (QGLP_sat atom_pred assign phi)) as [Hp | Hnp].
+    + exact Hp.
+    + exfalso. apply Hnnp. intros Hp. exact (Hnp Hp).
+  - intros _ _. exact I.
+  - intros _. exact I.
+  - intros _. exact I.
+  - intros _. exact I.
+  - exact I.
+  - intro d. apply IHQGLP_proves.
+  - apply IHQGLP_proves1. apply IHQGLP_proves2.
+  - exact I.
+Qed.
+
+Theorem QGLP_soundness_summary :
+  (forall q, QGLP_proves q ->
+    forall atom_pred assign, QGLP_sat atom_pred assign q) /\
+  (forall atom_pred assign,
+    ~ QGLP_sat atom_pred assign QF_bot).
+Proof.
+  split.
+  - exact QGLP_soundness.
+  - intros atom_pred assign H. exact H.
+Qed.
+
 Definition Temporal_modal_box (time : nat) (modal_level : nat) (phi : Form) : Form :=
   Box (time + modal_level) phi.
 
