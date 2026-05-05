@@ -12931,6 +12931,93 @@ Proof.
   - unfold Critch_polynomial_bound. lia.
 Qed.
 
+Record AgentRecord : Type := mkAgent {
+  agent_level : nat;
+  agent_goal : Form;
+  agent_action_space : list Form;
+  agent_decision : Form -> Form;
+  agent_verification : Form -> bool
+}.
+
+Definition agent_licenses (A : AgentRecord) (sigma : Form) : Form :=
+  if agent_verification A sigma
+  then agent_decision A sigma
+  else Bot.
+
+Definition Box_licenses_via_agent (A : AgentRecord) (sigma : Form) : Form :=
+  Box (agent_level A) (agent_licenses A sigma).
+
+Definition canonical_box_n_agent (n : nat) (G : Form) : AgentRecord :=
+  mkAgent n G [] (fun phi => phi) (fun _ => true).
+
+Theorem canonical_box_n_agent_licenses_is_box : forall n G sigma,
+  agent_licenses (canonical_box_n_agent n G) sigma = sigma.
+Proof.
+  intros n G sigma. cbn. reflexivity.
+Qed.
+
+Theorem canonical_box_n_agent_box_licenses_equals_box : forall n G sigma,
+  Box_licenses_via_agent (canonical_box_n_agent n G) sigma = Box n sigma.
+Proof.
+  intros n G sigma. cbn. reflexivity.
+Qed.
+
+Definition strict_box_n_agent (n : nat) (G : Form) (passing : Form -> bool) : AgentRecord :=
+  mkAgent n G [] (fun phi => phi) passing.
+
+Theorem strict_agent_licenses_when_passing : forall n G p sigma,
+  p sigma = true ->
+  agent_licenses (strict_box_n_agent n G p) sigma = sigma.
+Proof.
+  intros n G p sigma Hp.
+  unfold agent_licenses, strict_box_n_agent. cbn.
+  rewrite Hp. reflexivity.
+Qed.
+
+Theorem strict_agent_licenses_bot_when_failing : forall n G p sigma,
+  p sigma = false ->
+  agent_licenses (strict_box_n_agent n G p) sigma = Bot.
+Proof.
+  intros n G p sigma Hp.
+  unfold agent_licenses, strict_box_n_agent. cbn.
+  rewrite Hp. reflexivity.
+Qed.
+
+Theorem agent_licensing_non_trivial :
+  exists (A : AgentRecord) (sigma : Form), agent_licenses A sigma <> sigma.
+Proof.
+  exists (strict_box_n_agent 0 Top (fun _ => false)), Top.
+  cbn. discriminate.
+Qed.
+
+Theorem agent_licensing_recovers_box_when_passing : forall n G sigma,
+  Box_licenses_via_agent (strict_box_n_agent n G (fun _ => true)) sigma =
+  Box n sigma.
+Proof.
+  intros n G sigma. cbn. reflexivity.
+Qed.
+
+Theorem agent_licensing_collapses_to_box_bot_when_failing : forall n G sigma,
+  Box_licenses_via_agent (strict_box_n_agent n G (fun _ => false)) sigma =
+  Box n Bot.
+Proof.
+  intros n G sigma. cbn. reflexivity.
+Qed.
+
+Theorem agent_record_summary :
+  (forall A sigma, agent_licenses A sigma =
+    (if agent_verification A sigma then agent_decision A sigma else Bot)) /\
+  (forall A sigma, Box_licenses_via_agent A sigma =
+    Box (agent_level A) (agent_licenses A sigma)) /\
+  (forall n G sigma, Box_licenses_via_agent (canonical_box_n_agent n G) sigma =
+    Box n sigma).
+Proof.
+  split; [|split].
+  - intros A sigma. reflexivity.
+  - intros A sigma. reflexivity.
+  - exact canonical_box_n_agent_box_licenses_equals_box.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
