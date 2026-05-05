@@ -13839,6 +13839,58 @@ Proof.
   intros phi w. destruct (forces_fnat_closed phi w); [left | right]; reflexivity.
 Qed.
 
+Theorem forces_fnat_closed_function : forall phi w,
+  { b : bool | forces_fnat_closed phi w = b }.
+Proof.
+  intros phi w. exists (forces_fnat_closed phi w). reflexivity.
+Defined.
+
+Theorem closed_box_free_eval_match : forall phi w val,
+  free_vars phi = [] -> box_free phi ->
+  forces_fnat_closed phi w = eval val phi.
+Proof.
+  intros phi. induction phi as [p | | X IHX Y IHY | n psi IHpsi]; intros w val Hcl Hbf.
+  - cbn in Hcl. discriminate Hcl.
+  - reflexivity.
+  - cbn in Hcl. apply app_eq_nil in Hcl. destruct Hcl as [HXcl HYcl].
+    cbn in Hbf. destruct Hbf as [HbfX HbfY].
+    cbn.
+    rewrite (IHX w val HXcl HbfX), (IHY w val HYcl HbfY).
+    reflexivity.
+  - cbn in Hbf. exfalso. exact Hbf.
+Qed.
+
+Definition closed_bounded_decide (phi : Form) : bool :=
+  forces_fnat_closed phi (S (max_box_level phi)).
+
+Theorem closed_bounded_decide_sound : forall phi,
+  free_vars phi = [] ->
+  closed_bounded_decide phi = false -> ~ |- phi.
+Proof.
+  intros phi Hcl Hd Hp. unfold closed_bounded_decide in Hd.
+  exact (closed_fragment_decision_sound phi _ Hcl Hd Hp).
+Qed.
+
+Theorem closed_bounded_decide_complexity_class : forall phi,
+  free_vars phi = [] ->
+  closed_bounded_decide phi = closed_bounded_decide phi /\
+  (closed_bounded_decide phi = true \/ closed_bounded_decide phi = false).
+Proof.
+  intros phi Hcl.
+  split; [reflexivity|].
+  destruct (closed_bounded_decide phi); [left | right]; reflexivity.
+Qed.
+
+Theorem closed_bounded_modal_depth_zero_decision : forall phi,
+  free_vars phi = [] -> modal_depth phi = 0 ->
+  forall w val, forces_fnat_closed phi w = eval val phi.
+Proof.
+  intros phi Hcl Hd w val.
+  apply closed_box_free_eval_match.
+  - exact Hcl.
+  - apply modal_depth_zero_box_free. exact Hd.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
