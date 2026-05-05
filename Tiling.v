@@ -13219,6 +13219,44 @@ Proof.
   - exact (goal_preservation_tiling_concrete n s G).
 Qed.
 
+Definition Vingean_reflection_at (n : nat) (phi : Form) : Form :=
+  Box (S n) phi.
+
+Theorem Vingean_reflection_propagates_to_outer : forall n phi,
+  |- Vingean_reflection_at n phi -> |- Box (S n) phi.
+Proof. intros n phi H. exact H. Qed.
+
+Theorem Vingean_reflection_consistency_carry : forall n,
+  |- Vingean_reflection_at n (Neg (Box n Bot)).
+Proof.
+  intros n. unfold Vingean_reflection_at. exact (Ax_NextCon n).
+Qed.
+
+Theorem Vingean_reflection_provable_at_T_n : forall n,
+  |- Box n (Vingean_reflection_at n (Neg (Box n Bot))).
+Proof.
+  intro n. unfold Vingean_reflection_at.
+  exact (Nec n _ (Ax_NextCon n)).
+Qed.
+
+Theorem Vingean_reflection_for_consistency_provable_at_level_n_plus_2 :
+  forall n, |- Box (S (S n)) (Vingean_reflection_at n (Neg (Box n Bot))).
+Proof.
+  intro n. unfold Vingean_reflection_at.
+  exact (Nec (S (S n)) _ (Ax_NextCon n)).
+Qed.
+
+Theorem Vingean_reflection_summary : forall n,
+  (forall phi, |- Vingean_reflection_at n phi -> |- Box (S n) phi) /\
+  (|- Vingean_reflection_at n (Neg (Box n Bot))) /\
+  (|- Box (S (S n)) (Vingean_reflection_at n (Neg (Box n Bot)))).
+Proof.
+  intro n. split; [|split].
+  - intros phi H. exact H.
+  - exact (Vingean_reflection_consistency_carry n).
+  - exact (Vingean_reflection_for_consistency_provable_at_level_n_plus_2 n).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
