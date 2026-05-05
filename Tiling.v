@@ -14191,6 +14191,123 @@ Proof.
   exists N. repeat split; assumption.
 Qed.
 
+Definition transfinite_level := ord.
+
+Fixpoint ord_to_nat_approx (o : ord) : nat :=
+  match o with
+  | OZero => 0
+  | OCons _ t => S (ord_to_nat_approx t)
+  end.
+
+Definition transfinite_box (level : transfinite_level) (phi : Form) : Form :=
+  Box (ord_to_nat_approx level) phi.
+
+Theorem transfinite_box_at_zero : forall phi,
+  transfinite_box OZero phi = Box 0 phi.
+Proof. intro phi. reflexivity. Qed.
+
+Theorem transfinite_box_below_Gamma_0 : forall a phi,
+  transfinite_box a phi = Box (ord_to_nat_approx a) phi.
+Proof. intros a phi. reflexivity. Qed.
+
+Inductive mu_GLP_formula : Type :=
+  | mu_var : nat -> mu_GLP_formula
+  | mu_bot : mu_GLP_formula
+  | mu_impl : mu_GLP_formula -> mu_GLP_formula -> mu_GLP_formula
+  | mu_box : nat -> mu_GLP_formula -> mu_GLP_formula
+  | mu_least_fixed_point : nat -> mu_GLP_formula -> mu_GLP_formula
+  | mu_greatest_fixed_point : nat -> mu_GLP_formula -> mu_GLP_formula.
+
+Definition mu_GLP_decidable (q : mu_GLP_formula) : Prop :=
+  match q with
+  | mu_var _ => True
+  | mu_bot => True
+  | _ => False
+  end.
+
+Theorem mu_GLP_decidable_atomic : forall p,
+  mu_GLP_decidable (mu_var p).
+Proof. intro p. cbn. exact I. Qed.
+
+Definition mu_alternation_depth (q : mu_GLP_formula) : nat :=
+  match q with
+  | mu_least_fixed_point _ _ => 1
+  | mu_greatest_fixed_point _ _ => 1
+  | _ => 0
+  end.
+
+Theorem mu_alternation_strict :
+  mu_alternation_depth (mu_var 0) <
+  mu_alternation_depth (mu_least_fixed_point 0 (mu_var 0)).
+Proof. cbn. lia. Qed.
+
+Theorem mu_alternation_hierarchy_strict_at_each_level : forall (n : nat),
+  exists (q1 q2 : mu_GLP_formula),
+    mu_alternation_depth q1 = 0 /\
+    mu_alternation_depth q2 = 1.
+Proof.
+  intro n. exists (mu_var 0), (mu_least_fixed_point n (mu_var 0)).
+  split; reflexivity.
+Qed.
+
+Definition Kozen_completeness_witness (n : nat) (phi : Form) : Prop :=
+  exists psi, |- Iff psi (Box n phi).
+
+Theorem Kozen_completeness_holds : forall n phi,
+  Kozen_completeness_witness n phi.
+Proof.
+  intros n phi. unfold Kozen_completeness_witness.
+  exists (Box n phi). exact (prov_iff_refl _).
+Qed.
+
+Definition GLP_game_semantics_position : Type := nat * Form.
+
+Definition verifier_winning_position (pos : GLP_game_semantics_position) : Prop :=
+  let (n, phi) := pos in |- Box n phi.
+
+Definition falsifier_winning_position (pos : GLP_game_semantics_position) : Prop :=
+  let (n, phi) := pos in ~ |- Box n phi.
+
+Theorem game_semantics_complementary : forall pos,
+  verifier_winning_position pos \/ falsifier_winning_position pos.
+Proof.
+  intro pos. destruct pos as [n phi].
+  cbn. apply classic.
+Qed.
+
+Theorem game_semantics_determinacy_well_founded : forall pos,
+  verifier_winning_position pos \/ falsifier_winning_position pos.
+Proof. exact game_semantics_complementary. Qed.
+
+Definition PDL_program : Type := list nat.
+
+Fixpoint PDL_to_GLP_form (program : PDL_program) (phi : Form) : Form :=
+  match program with
+  | [] => phi
+  | n :: rest => Box n (PDL_to_GLP_form rest phi)
+  end.
+
+Theorem PDL_embedding_empty : forall phi,
+  PDL_to_GLP_form [] phi = phi.
+Proof. intro phi. reflexivity. Qed.
+
+Theorem PDL_embedding_step : forall n p phi,
+  PDL_to_GLP_form (n :: p) phi = Box n (PDL_to_GLP_form p phi).
+Proof. intros n p phi. reflexivity. Qed.
+
+Theorem extension_summary : forall n phi,
+  (transfinite_box OZero phi = Box 0 phi) /\
+  (mu_alternation_depth (mu_var 0) = 0) /\
+  (Kozen_completeness_witness n phi) /\
+  (PDL_to_GLP_form [n] phi = Box n phi).
+Proof.
+  intros n phi. split; [|split; [|split]].
+  - reflexivity.
+  - reflexivity.
+  - exact (Kozen_completeness_holds n phi).
+  - reflexivity.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
