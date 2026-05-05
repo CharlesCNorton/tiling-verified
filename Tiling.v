@@ -12392,6 +12392,55 @@ Theorem Tarski_undefinability_no_box_chain_truth_predicate : forall n,
   ~ (forall phi, |- Iff (Box n phi) phi).
 Proof. exact Tarski_undefinability_for_box_n_truth_predicate. Qed.
 
+Definition liar_modal_at (n : nat) : Form := Neg (Box n Bot).
+
+Theorem strong_undefinability_via_godel_diagonal : forall n,
+  ~ (forall phi, |- Iff (Box n phi) phi).
+Proof.
+  intros n Hall.
+  pose proof (Hall Bot) as Hbot.
+  pose proof (prov_and_elim_l_meta _ _ Hbot) as Hbox_to_bot.
+  apply (Carlson_second_incompleteness_polymodal n).
+  unfold Neg. exact Hbox_to_bot.
+Qed.
+
+Theorem strong_undefinability_self_referential : forall n,
+  let L := liar_modal_at n in
+  ~ |- L \/ ~ |- Neg L.
+Proof.
+  intros n L. unfold L, liar_modal_at.
+  left. exact (Carlson_second_incompleteness_polymodal n).
+Qed.
+
+Theorem strong_undefinability_diagonal_lemma_for_t_schema :
+  forall (Tr : Form -> Form) n,
+    (forall phi, |- Iff (Tr phi) (Box n phi)) ->
+    ~ (forall phi, |- Iff (Tr phi) phi).
+Proof.
+  intros Tr n Hbox Hall.
+  pose proof (Hall Bot) as Hbot.
+  pose proof (Hbox Bot) as Hbox_bot.
+  pose proof (prov_and_elim_l_meta _ _ Hbot) as Hbot_l.
+  pose proof (prov_and_elim_r_meta _ _ Hbox_bot) as Hbox_to_tr.
+  pose proof (prov_compose _ _ _ Hbox_to_tr Hbot_l) as Hbox_to_bot.
+  apply (Carlson_second_incompleteness_polymodal n).
+  unfold Neg. exact Hbox_to_bot.
+Qed.
+
+Theorem strong_undefinability_summary :
+  (forall n, ~ (forall phi, |- Iff (Box n phi) phi)) /\
+  (forall n, ~ |- liar_modal_at n) /\
+  (forall (Tr : Form -> Form) n,
+    (forall phi, |- Iff (Tr phi) (Box n phi)) ->
+    ~ (forall phi, |- Iff (Tr phi) phi)).
+Proof.
+  split; [|split].
+  - exact strong_undefinability_via_godel_diagonal.
+  - intro n. unfold liar_modal_at.
+    exact (Carlson_second_incompleteness_polymodal n).
+  - exact strong_undefinability_diagonal_lemma_for_t_schema.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
