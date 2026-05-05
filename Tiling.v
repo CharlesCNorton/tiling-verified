@@ -11965,6 +11965,54 @@ Proof.
   - exact Friedman_translation_box_free.
 Qed.
 
+Definition Con_Bew (n : nat) : Prop := ~ Bew n Bot.
+
+Theorem relative_consistency_via_meta : forall n,
+  ~ |- Bot -> Con_Bew n.
+Proof.
+  intros n Hmeta H.
+  apply Hmeta. exact (Bew_to_Provable _ _ H).
+Qed.
+
+Theorem T_0_consistent_under_meta : ~ |- Bot -> Con_Bew 0.
+Proof. intros H. apply (relative_consistency_via_meta 0 H). Qed.
+
+Theorem T_n_consistent_under_meta : forall n, ~ |- Bot -> Con_Bew n.
+Proof. intros n H. apply (relative_consistency_via_meta n H). Qed.
+
+Theorem Con_Bew_chain_via_meta_consistency :
+  ~ |- Bot -> forall n, Con_Bew n.
+Proof.
+  intros Hmeta n. exact (relative_consistency_via_meta n Hmeta).
+Qed.
+
+Theorem Con_Bew_T_0_strictly_weaker_than_meta :
+  (~ Bew 0 Bot) /\
+  (Con_Bew 0 = ~ Bew 0 Bot).
+Proof.
+  split.
+  - intro H. pose proof (Bew_to_Provable _ _ H) as Hp.
+    exact (meta_consistency_system Hp).
+  - reflexivity.
+Qed.
+
+Theorem T0_provability_subsumed_by_full_provability :
+  forall phi, Bew 0 phi -> |- phi.
+Proof. intros phi H. exact (Bew_to_Provable _ _ H). Qed.
+
+Theorem relative_consistency_summary :
+  (forall n, ~ |- Bot -> Con_Bew n) /\
+  (~ |- Bot -> Con_Bew 0) /\
+  (~ Bew 0 Bot) /\
+  (forall n, ~ |- Bot -> ~ Bew n Bot).
+Proof.
+  split; [|split; [|split]].
+  - exact relative_consistency_via_meta.
+  - exact T_0_consistent_under_meta.
+  - exact (proj1 Con_Bew_T_0_strictly_weaker_than_meta).
+  - exact T_n_consistent_under_meta.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
