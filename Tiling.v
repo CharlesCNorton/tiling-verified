@@ -15085,6 +15085,74 @@ Proof.
   - exact LT_universal_property_box.
 Qed.
 
+Lemma LT_hom_eq_subst : forall phi val,
+  LT_to_MA_hom LindenbaumTarski val phi = subst_form val phi.
+Proof.
+  induction phi as [p | | a IHa b IHb | n a IHa]; intro val; cbn.
+  - reflexivity.
+  - reflexivity.
+  - rewrite IHa, IHb. reflexivity.
+  - rewrite IHa. reflexivity.
+Qed.
+
+Lemma LT_hom_Var_identity : forall phi,
+  LT_to_MA_hom LindenbaumTarski Var phi = phi.
+Proof.
+  intro phi. rewrite LT_hom_eq_subst. apply subst_form_id.
+Qed.
+
+Definition Magari_valid (M : MagariAlgebra) (phi : Form) : Prop :=
+  forall val, MA_eq M (LT_to_MA_hom M val phi) (MA_top M).
+
+Theorem Magari_soundness_LT : forall phi,
+  |- phi -> Magari_valid LindenbaumTarski phi.
+Proof.
+  intros phi Hp val. cbn.
+  rewrite LT_hom_eq_subst.
+  apply (proj2 (LT_quotient_provability _)).
+  apply subst_provable. exact Hp.
+Qed.
+
+Theorem Magari_completeness : forall phi,
+  (forall (M : MagariAlgebra), Magari_valid M phi) -> |- phi.
+Proof.
+  intros phi H.
+  pose proof (H LindenbaumTarski Var) as Hlt.
+  cbn in Hlt.
+  rewrite LT_hom_Var_identity in Hlt.
+  apply (proj1 (LT_quotient_provability phi)). exact Hlt.
+Qed.
+
+Theorem Magari_completeness_LT_iff_provable : forall phi,
+  Magari_valid LindenbaumTarski phi <-> |- phi.
+Proof.
+  intro phi. split.
+  - intro H. unfold Magari_valid in H.
+    pose proof (H Var) as Hvar. cbn in Hvar.
+    rewrite LT_hom_Var_identity in Hvar.
+    apply (proj1 (LT_quotient_provability phi)). exact Hvar.
+  - exact (Magari_soundness_LT phi).
+Qed.
+
+Theorem Magari_GL_theorems_hold : forall phi,
+  Provable_GL phi -> Magari_valid LindenbaumTarski phi.
+Proof.
+  intros phi Hp. apply Magari_soundness_LT.
+  exact (GL_in_provable _ Hp).
+Qed.
+
+Theorem Magari_completeness_summary :
+  (forall phi, |- phi -> Magari_valid LindenbaumTarski phi) /\
+  (forall phi,
+     (forall (M : MagariAlgebra), Magari_valid M phi) -> |- phi) /\
+  (forall phi, Provable_GL phi -> Magari_valid LindenbaumTarski phi).
+Proof.
+  split; [|split].
+  - exact Magari_soundness_LT.
+  - exact Magari_completeness.
+  - exact Magari_GL_theorems_hold.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
