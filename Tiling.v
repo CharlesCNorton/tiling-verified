@@ -13286,6 +13286,135 @@ Proof.
   - exact (proj2 (box_free_validity_iff_no_refuter phi Hbf)).
 Qed.
 
+Lemma eval_And_list_iff : forall val G,
+  eval val (And_list G) = true <-> forall psi, In psi G -> eval val psi = true.
+Proof.
+  intros val G. induction G as [|phi rest IH].
+  - cbn. split.
+    + intros _ psi [].
+    + intros _. reflexivity.
+  - cbn [And_list].
+    rewrite eval_And_form. rewrite Bool.andb_true_iff. rewrite IH.
+    split.
+    + intros [Hphi Hrest] psi [Heq | Hin].
+      * subst psi. exact Hphi.
+      * apply Hrest. exact Hin.
+    + intros Hall.
+      split.
+      * apply Hall. left. reflexivity.
+      * intros psi Hin. apply Hall. right. exact Hin.
+Qed.
+
+Lemma subst_form_And_list : forall sigma G,
+  subst_form sigma (And_list G) = And_list (map (subst_form sigma) G).
+Proof.
+  intros sigma G. induction G as [|phi rest IH]; cbn.
+  - reflexivity.
+  - rewrite IH. reflexivity.
+Qed.
+
+Lemma prov_and_list_intro_meta_form : forall G,
+  Forall (fun phi => |- phi) G -> |- And_list G.
+Proof.
+  induction G as [|phi rest IH]; intros HF; cbn.
+  - exact (prov_id Bot).
+  - inversion HF; subst.
+    apply prov_and_intro_meta; auto.
+Qed.
+
+Definition val_to_subst (val : nat -> bool) : nat -> Form :=
+  fun k => if val k then Top else Bot.
+
+Lemma val_to_subst_box_free : forall val k, box_free (val_to_subst val k).
+Proof.
+  intros val k. unfold val_to_subst. destruct (val k); cbn; tauto.
+Qed.
+
+Lemma eval_val_to_subst : forall val val' k,
+  eval val' (val_to_subst val k) = val k.
+Proof.
+  intros val val' k. unfold val_to_subst. destruct (val k); cbn; reflexivity.
+Qed.
+
+Lemma eval_subst_val_to_subst : forall val phi val',
+  box_free phi ->
+  eval val' (subst_form (val_to_subst val) phi) = eval val phi.
+Proof.
+  intros val phi val' Hbf.
+  rewrite (eval_subst_box_free val' (val_to_subst val) phi Hbf).
+  apply eval_ext_on_free_vars.
+  intros p _. cbn beta. apply eval_val_to_subst.
+Qed.
+
+Lemma val_to_subst_provable_iff : forall val phi,
+  box_free phi ->
+  (|- subst_form (val_to_subst val) phi) <-> eval val phi = true.
+Proof.
+  intros val phi Hbf. split.
+  - intro Hp.
+    pose proof (eval_provable_true (fun _ => false) _ Hp) as Hev.
+    rewrite (eval_subst_val_to_subst val phi (fun _ => false) Hbf) in Hev.
+    exact Hev.
+  - intro Hev. apply trivial_in_provable. apply prop_completeness.
+    + apply box_free_subst_form; [exact Hbf|].
+      intros q _. apply val_to_subst_box_free.
+    + intro val'. rewrite (eval_subst_val_to_subst val phi val' Hbf). exact Hev.
+Qed.
+
+Theorem Rybakov_box_free_iff_derivable : forall G phi,
+  Forall box_free G -> box_free phi ->
+  Rybakov_admissible_rule G phi <-> |- Impl (And_list G) phi.
+Proof.
+  intros G phi HG_bf Hbf. split.
+  - intros Hadm.
+    apply trivial_in_provable.
+    apply prop_completeness.
+    + cbn. split.
+      * apply box_free_And_list. exact HG_bf.
+      * exact Hbf.
+    + intro val.
+      rewrite eval_Impl.
+      destruct (eval val (And_list G)) eqn:HE.
+      * cbn.
+        apply (val_to_subst_provable_iff val phi Hbf).
+        unfold Rybakov_admissible_rule in Hadm.
+        apply (Hadm (val_to_subst val)).
+        intros psi Hin.
+        apply (val_to_subst_provable_iff val psi).
+        ** apply (proj1 (Forall_forall _ G) HG_bf psi Hin).
+        ** apply (proj1 (eval_And_list_iff val G) HE). exact Hin.
+      * cbn. reflexivity.
+  - intros Hp sigma HG_prov.
+    pose proof (subst_provable sigma _ Hp) as Hp_sigma.
+    cbn in Hp_sigma.
+    rewrite subst_form_And_list in Hp_sigma.
+    apply (MP _ _ Hp_sigma).
+    apply prov_and_list_intro_meta_form.
+    apply Forall_forall. intros psi' Hin'.
+    apply in_map_iff in Hin'. destruct Hin' as [psi [Heq Hin]].
+    subst psi'. apply HG_prov. exact Hin.
+Qed.
+
+Definition decide_admissibility (G : list Form) (phi : Form) : bool :=
+  decide_tautology (Impl (And_list G) phi).
+
+Theorem Rybakov_box_free_decidability : forall G phi,
+  Forall box_free G -> box_free phi ->
+  sumbool (Rybakov_admissible_rule G phi) (~ Rybakov_admissible_rule G phi).
+Proof.
+  intros G phi HG_bf Hbf.
+  destruct (decide_admissibility G phi) eqn:E; unfold decide_admissibility in E.
+  - left. apply (proj2 (Rybakov_box_free_iff_derivable G phi HG_bf Hbf)).
+    apply trivial_in_provable. apply prop_completeness.
+    + cbn. split. apply box_free_And_list. exact HG_bf. exact Hbf.
+    + apply decide_tautology_correct. exact E.
+  - right. intro Hadm.
+    apply (proj1 (Rybakov_box_free_iff_derivable G phi HG_bf Hbf)) in Hadm.
+    pose proof (provable_classically_valid _ Hadm) as Hcv.
+    pose proof (decide_tautology_complete _ Hcv) as E'.
+    rewrite E in E'. discriminate.
+Defined.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
