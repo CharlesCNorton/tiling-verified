@@ -15729,3 +15729,36 @@ Proof.
   - intros [F' [V' [w' [[Z [HB HZ]] Hf]]]].
     apply (bisim_invariance F F' V V' Z HB phi w w' HZ). exact Hf.
 Qed.
+
+Theorem finite_refuting_frame_box_free_or_box_bot : forall phi,
+  ((box_free phi /\ ~ |- phi) \/ (exists n, phi = Box n Bot)) ->
+  exists (F : Frame) V w, ~ forces F V w phi.
+Proof.
+  intros phi [[Hbf Hnp] | [n Heq]].
+  - exact (kripke_completeness_box_free_via_frame phi Hbf Hnp).
+  - subst phi. exists Fnat, (fun _ _ => true), (S n).
+    intro Habs. cbn in Habs.
+    apply (Habs n). unfold Fnat_R. split; lia.
+Qed.
+
+Theorem finite_refuting_frame_for_var : forall n p,
+  exists (F : Frame) V w, ~ forces F V w (Box n (Var p)).
+Proof.
+  intros n p.
+  exists Fnat, (fun w q => match q with | _ => false end), (S n).
+  intro Habs. cbn in Habs.
+  pose proof (Habs n) as Hcontra.
+  assert (HR : Fnat_R n (S n) n) by (unfold Fnat_R; split; lia).
+  pose proof (Hcontra HR) as H. discriminate.
+Qed.
+
+Theorem finite_refuting_frame_for_neg_var : forall n p,
+  exists (F : Frame) V w, ~ forces F V w (Box n (Neg (Var p))).
+Proof.
+  intros n p.
+  exists Fnat, (fun _ _ => true), (S n).
+  intro Habs. cbn in Habs.
+  assert (HR : Fnat_R n (S n) n) by (unfold Fnat_R; split; lia).
+  pose proof (Habs n HR) as Hcontra.
+  exact (Hcontra eq_refl).
+Qed.
