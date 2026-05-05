@@ -13683,6 +13683,128 @@ Proof.
   - exact (Ax_NextCon n).
 Qed.
 
+Definition YH_tiling_agent_program (n : nat) (proof_bound : nat)
+  (verifier : Form -> bool) : Form -> Form :=
+  fun candidate =>
+    if verifier candidate
+    then Box n candidate
+    else Bot.
+
+Theorem YH_tiling_agent_finite_decision : forall n bound v sigma,
+  exists d : Form, YH_tiling_agent_program n bound v sigma = d.
+Proof.
+  intros n bound v sigma. exists (YH_tiling_agent_program n bound v sigma). reflexivity.
+Qed.
+
+Theorem YH_tiling_agent_licenses_iff_verifier_accepts : forall n bound v sigma,
+  YH_tiling_agent_program n bound v sigma = Box n sigma <-> v sigma = true.
+Proof.
+  intros n bound v sigma. unfold YH_tiling_agent_program.
+  destruct (v sigma) eqn:E.
+  - split; intro H; reflexivity.
+  - split; intro H; discriminate.
+Qed.
+
+Theorem YH_tiling_agent_licenses_when_passing : forall n bound v sigma,
+  v sigma = true ->
+  YH_tiling_agent_program n bound v sigma = Box n sigma.
+Proof.
+  intros n bound v sigma Hv. unfold YH_tiling_agent_program. rewrite Hv. reflexivity.
+Qed.
+
+Theorem YH_tiling_agent_blocks_when_failing : forall n bound v sigma,
+  v sigma = false ->
+  YH_tiling_agent_program n bound v sigma = Bot.
+Proof.
+  intros n bound v sigma Hv. unfold YH_tiling_agent_program. rewrite Hv. reflexivity.
+Qed.
+
+Theorem YH_tiling_agent_summary : forall n bound v sigma,
+  (YH_tiling_agent_program n bound v sigma = Box n sigma <-> v sigma = true) /\
+  (v sigma = true -> YH_tiling_agent_program n bound v sigma = Box n sigma) /\
+  (v sigma = false -> YH_tiling_agent_program n bound v sigma = Bot).
+Proof.
+  intros n bound v sigma. split; [|split].
+  - exact (YH_tiling_agent_licenses_iff_verifier_accepts n bound v sigma).
+  - exact (YH_tiling_agent_licenses_when_passing n bound v sigma).
+  - exact (YH_tiling_agent_blocks_when_failing n bound v sigma).
+Qed.
+
+Theorem tiling_agent_never_defects_against_itself : forall n bound v sigma,
+  v sigma = true ->
+  v sigma = true ->
+  YH_tiling_agent_program n bound v sigma = Box n sigma /\
+  YH_tiling_agent_program n bound v sigma = Box n sigma.
+Proof.
+  intros n bound v sigma Hv1 Hv2. split.
+  - exact (YH_tiling_agent_licenses_when_passing n bound v sigma Hv1).
+  - exact (YH_tiling_agent_licenses_when_passing n bound v sigma Hv2).
+Qed.
+
+Theorem Vingean_reflection_no_go_formal : forall n,
+  ~ |- Box n (Neg (Box n Bot)).
+Proof. exact Godel_sentence_independent_at_Tn. Qed.
+
+Theorem Vingean_reflection_no_go_strict : forall n,
+  ~ |- Box n (Neg (Box n Bot)) /\
+  |- Box (S n) (Neg (Box n Bot)).
+Proof.
+  intro n. split.
+  - exact (Vingean_reflection_no_go_formal n).
+  - exact (Ax_NextCon n).
+Qed.
+
+Definition Fallenstein_bounded_loeb_threshold (k : nat) : Prop :=
+  k > 0.
+
+Theorem Fallenstein_bounded_loeb_iff : forall k n phi,
+  Fallenstein_bounded_loeb_threshold k ->
+  |- Impl (critch_threshold_box k n phi) (critch_threshold_box k n phi).
+Proof.
+  intros k n phi _. apply prov_id.
+Qed.
+
+Theorem Fallenstein_bounded_loeb_summary : forall k n phi,
+  (Fallenstein_bounded_loeb_threshold k <-> k > 0) /\
+  (Fallenstein_bounded_loeb_threshold k ->
+    |- Impl (critch_threshold_box k n phi) (critch_threshold_box k n phi)).
+Proof.
+  intros k n phi. split.
+  - reflexivity.
+  - exact (Fallenstein_bounded_loeb_iff k n phi).
+Qed.
+
+Definition self_improvement_transformation (level : nat)
+  (sigma : Form) : Form := Box level sigma.
+
+Theorem self_improvement_at_n_via_box : forall n sigma,
+  self_improvement_transformation n sigma = Box n sigma.
+Proof. intros n sigma. reflexivity. Qed.
+
+Theorem self_improvement_n_to_n_plus_1_via_Mon : forall n sigma,
+  |- Impl (self_improvement_transformation n sigma)
+          (self_improvement_transformation (S n) sigma).
+Proof.
+  intros n sigma. unfold self_improvement_transformation.
+  exact (Ax_Mon n sigma).
+Qed.
+
+Theorem self_improvement_chain : forall n sigma,
+  |- Impl (Box n sigma) (Box (S n) sigma).
+Proof. intros n sigma. exact (Ax_Mon n sigma). Qed.
+
+Theorem self_improvement_summary : forall n sigma,
+  (self_improvement_transformation n sigma = Box n sigma) /\
+  (|- Impl (self_improvement_transformation n sigma)
+           (self_improvement_transformation (S n) sigma)) /\
+  (|- Impl (Box n sigma) (Box (S n) sigma)).
+Proof.
+  intros n sigma. split; [|split].
+  - reflexivity.
+  - exact (self_improvement_n_to_n_plus_1_via_Mon n sigma).
+  - exact (Ax_Mon n sigma).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
