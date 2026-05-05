@@ -1,18 +1,6 @@
 # tiling-verified todo
 
-1. Replace the `From Tiling Require Export Tiling.` content of
-    `Calculus.v`, `Hilbert.v`, `Kripke.v`, `FixedPoints.v`, `Bew.v`,
-    `ProofTerms.v`, `Worms.v`, and `Agents.v` with a physical
-    partition of `Tiling.v`'s body. Move calculus inductives plus
-    axioms to `Calculus.v`; propositional metatheory to `Hilbert.v`;
-    `Frame`, `forces`, `eval`, soundness to `Kripke.v`; Sambin
-    existence and uniqueness to `FixedPoints.v`; `Bew_n` plus HBL to
-    `Bew.v`; proof-term reduction to `ProofTerms.v`; Worm theory to
-    `Worms.v`; `AgentRecord` plus FairBot/PrudentBot to `Agents.v`.
-    Update `_CoqProject` with the dependency order. `Tiling.v`
-    becomes a meta-file containing only `From Tiling Require Export
-    Calculus Hilbert Kripke FixedPoints Bew ProofTerms Worms Agents.`
-2. Replace each `*_summary` theorem that is a conjunction of
+1. Replace each `*_summary` theorem that is a conjunction of
     already-named theorems (`Pi1_conservativity_summary`,
     `Pi2_conservativity_summary`, `Bew_axiomatic_summary`,
     `realisation_full_soundness`, `Bew_satisfies_GLP_axioms_summary`,
