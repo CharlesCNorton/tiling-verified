@@ -9587,6 +9587,39 @@ Proof.
   intros phi _. reflexivity.
 Qed.
 
+Lemma all_bool_lists_card : forall n, length (all_bool_lists n) = Nat.pow 2 n.
+Proof.
+  induction n as [|n IH]; simpl.
+  - reflexivity.
+  - rewrite length_app, length_map, length_map, IH. lia.
+Qed.
+
+Theorem polymodal_decidability_via_truth_table_filtration : forall phi,
+  box_free phi ->
+  let vars := nodup Nat.eq_dec (free_vars phi) in
+  let n := length vars in
+  let table := all_bool_lists n in
+  length table = Nat.pow 2 n /\
+  ((|- phi) <->
+   forall bs, In bs table -> eval (mk_assignment vars bs) phi = true).
+Proof.
+  intros phi Hbf vars n table. split.
+  - apply all_bool_lists_card.
+  - split.
+    + intros Hp bs _.
+      apply (eval_provable_true (mk_assignment vars bs) phi Hp).
+    + intros Htable.
+      apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+      intro val.
+      destruct (all_bool_lists_complete vars val) as [bs [Hlen [Hin Hagree]]].
+      pose proof (Htable bs Hin) as Heval.
+      rewrite <- Heval.
+      apply eval_ext_on_free_vars. intros p Hp.
+      assert (Hin' : In p vars).
+      { unfold vars. apply free_vars_in_nodup. exact Hp. }
+      symmetry. apply Hagree. exact Hin'.
+Qed.
+
 Theorem decidability_full_box_free_via_decide_tautology : forall phi,
   box_free phi -> sumbool (|- phi) (~ |- phi).
 Proof.
