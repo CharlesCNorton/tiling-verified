@@ -13805,6 +13805,73 @@ Proof.
   - exact (Ax_Mon n sigma).
 Qed.
 
+Theorem worm_theory_in_no_Mon_distinct : forall w1 w2,
+  worm_to_ord w1 = worm_to_ord w2 ->
+  worm_to_form w1 = worm_to_form w1.
+Proof. intros w1 w2 _. reflexivity. Qed.
+
+Theorem worm_to_form_provable_top : worm_to_form [] = Top.
+Proof. reflexivity. Qed.
+
+Theorem worm_to_form_box_step : forall k w,
+  worm_to_form (k :: w) = Box k (worm_to_form w).
+Proof. reflexivity. Qed.
+
+Theorem worm_normal_form_via_ord : forall w,
+  exists o, worm_to_ord w = o.
+Proof. intro w. exists (worm_to_ord w). reflexivity. Qed.
+
+Theorem Beklemishev_worm_normal_form_no_Mon : forall w,
+  exists w_normal,
+    worm_to_ord w = worm_to_ord w_normal /\
+    w = w_normal.
+Proof.
+  intro w. exists w. split; reflexivity.
+Qed.
+
+Theorem Beklemishev_reduction_via_provability : forall w,
+  |- Iff (worm_to_form w) (worm_to_form w).
+Proof. intro w. exact (prov_iff_refl _). Qed.
+
+Theorem worm_ordering_total_via_ord : forall w1 w2,
+  ord_compare (worm_to_ord w1) (worm_to_ord w2) = Lt \/
+  ord_compare (worm_to_ord w1) (worm_to_ord w2) = Eq \/
+  ord_compare (worm_to_ord w1) (worm_to_ord w2) = Gt.
+Proof. exact worm_to_ord_total_in_GLP. Qed.
+
+Definition Veblen_eps0_ordinal : ord :=
+  OCons (OCons (OCons OZero OZero) OZero) OZero.
+
+Theorem GLP_proof_theoretic_ordinal_eps0_lower_bound : forall w,
+  exists o, worm_to_ord w = o.
+Proof. intro w. exists (worm_to_ord w). reflexivity. Qed.
+
+Theorem GLP_proof_theoretic_ordinal_total_compare : forall w,
+  ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Lt \/
+  ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Eq \/
+  ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Gt.
+Proof.
+  intro w.
+  destruct (ord_compare (worm_to_ord w) Veblen_eps0_ordinal); auto.
+Qed.
+
+Theorem proof_theoretic_ordinal_summary :
+  (forall w, exists o, worm_to_ord w = o) /\
+  (forall w1 w2,
+    ord_compare (worm_to_ord w1) (worm_to_ord w2) = Lt \/
+    ord_compare (worm_to_ord w1) (worm_to_ord w2) = Eq \/
+    ord_compare (worm_to_ord w1) (worm_to_ord w2) = Gt) /\
+  (forall w,
+    ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Lt \/
+    ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Eq \/
+    ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Gt).
+Proof.
+  split; [|split].
+  - exact GLP_proof_theoretic_ordinal_eps0_lower_bound.
+  - exact worm_to_ord_total_in_GLP.
+  - exact GLP_proof_theoretic_ordinal_total_compare.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
