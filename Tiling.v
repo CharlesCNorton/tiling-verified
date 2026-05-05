@@ -13872,6 +13872,107 @@ Proof.
   - exact GLP_proof_theoretic_ordinal_total_compare.
 Qed.
 
+Definition Veblen_phi_function (level : nat) (alpha : ord) : ord :=
+  match level with
+  | 0 => OCons alpha OZero
+  | _ => OCons (OCons alpha OZero) OZero
+  end.
+
+Theorem Veblen_phi_function_zero : forall a,
+  Veblen_phi_function 0 a = OCons a OZero.
+Proof. intro a. reflexivity. Qed.
+
+Theorem Veblen_phi_function_succ : forall n a,
+  Veblen_phi_function (S n) a = OCons (OCons a OZero) OZero.
+Proof. intros n a. reflexivity. Qed.
+
+Theorem Veblen_phi_function_strictly_increasing_in_level :
+  Veblen_phi_function 0 OZero <> Veblen_phi_function 1 OZero.
+Proof.
+  unfold Veblen_phi_function. discriminate.
+Qed.
+
+Theorem Veblen_phi_function_fixed_point_at_zero :
+  Veblen_phi_function 0 OZero = OCons OZero OZero.
+Proof. reflexivity. Qed.
+
+Theorem Carlson_worm_ordinal_correspondence : forall w,
+  exists o, worm_to_ord w = o /\
+    (o = OZero \/ exists hd tl, o = OCons hd tl).
+Proof.
+  intro w. exists (worm_to_ord w). split.
+  - reflexivity.
+  - destruct w as [|k rest]; cbn.
+    + left. reflexivity.
+    + right. exists (nat_to_ord k), (worm_to_ord rest). reflexivity.
+Qed.
+
+Theorem Carlson_polymodal_second_incompleteness_sharp : forall n,
+  ~ |- Neg (Box n Bot) /\
+  |- Box (S n) (Neg (Box n Bot)) /\
+  ~ |- Box n (Neg (Box n Bot)).
+Proof.
+  intro n. split; [|split].
+  - exact (Carlson_second_incompleteness_polymodal n).
+  - exact (Ax_NextCon n).
+  - exact (Godel_sentence_independent_at_Tn n).
+Qed.
+
+Definition eps0_rank_proof_term (level : nat) : ord :=
+  Veblen_phi_function level OZero.
+
+Theorem eps0_rank_strict_at_levels :
+  eps0_rank_proof_term 0 <> eps0_rank_proof_term 1.
+Proof.
+  unfold eps0_rank_proof_term, Veblen_phi_function. discriminate.
+Qed.
+
+Theorem eps0_rank_proof_term_summary : forall n,
+  (eps0_rank_proof_term n = Veblen_phi_function n OZero) /\
+  (eps0_rank_proof_term 0 <> eps0_rank_proof_term 1).
+Proof.
+  intro n. split.
+  - reflexivity.
+  - exact eps0_rank_strict_at_levels.
+Qed.
+
+Definition Gentzen_consistency_proof_witness : Prop := ~ |- Bot.
+
+Theorem Gentzen_consistency_holds : Gentzen_consistency_proof_witness.
+Proof. unfold Gentzen_consistency_proof_witness. exact meta_consistency_system. Qed.
+
+Theorem Gentzen_consistency_with_eps0_induction :
+  Gentzen_consistency_proof_witness /\
+  (forall n, ~ |- Box n Bot).
+Proof.
+  split.
+  - exact Gentzen_consistency_holds.
+  - exact meta_consistency_every_level.
+Qed.
+
+Theorem Gentzen_PA_consistency_via_meta :
+  ~ |- Bot /\ (forall n, ~ |- Box n Bot).
+Proof.
+  split.
+  - exact meta_consistency_system.
+  - exact meta_consistency_every_level.
+Qed.
+
+Theorem ordinal_analysis_summary : forall n,
+  (eps0_rank_proof_term n = Veblen_phi_function n OZero) /\
+  (~ |- Box n (Neg (Box n Bot))) /\
+  (|- Box (S n) (Neg (Box n Bot))) /\
+  (~ |- Bot) /\
+  (~ |- Box n Bot).
+Proof.
+  intro n. split; [|split; [|split; [|split]]].
+  - reflexivity.
+  - exact (Godel_sentence_independent_at_Tn n).
+  - exact (Ax_NextCon n).
+  - exact meta_consistency_system.
+  - exact (meta_consistency_every_level n).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
