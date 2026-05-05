@@ -12150,6 +12150,22 @@ Proof.
   - exact Friedman_translation_box_free.
 Qed.
 
+Theorem Friedman_negative_translation_summary_strengthened :
+  (forall phi, |- phi <-> |- neg_translate phi) /\
+  (forall phi, |- Iff phi (neg_translate phi)) /\
+  (forall phi, box_free phi -> |- Iff phi (neg_translate phi)) /\
+  (forall phi psi, |- phi -> |- psi ->
+     |- neg_translate phi /\ |- neg_translate psi).
+Proof.
+  split; [|split; [|split]].
+  - exact Friedman_negative_translation_classical.
+  - exact Friedman_translation_modal_general.
+  - exact Friedman_translation_box_free.
+  - intros phi psi Hp Hpsi. split.
+    + exact (proj1 (Friedman_negative_translation_classical phi) Hp).
+    + exact (proj1 (Friedman_negative_translation_classical psi) Hpsi).
+Qed.
+
 Definition Con_Bew (n : nat) : Prop := ~ Bew n Bot.
 
 Theorem relative_consistency_via_meta : forall n,
@@ -12326,6 +12342,27 @@ Proof.
   - exact T_axiom_strict_extension.
   - exact T_axiom_proof_level_strict_separation.
   - exact strict_extension_at_each_level.
+Qed.
+
+Theorem Bew_proof_level_strict_separation_summary_strengthened :
+  (forall n, exists phi, T_axiom (S (S n)) phi /\ ~ T_axiom n phi) /\
+  (forall n, exists phi,
+     T_axiom (S (S n)) phi /\
+     ~ T_axiom (S n) phi /\
+     Bew (S (S n)) phi) /\
+  (forall n, exists phi, |- Box (S n) phi /\ ~ |- Box n phi) /\
+  (forall n m, n < m -> exists phi, |- Box m phi /\ ~ |- Box n phi).
+Proof.
+  split; [|split; [|split]].
+  - exact T_axiom_strict_extension.
+  - exact T_axiom_proof_level_strict_separation.
+  - exact strict_extension_at_each_level.
+  - intros n m Hnm.
+    destruct (strict_extension_at_each_level n) as [phi [Hsn Hnotn]].
+    exists phi. split; [|exact Hnotn].
+    induction Hnm as [|m' Hnm IH].
+    + exact Hsn.
+    + exact (MP _ _ (Ax_Mon m' phi) IH).
 Qed.
 
 Theorem Bew_validates_GLP_axioms : forall n,
@@ -12986,6 +13023,17 @@ Proof.
   - exact (Tarski_undefinability_for_box_n_truth_predicate n).
 Qed.
 
+Theorem Tarski_undefinability_box_indexed_summary_strengthened : forall n,
+  (exists phi, ~ |- Iff (Box n phi) phi) /\
+  (~ forall phi, |- Iff (Box n phi) phi) /\
+  (forall n', n <= n' -> ~ forall phi, |- Iff (Box n' phi) phi).
+Proof.
+  intro n. split; [|split].
+  - exact (Tarski_undefinability_modalised n).
+  - exact (Tarski_undefinability_for_box_n_truth_predicate n).
+  - intros n' _. exact (Tarski_undefinability_for_box_n_truth_predicate n').
+Qed.
+
 Theorem Tarski_undefinability_general_truth_predicate :
   forall (Tr : Form -> Form),
     (forall phi, |- Iff (Tr phi) phi) ->
@@ -13045,6 +13093,25 @@ Proof.
   - intro n. unfold liar_modal_at.
     exact (Carlson_second_incompleteness_polymodal n).
   - exact strong_undefinability_diagonal_lemma_for_t_schema.
+Qed.
+
+Theorem strong_undefinability_summary_strengthened :
+  (forall n, ~ (forall phi, |- Iff (Box n phi) phi)) /\
+  (forall n, ~ |- liar_modal_at n) /\
+  (forall (Tr : Form -> Form) n,
+    (forall phi, |- Iff (Tr phi) (Box n phi)) ->
+    ~ (forall phi, |- Iff (Tr phi) phi)) /\
+  (forall n, exists phi, ~ |- Iff (Box n phi) phi).
+Proof.
+  split; [|split; [|split]].
+  - exact strong_undefinability_via_godel_diagonal.
+  - intro n. unfold liar_modal_at.
+    exact (Carlson_second_incompleteness_polymodal n).
+  - exact strong_undefinability_diagonal_lemma_for_t_schema.
+  - intro n. exists Bot. intro Hiff.
+    pose proof (prov_and_elim_l_meta _ _ Hiff) as Hbox_to_bot.
+    apply (Carlson_second_incompleteness_polymodal n).
+    unfold Neg. exact Hbox_to_bot.
 Qed.
 
 Definition FS_truth_axioms (T : Form -> Form) : Prop :=
@@ -13606,6 +13673,28 @@ Proof.
   - intros A sigma. reflexivity.
   - intros A sigma. reflexivity.
   - exact canonical_box_n_agent_box_licenses_equals_box.
+Qed.
+
+Theorem agent_record_summary_strengthened :
+  (forall A sigma, agent_licenses A sigma =
+    (if agent_verification A sigma then agent_decision A sigma else Bot)) /\
+  (forall A sigma, Box_licenses_via_agent A sigma =
+    Box (agent_level A) (agent_licenses A sigma)) /\
+  (forall n G sigma, Box_licenses_via_agent (canonical_box_n_agent n G) sigma =
+    Box n sigma) /\
+  (forall n G,
+    agent_level (canonical_box_n_agent n G) = n /\
+    agent_goal (canonical_box_n_agent n G) = G) /\
+  (forall A sigma,
+    agent_verification A sigma = false ->
+    agent_licenses A sigma = Bot).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - intros A sigma. reflexivity.
+  - intros A sigma. reflexivity.
+  - exact canonical_box_n_agent_box_licenses_equals_box.
+  - intros n G. split; reflexivity.
+  - intros A sigma Hv. unfold agent_licenses. rewrite Hv. reflexivity.
 Qed.
 
 Definition successor_inspector_agent (n : nat) (G : Form)
