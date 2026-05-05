@@ -13018,6 +13018,84 @@ Proof.
   - exact canonical_box_n_agent_box_licenses_equals_box.
 Qed.
 
+Definition successor_inspector_agent (n : nat) (G : Form)
+  (proof_check : Form -> bool) : AgentRecord :=
+  mkAgent n G [] (fun candidate => Box n candidate) proof_check.
+
+Theorem successor_inspector_decision_finite : forall n G p sigma,
+  exists d : Form, agent_decision (successor_inspector_agent n G p) sigma = d.
+Proof.
+  intros n G p sigma. exists (Box n sigma). cbn. reflexivity.
+Qed.
+
+Theorem successor_inspector_licenses_iff_passes : forall n G p sigma,
+  agent_licenses (successor_inspector_agent n G p) sigma =
+  (if p sigma then Box n sigma else Bot).
+Proof.
+  intros n G p sigma. unfold agent_licenses, successor_inspector_agent.
+  cbn. reflexivity.
+Qed.
+
+Theorem successor_inspector_licenses_box_when_proof_checks : forall n G p sigma,
+  p sigma = true ->
+  agent_licenses (successor_inspector_agent n G p) sigma = Box n sigma.
+Proof.
+  intros n G p sigma Hp. rewrite successor_inspector_licenses_iff_passes.
+  rewrite Hp. reflexivity.
+Qed.
+
+Theorem successor_inspector_blocks_when_proof_fails : forall n G p sigma,
+  p sigma = false ->
+  agent_licenses (successor_inspector_agent n G p) sigma = Bot.
+Proof.
+  intros n G p sigma Hp. rewrite successor_inspector_licenses_iff_passes.
+  rewrite Hp. reflexivity.
+Qed.
+
+Theorem successor_inspector_finite_time_decision : forall n G sigma,
+  exists d : Form,
+    agent_licenses (successor_inspector_agent n G (fun _ => true)) sigma = d /\
+    d = Box n sigma.
+Proof.
+  intros n G sigma. exists (Box n sigma). split.
+  - rewrite successor_inspector_licenses_iff_passes. reflexivity.
+  - reflexivity.
+Qed.
+
+Theorem successor_inspector_summary : forall n G p sigma,
+  (agent_decision (successor_inspector_agent n G p) sigma = Box n sigma) /\
+  (agent_licenses (successor_inspector_agent n G p) sigma =
+    (if p sigma then Box n sigma else Bot)) /\
+  (p sigma = true ->
+    agent_licenses (successor_inspector_agent n G p) sigma = Box n sigma) /\
+  (p sigma = false ->
+    agent_licenses (successor_inspector_agent n G p) sigma = Bot).
+Proof.
+  intros n G p sigma. split; [|split; [|split]].
+  - reflexivity.
+  - exact (successor_inspector_licenses_iff_passes n G p sigma).
+  - exact (successor_inspector_licenses_box_when_proof_checks n G p sigma).
+  - exact (successor_inspector_blocks_when_proof_fails n G p sigma).
+Qed.
+
+Definition successor_licensing_theorem_signature
+  (G : Form) (transit : Form -> Form) (sigma : Form) (n : nat)
+  (verifier : Form -> bool) : Prop :=
+  agent_licenses (successor_inspector_agent n G verifier) sigma =
+  Box n sigma <-> verifier sigma = true.
+
+Theorem successor_licensing_concrete : forall G transit sigma n verifier,
+  successor_licensing_theorem_signature G transit sigma n verifier.
+Proof.
+  intros G transit sigma n verifier. unfold successor_licensing_theorem_signature.
+  rewrite successor_inspector_licenses_iff_passes.
+  destruct (verifier sigma) eqn:E.
+  - split; intro H; reflexivity.
+  - split; intro H.
+    + discriminate.
+    + discriminate.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
