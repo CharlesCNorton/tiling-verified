@@ -13542,6 +13542,92 @@ Proof.
   intros phi pt Hd Hpt Hp. exists pt. split; assumption.
 Qed.
 
+Inductive signed_form : Type :=
+  | sT : Form -> signed_form
+  | sF : Form -> signed_form.
+
+Definition sf_eval (val : nat -> bool) (sf : signed_form) : bool :=
+  match sf with
+  | sT phi => eval val phi
+  | sF phi => negb (eval val phi)
+  end.
+
+Definition branch_sat_by (val : nat -> bool) (B : list signed_form) : Prop :=
+  forall sf, In sf B -> sf_eval val sf = true.
+
+Definition branch_closed (B : list signed_form) : Prop :=
+  In (sT Bot) B \/ exists phi, In (sT phi) B /\ In (sF phi) B.
+
+Definition tableau_closes (B : list signed_form) : Prop :=
+  forall val, ~ branch_sat_by val B.
+
+Theorem closed_branch_unsat : forall B,
+  branch_closed B -> tableau_closes B.
+Proof.
+  intros B [Hbot | [phi [HT HF]]] val Hsat.
+  - pose proof (Hsat (sT Bot) Hbot) as H. cbn in H. discriminate.
+  - pose proof (Hsat (sT phi) HT) as H1. cbn in H1.
+    pose proof (Hsat (sF phi) HF) as H2. cbn in H2.
+    rewrite H1 in H2. cbn in H2. discriminate.
+Qed.
+
+Theorem tableau_closes_on_F_phi_iff_provable : forall phi,
+  box_free phi ->
+  tableau_closes [sF phi] <-> |- phi.
+Proof.
+  intros phi Hbf. split.
+  - intro Hcl.
+    apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+    intro val.
+    destruct (eval val phi) eqn:E; [reflexivity|].
+    exfalso. apply (Hcl val).
+    intros sf Hin. cbn in Hin. destruct Hin as [Heq | []].
+    subst sf. cbn. rewrite E. cbn. reflexivity.
+  - intros Hp val Hsat.
+    pose proof (Hsat (sF phi) (or_introl eq_refl)) as Hsf.
+    cbn in Hsf.
+    pose proof (eval_provable_true val phi Hp) as Hev.
+    rewrite Hev in Hsf. cbn in Hsf. discriminate.
+Qed.
+
+Inductive tableau_outcome (phi : Form) : Type :=
+  | tab_closed : tableau_closes [sF phi] -> tableau_outcome phi
+  | tab_open : forall val, branch_sat_by val [sF phi] -> tableau_outcome phi.
+
+Definition run_tableau_box_free : forall phi, box_free phi -> tableau_outcome phi.
+Proof.
+  intros phi Hbf.
+  destruct (decide_tautology phi) eqn:E.
+  - apply tab_closed.
+    apply (proj2 (tableau_closes_on_F_phi_iff_provable phi Hbf)).
+    apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+    apply decide_tautology_correct. exact E.
+  - destruct (find_refuting_assignment phi Hbf E) as [val Hval].
+    apply tab_open with (val := val).
+    intros sf Hin. cbn in Hin. destruct Hin as [Heq | []].
+    subst sf. cbn. rewrite Hval. cbn. reflexivity.
+Defined.
+
+Theorem run_tableau_box_free_classifies : forall phi (Hbf : box_free phi),
+  ((|- phi) /\ tableau_closes [sF phi]) \/
+  (exists val, eval val phi = false /\ branch_sat_by val [sF phi]).
+Proof.
+  intros phi Hbf.
+  destruct (decide_tautology phi) eqn:E.
+  - left. split.
+    + apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+      apply decide_tautology_correct. exact E.
+    + apply (proj2 (tableau_closes_on_F_phi_iff_provable phi Hbf)).
+      apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+      apply decide_tautology_correct. exact E.
+  - right.
+    destruct (find_refuting_assignment phi Hbf E) as [val Hval].
+    exists val. split.
+    + exact Hval.
+    + intros sf Hin. cbn in Hin. destruct Hin as [Heq | []].
+      subst sf. cbn. rewrite Hval. cbn. reflexivity.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
