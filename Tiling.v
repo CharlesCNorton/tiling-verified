@@ -12244,6 +12244,102 @@ Proof.
     unfold licenses in Hp. exact Hp.
 Qed.
 
+Definition arith_interp_top_conjunction : Form -> Form := fun phi => And phi Top.
+
+Theorem arith_interp_top_conjunction_is_arithmetic :
+  is_arithmetic_interpretation arith_interp_top_conjunction.
+Proof.
+  unfold is_arithmetic_interpretation, arith_interp_top_conjunction. split.
+  - intros phi H.
+    apply prov_and_intro_meta.
+    + exact H.
+    + apply prov_id.
+  - intros phi psi Himp.
+    pose proof (prov_and_elim_l_meta _ _ Himp) as Hpq.
+    pose proof (prov_and_elim_l phi Top) as Hel.
+    pose proof (prov_compose _ _ _ Hel Hpq) as Hcomp.
+    pose proof (Ax_K Top (And phi Top)) as Htop_ax.
+    pose proof (MP _ _ Htop_ax (prov_id Bot)) as Htop_imp.
+    apply prov_and_intro_under; [exact Hcomp | exact Htop_imp].
+Qed.
+
+Theorem arith_interp_top_conjunction_not_identity :
+  exists phi, arith_interp_top_conjunction phi <> phi.
+Proof.
+  exists Bot. unfold arith_interp_top_conjunction. discriminate.
+Qed.
+
+Theorem arith_interp_top_conjunction_not_licensure :
+  forall k, exists phi, arith_interp_top_conjunction phi <> licenses k phi.
+Proof.
+  intro k.
+  exists Bot. unfold arith_interp_top_conjunction, licenses. discriminate.
+Qed.
+
+Theorem arith_interp_non_identity_non_licensure_witness :
+  exists I,
+    is_arithmetic_interpretation I /\
+    (exists phi, I phi <> phi) /\
+    (forall k, exists phi, I phi <> licenses k phi).
+Proof.
+  exists arith_interp_top_conjunction. split; [|split].
+  - exact arith_interp_top_conjunction_is_arithmetic.
+  - exact arith_interp_top_conjunction_not_identity.
+  - exact arith_interp_top_conjunction_not_licensure.
+Qed.
+
+Definition arith_interp_double_box (k1 k2 : nat) : Form -> Form :=
+  fun phi => Box k1 (Box k2 phi).
+
+Theorem arith_interp_double_box_is_arithmetic : forall k1 k2,
+  is_arithmetic_interpretation (arith_interp_double_box k1 k2).
+Proof.
+  intros k1 k2. unfold is_arithmetic_interpretation, arith_interp_double_box. split.
+  - intros phi H.
+    exact (Nec k1 _ (Nec k2 _ H)).
+  - intros phi psi Himp.
+    pose proof (Ax_BoxK k2 phi psi) as HK2.
+    pose proof (Nec k1 _ HK2) as HK2_nec.
+    pose proof (Ax_BoxK k1 (Box k2 (Impl phi psi))
+                            (Impl (Box k2 phi) (Box k2 psi))) as HK1.
+    pose proof (MP _ _ HK1 HK2_nec) as Hcomp.
+    pose proof (MP _ _ Hcomp Himp) as Hbox_inner.
+    pose proof (Ax_BoxK k1 (Box k2 phi) (Box k2 psi)) as HK1_outer.
+    exact (MP _ _ HK1_outer Hbox_inner).
+Qed.
+
+Theorem arith_interp_double_box_not_identity : forall k1 k2,
+  exists phi, arith_interp_double_box k1 k2 phi <> phi.
+Proof.
+  intros k1 k2. exists Bot. unfold arith_interp_double_box. discriminate.
+Qed.
+
+Theorem arith_interp_double_box_not_licensure : forall k1 k2 k,
+  k1 <> k -> exists phi, arith_interp_double_box k1 k2 phi <> licenses k phi.
+Proof.
+  intros k1 k2 k Hne.
+  exists Bot. unfold arith_interp_double_box, licenses.
+  intro Hbad. injection Hbad. intros _ Hk. exact (Hne Hk).
+Qed.
+
+Theorem is_arithmetic_interpretation_diverse_inhabitants :
+  exists I1 I2 I3,
+    is_arithmetic_interpretation I1 /\
+    is_arithmetic_interpretation I2 /\
+    is_arithmetic_interpretation I3 /\
+    (exists phi, I1 phi <> I2 phi /\ I2 phi <> I3 phi /\ I1 phi <> I3 phi).
+Proof.
+  exists (fun phi => phi),
+         arith_interp_top_conjunction,
+         (arith_interp_double_box 0 1).
+  split; [|split; [|split]].
+  - exact identity_is_arithmetic_interpretation.
+  - exact arith_interp_top_conjunction_is_arithmetic.
+  - exact (arith_interp_double_box_is_arithmetic 0 1).
+  - exists Bot. unfold arith_interp_top_conjunction, arith_interp_double_box.
+    split; [|split]; discriminate.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
