@@ -13891,6 +13891,55 @@ Proof.
   - apply modal_depth_zero_box_free. exact Hd.
 Qed.
 
+Theorem AJ_worm_provable_in_GLP : forall w,
+  Provable_GLP (worm_to_form w).
+Proof.
+  induction w as [|k rest IH]; cbn.
+  - apply ProvableProp_implies_Provable_GLP. apply PP_id.
+  - apply GLP_Nec. exact IH.
+Qed.
+
+Theorem AJ_worm_closed : forall w, free_vars (worm_to_form w) = [].
+Proof.
+  induction w as [|k rest IH]; cbn.
+  - reflexivity.
+  - exact IH.
+Qed.
+
+Theorem AJ_worm_ord_injective : forall w1 w2,
+  worm_to_ord w1 = worm_to_ord w2 -> w1 = w2.
+Proof. exact worm_to_ord_injective. Qed.
+
+Theorem AJ_worm_ord_distinct_iff : forall w1 w2,
+  w1 = w2 <-> worm_to_ord w1 = worm_to_ord w2.
+Proof.
+  intros w1 w2. split.
+  - intro Heq. subst. reflexivity.
+  - apply worm_to_ord_injective.
+Qed.
+
+Theorem AJ_closed_fragment_GLP :
+  (forall w, Provable_GLP (worm_to_form w)) /\
+  (forall w, free_vars (worm_to_form w) = []) /\
+  (forall w1 w2, w1 = w2 <-> worm_to_ord w1 = worm_to_ord w2).
+Proof.
+  split; [|split].
+  - exact AJ_worm_provable_in_GLP.
+  - exact AJ_worm_closed.
+  - exact AJ_worm_ord_distinct_iff.
+Qed.
+
+Theorem AJ_closed_GLP_eval_constant : forall phi val val',
+  free_vars phi = [] -> Provable_GLP phi ->
+  eval val phi = eval val' phi /\ eval val phi = true.
+Proof.
+  intros phi val val' Hcl Hp.
+  split.
+  - apply eval_ext_on_free_vars. intros p Hin.
+    rewrite Hcl in Hin. destruct Hin.
+  - exact (eval_provable_GLP val phi Hp).
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
