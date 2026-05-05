@@ -11091,6 +11091,64 @@ Proof.
   - exact (proj1 (Bew_n_well_defined n _ _ eq_refl)).
 Qed.
 
+Theorem internal_diagonal_godel : forall n,
+  exists psi, |- Iff psi (Neg (Box n psi)).
+Proof.
+  intro n.
+  exists (Neg (Box n Bot)).
+  apply prov_iff_intro.
+  - apply (MP _ _ (prov_contrapos (Box n (Neg (Box n Bot))) (Box n Bot))).
+    exact (godel_second n).
+  - apply (MP _ _ (prov_contrapos (Box n Bot) (Box n (Neg (Box n Bot))))).
+    apply prov_box_imp. exact (prov_explosion (Neg (Box n Bot))).
+Qed.
+
+Theorem internal_diagonal_loeb_form : forall n X,
+  exists psi, |- Iff psi (Box n (Impl psi X)).
+Proof.
+  intros n X. exists (Box n X). exact (fixed_point_loeb_witness n X).
+Qed.
+
+Theorem internal_diagonal_box_atomic : forall n,
+  exists psi, |- Iff psi (Box n psi).
+Proof.
+  intro n. exists Top.
+  pose proof (fixedpoint_top_box n) as Hfp.
+  exact Hfp.
+Qed.
+
+Theorem internal_godel_first_incompleteness_at_n : forall (n : nat),
+  exists psi : Form, ~ |- psi /\ ~ |- Neg psi.
+Proof.
+  intro n.
+  exists (Neg (Box n Bot)). split.
+  - exact (Carlson_second_incompleteness_polymodal n).
+  - intro Hneg.
+    pose proof (Ax_DN (Box n Bot)) as HDN.
+    pose proof (MP _ _ HDN Hneg) as Hbox_bot.
+    apply (meta_consistency_every_level n). exact Hbox_bot.
+Qed.
+
+Theorem internal_godel_second_incompleteness_polymodal : forall n,
+  ~ |- Neg (Box n Bot).
+Proof. exact Carlson_second_incompleteness_polymodal. Qed.
+
+Theorem internal_diagonal_summary :
+  (forall n : nat, exists psi : Form, |- Iff psi (Neg (Box n psi))) /\
+  (forall (n : nat) (X : Form),
+     exists psi : Form, |- Iff psi (Box n (Impl psi X))) /\
+  (forall n : nat, exists psi : Form, |- Iff psi (Box n psi)) /\
+  (forall n : nat, exists psi : Form, ~ |- psi /\ ~ |- Neg psi) /\
+  (forall n : nat, ~ |- Neg (Box n Bot)).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact internal_diagonal_godel.
+  - exact internal_diagonal_loeb_form.
+  - exact internal_diagonal_box_atomic.
+  - exact internal_godel_first_incompleteness_at_n.
+  - exact internal_godel_second_incompleteness_polymodal.
+Qed.
+
 Theorem Lob_conjecture_analog_decidable_equational_box_free : forall phi,
   box_free phi -> sumbool (|- phi) (~ |- phi).
 Proof. exact decidability_box_free_fragment. Qed.
