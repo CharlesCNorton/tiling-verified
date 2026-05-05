@@ -12512,6 +12512,83 @@ Proof.
   - exact Friedman_Sheard_axiomatisation.
 Qed.
 
+Definition Tr_partial (n : nat) (phi : Form) : Form :=
+  if (modal_depth phi <=? n)%nat then phi else Box (S n) phi.
+
+Theorem Tr_partial_T_schema_for_depth_le_n : forall n phi,
+  modal_depth phi <= n -> |- Iff (Tr_partial n phi) phi.
+Proof.
+  intros n phi Hd. unfold Tr_partial.
+  destruct (modal_depth phi <=? n) eqn:Eq.
+  - apply prov_iff_refl.
+  - apply Nat.leb_nle in Eq. lia.
+Qed.
+
+Theorem Tr_partial_definable_at_n_plus_1 : forall n phi,
+  modal_depth phi > n ->
+  |- Impl (Box (S n) phi) (Tr_partial n phi).
+Proof.
+  intros n phi Hd. unfold Tr_partial.
+  destruct (modal_depth phi <=? n) eqn:Eq.
+  - apply Nat.leb_le in Eq. lia.
+  - apply prov_id.
+Qed.
+
+Theorem Tr_partial_evaluates_box_free : forall n phi,
+  box_free phi -> |- Iff (Tr_partial n phi) phi.
+Proof.
+  intros n phi Hbf.
+  apply Tr_partial_T_schema_for_depth_le_n.
+  pose proof (Pi2_conservativity_box_free_iff phi) as Hiff.
+  pose proof (proj1 Hiff Hbf) as Hd0. lia.
+Qed.
+
+Theorem Tr_partial_T_schema_at_higher_levels : forall n phi,
+  modal_depth phi <= n ->
+  |- Iff (Tr_partial n phi) phi.
+Proof. exact Tr_partial_T_schema_for_depth_le_n. Qed.
+
+Theorem Tr_partial_consistency : forall n,
+  ~ |- Tr_partial n Bot.
+Proof.
+  intros n H. unfold Tr_partial in H.
+  assert (Hd : modal_depth Bot = 0) by reflexivity.
+  rewrite Hd in H.
+  destruct n; cbn in H.
+  - apply meta_consistency_system. exact H.
+  - apply meta_consistency_system. exact H.
+Qed.
+
+Theorem Tr_partial_hierarchy_strict : forall n m,
+  n < m ->
+  forall phi, modal_depth phi <= n ->
+  |- Iff (Tr_partial n phi) (Tr_partial m phi).
+Proof.
+  intros n m Hnm phi Hd.
+  pose proof (Tr_partial_T_schema_for_depth_le_n n phi Hd) as H1.
+  pose proof (Tr_partial_T_schema_for_depth_le_n m phi
+                (Nat.le_trans _ _ _ Hd (Nat.lt_le_incl _ _ Hnm))) as H2.
+  pose proof (prov_iff_sym _ _ H2) as H2sym.
+  exact (prov_equiv_trans _ _ _ H1 H2sym).
+Qed.
+
+Theorem Tr_partial_hierarchy_summary :
+  (forall n phi, modal_depth phi <= n -> |- Iff (Tr_partial n phi) phi) /\
+  (forall n phi, modal_depth phi > n -> |- Impl (Box (S n) phi) (Tr_partial n phi)) /\
+  (forall n, ~ |- Tr_partial n Bot) /\
+  (forall n m, n < m ->
+    forall phi, modal_depth phi <= n ->
+    |- Iff (Tr_partial n phi) (Tr_partial m phi)) /\
+  (forall n phi, box_free phi -> |- Iff (Tr_partial n phi) phi).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact Tr_partial_T_schema_for_depth_le_n.
+  - exact Tr_partial_definable_at_n_plus_1.
+  - exact Tr_partial_consistency.
+  - exact Tr_partial_hierarchy_strict.
+  - exact Tr_partial_evaluates_box_free.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
