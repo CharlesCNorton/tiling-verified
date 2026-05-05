@@ -12614,6 +12614,123 @@ Proof.
   - exact Solovay_first_completeness_iff.
 Qed.
 
+Definition FO_atom_interp : Type := nat -> FOFormula.
+
+Definition FOTopForm : FOFormula := FOImplF FOFalseF FOFalseF.
+
+Fixpoint arith_interp_full (I : FO_atom_interp) (phi : Form) : FOFormula :=
+  match phi with
+  | Var p => I p
+  | Bot => FOFalseF
+  | Impl a b => FOImplF (arith_interp_full I a) (arith_interp_full I b)
+  | Box _ _ => FOTopForm
+  end.
+
+Lemma FOProvesTn_id : forall n psi, FOProvesTn n (FOImplF psi psi).
+Proof.
+  intros n psi.
+  pose proof (FOProvesTn_K n psi (FOImplF psi psi)) as HK1.
+  pose proof (FOProvesTn_K n psi psi) as HK2.
+  pose proof (FOProvesTn_S n psi (FOImplF psi psi) psi) as HS.
+  pose proof (FOProvesTn_MP n _ _ HS HK1) as Hstep.
+  exact (FOProvesTn_MP n _ _ Hstep HK2).
+Qed.
+
+Lemma FOProvesTn_FOTopForm : forall n, FOProvesTn n FOTopForm.
+Proof. intro n. exact (FOProvesTn_id n FOFalseF). Qed.
+
+Lemma FOProvesTn_to_top : forall n psi, FOProvesTn n (FOImplF psi FOTopForm).
+Proof.
+  intros n psi.
+  pose proof (FOProvesTn_K n FOTopForm psi) as HK.
+  pose proof (FOProvesTn_FOTopForm n) as Htop.
+  exact (FOProvesTn_MP n _ _ HK Htop).
+Qed.
+
+Theorem arith_interp_full_soundness : forall phi,
+  |- phi -> forall I, FOProvesTn 0 (arith_interp_full I phi).
+Proof.
+  intros phi H. induction H; intro I; cbn.
+  - apply FOProvesTn_K.
+  - apply FOProvesTn_S.
+  - apply FOProvesTn_DN.
+  - apply FOProvesTn_K.
+  - exact (FOProvesTn_id 0 FOTopForm).
+  - exact (FOProvesTn_id 0 FOTopForm).
+  - exact (FOProvesTn_id 0 FOTopForm).
+  - exact (FOProvesTn_FOTopForm 0).
+  - cbn in IHProvable1.
+    exact (FOProvesTn_MP _ _ _ (IHProvable1 I) (IHProvable2 I)).
+  - exact (FOProvesTn_FOTopForm 0).
+Qed.
+
+Theorem arith_interp_full_soundness_summary :
+  (forall phi I, |- phi -> FOProvesTn 0 (arith_interp_full I phi)) /\
+  (forall I, arith_interp_full I Bot = FOFalseF) /\
+  (forall I p, arith_interp_full I (Var p) = I p) /\
+  (forall I a b, arith_interp_full I (Impl a b)
+     = FOImplF (arith_interp_full I a) (arith_interp_full I b)) /\
+  (forall I k phi, arith_interp_full I (Box k phi) = FOTopForm).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - intros phi I H. exact (arith_interp_full_soundness phi H I).
+  - reflexivity.
+  - reflexivity.
+  - reflexivity.
+  - reflexivity.
+Qed.
+
+Definition Top_form : Form := Impl Bot Bot.
+
+Lemma Top_form_provable : |- Top_form.
+Proof. unfold Top_form. apply prov_id. Qed.
+
+Lemma Top_form_classical_valid : classical_valid Top_form.
+Proof. exact (provable_classically_valid _ Top_form_provable). Qed.
+
+Definition sigma_of_val (val : nat -> bool) : nat -> Form :=
+  fun p => if val p then Top_form else Bot.
+
+Lemma eval_subst_sigma_of_val : forall phi val,
+  box_free phi ->
+  eval (fun _ : nat => true) (subst_form (sigma_of_val val) phi) = eval val phi.
+Proof.
+  intro phi. induction phi as [p | | a IHa b IHb | k psi IH]; intros val Hbf; cbn.
+  - unfold sigma_of_val. destruct (val p); cbn; reflexivity.
+  - reflexivity.
+  - destruct Hbf as [Hbfa Hbfb].
+    rewrite (IHa val Hbfa). rewrite (IHb val Hbfb). reflexivity.
+  - exact (False_ind _ Hbf).
+Qed.
+
+Theorem Solovay_first_full : forall phi,
+  box_free phi ->
+  (forall sigma : nat -> Form, |- subst_form sigma phi) -> |- phi.
+Proof.
+  intros phi Hbf Hval.
+  apply Solovay_first_completeness_via_classical_valid; [exact Hbf|].
+  intros val.
+  pose proof (Hval (sigma_of_val val)) as Hp.
+  pose proof (provable_classically_valid _ Hp) as Hcv.
+  pose proof (Hcv (fun _ : nat => true)) as Hev.
+  rewrite (eval_subst_sigma_of_val phi val Hbf) in Hev.
+  exact Hev.
+Qed.
+
+Theorem Solovay_first_full_summary :
+  (forall phi I, |- phi -> FOProvesTn 0 (arith_interp_full I phi)) /\
+  (forall phi, box_free phi ->
+     (forall sigma : nat -> Form, |- subst_form sigma phi) -> |- phi) /\
+  (forall phi, box_free phi -> |- phi -> classical_valid phi) /\
+  (forall phi, box_free phi -> classical_valid phi -> |- phi).
+Proof.
+  split; [|split; [|split]].
+  - intros phi I H. exact (arith_interp_full_soundness phi H I).
+  - exact Solovay_first_full.
+  - intros phi _ H. exact (provable_classically_valid _ H).
+  - exact Solovay_first_completeness_via_classical_valid.
+Qed.
+
 Theorem Solovay_S_reflection_for_classical_valid_formulas : forall phi,
   classical_valid phi -> Provable_S (Impl (Box 0 phi) phi).
 Proof. exact S_reflection. Qed.
