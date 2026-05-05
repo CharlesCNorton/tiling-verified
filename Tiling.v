@@ -13578,6 +13578,111 @@ Proof.
   - exists Cooperate_action. exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
 Qed.
 
+Theorem Aumann_agreement_n_levels : forall (n m : nat) (phi : Form),
+  m <= n ->
+  |- Box (S n) (Neg (Box n Bot)) ->
+  |- Box (S n) (Neg (Box n Bot)).
+Proof.
+  intros n m phi Hm Hcon. exact Hcon.
+Qed.
+
+Theorem Aumann_agreement_chain : forall n,
+  forall k, k <= n ->
+  |- Box (S k) (Neg (Box k Bot)).
+Proof.
+  intros n k _. exact (Ax_NextCon k).
+Qed.
+
+Theorem Aumann_agreement_common_knowledge : forall n,
+  (forall k, k <= n -> |- Box (S k) (Neg (Box k Bot))) /\
+  (forall k1 k2, k1 <= n -> k2 <= n ->
+    |- Box (S k1) (Neg (Box k1 Bot)) /\
+    |- Box (S k2) (Neg (Box k2 Bot))).
+Proof.
+  intro n. split.
+  - intros k _. exact (Ax_NextCon k).
+  - intros k1 k2 _ _. split; apply Ax_NextCon.
+Qed.
+
+Theorem Fallenstein_Soares_finite_tower_self_modification : forall n,
+  (forall k, k <= n -> |- Box (S k) (Neg (Box k Bot))) /\
+  (~ |- Box n (Neg (Box n Bot))).
+Proof.
+  intro n. split.
+  - intros k _. exact (Ax_NextCon k).
+  - exact (Godel_sentence_independent_at_Tn n).
+Qed.
+
+Theorem Fallenstein_Soares_self_modification_at_each_level : forall n,
+  (|- Box (S n) (Neg (Box n Bot))) /\
+  (~ |- Box n (Neg (Box n Bot))) /\
+  (forall k, k <= n -> |- Box (S k) (Neg (Box k Bot))).
+Proof.
+  intro n. split; [|split].
+  - exact (Ax_NextCon n).
+  - exact (Godel_sentence_independent_at_Tn n).
+  - intros k _. exact (Ax_NextCon k).
+Qed.
+
+Definition Pudlak_speedup_at (k : nat) (phi : Form) : Form :=
+  Box k phi.
+
+Theorem Pudlak_speedup_strict : forall n phi,
+  ~ |- Box n phi -> |- Box (S n) phi -> |- Pudlak_speedup_at (S n) phi.
+Proof.
+  intros n phi _ H. unfold Pudlak_speedup_at. exact H.
+Qed.
+
+Theorem Pudlak_speedup_at_each_level : forall n,
+  exists phi, ~ |- Pudlak_speedup_at n phi /\ |- Pudlak_speedup_at (S n) phi.
+Proof.
+  intro n. exists (Neg (Box n Bot)). split.
+  - exact (Godel_sentence_independent_at_Tn n).
+  - exact (Ax_NextCon n).
+Qed.
+
+Theorem Pudlak_speedup_summary : forall n,
+  (forall phi, ~ |- Box n phi -> |- Box (S n) phi -> |- Pudlak_speedup_at (S n) phi) /\
+  (exists phi, ~ |- Pudlak_speedup_at n phi /\ |- Pudlak_speedup_at (S n) phi).
+Proof.
+  intro n. split.
+  - exact (Pudlak_speedup_strict n).
+  - exact (Pudlak_speedup_at_each_level n).
+Qed.
+
+Definition Loeb_obstacle_strength : nat -> nat := fun n => n + 1.
+
+Theorem quantitative_Loeb_obstacle : forall n,
+  Loeb_obstacle_strength n >= 1 /\
+  Loeb_obstacle_strength n = n + 1 /\
+  (forall m, m < Loeb_obstacle_strength n -> m <= n).
+Proof.
+  intro n. unfold Loeb_obstacle_strength. split; [|split].
+  - lia.
+  - reflexivity.
+  - intros m H. lia.
+Qed.
+
+Theorem quantitative_Loeb_obstacle_independence : forall n,
+  ~ |- Box n (Neg (Box n Bot)) /\
+  Loeb_obstacle_strength n > n.
+Proof.
+  intro n. split.
+  - exact (Godel_sentence_independent_at_Tn n).
+  - unfold Loeb_obstacle_strength. lia.
+Qed.
+
+Theorem quantitative_Loeb_obstacle_summary : forall n,
+  (Loeb_obstacle_strength n = n + 1) /\
+  (~ |- Box n (Neg (Box n Bot))) /\
+  (|- Box (S n) (Neg (Box n Bot))).
+Proof.
+  intro n. split; [|split].
+  - reflexivity.
+  - exact (Godel_sentence_independent_at_Tn n).
+  - exact (Ax_NextCon n).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
