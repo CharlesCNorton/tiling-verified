@@ -17406,6 +17406,113 @@ Proof.
     exact (Hforces_neg Hw_phi).
 Qed.
 
+Definition Stone_image (phi : Form) (w : canonical_world_max) : Prop :=
+  cwm_set w phi.
+
+Theorem Stone_image_provable_universal : forall phi,
+  |- phi -> forall (w : canonical_world_max), Stone_image phi w.
+Proof.
+  intros phi Hp w. unfold Stone_image.
+  apply (cwm_deductively_closed w).
+  exists []. split.
+  - intros _ [].
+  - apply DT_thm. exact Hp.
+Qed.
+
+Theorem Stone_image_bot_empty :
+  forall (w : canonical_world_max), ~ Stone_image Bot w.
+Proof. exact canonical_truth_lemma_max_bot. Qed.
+
+Theorem Stone_image_top_universal :
+  forall (w : canonical_world_max), Stone_image Top w.
+Proof.
+  intro w. apply Stone_image_provable_universal. exact (prov_id Bot).
+Qed.
+
+Theorem Stone_image_modus_ponens :
+  forall (w : canonical_world_max) phi psi,
+    Stone_image (Impl phi psi) w -> Stone_image phi w -> Stone_image psi w.
+Proof. intros w phi psi. exact (canonical_truth_lemma_max_impl_forward w phi psi). Qed.
+
+Theorem Stone_image_maximal :
+  forall (w : canonical_world_max) phi,
+    Stone_image phi w \/ Stone_image (Neg phi) w.
+Proof. intros w phi. exact (cwm_maximal w phi). Qed.
+
+Theorem Stone_image_consistency :
+  forall (w : canonical_world_max) phi,
+    Stone_image phi w -> ~ Stone_image (Neg phi) w.
+Proof.
+  intros w phi Hphi Hnphi.
+  pose proof (Stone_image_modus_ponens w phi Bot Hnphi Hphi) as Hbot.
+  exact (Stone_image_bot_empty w Hbot).
+Qed.
+
+Definition Stone_image_R (n : nat) (w v : canonical_world_max) : Prop :=
+  canonical_R_max n w v.
+
+Theorem Stone_R_box_to_succ : forall n (w v : canonical_world_max) phi,
+  Stone_image_R n w v ->
+  Stone_image (Box n phi) w -> Stone_image phi v.
+Proof.
+  intros n w v phi HR Hbox.
+  unfold Stone_image, Stone_image_R, canonical_R_max in *.
+  exact (HR phi Hbox).
+Qed.
+
+Theorem Stone_R_transitive : forall n,
+  forall w v u, Stone_image_R n w v -> Stone_image_R n v u ->
+                Stone_image_R n w u.
+Proof. exact canonical_R_max_transitive. Qed.
+
+Theorem Stone_R_NextCon : forall n (w v : canonical_world_max),
+  Stone_image_R (S n) w v ->
+  cwm_set v (Neg (Box n Bot)).
+Proof. exact canonical_R_max_NextCon_witness. Qed.
+
+Theorem Stone_duality_LT_to_frame :
+  (forall phi, |- phi ->
+    forall (w : canonical_world_max), Stone_image phi w) /\
+  (forall (w : canonical_world_max),
+    forall phi psi, Stone_image (Impl phi psi) w ->
+                    Stone_image phi w -> Stone_image psi w) /\
+  (forall (w : canonical_world_max), ~ Stone_image Bot w) /\
+  (forall (w : canonical_world_max), Stone_image Top w) /\
+  (forall (w : canonical_world_max) phi,
+    Stone_image phi w \/ Stone_image (Neg phi) w) /\
+  (forall (w : canonical_world_max) phi,
+    Stone_image phi w -> ~ Stone_image (Neg phi) w) /\
+  (forall n (w v : canonical_world_max) phi,
+    Stone_image_R n w v ->
+    Stone_image (Box n phi) w -> Stone_image phi v).
+Proof.
+  split; [|split; [|split; [|split; [|split; [|split]]]]].
+  - exact Stone_image_provable_universal.
+  - exact Stone_image_modus_ponens.
+  - exact Stone_image_bot_empty.
+  - exact Stone_image_top_universal.
+  - exact Stone_image_maximal.
+  - exact Stone_image_consistency.
+  - exact Stone_R_box_to_succ.
+Qed.
+
+Theorem Stone_duality_provability_iff_universal :
+  forall phi, |- phi <->
+    (forall (w : canonical_world_max), Stone_image phi w).
+Proof.
+  intro phi. split.
+  - exact (Stone_image_provable_universal phi).
+  - intro Huniv.
+    apply NNPP. intro Hnp.
+    assert (Hnp_neg : ~ |- Neg (Neg phi)).
+    { intro Habs. apply Hnp.
+      pose proof (Ax_DN phi) as HDN.
+      exact (MP _ _ HDN Habs). }
+    destruct (canonical_existence_lemma (Neg phi) Hnp_neg) as [w Hw_neg].
+    pose proof (Huniv w) as Hw_phi.
+    exact (Stone_image_consistency w phi Hw_phi Hw_neg).
+Qed.
+
 Lemma forces_box_free_iff_eval_const : forall (F : Frame) val w phi,
   box_free phi ->
   (forces F (fun _ => val) w phi <-> eval val phi = true).
