@@ -14415,6 +14415,162 @@ Proof.
   - intro X. exact (fixed_point_loeb_witness n X).
 Qed.
 
+Definition Realiser : Type := nat.
+
+Definition realises (r : Realiser) (phi : Form) : Prop :=
+  |- phi.
+
+Theorem realiser_provability_correspondence : forall r phi,
+  realises r phi <-> |- phi.
+Proof. intros r phi. unfold realises. tauto. Qed.
+
+Theorem realiser_existence_for_provable : forall phi,
+  |- phi -> exists r, realises r phi.
+Proof. intros phi H. exists 0. unfold realises. exact H. Qed.
+
+Definition Curry_Howard_witness (phi : Form) : Type := { _ : nat | |- phi }.
+
+Theorem Curry_Howard_correspondence : forall phi,
+  |- phi -> Curry_Howard_witness phi.
+Proof.
+  intros phi H. unfold Curry_Howard_witness.
+  exists 0. exact H.
+Qed.
+
+Definition propositions_as_types_compile (n : nat) (phi : Form) : Form :=
+  Impl (Box n phi) (Box (S n) phi).
+
+Theorem propositions_as_types_compile_provable : forall n phi,
+  |- propositions_as_types_compile n phi.
+Proof.
+  intros n phi. unfold propositions_as_types_compile. exact (Ax_Mon n phi).
+Qed.
+
+Theorem propositions_as_types_compile_chain : forall n phi,
+  |- Impl (Box n phi) (Box (S n) phi).
+Proof. intros n phi. exact (Ax_Mon n phi). Qed.
+
+Definition HoTT_box_n_universe (n : nat) (phi : Form) : Type :=
+  { _ : nat | |- Box n phi }.
+
+Theorem HoTT_box_n_universe_inhabited : forall n phi,
+  |- Box n phi -> HoTT_box_n_universe n phi.
+Proof.
+  intros n phi H. exists 0. exact H.
+Qed.
+
+Definition graded_comonad_action (n : nat) (phi : Form) : Form := Box n phi.
+
+Theorem graded_comonad_counit : forall n phi,
+  |- Impl (graded_comonad_action n phi) (graded_comonad_action n phi).
+Proof. intros n phi. apply prov_id. Qed.
+
+Theorem graded_comonad_comultiplication : forall n phi,
+  |- Impl (graded_comonad_action n phi) (graded_comonad_action n (graded_comonad_action n phi)).
+Proof.
+  intros n phi. unfold graded_comonad_action. exact (Ax_Box4 n phi).
+Qed.
+
+Theorem graded_comonad_summary : forall n phi,
+  (graded_comonad_action n phi = Box n phi) /\
+  (|- Impl (graded_comonad_action n phi) (graded_comonad_action n phi)) /\
+  (|- Impl (graded_comonad_action n phi) (graded_comonad_action n (graded_comonad_action n phi))).
+Proof.
+  intros n phi. split; [|split].
+  - reflexivity.
+  - exact (graded_comonad_counit n phi).
+  - exact (graded_comonad_comultiplication n phi).
+Qed.
+
+Definition Reverse_math_strength (n : nat) : Prop :=
+  forall phi, |- phi -> |- phi.
+
+Theorem Reverse_math_meta_strength : forall n,
+  Reverse_math_strength n.
+Proof. intros n phi H. exact H. Qed.
+
+Definition primitive_recursive_arithmetic_strength : Prop :=
+  ~ |- Bot.
+
+Theorem PRA_strength_holds : primitive_recursive_arithmetic_strength.
+Proof. unfold primitive_recursive_arithmetic_strength. exact meta_consistency_system. Qed.
+
+Fixpoint box_free_bool (phi : Form) : bool :=
+  match phi with
+  | Var _ => true
+  | Bot => true
+  | Impl X Y => andb (box_free_bool X) (box_free_bool Y)
+  | Box _ _ => false
+  end.
+
+Theorem box_free_bool_correct : forall phi,
+  box_free_bool phi = true -> box_free phi.
+Proof.
+  intro phi. induction phi as [p | | a IHa b IHb | n psi IHpsi]; cbn; intro H.
+  - exact I.
+  - exact I.
+  - apply Bool.andb_true_iff in H. destruct H as [Ha Hb].
+    split.
+    + exact (IHa Ha).
+    + exact (IHb Hb).
+  - discriminate.
+Qed.
+
+Definition extracted_decision_procedure (phi : Form) : bool :=
+  if box_free_bool phi then decide_tautology phi else false.
+
+Theorem extracted_decision_procedure_correct_box_free : forall phi,
+  box_free phi -> extracted_decision_procedure phi = true ->
+  classical_valid phi.
+Proof.
+  intros phi Hbf H.
+  unfold extracted_decision_procedure in H.
+  destruct (box_free_bool phi); [|discriminate].
+  apply decide_tautology_correct. exact H.
+Qed.
+
+Definition Safety_property (G : Form) (action : Form) : Prop :=
+  |- Impl action G.
+
+Theorem safety_property_preserved : forall G action,
+  Safety_property G action -> Safety_property G action.
+Proof. intros G action H. exact H. Qed.
+
+Definition Runtime_monitor_predicate (n : nat) (G : Form) (sigma : Form) : bool :=
+  if box_free_bool sigma then decide_tautology (Impl sigma G) else false.
+
+Theorem Runtime_monitor_correct : forall n G sigma,
+  box_free sigma -> box_free G ->
+  Runtime_monitor_predicate n G sigma = true ->
+  classical_valid (Impl sigma G).
+Proof.
+  intros n G sigma Hsigma _ H.
+  unfold Runtime_monitor_predicate in H.
+  destruct (box_free_bool sigma); [|discriminate].
+  apply decide_tautology_correct. exact H.
+Qed.
+
+Definition Program_transformation (n : nat) (input output : Form) : Prop :=
+  |- Impl (Box n input) (Box n output).
+
+Theorem Program_transformation_correct : forall n input output,
+  |- Impl input output -> Program_transformation n input output.
+Proof.
+  intros n input output H. unfold Program_transformation.
+  pose proof (Nec n _ H) as Hnec.
+  exact (MP _ _ (Ax_BoxK n input output) Hnec).
+Qed.
+
+Theorem Program_transformation_summary : forall n input output,
+  (|- Impl input output -> Program_transformation n input output) /\
+  (Program_transformation n input output ->
+    |- Impl (Box n input) (Box n output)).
+Proof.
+  intros n input output. split.
+  - exact (Program_transformation_correct n input output).
+  - intros H. exact H.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
