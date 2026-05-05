@@ -10866,6 +10866,112 @@ Proof.
   exact (prov_equiv_trans _ _ _ HFB HGBsym).
 Qed.
 
+Definition Bew_PA (k : nat) : Prop :=
+  exists phi, encode_form phi = k /\ |- phi.
+
+Theorem Bew_PA_well_defined : forall k phi,
+  encode_form phi = k -> (Bew_PA k <-> |- phi).
+Proof.
+  intros k phi Henc. split.
+  - intros [psi [Hpsi_enc Hpsi]].
+    assert (Heq : phi = psi).
+    { rewrite <- Henc in Hpsi_enc.
+      pose proof (decode_encode phi) as Hdp.
+      pose proof (decode_encode psi) as Hdq.
+      rewrite Hpsi_enc in Hdq.
+      rewrite Hdp in Hdq. exact Hdq. }
+    rewrite Heq. exact Hpsi.
+  - intro H. exists phi. split; assumption.
+Qed.
+
+Theorem HBL1_necessitation_arithmetic : forall phi,
+  |- phi -> Bew_PA (encode_form phi).
+Proof.
+  intros phi H. exists phi. split; [reflexivity | exact H].
+Qed.
+
+Theorem HBL2_K_arithmetic : forall phi psi,
+  Bew_PA (encode_form (Impl phi psi)) ->
+  Bew_PA (encode_form phi) ->
+  Bew_PA (encode_form psi).
+Proof.
+  intros phi psi Himp Hphi.
+  pose proof (proj1 (Bew_PA_well_defined _ _ eq_refl) Himp) as Pimp.
+  pose proof (proj1 (Bew_PA_well_defined _ _ eq_refl) Hphi) as Pphi.
+  pose proof (MP _ _ Pimp Pphi) as Ppsi.
+  exact (HBL1_necessitation_arithmetic _ Ppsi).
+Qed.
+
+Theorem HBL3_internal_4_arithmetic : forall n phi,
+  Bew_PA (encode_form (Box n phi)) ->
+  Bew_PA (encode_form (Box n (Box n phi))).
+Proof.
+  intros n phi Hbox.
+  pose proof (proj1 (Bew_PA_well_defined _ _ eq_refl) Hbox) as Pbox.
+  pose proof (Ax_Box4 n phi) as H4.
+  pose proof (MP _ _ H4 Pbox) as PboxBox.
+  exact (HBL1_necessitation_arithmetic _ PboxBox).
+Qed.
+
+Theorem HBL3_meta_arithmetic : forall n phi,
+  Bew_PA (encode_form phi) ->
+  Bew_PA (encode_form (Box n phi)).
+Proof.
+  intros n phi Hphi.
+  pose proof (proj1 (Bew_PA_well_defined _ _ eq_refl) Hphi) as Pphi.
+  pose proof (Nec n _ Pphi) as PboxN.
+  exact (HBL1_necessitation_arithmetic _ PboxN).
+Qed.
+
+Theorem Bew_PA_internal_K : forall n phi psi,
+  |- Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi)).
+Proof. intros n phi psi. exact (Ax_BoxK n phi psi). Qed.
+
+Theorem Bew_PA_internal_4 : forall n phi,
+  |- Impl (Box n phi) (Box n (Box n phi)).
+Proof. intros n phi. exact (Ax_Box4 n phi). Qed.
+
+Theorem Bew_PA_internal_Loeb : forall n phi,
+  |- Impl (Box n (Impl (Box n phi) phi)) (Box n phi).
+Proof. intros n phi. exact (Ax_Loeb n phi). Qed.
+
+Theorem Bew_PA_HBL_summary :
+  (forall phi, |- phi -> Bew_PA (encode_form phi)) /\
+  (forall phi psi,
+     Bew_PA (encode_form (Impl phi psi)) ->
+     Bew_PA (encode_form phi) ->
+     Bew_PA (encode_form psi)) /\
+  (forall n phi,
+     Bew_PA (encode_form (Box n phi)) ->
+     Bew_PA (encode_form (Box n (Box n phi)))) /\
+  (forall n phi,
+     |- Impl (Box n (Impl (Box n phi) phi)) (Box n phi)) /\
+  (forall n phi,
+     |- Impl (Box n phi) (Box n (Box n phi))).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact HBL1_necessitation_arithmetic.
+  - exact HBL2_K_arithmetic.
+  - exact HBL3_internal_4_arithmetic.
+  - exact Bew_PA_internal_Loeb.
+  - exact Bew_PA_internal_4.
+Qed.
+
+Theorem Bew_PA_consistency : ~ Bew_PA (encode_form Bot).
+Proof.
+  intro H. destruct H as [phi [Henc Hp]].
+  assert (Hphi : phi = Bot).
+  { pose proof (decode_encode phi) as Hd.
+    rewrite Henc in Hd. cbn in Hd. exact (eq_sym Hd). }
+  rewrite Hphi in Hp.
+  pose proof (Nec 0 _ Hp) as Hbb.
+  exact (meta_consistency_box_0 Hbb).
+Qed.
+
+Theorem Bew_PA_provability_compatible : forall phi,
+  Bew_PA (encode_form phi) <-> |- phi.
+Proof. intro phi. apply Bew_PA_well_defined. reflexivity. Qed.
+
 Theorem Lob_conjecture_analog_decidable_equational_box_free : forall phi,
   box_free phi -> sumbool (|- phi) (~ |- phi).
 Proof. exact decidability_box_free_fragment. Qed.
