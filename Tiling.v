@@ -13606,6 +13606,24 @@ Proof.
   - exact (Critch_bounded_provability_extends_box k n phi).
 Qed.
 
+Theorem Critch_bounded_provability_summary_strengthened : forall k n phi,
+  (Critch_bounded_provability k n phi =
+   critch_threshold_box (Critch_polynomial_bound k) n phi) /\
+  (forall k1 k2, k1 <= k2 ->
+    Critch_polynomial_bound k1 <= Critch_polynomial_bound k2) /\
+  (Critch_polynomial_bound k >= 1) /\
+  (k > 0 -> exists prefix,
+    Critch_bounded_provability k n phi = Box n prefix) /\
+  (Critch_polynomial_bound k = k * k + k + 1).
+Proof.
+  intros k n phi. split; [|split; [|split; [|split]]].
+  - reflexivity.
+  - exact Critch_polynomial_bound_monotone.
+  - exact (Critch_polynomial_bound_positive k).
+  - exact (Critch_bounded_provability_extends_box k n phi).
+  - reflexivity.
+Qed.
+
 Theorem Critch_bounded_provability_polynomial_loeb : forall k n phi,
   |- Impl (Box n (Impl (Critch_bounded_provability k n phi)
                         (Critch_bounded_provability k n phi)))
@@ -14028,6 +14046,21 @@ Proof.
   - exact (Vingean_reflection_for_consistency_provable_at_level_n_plus_2 n).
 Qed.
 
+Theorem Vingean_reflection_summary_strengthened : forall n,
+  (forall phi, |- Vingean_reflection_at n phi -> |- Box (S n) phi) /\
+  (|- Vingean_reflection_at n (Neg (Box n Bot))) /\
+  (|- Box (S (S n)) (Vingean_reflection_at n (Neg (Box n Bot)))) /\
+  (forall phi, |- Vingean_reflection_at n phi <-> |- Box (S n) phi).
+Proof.
+  intro n. split; [|split; [|split]].
+  - intros phi H. exact H.
+  - exact (Vingean_reflection_consistency_carry n).
+  - exact (Vingean_reflection_for_consistency_provable_at_level_n_plus_2 n).
+  - intros phi. split.
+    + intro H. exact H.
+    + intro H. exact H.
+Qed.
+
 Definition no_panic_at (n : nat) : Form := Neg (Box n Bot).
 
 Theorem no_panic_provable_at_outer_level : forall n,
@@ -14080,6 +14113,27 @@ Proof.
   - cbn. split.
     + exact (no_panic_provable_at_outer_level n).
     + exact (meta_consistency_every_level n).
+Qed.
+
+Theorem no_panic_reflective_trust_summary_strengthened : forall n,
+  (|- Box (S n) (no_panic_at n)) /\
+  (~ |- Box n Bot) /\
+  (~ |- Box n (no_panic_at n)) /\
+  (let trust := S n in
+   |- Box trust (no_panic_at n) /\ ~ |- Box n Bot) /\
+  (|- Box (S n) (no_panic_at n) /\
+   ~ |- Box n (no_panic_at n)).
+Proof.
+  intro n. split; [|split; [|split; [|split]]].
+  - exact (no_panic_provable_at_outer_level n).
+  - exact (meta_consistency_every_level n).
+  - exact (Godel_sentence_independent_at_Tn n).
+  - cbn. split.
+    + exact (no_panic_provable_at_outer_level n).
+    + exact (meta_consistency_every_level n).
+  - split.
+    + exact (no_panic_provable_at_outer_level n).
+    + exact (Godel_sentence_independent_at_Tn n).
 Qed.
 
 Definition T_kappa_agent (G : Form) : nat -> AgentRecord :=
