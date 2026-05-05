@@ -24611,6 +24611,15 @@ Proof.
   cbn. rewrite ord_compare_refl. exact H.
 Qed.
 
+(* Generalisation: when leadings compare Eq (need not be syntactically
+   identical), the OCons-form ord_le follows from the tail's ord_le. *)
+Lemma ord_le_OCons_when_compare_eq_leading : forall a a' t1 t2,
+  ord_compare a a' = Eq -> ord_le t1 t2 -> ord_le (OCons a t1) (OCons a' t2).
+Proof.
+  intros a a' t1 t2 Hcmp Ht. unfold ord_le, ord_lt in *.
+  cbn. rewrite Hcmp. exact Ht.
+Qed.
+
 (* OCons a t1 ≤ OCons a' t2 when a < a' (purely from leading exp). *)
 Lemma ord_le_OCons_leading_lt : forall a t1 a' t2,
   ord_lt a a' -> ord_le (OCons a t1) (OCons a' t2).
@@ -24659,6 +24668,27 @@ Proof.
     + (* e = OCons (OCons _ _) _: leading > OZero. *)
       unfold ord_le, omega_cnf. cbn.
       discriminate.
+Qed.
+
+Lemma omega_cnf_le_implies_gt_one : forall x,
+  ord_le omega_cnf x -> ord_lt (OCons OZero OZero) x.
+Proof.
+  intros x H. exact (ord_lt_le_trans _ _ _ omega_cnf_gt_one H).
+Qed.
+
+(* When H_a > 1, ord_add omega_cnf (omega_pow H_a) absorbs to omega_pow H_a. *)
+Lemma ord_add_omega_cnf_absorbed : forall H_a,
+  ord_lt (OCons OZero OZero) H_a ->
+  ord_add omega_cnf (omega_pow H_a) = omega_pow H_a.
+Proof.
+  intros H_a Hlt.
+  destruct H_a as [|e t].
+  - exfalso. unfold ord_lt in Hlt. cbn in Hlt. discriminate.
+  - destruct e as [|ee et].
+    + destruct t as [|te tt].
+      * exfalso. unfold ord_lt in Hlt. cbn in Hlt. discriminate.
+      * unfold omega_cnf, omega_pow. cbn. reflexivity.
+    + unfold omega_cnf, omega_pow. cbn. reflexivity.
 Qed.
 
 Lemma proof_height_ord_ge_omega_cnf :
@@ -24717,5 +24747,127 @@ Proof.
   - reflexivity.
   - cbn in Hwf. destruct Hwf as [_ [_ Hcond]].
     rewrite Hcond. reflexivity.
+Qed.
+
+(* The proof_height of witness_at_for_ord_proof (OCons a t) is the explicit
+   nested ord_add expression in terms of the heights of the sub-proofs. *)
+Lemma proof_height_ord_witness_OCons : forall a t,
+  proof_height_ord (witness_at_for_ord_form (OCons a t))
+                   (witness_at_for_ord_proof (OCons a t))
+  = ord_add (ord_add omega_cnf
+               (omega_pow (proof_height_ord (witness_at_for_ord_form a)
+                                            (witness_at_for_ord_proof a))))
+            (proof_height_ord (witness_at_for_ord_form t)
+                              (witness_at_for_ord_proof t)).
+Proof. intros a t. reflexivity. Qed.
+
+(* The main theorem: for every CNF ord o, the witness construction
+   yields a proof whose height ord_le-dominates o.  The construction
+   is primitive-recursive on the structure of o, and the height bound
+   is achieved without any classical-existence appeal. *)
+Theorem witness_at_for_ord_bound : forall o,
+  wf_ord o ->
+  ord_le o (proof_height_ord (witness_at_for_ord_form o)
+                              (witness_at_for_ord_proof o)).
+Proof.
+  induction o as [|a IHa t IHt]; intro Hwf.
+  - (* o = OZero: ord_le OZero anything. *)
+    apply ord_compare_OZero_le.
+  - cbn in Hwf. destruct Hwf as [Hwf_a [Hwf_t _]].
+    pose proof (IHa Hwf_a) as IH_a.
+    pose proof (IHt Hwf_t) as IH_t.
+    rewrite proof_height_ord_witness_OCons.
+    pose proof (proof_height_ord_ge_omega_cnf _
+                  (witness_at_for_ord_proof a)) as Ha_ge.
+    pose proof (omega_cnf_le_implies_gt_one _ Ha_ge) as Ha_gt1.
+    rewrite (ord_add_omega_cnf_absorbed _ Ha_gt1).
+    pose proof (proof_height_ord_OCons_shape _
+                  (witness_at_for_ord_proof t)) as [hte [htt Hht_eq]].
+    rewrite Hht_eq.
+    rewrite Hht_eq in IH_t.
+    unfold omega_pow.
+    cbn [ord_add].
+    destruct (ord_compare (proof_height_ord (witness_at_for_ord_form a)
+                                            (witness_at_for_ord_proof a))
+                          hte) eqn:Hcmp_a_hte.
+    + (* H_a = hte *)
+      apply ord_compare_eq_iff in Hcmp_a_hte.
+      subst hte.
+      cbn [ord_add].
+      destruct (ord_compare a (proof_height_ord (witness_at_for_ord_form a)
+                                                (witness_at_for_ord_proof a)))
+        eqn:Ha_cmp.
+      * (* a = H_a *)
+        apply ord_le_OCons_when_compare_eq_leading; [exact Ha_cmp|].
+        exact IH_t.
+      * (* a < H_a *)
+        apply ord_le_OCons_leading_lt. exact Ha_cmp.
+      * (* a > H_a — contradicts IH_a *)
+        exfalso. apply IH_a. exact Ha_cmp.
+    + (* H_a < hte *)
+      apply ord_le_OCons_leading_lt.
+      exact (ord_le_lt_trans _ _ _ IH_a Hcmp_a_hte).
+    + (* H_a > hte *)
+      cbn [ord_add].
+      destruct (ord_compare a (proof_height_ord (witness_at_for_ord_form a)
+                                                (witness_at_for_ord_proof a)))
+        eqn:Ha_cmp.
+      * apply ord_le_OCons_when_compare_eq_leading; [exact Ha_cmp|].
+        exact IH_t.
+      * apply ord_le_OCons_leading_lt. exact Ha_cmp.
+      * exfalso. apply IH_a. exact Ha_cmp.
+Qed.
+
+(* Every vord strictly below Gamma_0_ordinal := V_phi 0 OZero is a
+   V_cnf-image: VL_cnf_phi places every CNF strictly below V_phi-atoms,
+   while no V_phi atom is below V_phi 0 OZero (the index 0 has no
+   smaller nat, and the argument OZero has no smaller ord). *)
+Lemma vord_lt_Gamma_0_iff_V_cnf : forall v,
+  vord_lt v Gamma_0_ordinal ->
+  exists o, v = V_cnf o.
+Proof.
+  intros v Hlt. unfold Gamma_0_ordinal in Hlt.
+  apply vord_lt_V_phi_inv in Hlt.
+  destruct Hlt as [[o Heq] | [[n' [α' [_ Hlt_n]]] | [α' [_ Hlt_α]]]].
+  - exists o. exact Heq.
+  - lia.
+  - destruct α' as [|αe αt]; unfold ord_lt in Hlt_α; cbn in Hlt_α; discriminate.
+Qed.
+
+(* The vord-level lower bound: for every vord v strictly below
+   Gamma_0_ordinal, there is a Provable_term whose proof_height
+   vord_le-dominates v.  Combined with [GLP_proof_height_below_Gamma_0]
+   above, this gives both bounds — the proof-height is below
+   Gamma_0_ordinal, and below every threshold strictly less than
+   Gamma_0_ordinal there is a proof attaining a height at least that
+   threshold.  The lower-bound construction is primitive-recursive on
+   the underlying CNF ord and produces strictly larger proof_heights
+   for strictly larger ords. *)
+Theorem witness_at_below_Gamma_0 : forall v,
+  wf_vord v ->
+  vord_lt v Gamma_0_ordinal ->
+  { phi : Form &
+    { pt : Provable_term phi & vord_le v (proof_height phi pt) } }.
+Proof.
+  intros v Hwf Hlt.
+  destruct v as [o | n α].
+  - cbn in Hwf.
+    exists (witness_at_for_ord_form o).
+    exists (witness_at_for_ord_proof o).
+    pose proof (witness_at_for_ord_bound o Hwf) as Hbound.
+    unfold ord_le in Hbound. unfold proof_height, vord_le.
+    destruct (ord_compare o (proof_height_ord (witness_at_for_ord_form o)
+                                              (witness_at_for_ord_proof o)))
+      eqn:Hcmp.
+    + left. f_equal. apply ord_compare_eq_iff. exact Hcmp.
+    + right. apply VL_cnf. exact Hcmp.
+    + exfalso. apply Hbound. reflexivity.
+  - exfalso. unfold Gamma_0_ordinal in Hlt.
+    apply vord_lt_V_phi_inv in Hlt.
+    destruct Hlt as [[o Heq] | [[n' [α' [Heq Hlt_n]]] | [α' [Heq Hlt_α]]]].
+    + discriminate.
+    + injection Heq as En _. subst n'. lia.
+    + injection Heq as En _. subst n.
+      destruct α' as [|αe αt]; unfold ord_lt in Hlt_α; cbn in Hlt_α; discriminate.
 Qed.
 
