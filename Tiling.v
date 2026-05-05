@@ -3755,6 +3755,28 @@ Proof.
   intro b. apply Hval.
 Qed.
 
+Theorem decide_tautology_pspace_runs_in_polynomial_space : forall phi,
+  box_free phi ->
+  let vars := nodup Nat.eq_dec (free_vars phi) in
+  let max_space := length vars in
+  length (List.repeat false max_space) = max_space /\
+  (forall fuel l,
+     iter_bool_list_succ fuel (List.repeat false max_space) = Some l ->
+     length l = max_space) /\
+  (decide_tautology_pspace phi = true <-> |- phi).
+Proof.
+  intros phi Hbf vars max_space. split; [|split].
+  - apply repeat_length.
+  - intros fuel l Hi.
+    pose proof (iter_bool_list_succ_preserves_length _ _ _ Hi) as Heq.
+    rewrite repeat_length in Heq. exact Heq.
+  - split.
+    + intro Hd. apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+      apply decide_tautology_pspace_sound. exact Hd.
+    + intro Hp. apply decide_tautology_pspace_complete.
+      intro val. exact (eval_provable_true val phi Hp).
+Qed.
+
 Ltac prop_decide :=
   apply prop_decide_correct;
   [ cbn; repeat split; exact I
