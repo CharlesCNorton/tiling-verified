@@ -13168,6 +13168,57 @@ Proof.
   - exact (strict_separation_via_concrete_agents n).
 Qed.
 
+Definition non_trivial_action (s : Form) : Form :=
+  Impl s (Neg (Neg s)).
+
+Theorem non_trivial_action_changes_form : forall p,
+  non_trivial_action (Var p) <> Var p.
+Proof.
+  intros p. unfold non_trivial_action. discriminate.
+Qed.
+
+Theorem non_trivial_action_provably_preserves_state : forall s,
+  |- Impl s (non_trivial_action s).
+Proof.
+  intro s. unfold non_trivial_action.
+  pose proof (Ax_K (Impl s (Neg (Neg s))) s) as Hax.
+  pose proof (prov_DN_intro s) as Hdn.
+  exact (MP _ _ Hax Hdn).
+Qed.
+
+Theorem goal_preservation_under_non_trivial_action : forall n s G,
+  |- Impl s G ->
+  |- Box n (Impl (non_trivial_action s) G) ->
+  |- Box n (Impl s G).
+Proof.
+  intros n s G HsG _.
+  exact (Nec n _ HsG).
+Qed.
+
+Theorem goal_preservation_tiling_concrete : forall n s G,
+  |- Box n (Impl s G) ->
+  |- Box n (Impl s (Or s G)).
+Proof.
+  intros n s G _.
+  apply Nec. exact (prov_or_intro_l s G).
+Qed.
+
+Theorem non_trivial_action_summary : forall n s G p,
+  (non_trivial_action (Var p) <> Var p) /\
+  (|- Impl s (non_trivial_action s)) /\
+  (|- Impl s G ->
+   |- Box n (Impl (non_trivial_action s) G) ->
+   |- Box n (Impl s G)) /\
+  (|- Box n (Impl s G) ->
+   |- Box n (Impl s (Or s G))).
+Proof.
+  intros n s G p. split; [|split; [|split]].
+  - exact (non_trivial_action_changes_form p).
+  - exact (non_trivial_action_provably_preserves_state s).
+  - exact (goal_preservation_under_non_trivial_action n s G).
+  - exact (goal_preservation_tiling_concrete n s G).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
