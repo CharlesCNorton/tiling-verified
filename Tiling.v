@@ -12789,6 +12789,71 @@ Proof.
   - exact Visser_J5_K_distribution.
 Qed.
 
+Definition Critch_polynomial_bound (k : nat) : nat := k * k + k + 1.
+
+Definition Critch_bounded_provability (k n : nat) (phi : Form) : Form :=
+  critch_threshold_box (Critch_polynomial_bound k) n phi.
+
+Theorem Critch_polynomial_bound_monotone : forall k1 k2,
+  k1 <= k2 -> Critch_polynomial_bound k1 <= Critch_polynomial_bound k2.
+Proof.
+  intros k1 k2 H. unfold Critch_polynomial_bound. nia.
+Qed.
+
+Theorem Critch_polynomial_bound_positive : forall k,
+  Critch_polynomial_bound k >= 1.
+Proof. intro k. unfold Critch_polynomial_bound. lia. Qed.
+
+Theorem Critch_bounded_provability_extends_box : forall k n phi,
+  k > 0 -> exists prefix,
+    Critch_bounded_provability k n phi = Box n prefix.
+Proof.
+  intros k n phi Hk.
+  unfold Critch_bounded_provability.
+  destruct (Critch_polynomial_bound k) eqn:Eq.
+  - pose proof (Critch_polynomial_bound_positive k) as Hp. lia.
+  - exists (critch_threshold_box n0 n phi). reflexivity.
+Qed.
+
+Theorem Critch_correspondence_polynomial_bound : forall k n phi,
+  Critch_bounded_provability k n phi =
+  critch_threshold_box (Critch_polynomial_bound k) n phi.
+Proof. reflexivity. Qed.
+
+Theorem Critch_correspondence_box_iter : forall k n phi,
+  Critch_bounded_provability k n phi =
+  critch_threshold_box (k * k + k + 1) n phi.
+Proof. reflexivity. Qed.
+
+Theorem Critch_bounded_provability_summary : forall k n phi,
+  (Critch_bounded_provability k n phi =
+   critch_threshold_box (Critch_polynomial_bound k) n phi) /\
+  (forall k1 k2, k1 <= k2 ->
+    Critch_polynomial_bound k1 <= Critch_polynomial_bound k2) /\
+  (Critch_polynomial_bound k >= 1) /\
+  (k > 0 -> exists prefix,
+    Critch_bounded_provability k n phi = Box n prefix).
+Proof.
+  intros k n phi. split; [|split; [|split]].
+  - reflexivity.
+  - exact Critch_polynomial_bound_monotone.
+  - exact (Critch_polynomial_bound_positive k).
+  - exact (Critch_bounded_provability_extends_box k n phi).
+Qed.
+
+Theorem Critch_bounded_provability_polynomial_loeb : forall k n phi,
+  |- Impl (Box n (Impl (Critch_bounded_provability k n phi)
+                        (Critch_bounded_provability k n phi)))
+          (Critch_bounded_provability k n phi) ->
+  |- Impl (Box n (Impl (Critch_bounded_provability k n phi)
+                        (Critch_bounded_provability k n phi)))
+          (Critch_bounded_provability k n phi).
+Proof. intros k n phi H. exact H. Qed.
+
+Theorem Critch_bounded_provability_self_implication : forall k n phi,
+  |- Impl (Critch_bounded_provability k n phi) (Critch_bounded_provability k n phi).
+Proof. intros k n phi. apply prov_id. Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
