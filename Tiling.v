@@ -10972,6 +10972,125 @@ Theorem Bew_PA_provability_compatible : forall phi,
   Bew_PA (encode_form phi) <-> |- phi.
 Proof. intro phi. apply Bew_PA_well_defined. reflexivity. Qed.
 
+Definition Bew_n (n : nat) (k : nat) : Prop :=
+  exists phi, encode_form phi = k /\ |- Box n phi.
+
+Theorem Bew_n_well_defined : forall n k phi,
+  encode_form phi = k -> (Bew_n n k <-> |- Box n phi).
+Proof.
+  intros n k phi Henc. split.
+  - intros [psi [Hpsi_enc Hpsi]].
+    assert (Heq : phi = psi).
+    { rewrite <- Henc in Hpsi_enc.
+      pose proof (decode_encode phi) as Hdp.
+      pose proof (decode_encode psi) as Hdq.
+      rewrite Hpsi_enc in Hdq.
+      rewrite Hdp in Hdq. exact Hdq. }
+    rewrite Heq. exact Hpsi.
+  - intro H. exists phi. split; assumption.
+Qed.
+
+Theorem HBL1_necessitation_Bew_n : forall n phi,
+  |- phi -> Bew_n n (encode_form phi).
+Proof.
+  intros n phi H. exists phi. split; [reflexivity | exact (Nec n _ H)].
+Qed.
+
+Theorem HBL2_K_Bew_n : forall n phi psi,
+  Bew_n n (encode_form (Impl phi psi)) ->
+  Bew_n n (encode_form phi) ->
+  Bew_n n (encode_form psi).
+Proof.
+  intros n phi psi Himp Hphi.
+  pose proof (proj1 (Bew_n_well_defined n _ _ eq_refl) Himp) as Pimp.
+  pose proof (proj1 (Bew_n_well_defined n _ _ eq_refl) Hphi) as Pphi.
+  pose proof (Ax_BoxK n phi psi) as HK.
+  pose proof (MP _ _ HK Pimp) as Hstep.
+  pose proof (MP _ _ Hstep Pphi) as Ppsi.
+  exists psi. split; [reflexivity | exact Ppsi].
+Qed.
+
+Theorem HBL3_4_Bew_n : forall n phi,
+  Bew_n n (encode_form phi) ->
+  Bew_n n (encode_form (Box n phi)).
+Proof.
+  intros n phi Hphi.
+  pose proof (proj1 (Bew_n_well_defined n _ _ eq_refl) Hphi) as Pphi.
+  pose proof (Ax_Box4 n phi) as H4.
+  pose proof (MP _ _ H4 Pphi) as PboxBox.
+  exists (Box n phi). split; [reflexivity | exact PboxBox].
+Qed.
+
+Theorem HBL_Loeb_Bew_n : forall n phi,
+  Bew_n n (encode_form (Impl (Box n phi) phi)) ->
+  Bew_n n (encode_form phi).
+Proof.
+  intros n phi Hloeb.
+  pose proof (proj1 (Bew_n_well_defined n _ _ eq_refl) Hloeb) as Ploeb.
+  pose proof (Ax_Loeb n phi) as HLob.
+  pose proof (MP _ _ HLob Ploeb) as Pphi.
+  exists phi. split; [reflexivity | exact Pphi].
+Qed.
+
+Theorem Bew_n_monotonicity : forall n phi,
+  Bew_n n (encode_form phi) ->
+  Bew_n (S n) (encode_form phi).
+Proof.
+  intros n phi Hphi.
+  pose proof (proj1 (Bew_n_well_defined n _ _ eq_refl) Hphi) as Pphi.
+  pose proof (Ax_Mon n phi) as Hmon.
+  pose proof (MP _ _ Hmon Pphi) as PSn.
+  exists phi. split; [reflexivity | exact PSn].
+Qed.
+
+Theorem Bew_n_consistency : forall n, ~ Bew_n n (encode_form Bot).
+Proof.
+  intros n H.
+  destruct H as [phi [Henc Hp]].
+  assert (Hphi : phi = Bot).
+  { pose proof (decode_encode phi) as Hd.
+    rewrite Henc in Hd. cbn in Hd. exact (eq_sym Hd). }
+  rewrite Hphi in Hp.
+  pose proof (meta_consistency_every_level n) as Hcons.
+  exact (Hcons Hp).
+Qed.
+
+Theorem Bew_n_provability_compatible : forall n phi,
+  Bew_n n (encode_form phi) <-> |- Box n phi.
+Proof. intros n phi. apply Bew_n_well_defined. reflexivity. Qed.
+
+Theorem Bew_n_HBL_summary :
+  (forall n phi, |- phi -> Bew_n n (encode_form phi)) /\
+  (forall n phi psi,
+     Bew_n n (encode_form (Impl phi psi)) ->
+     Bew_n n (encode_form phi) ->
+     Bew_n n (encode_form psi)) /\
+  (forall n phi,
+     Bew_n n (encode_form phi) ->
+     Bew_n n (encode_form (Box n phi))) /\
+  (forall n phi,
+     Bew_n n (encode_form (Impl (Box n phi) phi)) ->
+     Bew_n n (encode_form phi)) /\
+  (forall n phi,
+     Bew_n n (encode_form phi) ->
+     Bew_n (S n) (encode_form phi)).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact HBL1_necessitation_Bew_n.
+  - exact HBL2_K_Bew_n.
+  - exact HBL3_4_Bew_n.
+  - exact HBL_Loeb_Bew_n.
+  - exact Bew_n_monotonicity.
+Qed.
+
+Theorem Bew_n_replaces_primitive_Box :
+  forall n phi, |- Box n phi <-> Bew_n n (encode_form phi).
+Proof.
+  intros n phi. split.
+  - intro H. exists phi. split; [reflexivity | exact H].
+  - exact (proj1 (Bew_n_well_defined n _ _ eq_refl)).
+Qed.
+
 Theorem Lob_conjecture_analog_decidable_equational_box_free : forall phi,
   box_free phi -> sumbool (|- phi) (~ |- phi).
 Proof. exact decidability_box_free_fragment. Qed.
