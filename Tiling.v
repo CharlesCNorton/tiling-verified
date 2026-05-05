@@ -13525,6 +13525,59 @@ Proof.
   - unfold genuine_FairBot, Defect_action, Cooperate_action. discriminate.
 Qed.
 
+Theorem BCFHLY_robust_cooperation_non_trivial : forall n,
+  exists psi,
+    psi <> Top /\
+    psi <> Bot /\
+    psi <> Cooperate_action /\
+    |- Iff psi (Box n (Impl psi Cooperate_action)).
+Proof.
+  intro n. exists (Box n Cooperate_action).
+  split; [|split; [|split]].
+  - unfold Top. discriminate.
+  - discriminate.
+  - unfold Cooperate_action. discriminate.
+  - exact (fixed_point_loeb_witness n Cooperate_action).
+Qed.
+
+Theorem BCFHLY_robust_cooperation_provable : forall n,
+  |- Iff (Box n Cooperate_action)
+        (Box n (Impl (Box n Cooperate_action) Cooperate_action)).
+Proof.
+  intro n. exact (fixed_point_loeb_witness n Cooperate_action).
+Qed.
+
+Theorem PrudentBot_strict_dominance_via_consistency : forall n,
+  |- Impl (genuine_PrudentBot n Cooperate_action) (Box (S n) (Neg (Box n Bot))) /\
+  |- genuine_PrudentBot n Cooperate_action.
+Proof.
+  intro n. split.
+  - unfold genuine_PrudentBot. exact (prov_and_elim_r _ _).
+  - exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
+Qed.
+
+Theorem PrudentBot_strict_pareto_improvement : forall n,
+  exists opp,
+    |- genuine_PrudentBot n opp /\
+    |- Iff (genuine_FairBot n opp) (Box n (Iff opp Cooperate_action)).
+Proof.
+  intros n. exists Cooperate_action. split.
+  - exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
+  - apply prov_iff_refl.
+Qed.
+
+Theorem PrudentBot_dominance_summary : forall n,
+  (|- genuine_PrudentBot n Cooperate_action) /\
+  (|- Iff (Box n Cooperate_action)
+         (Box n (Impl (Box n Cooperate_action) Cooperate_action))) /\
+  (exists opp, |- genuine_PrudentBot n opp).
+Proof.
+  intro n. split; [|split].
+  - exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
+  - exact (BCFHLY_robust_cooperation_provable n).
+  - exists Cooperate_action. exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
