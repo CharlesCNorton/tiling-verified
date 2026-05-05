@@ -10276,12 +10276,25 @@ Proof.
   - exact (subst_provable sigma phi Hp).
 Qed.
 
-Theorem decidability_admissibility_box_free : forall (Gamma : list Form) (phi : Form),
-  Forall box_free Gamma -> box_free phi ->
-  sumbool ((forall sigma, |- subst_form sigma phi) -> True) True.
+Theorem decidability_admissibility_box_free_canonical : forall phi,
+  box_free phi ->
+  sumbool (forall sigma, |- subst_form sigma phi)
+          (~ forall sigma, |- subst_form sigma phi).
 Proof.
-  intros _ phi _ _. right. exact I.
-Qed.
+  intros phi Hbf.
+  destruct (decide_tautology phi) eqn:E.
+  - left. intro sigma.
+    apply (subst_provable sigma).
+    apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+    apply decide_tautology_correct. exact E.
+  - right. intro Hall.
+    pose proof (Hall Var) as H.
+    rewrite subst_form_id in H.
+    pose proof (provable_classically_valid _ H) as Hcv.
+    pose proof (decide_tautology_complete _ Hcv) as E'.
+    rewrite E in E'. discriminate.
+Defined.
+
 
 Theorem admissibility_preservation_under_substitution : forall sigma phi,
   |- phi -> |- subst_form sigma phi.
