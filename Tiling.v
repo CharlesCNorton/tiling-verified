@@ -12854,6 +12854,83 @@ Theorem Critch_bounded_provability_self_implication : forall k n phi,
   |- Impl (Critch_bounded_provability k n phi) (Critch_bounded_provability k n phi).
 Proof. intros k n phi. apply prov_id. Qed.
 
+Record BoundedProvAgent : Type := mkBPA {
+  bpa_resource : nat;
+  bpa_level : nat;
+  bpa_goal : Form;
+  bpa_decision : nat -> Form -> Form;
+  bpa_decision_at : Form -> Form
+}.
+
+Definition concrete_bounded_agent (k n : nat) (G : Form) : BoundedProvAgent :=
+  mkBPA k n G
+    (fun resource phi => Critch_bounded_provability resource n phi)
+    (fun phi => Critch_bounded_provability k n phi).
+
+Theorem concrete_bounded_agent_resource : forall k n G,
+  bpa_resource (concrete_bounded_agent k n G) = k.
+Proof. reflexivity. Qed.
+
+Theorem concrete_bounded_agent_level : forall k n G,
+  bpa_level (concrete_bounded_agent k n G) = n.
+Proof. reflexivity. Qed.
+
+Theorem concrete_bounded_agent_decision_depends_on_k :
+  forall n G,
+  exists k1 k2 phi,
+    k1 <> k2 /\
+    bpa_decision_at (concrete_bounded_agent k1 n G) phi <>
+    bpa_decision_at (concrete_bounded_agent k2 n G) phi.
+Proof.
+  intros n G.
+  exists 0, 1, Bot. split.
+  - lia.
+  - cbn. unfold Critch_bounded_provability, Critch_polynomial_bound.
+    simpl. discriminate.
+Qed.
+
+Theorem concrete_bounded_agent_monotone_in_k :
+  forall (k1 k2 : nat),
+  k1 <= k2 ->
+  Critch_polynomial_bound k1 <= Critch_polynomial_bound k2.
+Proof.
+  intros k1 k2 H.
+  apply Critch_polynomial_bound_monotone. exact H.
+Qed.
+
+Theorem concrete_bounded_agent_emits_box_at_positive_k :
+  forall k n G phi,
+  k > 0 -> exists prefix,
+    bpa_decision_at (concrete_bounded_agent k n G) phi = Box n prefix.
+Proof.
+  intros k n G phi Hk.
+  cbn. exact (Critch_bounded_provability_extends_box k n phi Hk).
+Qed.
+
+Theorem concrete_bounded_agent_summary : forall k n G phi,
+  bpa_resource (concrete_bounded_agent k n G) = k /\
+  bpa_level (concrete_bounded_agent k n G) = n /\
+  bpa_goal (concrete_bounded_agent k n G) = G /\
+  bpa_decision_at (concrete_bounded_agent k n G) phi =
+    Critch_bounded_provability k n phi.
+Proof.
+  intros k n G phi. split; [|split; [|split]]; reflexivity.
+Qed.
+
+Theorem concrete_bounded_agent_behaviour_strictly_varies :
+  exists n G k1 k2 phi,
+    k1 < k2 /\
+    bpa_decision_at (concrete_bounded_agent k1 n G) phi <>
+    bpa_decision_at (concrete_bounded_agent k2 n G) phi /\
+    Critch_polynomial_bound k1 < Critch_polynomial_bound k2.
+Proof.
+  exists 0, Top, 0, 1, Bot. split; [|split].
+  - lia.
+  - cbn. unfold Critch_bounded_provability, Critch_polynomial_bound.
+    simpl. discriminate.
+  - unfold Critch_polynomial_bound. lia.
+Qed.
+
 Theorem realisation_full_soundness :
   exists R, is_arithmetic_realisation R /\
     (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
