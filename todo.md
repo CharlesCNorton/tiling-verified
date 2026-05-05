@@ -44,24 +44,7 @@
     polynomial p /\ forall phi (pt : proof_term phi),
     proof_term_length pt <= p (rank phi)`, and replace the constant
     with the extracted polynomial inside `Critch_bounded_provability`.
-7. Replace `Vingean_reflection_provable_at_T_n` with
-    `Vingean_reflection_strict_no_NC : forall n, ~ |-no_nc
-    Box (S n) (Box (S n) (Neg (Box n Bot)))`. Construct a
-    `Provable_no_NC`-style frame `F_no_NC_strict_S_n` whose
-    true-world refutes the doubly-boxed reflection while validating
-    every other axiom at level `S n`, and apply soundness.
-8. Replace `Beklemishev_worm_normal_form_no_Mon`,
-    `Beklemishev_reduction_via_provability`,
-    `Carlson_worm_ordinal_correspondence`,
-    `eps0_rank_proof_term_summary`, and
-    `Gentzen_consistency_with_eps0_induction` with a genuine
-    worm-normalisation algorithm. Define `normalise_worm : Worm ->
-    Worm`, prove `worm_normalisation_strict_decrease : forall w,
-    w <> normalise_worm w -> vord_lt (V_cnf (worm_to_ord
-    (normalise_worm w))) (V_cnf (worm_to_ord w))` using `wf_vord`
-    induction, and derive Beklemishev reduction and Gentzen
-    consistency from termination.
-9. Replace the syntactic-only `QGLP_formula` definitions with a
+7. Replace the syntactic-only `QGLP_formula` definitions with a
     Tarski semantics. Define
     `QGLP_sat : forall (D : Type), (nat -> D) ->
     QGLP_formula -> Prop` recursively over `QGLP_formula`, define
@@ -69,7 +52,7 @@
     quantifier rules, and prove
     `QGLP_soundness : forall q, QGLP_provable q ->
     forall D assign, QGLP_sat D assign q`.
-10. Replace `Bel_p p level := Box level` with a genuine graded
+8. Replace `Bel_p p level := Box level` with a genuine graded
     modality. Use `Coq.QArith.QArith_base.Q` as the rational carrier,
     define `Bel_p (p : Q) (level : nat) (phi : Form) : Form` as a
     syntactically distinct predicate (a record carrying `p` and
@@ -77,7 +60,7 @@
     forall level phi, |- Impl (Bel_p p level (Impl (Bel_p p level
     phi) phi)) (Bel_p p level phi)` whose proof references `p`
     non-trivially.
-11. Replace `transfinite_box level phi := Box (ord_to_nat_approx
+9. Replace `transfinite_box level phi := Box (ord_to_nat_approx
     level) phi` with a genuinely transfinite calculus. Define
     `Inductive Provable_transfinite : ord -> Form -> Prop` indexed by
     `ord`, prove cumulativity `forall a b phi, ord_lt a b ->
@@ -85,7 +68,7 @@
     `wf_vord` induction, and prove
     `transfinite_collapse_at_nat : forall n phi, Provable_transfinite
     (nat_to_ord n) phi <-> |- Box n phi`.
-12. Replace `Realiser := nat`, `Curry_Howard_witness phi :=
+10. Replace `Realiser := nat`, `Curry_Howard_witness phi :=
     { _ : nat | |- phi }`, `HoTT_box_n_universe`, and
     `graded_comonad_action` with an actual proof-term type. Define
     `Inductive proof_term : Form -> Type` with constructors `pt_K`,
@@ -95,7 +78,7 @@
     forall phi, |- phi -> proof_term phi`. Use `proof_term phi` as
     the realiser type, the Curry-Howard witness, the HoTT universe
     element, and the graded-comonad carrier.
-13. Replace `Reverse_math_strength` and
+11. Replace `Reverse_math_strength` and
     `primitive_recursive_arithmetic_strength` with an explicit
     RM-hierarchy. Define `Inductive RM_subsystem : Type := RCA_0 |
     WKL_0 | ACA_0 | ATR_0 | Pi11_CA_0`, define `RM_provable :
@@ -105,14 +88,14 @@
     in RCA_0, `Bew_PA_HBL_summary` in WKL_0,
     `polymodal_sambin_existence` in ACA_0,
     `proof_theoretic_ordinal_summary` in ATR_0.
-14. Replace `game_semantics_complementary`'s `apply classic` with a
+12. Replace `game_semantics_complementary`'s `apply classic` with a
     constructive determinacy proof. Use the converse-WF property of
     the Frame to do well-founded induction on `fR`, constructing a
     winning strategy for verifier or falsifier at each position.
     Prove `game_determinacy_constructive : forall pos,
     verifier_winning_position pos + falsifier_winning_position pos`
     returning a Type-level disjunction without LEM.
-15. Replace the `From Tiling Require Export Tiling.` content of
+13. Replace the `From Tiling Require Export Tiling.` content of
     `Calculus.v`, `Hilbert.v`, `Kripke.v`, `FixedPoints.v`, `Bew.v`,
     `ProofTerms.v`, `Worms.v`, and `Agents.v` with a physical
     partition of `Tiling.v`'s body. Move calculus inductives plus
@@ -124,7 +107,7 @@
     Update `_CoqProject` with the dependency order. `Tiling.v`
     becomes a meta-file containing only `From Tiling Require Export
     Calculus Hilbert Kripke FixedPoints Bew ProofTerms Worms Agents.`
-16. Replace each `*_summary` theorem that is a conjunction of
+14. Replace each `*_summary` theorem that is a conjunction of
     already-named theorems (`Pi1_conservativity_summary`,
     `Pi2_conservativity_summary`, `Bew_axiomatic_summary`,
     `realisation_full_soundness`, `Bew_satisfies_GLP_axioms_summary`,

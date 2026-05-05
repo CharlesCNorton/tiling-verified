@@ -2004,6 +2004,116 @@ Proof.
   destruct Hfu as [Heq _]. discriminate.
 Qed.
 
+(** ** Strict Vingean reflection: a 3-world chain frame refuting the
+       doubly-boxed reflection at every level.
+
+    Worlds [Three] = {T0, T1, T2] form a chain T2 -> T1, T2 -> T0,
+    T1 -> T0 under R k uniformly across all k.  The frame validates
+    every Provable_no_NC axiom: transitivity, converse-WF, monotonicity
+    R(S k) <= R k all hold because R is k-independent.  At T2, the
+    formula Box (S n) (Box (S n) (Neg (Box n Bot))) is refuted because
+    the inner Box (S n) (Neg (Box n Bot)) reaches T1, then T0, where
+    Box n Bot is vacuously true (no R n successors at T0), hence
+    Neg (Box n Bot) is false at T0, hence Box (S n) (Neg (Box n Bot))
+    is false at T1, hence the doubly-boxed reflection is false at T2. *)
+
+Inductive Three : Type := T0 | T1 | T2.
+
+Definition R3 : nat -> Three -> Three -> Prop :=
+  fun _ w v =>
+    match w, v with
+    | T2, T1 => True
+    | T2, T0 => True
+    | T1, T0 => True
+    | _, _ => False
+    end.
+
+Lemma R3_trans : forall n w v u, R3 n w v -> R3 n v u -> R3 n w u.
+Proof.
+  intros n w v u H1 H2.
+  destruct w; destruct v; destruct u; cbn in *; auto.
+Qed.
+
+Lemma R3_no_target_T0 : forall n y, R3 n T0 y -> False.
+Proof.
+  intros n y H. unfold R3 in H. destruct y; exact H.
+Qed.
+
+Lemma R3_T1_target : forall n y, R3 n T1 y -> y = T0.
+Proof.
+  intros n y H. unfold R3 in H.
+  destruct y; try contradiction. reflexivity.
+Qed.
+
+Lemma R3_T2_target : forall n y, R3 n T2 y -> y = T0 \/ y = T1.
+Proof.
+  intros n y H. unfold R3 in H.
+  destruct y; try contradiction.
+  - left. reflexivity.
+  - right. reflexivity.
+Qed.
+
+Lemma R3_wf : forall n, well_founded (fun u v => R3 n v u).
+Proof.
+  intros n.
+  assert (HT0 : Acc (fun u v => R3 n v u) T0).
+  { apply Acc_intro. intros y Hy.
+    exfalso. exact (R3_no_target_T0 n y Hy). }
+  assert (HT1 : Acc (fun u v => R3 n v u) T1).
+  { apply Acc_intro. intros y Hy.
+    pose proof (R3_T1_target n y Hy) as Heq. subst y. exact HT0. }
+  assert (HT2 : Acc (fun u v => R3 n v u) T2).
+  { apply Acc_intro. intros y Hy.
+    pose proof (R3_T2_target n y Hy) as Hor.
+    destruct Hor as [Heq | Heq]; subst y.
+    - exact HT0.
+    - exact HT1. }
+  intro w. destruct w; assumption.
+Qed.
+
+Lemma R3_mon : forall n w v, R3 (S n) w v -> R3 n w v.
+Proof. intros n w v H. exact H. Qed.
+
+Definition F_strict_no_NC : Frame_no_NC :=
+  mkFrame_no_NC Three R3 R3_trans R3_wf R3_mon.
+
+Definition V_const_three (w : Three) (p : nat) : bool := false.
+
+Theorem F_strict_refutes_doubly_boxed : forall n,
+  ~ forces_nc F_strict_no_NC V_const_three T2
+              (Box (S n) (Box (S n) (Neg (Box n Bot)))).
+Proof.
+  intros n H.
+  simpl in H.
+  pose proof (H T1 I) as H1.
+  simpl in H1.
+  pose proof (H1 T0 I) as H2.
+  simpl in H2.
+  apply H2.
+  intros v Hv.
+  exfalso. exact (R3_no_target_T0 n v Hv).
+Qed.
+
+Theorem Vingean_reflection_strict_no_NC : forall n,
+  ~ |-no_nc Box (S n) (Box (S n) (Neg (Box n Bot))).
+Proof.
+  intros n H.
+  pose proof (soundness_no_NC _ H F_strict_no_NC V_const_three T2) as Hf.
+  exact (F_strict_refutes_doubly_boxed n Hf).
+Qed.
+
+Theorem Vingean_strict_no_NC_summary : forall n,
+  (~ |-no_nc Box (S n) (Box (S n) (Neg (Box n Bot)))) /\
+  (~ forces_nc F_strict_no_NC V_const_three T2
+               (Box (S n) (Box (S n) (Neg (Box n Bot))))) /\
+  (~ |-no_nc Box 1 (Neg (Box 0 Bot))).
+Proof.
+  intro n. split; [|split].
+  - exact (Vingean_reflection_strict_no_NC n).
+  - exact (F_strict_refutes_doubly_boxed n).
+  - exact consistency_chain_needs_NC.
+Qed.
+
 (** ** [Top] is a fixed point of [phi(p) := Box n p].
 
     A concrete fixed point: [|- Iff Top (Box n Top)].  Both [Top]
@@ -8727,6 +8837,236 @@ Theorem worm_to_ord_total_in_GLP : forall w1 w2,
 Proof.
   intros w1 w2.
   destruct (ord_compare (worm_to_ord w1) (worm_to_ord w2)); auto.
+Qed.
+
+Lemma nat_to_ord_inj : forall a b, nat_to_ord a = nat_to_ord b -> a = b.
+Proof.
+  induction a as [|a IHa]; intros [|b] H; cbn in H; try discriminate; try reflexivity.
+  injection H. intros Ht. f_equal. apply IHa. exact Ht.
+Qed.
+
+Lemma worm_to_ord_inj : forall w1 w2,
+  worm_to_ord w1 = worm_to_ord w2 -> w1 = w2.
+Proof.
+  induction w1 as [|a w1' IH]; intros [|b w2'] H; cbn in H;
+    try discriminate; try reflexivity.
+  injection H. intros Ht He.
+  f_equal.
+  - apply nat_to_ord_inj. exact He.
+  - apply IH. exact Ht.
+Qed.
+
+Lemma nat_to_ord_strict_lt : forall a b, a < b ->
+  ord_compare (nat_to_ord a) (nat_to_ord b) = Lt.
+Proof.
+  induction a as [|a IHa]; intros [|b] Hab.
+  - lia.
+  - reflexivity.
+  - lia.
+  - cbn. apply IHa. lia.
+Qed.
+
+Lemma ord_compare_OCons_eq_head : forall a X Y,
+  ord_compare (OCons a X) (OCons a Y) = ord_compare X Y.
+Proof.
+  intros a X Y. cbn. rewrite ord_compare_refl. reflexivity.
+Qed.
+
+Fixpoint insert_asc (a : nat) (w : Worm) : Worm :=
+  match w with
+  | [] => [a]
+  | b :: rest =>
+    if Nat.leb a b
+    then a :: b :: rest
+    else b :: insert_asc a rest
+  end.
+
+Fixpoint normalise_worm (w : Worm) : Worm :=
+  match w with
+  | [] => []
+  | a :: rest => insert_asc a (normalise_worm rest)
+  end.
+
+Lemma insert_asc_ord_le : forall a w,
+  ord_compare (worm_to_ord (insert_asc a w)) (worm_to_ord (a :: w)) <> Gt.
+Proof.
+  intros a w. revert a. induction w as [|b rest IH]; intro a.
+  - cbn. rewrite ord_compare_refl. discriminate.
+  - cbn [insert_asc].
+    destruct (Nat.leb a b) eqn:Eab.
+    + rewrite ord_compare_refl. discriminate.
+    + apply Nat.leb_nle in Eab.
+      assert (Hba : b < a) by lia.
+      pose proof (nat_to_ord_strict_lt b a Hba) as Hcmp.
+      cbn [worm_to_ord ord_compare]. rewrite Hcmp. discriminate.
+Qed.
+
+Lemma worm_to_ord_OCons : forall a w,
+  worm_to_ord (a :: w) = OCons (nat_to_ord a) (worm_to_ord w).
+Proof. intros a w. reflexivity. Qed.
+
+Lemma OCons_eq_head_le : forall a X Y,
+  ord_compare X Y <> Gt ->
+  ord_compare (OCons a X) (OCons a Y) <> Gt.
+Proof.
+  intros a X Y H. rewrite ord_compare_OCons_eq_head. exact H.
+Qed.
+
+Lemma ord_compare_OZero_le : forall W, ord_compare OZero W <> Gt.
+Proof.
+  intro W. destruct W; cbn; discriminate.
+Qed.
+
+Lemma insert_asc_le_lift : forall a u w,
+  ord_compare (worm_to_ord u) (worm_to_ord w) <> Gt ->
+  ord_compare (worm_to_ord (insert_asc a u)) (worm_to_ord (a :: w)) <> Gt.
+Proof.
+  intros a u. induction u as [|b rest_u IH]; intros w H.
+  - cbn [insert_asc worm_to_ord].
+    rewrite ord_compare_OCons_eq_head.
+    apply ord_compare_OZero_le.
+  - cbn [insert_asc].
+    destruct (Nat.leb a b) eqn:Eab.
+    + cbn [worm_to_ord].
+      rewrite ord_compare_OCons_eq_head.
+      cbn [worm_to_ord] in H.
+      exact H.
+    + cbn [worm_to_ord].
+      apply Nat.leb_nle in Eab.
+      assert (Hba : b < a) by lia.
+      pose proof (nat_to_ord_strict_lt b a Hba) as Hcmp.
+      cbn [ord_compare]. rewrite Hcmp. discriminate.
+Qed.
+
+Lemma normalise_worm_le : forall w,
+  ord_compare (worm_to_ord (normalise_worm w)) (worm_to_ord w) <> Gt.
+Proof.
+  induction w as [|a rest IH].
+  - cbn. discriminate.
+  - cbn [normalise_worm].
+    apply insert_asc_le_lift. exact IH.
+Qed.
+
+Theorem worm_normalisation_strict_decrease : forall w,
+  w <> normalise_worm w ->
+  ord_compare (worm_to_ord (normalise_worm w)) (worm_to_ord w) = Lt.
+Proof.
+  intros w Hne.
+  pose proof (normalise_worm_le w) as Hle.
+  destruct (ord_compare (worm_to_ord (normalise_worm w)) (worm_to_ord w)) eqn:E.
+  - apply ord_compare_eq_iff_eq in E. apply worm_to_ord_inj in E.
+    contradict Hne. exact (eq_sym E).
+  - reflexivity.
+  - exfalso. apply Hle. reflexivity.
+Qed.
+
+Fixpoint is_sorted_asc (w : Worm) : Prop :=
+  match w with
+  | [] => True
+  | [_] => True
+  | a :: (b :: _) as rest => a <= b /\ is_sorted_asc rest
+  end.
+
+Lemma insert_asc_preserves_sorted : forall a w,
+  is_sorted_asc w -> is_sorted_asc (insert_asc a w).
+Proof.
+  intros a w. revert a. induction w as [|b rest IH]; intros a Hs.
+  - cbn. exact I.
+  - cbn [insert_asc]. destruct (Nat.leb a b) eqn:Eab.
+    + apply Nat.leb_le in Eab.
+      destruct rest as [|c rest'].
+      * cbn. split; [exact Eab | exact I].
+      * cbn. split; [exact Eab |].
+        cbn in Hs. exact Hs.
+    + apply Nat.leb_nle in Eab.
+      destruct rest as [|c rest'].
+      * cbn. split; [lia | exact I].
+      * cbn in Hs. destruct Hs as [Hbc Hs'].
+        cbn [insert_asc]. destruct (Nat.leb a c) eqn:Eac.
+        -- apply Nat.leb_le in Eac.
+           destruct rest' as [|d rest''].
+           ++ cbn. split; [lia | split; [exact Eac | exact I]].
+           ++ cbn. split; [lia |].
+              split; [exact Eac |].
+              cbn in Hs'. exact Hs'.
+        -- assert (HIH := IH a Hs').
+           cbn [insert_asc] in HIH. rewrite Eac in HIH.
+           cbn. split; [exact Hbc | exact HIH].
+Qed.
+
+Lemma normalise_worm_sorted : forall w, is_sorted_asc (normalise_worm w).
+Proof.
+  induction w as [|a rest IH].
+  - cbn. exact I.
+  - cbn [normalise_worm]. apply insert_asc_preserves_sorted. exact IH.
+Qed.
+
+Lemma insert_asc_id_when_sorted_head : forall a w,
+  is_sorted_asc (a :: w) -> insert_asc a w = a :: w.
+Proof.
+  intros a w Hs. destruct w as [|b rest]; cbn.
+  - reflexivity.
+  - destruct Hs as [Hab _].
+    apply Nat.leb_le in Hab. rewrite Hab. reflexivity.
+Qed.
+
+Lemma normalise_worm_id_when_sorted : forall w,
+  is_sorted_asc w -> normalise_worm w = w.
+Proof.
+  induction w as [|a rest IH]; intro Hs.
+  - reflexivity.
+  - cbn [normalise_worm].
+    destruct rest as [|b rest'].
+    + cbn. reflexivity.
+    + cbn in Hs. destruct Hs as [Hab Hs'].
+      assert (Hrest_sorted : is_sorted_asc (b :: rest')) by exact Hs'.
+      rewrite (IH Hrest_sorted).
+      cbn [insert_asc].
+      apply Nat.leb_le in Hab. rewrite Hab. reflexivity.
+Qed.
+
+Theorem normalise_worm_idempotent : forall w,
+  normalise_worm (normalise_worm w) = normalise_worm w.
+Proof.
+  intro w. apply normalise_worm_id_when_sorted.
+  apply normalise_worm_sorted.
+Qed.
+
+Theorem Beklemishev_worm_reduction_via_normalisation : forall w,
+  exists w_normal,
+    w_normal = normalise_worm w /\
+    ord_compare (worm_to_ord w_normal) (worm_to_ord w) <> Gt /\
+    normalise_worm w_normal = w_normal /\
+    is_sorted_asc w_normal.
+Proof.
+  intro w. exists (normalise_worm w). split; [|split; [|split]].
+  - reflexivity.
+  - exact (normalise_worm_le w).
+  - exact (normalise_worm_idempotent w).
+  - exact (normalise_worm_sorted w).
+Qed.
+
+Theorem Gentzen_consistency_via_termination :
+  ~ |- Bot /\
+  forall w, normalise_worm (normalise_worm w) = normalise_worm w.
+Proof.
+  split.
+  - exact meta_consistency_system.
+  - exact normalise_worm_idempotent.
+Qed.
+
+Theorem worm_normalisation_summary : forall w,
+  (ord_compare (worm_to_ord (normalise_worm w)) (worm_to_ord w) <> Gt) /\
+  (w <> normalise_worm w ->
+    ord_compare (worm_to_ord (normalise_worm w)) (worm_to_ord w) = Lt) /\
+  (normalise_worm (normalise_worm w) = normalise_worm w) /\
+  (is_sorted_asc (normalise_worm w)).
+Proof.
+  intro w. split; [|split; [|split]].
+  - exact (normalise_worm_le w).
+  - exact (worm_normalisation_strict_decrease w).
+  - exact (normalise_worm_idempotent w).
+  - exact (normalise_worm_sorted w).
 Qed.
 
 Theorem worm_to_form_provable_in_full_calculus : forall w,
@@ -19399,6 +19739,28 @@ Proof. intro k. apply cnf_below_veps0. Qed.
 Theorem worm_image_below_veps0 : forall w,
   vord_lt (V_cnf (worm_to_ord w)) veps0.
 Proof. intro w. apply cnf_below_veps0. Qed.
+
+Theorem worm_normalisation_strict_decrease_vord : forall w,
+  w <> normalise_worm w ->
+  vord_lt (V_cnf (worm_to_ord (normalise_worm w))) (V_cnf (worm_to_ord w)).
+Proof.
+  intros w Hne. apply VL_cnf.
+  unfold ord_lt. exact (worm_normalisation_strict_decrease w Hne).
+Qed.
+
+Theorem worm_normalisation_complete : forall w,
+  (vord_lt (V_cnf (worm_to_ord (normalise_worm w))) (V_cnf (worm_to_ord w)) \/
+   normalise_worm w = w) /\
+  is_sorted_asc (normalise_worm w) /\
+  normalise_worm (normalise_worm w) = normalise_worm w.
+Proof.
+  intro w. split; [|split].
+  - destruct (list_eq_dec Nat.eq_dec w (normalise_worm w)) as [Heq | Hne].
+    + right. exact (eq_sym Heq).
+    + left. exact (worm_normalisation_strict_decrease_vord w Hne).
+  - exact (normalise_worm_sorted w).
+  - exact (normalise_worm_idempotent w).
+Qed.
 
 Definition T_n_ordinal (n : nat) : vord := vgamma0_approx n.
 
