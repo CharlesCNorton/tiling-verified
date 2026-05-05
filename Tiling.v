@@ -7689,17 +7689,18 @@ Proof.
   intro n. unfold Con. apply Bew_ax. apply TAx_NextCon. lia.
 Qed.
 
-(** *** No theory in the tower proves its OWN consistency (Goedel II). *)
+(** *** No theory in the tower proves its OWN consistency (Goedel II).
+    Proved purely from Bew's HBL conditions (Loeb at level n inside
+    Bew (S n), MP, Nec, cumulativity). *)
 Theorem T_no_self_consistency : forall n, ~ Bew n (Con n).
 Proof.
-  intros n H.
-  unfold Con in H.
-  pose proof (Bew_to_Provable n _ H) as Hprov.
-  pose proof (Nec n _ Hprov) as Hnec.
-  pose proof (Ax_Loeb n Bot) as HLoeb.
-  pose proof (MP _ _ HLoeb Hnec) as Hbox.
-  pose proof (MP _ _ Hprov Hbox) as Hbot.
-  exact (meta_consistency_system Hbot).
+  intros n H. unfold Con in H.
+  pose proof (Bew_cumulative n _ H) as Hcum.
+  pose proof (Bew_HBL_Nec (S n) n _ (Nat.lt_succ_diag_r n) Hcum) as HBoxImpl.
+  pose proof (Bew_HBL_Loeb (S n) n Bot (Nat.lt_succ_diag_r n)) as HLoeb.
+  pose proof (Bew_HBL_MP (S n) _ _ HLoeb HBoxImpl) as HBoxBot.
+  pose proof (Bew_HBL_MP (S n) _ _ Hcum HBoxBot) as HBot.
+  exact (Bew_consistent (S n) HBot).
 Qed.
 
 Theorem fixed_point_loeb_witness : forall n X,
@@ -10728,15 +10729,52 @@ Proof.
 Qed.
 
 Definition categorical_fixed_point_universal (F : nat -> Form -> Form) : Prop :=
+  (forall n phi, |- phi -> |- F n phi) /\
+  (forall n phi psi, |- Impl (F n (Impl phi psi)) (Impl (F n phi) (F n psi))) /\
+  (forall n phi, |- Impl (F n phi) (Box n phi)) /\
+  (forall n phi, |- Impl (Box n phi) (F n phi)).
+
+Theorem categorical_fixed_point_universal_implies_iff : forall F,
+  categorical_fixed_point_universal F ->
   forall n phi, |- Iff (F n phi) (Box n phi).
+Proof.
+  intros F [_ [_ [Hfwd Hbwd]]] n phi.
+  apply prov_and_intro_meta.
+  - exact (Hfwd n phi).
+  - exact (Hbwd n phi).
+Qed.
 
 Theorem categorical_fixed_point_for_licenses :
   categorical_fixed_point_universal licenses.
-Proof. intros n phi. unfold licenses. exact (prov_iff_refl _). Qed.
+Proof.
+  unfold categorical_fixed_point_universal, licenses. split; [|split; [|split]].
+  - intros n phi H. exact (Nec n _ H).
+  - intros n phi psi. exact (Ax_BoxK n phi psi).
+  - intros n phi. exact (prov_id (Box n phi)).
+  - intros n phi. exact (prov_id (Box n phi)).
+Qed.
 
 Theorem categorical_fixed_point_for_T_kappa :
   categorical_fixed_point_universal T_kappa.
-Proof. intros n phi. unfold T_kappa. exact (prov_iff_refl _). Qed.
+Proof.
+  unfold categorical_fixed_point_universal, T_kappa. split; [|split; [|split]].
+  - intros n phi H. exact (Nec n _ H).
+  - intros n phi psi. exact (Ax_BoxK n phi psi).
+  - intros n phi. exact (prov_id (Box n phi)).
+  - intros n phi. exact (prov_id (Box n phi)).
+Qed.
+
+Theorem categorical_fixed_point_universal_unique : forall F G,
+  categorical_fixed_point_universal F ->
+  categorical_fixed_point_universal G ->
+  forall n phi, |- Iff (F n phi) (G n phi).
+Proof.
+  intros F G HF HG n phi.
+  pose proof (categorical_fixed_point_universal_implies_iff F HF n phi) as HFI.
+  pose proof (categorical_fixed_point_universal_implies_iff G HG n phi) as HGI.
+  pose proof (prov_iff_sym _ _ HGI) as HGIsym.
+  exact (prov_equiv_trans _ _ _ HFI HGIsym).
+Qed.
 
 Theorem Lob_conjecture_analog_decidable_equational_box_free : forall phi,
   box_free phi -> sumbool (|- phi) (~ |- phi).
@@ -14718,56 +14756,6 @@ Proof.
   intros p phi H. exact (proj2_sig (compute_fp_explicit p phi H)).
 Qed.
 
-Definition categorical_fixed_point_universal_real (F : nat -> Form -> Form) : Prop :=
-  (forall n phi, |- phi -> |- F n phi) /\
-  (forall n phi psi, |- Impl (F n (Impl phi psi)) (Impl (F n phi) (F n psi))) /\
-  (forall n phi, |- Impl (F n phi) (Box n phi)) /\
-  (forall n phi, |- Impl (Box n phi) (F n phi)).
-
-Theorem categorical_fixed_point_universal_real_implies_iff : forall F,
-  categorical_fixed_point_universal_real F ->
-  forall n phi, |- Iff (F n phi) (Box n phi).
-Proof.
-  intros F [_ [_ [Hfwd Hbwd]]] n phi.
-  apply prov_and_intro_meta.
-  - exact (Hfwd n phi).
-  - exact (Hbwd n phi).
-Qed.
-
-Theorem licenses_satisfies_categorical_universal_property_real :
-  categorical_fixed_point_universal_real licenses.
-Proof.
-  unfold categorical_fixed_point_universal_real, licenses.
-  split; [|split; [|split]].
-  - intros n phi H. exact (Nec n _ H).
-  - intros n phi psi. exact (Ax_BoxK n phi psi).
-  - intros n phi. exact (prov_id (Box n phi)).
-  - intros n phi. exact (prov_id (Box n phi)).
-Qed.
-
-Theorem T_kappa_satisfies_categorical_universal_property_real :
-  categorical_fixed_point_universal_real T_kappa.
-Proof.
-  unfold categorical_fixed_point_universal_real, T_kappa.
-  split; [|split; [|split]].
-  - intros n phi H. exact (Nec n _ H).
-  - intros n phi psi. exact (Ax_BoxK n phi psi).
-  - intros n phi. exact (prov_id (Box n phi)).
-  - intros n phi. exact (prov_id (Box n phi)).
-Qed.
-
-Theorem categorical_fixed_point_universal_real_unique : forall F G,
-  categorical_fixed_point_universal_real F ->
-  categorical_fixed_point_universal_real G ->
-  forall n phi, |- Iff (F n phi) (G n phi).
-Proof.
-  intros F G HF HG n phi.
-  pose proof (categorical_fixed_point_universal_real_implies_iff F HF n phi) as HFI.
-  pose proof (categorical_fixed_point_universal_real_implies_iff G HG n phi) as HGI.
-  pose proof (prov_iff_sym _ _ HGI) as HGIsym.
-  exact (prov_equiv_trans _ _ _ HFI HGIsym).
-Qed.
-
 Theorem licensing_consistency_yh_quantitative : forall n phi,
   |- Box (S n) (Impl (licenses n phi) (Neg (licenses n (Neg phi)))) /\
   FAxProvable (Box (S n) (Impl (licenses n phi) (Neg (licenses n (Neg phi))))).
@@ -14808,17 +14796,6 @@ Theorem Magari_diag_Loeb_iff : forall phi,
 Proof.
   intros phi. unfold Magari_diag.
   exact (loeb_iff 0 phi).
-Qed.
-
-Theorem T_no_self_consistency_direct : forall n, ~ Bew n (Con n).
-Proof.
-  intros n H. unfold Con in H.
-  pose proof (Bew_cumulative n _ H) as Hcum.
-  pose proof (Bew_HBL_Nec (S n) n _ (Nat.lt_succ_diag_r n) Hcum) as HBoxImpl.
-  pose proof (Bew_HBL_Loeb (S n) n Bot (Nat.lt_succ_diag_r n)) as HLoeb.
-  pose proof (Bew_HBL_MP (S n) _ _ HLoeb HBoxImpl) as HBoxBot.
-  pose proof (Bew_HBL_MP (S n) _ _ Hcum HBoxBot) as HBot.
-  exact (Bew_consistent (S n) HBot).
 Qed.
 
 Theorem licensing_consistency_concrete_converse_reverse_uniform : forall n,
