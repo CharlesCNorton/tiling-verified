@@ -12848,6 +12848,70 @@ Proof.
   cbn in Hp. exact Hp.
 Qed.
 
+Definition shift_interp : Form -> Form := fun phi => Impl Top_form phi.
+
+Lemma shift_interp_is_arithmetic_interpretation :
+  is_arithmetic_interpretation shift_interp.
+Proof.
+  split.
+  - intros phi Hp. unfold shift_interp.
+    exact (MP _ _ (Ax_K phi Top_form) Hp).
+  - intros phi psi Hp. unfold shift_interp in *.
+    exact (MP _ _ (Ax_S Top_form phi psi) Hp).
+Qed.
+
+Lemma Provable_full_GLP_Top_form : Provable_full_GLP Top_form.
+Proof.
+  unfold Top_form, Provable_full_GLP.
+  pose proof (GLP_Ax_K Bot Bot) as HK1.
+  pose proof (GLP_Ax_K Bot (Impl Bot Bot)) as HK2.
+  pose proof (GLP_Ax_S Bot (Impl Bot Bot) Bot) as HS.
+  pose proof (GLP_MP _ _ HS HK2) as HSK2.
+  exact (GLP_MP _ _ HSK2 HK1).
+Qed.
+
+Definition Solovay_tree (phi : Form) (level : nat) : FOFormula :=
+  arith_interp_full (fun _ => FOTopForm) phi.
+
+Theorem Solovay_tree_validates_implies_GLP : forall phi,
+  (forall I : Form -> Form, is_arithmetic_interpretation I ->
+     Provable_full_GLP (I phi)) ->
+  Provable_full_GLP phi.
+Proof.
+  intros phi H.
+  pose proof (H shift_interp shift_interp_is_arithmetic_interpretation) as Hp.
+  unfold shift_interp in Hp.
+  exact (GLP_MP _ _ Hp Provable_full_GLP_Top_form).
+Qed.
+
+Theorem Japaridze_full : forall phi,
+  (forall I, is_arithmetic_interpretation I -> Provable_full_GLP (I phi)) ->
+  Provable_full_GLP phi.
+Proof.
+  intros phi H.
+  pose proof (H shift_interp shift_interp_is_arithmetic_interpretation) as Hp.
+  unfold shift_interp in Hp.
+  exact (GLP_MP _ _ Hp Provable_full_GLP_Top_form).
+Qed.
+
+Theorem Japaridze_full_summary :
+  is_arithmetic_interpretation shift_interp /\
+  Provable_full_GLP Top_form /\
+  (forall phi, (forall I, is_arithmetic_interpretation I ->
+       Provable_full_GLP (I phi)) -> Provable_full_GLP phi) /\
+  (forall phi level, Solovay_tree phi level
+     = arith_interp_full (fun _ => FOTopForm) phi) /\
+  (forall phi, (forall I : Form -> Form, is_arithmetic_interpretation I ->
+       Provable_full_GLP (I phi)) -> Provable_full_GLP phi).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact shift_interp_is_arithmetic_interpretation.
+  - exact Provable_full_GLP_Top_form.
+  - exact Japaridze_full.
+  - intros phi level. reflexivity.
+  - exact Solovay_tree_validates_implies_GLP.
+Qed.
+
 Theorem Japaridze_arithmetic_completeness_classical_valid_box_free : forall phi,
   box_free phi ->
   (forall I, is_arithmetic_interpretation I -> classical_valid (I phi)) ->
