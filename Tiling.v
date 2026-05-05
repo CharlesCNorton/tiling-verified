@@ -13867,6 +13867,25 @@ Proof.
   - exact (successor_inspector_blocks_when_proof_fails n G p sigma).
 Qed.
 
+Theorem successor_inspector_summary_strengthened : forall n G p sigma,
+  (agent_decision (successor_inspector_agent n G p) sigma = Box n sigma) /\
+  (agent_licenses (successor_inspector_agent n G p) sigma =
+    (if p sigma then Box n sigma else Bot)) /\
+  (p sigma = true ->
+    agent_licenses (successor_inspector_agent n G p) sigma = Box n sigma) /\
+  (p sigma = false ->
+    agent_licenses (successor_inspector_agent n G p) sigma = Bot) /\
+  (agent_level (successor_inspector_agent n G p) = n /\
+   agent_goal (successor_inspector_agent n G p) = G).
+Proof.
+  intros n G p sigma. split; [|split; [|split; [|split]]].
+  - reflexivity.
+  - exact (successor_inspector_licenses_iff_passes n G p sigma).
+  - exact (successor_inspector_licenses_box_when_proof_checks n G p sigma).
+  - exact (successor_inspector_blocks_when_proof_fails n G p sigma).
+  - split; reflexivity.
+Qed.
+
 Definition successor_licensing_theorem_signature
   (G : Form) (transit : Form -> Form) (sigma : Form) (n : nat)
   (verifier : Form -> bool) : Prop :=
@@ -14386,6 +14405,17 @@ Proof.
   - unfold genuine_FairBot, Defect_action, Cooperate_action. discriminate.
 Qed.
 
+Theorem FairBot_vs_DefectBot_defection_summary_strengthened : forall n,
+  genuine_FairBot n Defect_action <> Cooperate_action /\
+  genuine_FairBot n Defect_action <> genuine_FairBot n Cooperate_action /\
+  Defect_action <> Cooperate_action.
+Proof.
+  intro n. split; [|split].
+  - exact (FairBot_vs_DefectBot_does_not_cooperate n).
+  - unfold genuine_FairBot, Defect_action, Cooperate_action. discriminate.
+  - unfold Defect_action, Cooperate_action. discriminate.
+Qed.
+
 Theorem BCFHLY_robust_cooperation_non_trivial : forall n,
   exists psi,
     psi <> Top /\
@@ -14437,6 +14467,21 @@ Proof.
   - exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
   - exact (BCFHLY_robust_cooperation_provable n).
   - exists Cooperate_action. exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
+Qed.
+
+Theorem PrudentBot_dominance_summary_strengthened : forall n,
+  (|- genuine_PrudentBot n Cooperate_action) /\
+  (|- Iff (Box n Cooperate_action)
+         (Box n (Impl (Box n Cooperate_action) Cooperate_action))) /\
+  (exists opp, |- genuine_PrudentBot n opp) /\
+  (forall opp, opp = Cooperate_action -> |- genuine_PrudentBot n opp).
+Proof.
+  intro n. split; [|split; [|split]].
+  - exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
+  - exact (BCFHLY_robust_cooperation_provable n).
+  - exists Cooperate_action. exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
+  - intros opp Heq. rewrite Heq.
+    exact (genuine_PrudentBot_provable_when_opp_eq_cooperate n).
 Qed.
 
 Theorem Aumann_agreement_n_levels : forall (n m : nat) (phi : Form),
@@ -14509,6 +14554,17 @@ Proof.
   intro n. split.
   - exact (Pudlak_speedup_strict n).
   - exact (Pudlak_speedup_at_each_level n).
+Qed.
+
+Theorem Pudlak_speedup_summary_strengthened : forall n,
+  (forall phi, ~ |- Box n phi -> |- Box (S n) phi -> |- Pudlak_speedup_at (S n) phi) /\
+  (exists phi, ~ |- Pudlak_speedup_at n phi /\ |- Pudlak_speedup_at (S n) phi) /\
+  (exists phi, |- Box (S n) phi /\ ~ |- Box n phi).
+Proof.
+  intro n. split; [|split].
+  - exact (Pudlak_speedup_strict n).
+  - exact (Pudlak_speedup_at_each_level n).
+  - exact (strict_extension_at_each_level n).
 Qed.
 
 Definition Loeb_obstacle_strength : nat -> nat := fun n => n + 1.

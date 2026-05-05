@@ -1,6 +1,6 @@
 # tiling-verified todo
 
-1. (Partial — 13 of ~40 done; remaining mechanical pattern.)
+1. (Partial — 35 of ~45 done; remaining mechanical pattern.)
     Replace each `*_summary` theorem that is a conjunction of
     already-named theorems (`Pi1_conservativity_summary`,
     `Pi2_conservativity_summary`, `Bew_axiomatic_summary`,
