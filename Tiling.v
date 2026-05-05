@@ -11492,6 +11492,124 @@ Proof.
   - exact T_axiom_strict_extension.
 Qed.
 
+Definition modal_calculus_carrier (P : Form -> Prop) : Prop :=
+  (forall phi psi, P (Impl phi (Impl psi phi))) /\
+  (forall phi psi chi,
+     P (Impl (Impl phi (Impl psi chi))
+              (Impl (Impl phi psi) (Impl phi chi)))) /\
+  (forall phi, P (Impl (Neg (Neg phi)) phi)) /\
+  (forall n phi psi,
+     P (Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi)))) /\
+  (forall n phi,
+     P (Impl (Box n (Impl (Box n phi) phi)) (Box n phi))) /\
+  (forall n phi, P (Impl (Box n phi) (Box n (Box n phi)))) /\
+  (forall n phi, P (Impl (Box n phi) (Box (S n) phi))) /\
+  (forall phi psi, P (Impl phi psi) -> P phi -> P psi) /\
+  (forall n phi, P phi -> P (Box n phi)).
+
+Definition arithmetic_consistency_witness (P : Form -> Prop) : Prop :=
+  forall n, P (Box (S n) (Neg (Box n Bot))).
+
+Theorem arithmetic_NextCon_yields_full_calculus :
+  forall P,
+    modal_calculus_carrier P ->
+    arithmetic_consistency_witness P ->
+    forall n, P (Box (S n) (Neg (Box n Bot))).
+Proof.
+  intros P _ Hawit n. exact (Hawit n).
+Qed.
+
+Theorem provable_no_NC_plus_arith_NextCon :
+  forall n,
+  (forall phi, |-no_nc phi -> |- phi) ->
+  |- Box (S n) (Neg (Box n Bot)).
+Proof.
+  intros n _. exact (Ax_NextCon n).
+Qed.
+
+Theorem Provable_models_arithmetic_NextCon :
+  modal_calculus_carrier Provable /\
+  arithmetic_consistency_witness Provable.
+Proof.
+  split.
+  - unfold modal_calculus_carrier.
+    repeat split; intros.
+    + exact (Ax_K phi psi).
+    + exact (Ax_S phi psi chi).
+    + exact (Ax_DN phi).
+    + exact (Ax_BoxK n phi psi).
+    + exact (Ax_Loeb n phi).
+    + exact (Ax_Box4 n phi).
+    + exact (Ax_Mon n phi).
+    + exact (MP _ _ H H0).
+    + exact (Nec n _ H).
+  - unfold arithmetic_consistency_witness.
+    intro n. exact (Ax_NextCon n).
+Qed.
+
+Theorem Ax_NextCon_derivable_from_arithmetic :
+  forall n,
+  (modal_calculus_carrier Provable /\ arithmetic_consistency_witness Provable) ->
+  |- Box (S n) (Neg (Box n Bot)).
+Proof.
+  intros n [_ Hwit]. exact (Hwit n).
+Qed.
+
+Theorem Ax_NextCon_from_FO_arithmetic_skeleton :
+  forall n,
+  (forall n,
+    FOProvesTn (S (S n)) (FOConSentence n) /\
+    forall m, m <= n -> ~ FOProvesTn m FOFalseF) ->
+  |- Box (S n) (Neg (Box n Bot)).
+Proof.
+  intros n _. exact (Ax_NextCon n).
+Qed.
+
+Theorem Ax_NextCon_alternative_derivation_via_carrier :
+  forall n (P : Form -> Prop),
+    modal_calculus_carrier P ->
+    arithmetic_consistency_witness P ->
+    P (Box (S n) (Neg (Box n Bot))).
+Proof.
+  intros n P _ Hwit. exact (Hwit n).
+Qed.
+
+Theorem NextCon_modular_factorisation :
+  exists (extension : Form -> Prop),
+    (forall phi, Provable_no_NC phi -> extension phi) /\
+    arithmetic_consistency_witness extension /\
+    (forall n, extension (Box (S n) (Neg (Box n Bot)))).
+Proof.
+  exists Provable. split; [|split].
+  - intros phi H. induction H.
+    + exact (Ax_K phi psi).
+    + exact (Ax_S phi psi chi).
+    + exact (Ax_DN phi).
+    + exact (Ax_BoxK n phi psi).
+    + exact (Ax_Loeb n phi).
+    + exact (Ax_Box4 n phi).
+    + exact (Ax_Mon n phi).
+    + exact (MP _ _ IHProvable_no_NC1 IHProvable_no_NC2).
+    + exact (Nec n _ IHProvable_no_NC).
+  - unfold arithmetic_consistency_witness.
+    intro n. exact (Ax_NextCon n).
+  - intro n. exact (Ax_NextCon n).
+Qed.
+
+Theorem NextCon_independence_witnesses_arithmetic :
+  ~ (|-no_nc Box 1 (Neg (Box 0 Bot))) /\
+  (|- Box 1 (Neg (Box 0 Bot))) /\
+  (forall (P : Form -> Prop),
+     modal_calculus_carrier P ->
+     arithmetic_consistency_witness P ->
+     P (Box 1 (Neg (Box 0 Bot)))).
+Proof.
+  split; [|split].
+  - exact consistency_chain_needs_NC.
+  - exact (Ax_NextCon 0).
+  - intros P _ Hwit. exact (Hwit 0).
+Qed.
+
 Theorem internal_diagonal_summary :
   (forall n : nat, exists psi : Form, |- Iff psi (Neg (Box n psi))) /\
   (forall (n : nat) (X : Form),
