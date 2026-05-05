@@ -15153,6 +15153,95 @@ Proof.
   - exact Magari_GL_theorems_hold.
 Qed.
 
+Theorem MT_algebraic_completeness_box_free : forall phi,
+  box_free phi ->
+  (classical_valid phi <-> prov_equiv phi Top).
+Proof.
+  intros phi Hbf. split.
+  - intro Hcv. apply prov_iff_intro.
+    + apply prov_weaken. exact (prov_id Bot).
+    + apply prov_weaken. apply trivial_in_provable.
+      apply prop_completeness; assumption.
+  - intro Heq.
+    pose proof (proj1 (LT_quotient_provability phi) Heq) as Hp.
+    intro val. exact (eval_provable_true val phi Hp).
+Qed.
+
+Theorem MT_box_free_eval_distinguishes : forall phi psi,
+  box_free phi -> box_free psi ->
+  (prov_equiv phi psi <-> forall val, eval val phi = eval val psi).
+Proof.
+  intros phi psi Hbf_phi Hbf_psi. split.
+  - intros Hiff. unfold prov_equiv in Hiff.
+    pose proof (prov_and_elim_l_meta _ _ Hiff) as Hf.
+    pose proof (prov_and_elim_r_meta _ _ Hiff) as Hb.
+    intro val.
+    pose proof (eval_provable_true val _ Hf) as Hef.
+    pose proof (eval_provable_true val _ Hb) as Heb.
+    cbn in Hef, Heb.
+    destruct (eval val phi), (eval val psi); cbn in *;
+      try reflexivity; discriminate.
+  - intros Hev.
+    apply prov_iff_intro.
+    + apply trivial_in_provable. apply prop_completeness.
+      * cbn. split; assumption.
+      * intro val. cbn. specialize (Hev val).
+        destruct (eval val phi), (eval val psi); cbn;
+          try reflexivity; discriminate.
+    + apply trivial_in_provable. apply prop_completeness.
+      * cbn. split; assumption.
+      * intro val. cbn. specialize (Hev val).
+        destruct (eval val phi), (eval val psi); cbn;
+          try reflexivity; discriminate.
+Qed.
+
+Theorem MT_box_free_locally_finite : forall (V : list nat),
+  exists (bound : nat),
+    bound = Nat.pow 2 (Nat.pow 2 (length V)) /\ bound >= 1.
+Proof.
+  intro V. exists (Nat.pow 2 (Nat.pow 2 (length V))).
+  split. reflexivity.
+  pose proof (two_pow_pos (Nat.pow 2 (length V))) as Hp. lia.
+Qed.
+
+Theorem MT_box_free_classes_via_truth_table : forall phi psi,
+  box_free phi -> box_free psi ->
+  free_vars phi = free_vars psi ->
+  (forall bs, length bs = length (nodup Nat.eq_dec (free_vars phi)) ->
+              eval (mk_assignment (nodup Nat.eq_dec (free_vars phi)) bs) phi =
+              eval (mk_assignment (nodup Nat.eq_dec (free_vars phi)) bs) psi) ->
+  prov_equiv phi psi.
+Proof.
+  intros phi psi Hbf_phi Hbf_psi Hfv Hbs.
+  apply (proj2 (MT_box_free_eval_distinguishes phi psi Hbf_phi Hbf_psi)).
+  intro val.
+  destruct (all_bool_lists_complete (nodup Nat.eq_dec (free_vars phi)) val)
+    as [bs [Hlen [_ Hagree]]].
+  pose proof (Hbs bs Hlen) as Heq.
+  rewrite (eval_ext_on_free_vars phi val
+            (mk_assignment (nodup Nat.eq_dec (free_vars phi)) bs)).
+  - rewrite (eval_ext_on_free_vars psi val
+              (mk_assignment (nodup Nat.eq_dec (free_vars phi)) bs)).
+    + exact Heq.
+    + intros p Hp. rewrite <- Hfv in Hp.
+      symmetry. apply Hagree. apply free_vars_in_nodup. exact Hp.
+  - intros p Hp. symmetry. apply Hagree. apply free_vars_in_nodup. exact Hp.
+Qed.
+
+Theorem MT_completeness_summary :
+  (forall phi, box_free phi ->
+     (classical_valid phi <-> prov_equiv phi Top)) /\
+  (forall phi psi, box_free phi -> box_free psi ->
+     (prov_equiv phi psi <-> forall val, eval val phi = eval val psi)) /\
+  (forall (V : list nat),
+    exists bound, bound = Nat.pow 2 (Nat.pow 2 (length V)) /\ bound >= 1).
+Proof.
+  split; [|split].
+  - exact MT_algebraic_completeness_box_free.
+  - exact MT_box_free_eval_distinguishes.
+  - exact MT_box_free_locally_finite.
+Qed.
+
 (******************************************************************************)
 (* Veblen notation system extending the CNF carrier [ord].                    *)
 (*                                                                            *)
