@@ -12440,6 +12440,27 @@ Proof.
   - exact (Bew_consistent n).
 Qed.
 
+Theorem Bew_satisfies_GLP_axioms_summary_strengthened : forall n,
+  ((forall k phi psi, k < n ->
+     Bew n (Impl (Box k (Impl phi psi)) (Impl (Box k phi) (Box k psi)))) /\
+   (forall k phi, k < n ->
+     Bew n (Impl (Box k (Impl (Box k phi) phi)) (Box k phi))) /\
+   (forall k phi, k < n ->
+     Bew n (Impl (Box k phi) (Box k (Box k phi)))) /\
+   (forall k phi, k < n ->
+     Bew n phi -> Bew n (Box k phi)) /\
+   (forall phi psi, Bew n (Impl phi psi) -> Bew n phi -> Bew n psi)) /\
+  (forall phi, Bew n phi -> |- phi) /\
+  (~ Bew n Bot) /\
+  (forall m, n <= m -> ~ Bew m Bot).
+Proof.
+  intro n. split; [|split; [|split]].
+  - exact (Bew_HBL_conditions n).
+  - exact (Bew_to_Provable n).
+  - exact (Bew_consistent n).
+  - intros m _. exact (Bew_consistent m).
+Qed.
+
 Definition arith_interp (sigma : nat -> Form) (phi : Form) : Form :=
   subst_form sigma phi.
 
@@ -13554,6 +13575,20 @@ Proof.
   - exact Visser_J5_K_distribution.
 Qed.
 
+Theorem Visser_J5_full_derivation_summary_strengthened :
+  (forall n phi psi, |- Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi))) /\
+  (forall n phi psi, |-no_mon Impl (Box n (Impl phi psi)) (Impl (Box n phi) (Box n psi))) /\
+  (forall n phi psi, |- Impl (Visser_interp n phi psi) (Impl (Box n phi) (Box n psi))) /\
+  (forall n phi psi,
+     Visser_interp n phi psi = Box n (Impl phi psi)).
+Proof.
+  split; [|split; [|split]].
+  - exact Visser_J5_via_Ax_BoxK_only.
+  - exact Visser_J5_via_Ax_BoxK_only_no_Mon.
+  - exact Visser_J5_K_distribution.
+  - intros n phi psi. reflexivity.
+Qed.
+
 Definition Critch_polynomial_bound (k : nat) : nat := k * k + k + 1.
 
 Definition Critch_bounded_provability (k n : nat) (phi : Form) : Form :=
@@ -13698,6 +13733,18 @@ Theorem concrete_bounded_agent_summary : forall k n G phi,
     Critch_bounded_provability k n phi.
 Proof.
   intros k n G phi. split; [|split; [|split]]; reflexivity.
+Qed.
+
+Theorem concrete_bounded_agent_summary_strengthened : forall k n G phi,
+  bpa_resource (concrete_bounded_agent k n G) = k /\
+  bpa_level (concrete_bounded_agent k n G) = n /\
+  bpa_goal (concrete_bounded_agent k n G) = G /\
+  bpa_decision_at (concrete_bounded_agent k n G) phi =
+    Critch_bounded_provability k n phi /\
+  bpa_decision (concrete_bounded_agent k n G) =
+    (fun resource phi' => Critch_bounded_provability resource n phi').
+Proof.
+  intros k n G phi. split; [|split; [|split; [|split]]]; reflexivity.
 Qed.
 
 Theorem concrete_bounded_agent_behaviour_strictly_varies :
@@ -13976,6 +14023,40 @@ Proof.
   - exact (strict_separation_via_concrete_agents n).
 Qed.
 
+Theorem concrete_failure_case_summary_strengthened : forall n,
+  (exists sigma, ~ |- Box n sigma /\ |- Box (S n) sigma) /\
+  (let sigma := Neg (Box n Bot) in
+    ~ |- Box n sigma /\ |- Box (S n) sigma) /\
+  (exists sigma A_n A_Sn,
+    agent_level A_n = n /\
+    agent_level A_Sn = S n /\
+    ~ |- Box (agent_level A_n) (agent_licenses A_n sigma) /\
+    |- Box (agent_level A_Sn) (agent_licenses A_Sn sigma)) /\
+  (exists sigma A_n A_Sn,
+    agent_level A_n = n /\
+    agent_level A_Sn = S n /\
+    agent_level A_Sn = S (agent_level A_n) /\
+    ~ |- Box (agent_level A_n) (agent_licenses A_n sigma) /\
+    |- Box (agent_level A_Sn) (agent_licenses A_Sn sigma)).
+Proof.
+  intro n. split; [|split; [|split]].
+  - exists (Neg (Box n Bot)). split.
+    + exact (Godel_sentence_independent_at_Tn n).
+    + exact (Ax_NextCon n).
+  - cbn. split.
+    + exact (Godel_sentence_independent_at_Tn n).
+    + exact (Ax_NextCon n).
+  - exact (strict_separation_via_concrete_agents n).
+  - destruct (strict_separation_via_concrete_agents n) as
+      [sigma [A_n [A_Sn [Hl1 [Hl2 [Hno Hyes]]]]]].
+    exists sigma, A_n, A_Sn. split; [|split; [|split; [|split]]].
+    + exact Hl1.
+    + exact Hl2.
+    + rewrite Hl1, Hl2. reflexivity.
+    + exact Hno.
+    + exact Hyes.
+Qed.
+
 Definition non_trivial_action (s : Form) : Form :=
   Impl s (Neg (Neg s)).
 
@@ -14025,6 +14106,24 @@ Proof.
   - exact (non_trivial_action_provably_preserves_state s).
   - exact (goal_preservation_under_non_trivial_action n s G).
   - exact (goal_preservation_tiling_concrete n s G).
+Qed.
+
+Theorem non_trivial_action_summary_strengthened : forall n s G p,
+  (non_trivial_action (Var p) <> Var p) /\
+  (|- Impl s (non_trivial_action s)) /\
+  (|- Impl s G ->
+   |- Box n (Impl (non_trivial_action s) G) ->
+   |- Box n (Impl s G)) /\
+  (|- Box n (Impl s G) ->
+   |- Box n (Impl s (Or s G))) /\
+  (forall q, q <> p -> non_trivial_action (Var q) <> Var q).
+Proof.
+  intros n s G p. split; [|split; [|split; [|split]]].
+  - exact (non_trivial_action_changes_form p).
+  - exact (non_trivial_action_provably_preserves_state s).
+  - exact (goal_preservation_under_non_trivial_action n s G).
+  - exact (goal_preservation_tiling_concrete n s G).
+  - intros q _. exact (non_trivial_action_changes_form q).
 Qed.
 
 Definition Vingean_reflection_at (n : nat) (phi : Form) : Form :=
@@ -14209,6 +14308,26 @@ Proof.
   - intros n phi. exact (T_kappa_agent_at_n_licenses n G phi).
   - intros n phi. exact (T_kappa_agent_correspondence_box_n n G phi).
   - intro n. exact (T_kappa_agent_strict_separation n G).
+Qed.
+
+Theorem T_kappa_agent_correspondence_summary_strengthened : forall G,
+  (forall n phi, agent_licenses (T_kappa_agent G n) phi = phi) /\
+  (forall n phi,
+    |- Box n phi <-> |- Box (agent_level (T_kappa_agent G n))
+                          (agent_licenses (T_kappa_agent G n) phi)) /\
+  (forall n, exists phi,
+    ~ |- Box (agent_level (T_kappa_agent G n))
+          (agent_licenses (T_kappa_agent G n) phi) /\
+    |- Box (agent_level (T_kappa_agent G (S n)))
+          (agent_licenses (T_kappa_agent G (S n)) phi)) /\
+  (forall n, agent_level (T_kappa_agent G n) = n /\
+             agent_goal (T_kappa_agent G n) = G).
+Proof.
+  intro G. split; [|split; [|split]].
+  - intros n phi. exact (T_kappa_agent_at_n_licenses n G phi).
+  - intros n phi. exact (T_kappa_agent_correspondence_box_n n G phi).
+  - intro n. exact (T_kappa_agent_strict_separation n G).
+  - intro n. split; reflexivity.
 Qed.
 
 Definition Cooperate_action : Form := Var 100.
@@ -14598,6 +14717,21 @@ Proof.
   - reflexivity.
   - exact (Godel_sentence_independent_at_Tn n).
   - exact (Ax_NextCon n).
+Qed.
+
+Theorem quantitative_Loeb_obstacle_summary_strengthened : forall n,
+  (Loeb_obstacle_strength n = n + 1) /\
+  (~ |- Box n (Neg (Box n Bot))) /\
+  (|- Box (S n) (Neg (Box n Bot))) /\
+  (Loeb_obstacle_strength n = S n) /\
+  (Loeb_obstacle_strength n > n).
+Proof.
+  intro n. split; [|split; [|split; [|split]]].
+  - reflexivity.
+  - exact (Godel_sentence_independent_at_Tn n).
+  - exact (Ax_NextCon n).
+  - unfold Loeb_obstacle_strength. lia.
+  - unfold Loeb_obstacle_strength. lia.
 Qed.
 
 Definition YH_tiling_agent_program (n : nat) (proof_bound : nat)
@@ -15179,6 +15313,25 @@ Proof.
   - exact (probabilistic_logic_4 p level phi).
 Qed.
 
+Theorem probabilistic_logic_summary_strengthened : forall p level phi psi,
+  (Bel_p p level phi = Box level phi) /\
+  (|- Impl (Bel_p p level (Impl (Bel_p p level phi) phi)) (Bel_p p level phi)) /\
+  (|- Impl (Bel_p p level (Impl phi psi))
+           (Impl (Bel_p p level phi) (Bel_p p level psi))) /\
+  (|- Impl (Bel_p p level phi) (Bel_p p level (Bel_p p level phi))) /\
+  (forall p1 p2,
+    |- Impl (Bel_p p1 level (Impl (Bel_p p2 level phi) phi))
+            (Bel_p p2 level phi)).
+Proof.
+  intros p level phi psi. split; [|split; [|split; [|split]]].
+  - reflexivity.
+  - exact (probabilistic_Loeb p level phi).
+  - exact (probabilistic_logic_K p level phi psi).
+  - exact (probabilistic_logic_4 p level phi).
+  - intros p1 p2.
+    exact (probabilistic_Loeb_robust_to_probability p1 p2 level phi).
+Qed.
+
 Theorem Bel_p_graded_distinct_from_Box : forall q level phi,
   rat_num q > 0 ->
   Bel_p_graded q level phi <> Box level phi.
@@ -15251,6 +15404,21 @@ Proof.
   - reflexivity.
 Qed.
 
+Theorem probabilistic_decision_agent_summary_strengthened : forall p level phi,
+  (agent_level (probabilistic_decision_agent p level) = level) /\
+  (agent_decision (probabilistic_decision_agent p level) phi = Box level phi) /\
+  (agent_licenses (probabilistic_decision_agent p level) phi = Box level phi) /\
+  (agent_goal (probabilistic_decision_agent p level) = Top) /\
+  (agent_verification (probabilistic_decision_agent p level) phi = true).
+Proof.
+  intros p level phi. split; [|split; [|split; [|split]]].
+  - reflexivity.
+  - reflexivity.
+  - reflexivity.
+  - reflexivity.
+  - reflexivity.
+Qed.
+
 Definition neighborhood_predicate := Form -> Prop.
 
 Definition forces_neighborhood (N : neighborhood_predicate) (phi : Form) : Prop :=
@@ -15278,6 +15446,27 @@ Theorem neighborhood_semantics_summary :
 Proof.
   destruct normal_neighborhood_witness as [N [HTop [HMP HNec]]].
   exists N. repeat split; assumption.
+Qed.
+
+Theorem neighborhood_semantics_summary_strengthened :
+  exists N, normal_neighborhood N /\
+    (N Top) /\
+    (forall phi psi, N (Impl phi psi) -> N phi -> N psi) /\
+    (forall phi, |- phi -> N phi) /\
+    (forall phi, N phi <-> |- phi).
+Proof.
+  exists (fun phi => |- phi).
+  assert (HN : normal_neighborhood (fun phi => |- phi)).
+  { split; [|split].
+    - exact (prov_id Bot).
+    - intros a b Himp Ha. exact (MP _ _ Himp Ha).
+    - intros a H. exact H. }
+  split; [|split; [|split; [|split]]].
+  - exact HN.
+  - exact (prov_id Bot).
+  - intros a b Himp Ha. exact (MP _ _ Himp Ha).
+  - intros a H. exact H.
+  - intros a. split; intro H; exact H.
 Qed.
 
 Definition transfinite_level := ord.
@@ -16089,6 +16278,33 @@ Proof.
     apply HBL3_4_Bew_n. exact Hphi.
   - intros n phi Hloeb. unfold realise_identity in *.
     apply HBL_Loeb_Bew_n. exact Hloeb.
+Qed.
+
+Theorem realisation_full_soundness_strengthened :
+  exists R, is_arithmetic_realisation R /\
+    (forall n phi, |- Box n phi -> Bew_n n (encode_form (R phi))) /\
+    (forall n phi psi,
+       Bew_n n (encode_form (Impl (R phi) (R psi))) ->
+       Bew_n n (encode_form (R phi)) ->
+       Bew_n n (encode_form (R psi))) /\
+    (forall n phi,
+       Bew_n n (encode_form (R phi)) ->
+       Bew_n n (encode_form (R (Box n phi)))) /\
+    (forall n phi,
+       Bew_n n (encode_form (R (Impl (Box n phi) phi))) ->
+       Bew_n n (encode_form (R phi))) /\
+    (forall phi, R phi = phi).
+Proof.
+  exists realise_identity.
+  split; [|split; [|split; [|split; [|split]]]].
+  - exact realise_identity_is_arithmetic_realisation.
+  - exact (proj1 realise_identity_is_arithmetic_realisation).
+  - intros n phi psi. apply HBL2_K_Bew_n.
+  - intros n phi Hphi. unfold realise_identity in *.
+    apply HBL3_4_Bew_n. exact Hphi.
+  - intros n phi Hloeb. unfold realise_identity in *.
+    apply HBL_Loeb_Bew_n. exact Hloeb.
+  - intros phi. unfold realise_identity. reflexivity.
 Qed.
 
 Theorem internal_diagonal_summary :
@@ -20743,6 +20959,30 @@ Proof.
   - exact frame_morphism_induces_bisim.
   - exact provable_is_global_section.
   - exact frame_morphism_pulls_back_truth.
+Qed.
+
+Theorem categorical_semantics_summary_strengthened :
+  (forall F1 F2 V1 V2 (f : FrameMorphism F1 F2),
+     (forall w p, V1 w p = V2 (fmm_map f w) p) ->
+     Bisim F1 F2 V1 V2 (fun w v => fmm_map f w = v)) /\
+  (forall phi, |- phi -> GlobalSection phi) /\
+  (forall F1 F2 V1 V2 (f : FrameMorphism F1 F2),
+     (forall w p, V1 w p = V2 (fmm_map f w) p) ->
+     forall phi w, forces F1 V1 w phi <-> forces F2 V2 (fmm_map f w) phi) /\
+  (forall F1 F2 V1 V2 (f : FrameMorphism F1 F2),
+     (forall w p, V1 w p = V2 (fmm_map f w) p) ->
+     forall phi, (|- phi -> forall w, forces F1 V1 w phi) /\
+                 (|- phi -> forall w, forces F2 V2 (fmm_map f w) phi)).
+Proof.
+  split; [|split; [|split]].
+  - exact frame_morphism_induces_bisim.
+  - exact provable_is_global_section.
+  - exact frame_morphism_pulls_back_truth.
+  - intros F1 F2 V1 V2 f Hcompat phi.
+    pose proof (frame_morphism_pulls_back_truth F1 F2 V1 V2 f Hcompat phi) as Hpb.
+    split.
+    + intros Hp w. exact (soundness phi Hp F1 V1 w).
+    + intros Hp w. exact (soundness phi Hp F2 V2 (fmm_map f w)).
 Qed.
 
 (******************************************************************************)
