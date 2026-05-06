@@ -1144,3 +1144,99 @@ Proof.
     rewrite Edt in Edt'. discriminate.
 Defined.
 
+(** ** Full decision procedure for the entire box-free fragment, open or
+    closed: [|- phi] iff [phi] is classically valid.  This is just
+    [decide_tautology] wrapped as a [sumbool]. *)
+
+Definition glp_decide_box_free (phi : Form) (Hbf : box_free phi) :
+  sumbool (|- phi) (~ |- phi).
+Proof.
+  destruct (decide_tautology phi) eqn:Edt.
+  - left. apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+    apply decide_tautology_correct. exact Edt.
+  - right. intro Hp.
+    pose proof (eval_provable_true) as Heval.
+    pose proof (decide_tautology_complete phi (fun val => Heval val phi Hp)) as Edt'.
+    rewrite Edt in Edt'. discriminate.
+Defined.
+
+(** ** Boolean version of [box_free]. *)
+
+Fixpoint box_free_b (phi : Form) : bool :=
+  match phi with
+  | Var _ => true
+  | Bot => true
+  | Impl X Y => andb (box_free_b X) (box_free_b Y)
+  | Box _ _ => false
+  end.
+
+Lemma box_free_b_iff : forall phi,
+  box_free_b phi = true <-> box_free phi.
+Proof.
+  intro phi. induction phi as [k | | X IHX Y IHY | n psi IHpsi]; cbn.
+  - tauto.
+  - tauto.
+  - rewrite Bool.andb_true_iff. rewrite IHX, IHY. reflexivity.
+  - split; [discriminate | intros []].
+Qed.
+
+(** ** Decomposition: every formula factors as [iter_box ns psi] where
+    [psi] is the result of stripping all outermost [Box] layers and [ns]
+    collects the box levels. *)
+
+Fixpoint extract_box_levels (phi : Form) : list nat :=
+  match phi with
+  | Box n psi => n :: extract_box_levels psi
+  | _ => []
+  end.
+
+Fixpoint extract_inner_form (phi : Form) : Form :=
+  match phi with
+  | Box _ psi => extract_inner_form psi
+  | _ => phi
+  end.
+
+Lemma extract_decomposition : forall phi,
+  phi = iter_box (extract_box_levels phi) (extract_inner_form phi).
+Proof.
+  intro phi. induction phi as [k | | X IHX Y IHY | n psi IHpsi]; cbn; try reflexivity.
+  rewrite <- IHpsi at 1. reflexivity.
+Qed.
+
+Lemma extract_inner_form_no_outer_box : forall phi,
+  match extract_inner_form phi with Box _ _ => False | _ => True end.
+Proof.
+  intro phi. induction phi as [k | | X IHX Y IHY | n psi IHpsi]; cbn; auto; exact I.
+Qed.
+
+(** ** Boolean predicate identifying the sub-fragment for which we provide
+    full decidability: a formula whose innermost (after stripping outer
+    boxes) is box-free.  These are exactly the formulas of shape
+    [iter_box ns psi] with box-free [psi]. *)
+
+Definition is_iter_box_of_box_free (phi : Form) : bool :=
+  box_free_b (extract_inner_form phi).
+
+Lemma extract_inner_box_free : forall phi,
+  is_iter_box_of_box_free phi = true -> box_free (extract_inner_form phi).
+Proof.
+  intros phi Hb. unfold is_iter_box_of_box_free in Hb.
+  apply box_free_b_iff. exact Hb.
+Qed.
+
+(** ** Headline decidability for the [is_iter_box_of_box_free] fragment.
+    Combined with [glp_decide_box_free] for the box-free part of the
+    fragment, this yields a decision procedure for every formula whose
+    syntactic shape strips to a box-free leaf. *)
+
+Definition glp_decide_iter_box_of_box_free (phi : Form)
+  (Hb : is_iter_box_of_box_free phi = true) :
+  sumbool (|- phi) (~ |- phi).
+Proof.
+  rewrite (extract_decomposition phi).
+  exact (glp_decide_iter_box_box_free
+           (extract_box_levels phi)
+           (extract_inner_form phi)
+           (extract_inner_box_free phi Hb)).
+Defined.
+
