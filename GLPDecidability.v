@@ -1240,3 +1240,80 @@ Proof.
            (extract_inner_box_free phi Hb)).
 Defined.
 
+(** ** Iff-congruence under [Box].  A directional [Iff] under a single
+    [Box] follows from [Nec] + [BoxK] applied componentwise. *)
+
+Lemma iff_under_box : forall n phi psi,
+  |- Iff phi psi ->
+  |- Iff (Box n phi) (Box n psi).
+Proof.
+  intros n phi psi Hiff.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hf.
+  pose proof (prov_and_elim_r_meta _ _ Hiff) as Hb.
+  apply prov_iff_intro.
+  - exact (MP _ _ (Ax_BoxK n phi psi) (Nec n _ Hf)).
+  - exact (MP _ _ (Ax_BoxK n psi phi) (Nec n _ Hb)).
+Qed.
+
+(** ** Boolean check for strictly descending lists. *)
+
+Fixpoint is_strictly_descending (ns : list nat) : bool :=
+  match ns with
+  | [] => true
+  | [_] => true
+  | a :: ((b :: _) as rest) => andb (Nat.ltb b a) (is_strictly_descending rest)
+  end.
+
+(** ** Iterated worm collapse for strictly descending sequences.  Each
+    successive [(a, b, ...)] with [b < a] collapses [Box a (Box b ...)]
+    to [Box a Bot] via iterated application of the 2-element collapse and
+    [iff_under_box]. *)
+
+Lemma prov_iff_trans : forall phi psi chi,
+  |- Iff phi psi -> |- Iff psi chi -> |- Iff phi chi.
+Proof.
+  intros phi psi chi H1 H2.
+  pose proof (prov_and_elim_l_meta _ _ H1) as H1f.
+  pose proof (prov_and_elim_r_meta _ _ H1) as H1b.
+  pose proof (prov_and_elim_l_meta _ _ H2) as H2f.
+  pose proof (prov_and_elim_r_meta _ _ H2) as H2b.
+  apply prov_iff_intro.
+  - exact (prov_compose _ _ _ H1f H2f).
+  - exact (prov_compose _ _ _ H2b H1b).
+Qed.
+
+Theorem worm_descending_collapse_to_head : forall n rest,
+  is_strictly_descending (n :: rest) = true ->
+  |- Iff (iter_box (n :: rest) Bot) (Box n Bot).
+Proof.
+  intros n rest. revert n. induction rest as [|m rest' IH]; intros n Hd.
+  - cbn [iter_box]. apply prov_iff_refl.
+  - cbn in Hd. apply Bool.andb_true_iff in Hd. destruct Hd as [Hlt Hd_rest].
+    apply Nat.ltb_lt in Hlt.
+    pose proof (IH m Hd_rest) as Hiff_inner.
+    pose proof (iff_under_box n _ _ Hiff_inner) as Hiff_outer.
+    cbn [iter_box] in Hiff_outer.
+    pose proof (worm_two_element_collapse_inner_lt_outer n m Hlt) as Hcollapse.
+    cbn [iter_box] in Hcollapse.
+    cbn [iter_box].
+    exact (prov_iff_trans _ _ _ Hiff_outer Hcollapse).
+Qed.
+
+(** ** Worm-implication via descending-collapse + head-match.  When the
+    antecedent is strictly descending, it collapses to its head; if the
+    head is dominated by the consequent's head, the implication is
+    provable. *)
+
+Theorem provable_impl_descending_iter_box_to_iter_box_via_head :
+  forall n rest m rest_2,
+  is_strictly_descending (n :: rest) = true ->
+  n <= m ->
+  |- Impl (iter_box (n :: rest) Bot) (iter_box (m :: rest_2) Bot).
+Proof.
+  intros n rest m rest_2 Hd Hle.
+  pose proof (worm_descending_collapse_to_head n rest Hd) as Hiff.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+  pose proof (provable_impl_box_bot_iter_box_bot_head_match n m rest_2 Hle) as Hhead.
+  exact (prov_compose _ _ _ Hfwd Hhead).
+Qed.
+
