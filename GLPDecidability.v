@@ -1626,6 +1626,48 @@ Proof.
   - apply (Hboxm (S m', 0)). cbn. split; [lia|lia].
 Qed.
 
+(** ** I2 refutation for [Box k_1 (Box k_2 Bot) -> Box 0 (Box m Bot)]
+    when [k_1 >= 1], [k_1 <= k_2], and [k_2 = m] (i.e., the
+    bad_world-equal Beklemishev-gap configuration). *)
+
+Theorem refute_box_box_bot_implies_box_0_box_m_bot :
+  forall k_1 k_2 m,
+  1 <= k_1 -> k_1 <= k_2 -> k_2 = m ->
+  ~ |- Impl (Box k_1 (Box k_2 Bot)) (Box 0 (Box m Bot)).
+Proof.
+  intros k_1 k_2 m Hk1 Hk1k2 Hk2m Hp. subst k_2.
+  pose proof (soundness _ Hp I2 (fun _ _ => false) (S m, 1)) as Hf.
+  cbn in Hf.
+  assert (Hbox12 : forall v : nat * nat,
+            I2_R k_1 (S m, 1) v ->
+            forall u, I2_R m v u -> False).
+  { intros [c d]. destruct k_1 as [|k_1']; cbn.
+    - lia.
+    - intros [Hac Hcn]. cbn in Hac, Hcn.
+      intros [e f]. destruct m as [|m']; cbn.
+      + intros _. lia.
+      + intros [Hce Hen]. cbn in Hce, Hen. lia. }
+  pose proof (Hf Hbox12) as Hbox0.
+  pose proof (Hbox0 (S m, 0)) as Hbox0'.
+  assert (Hr0 : I2_R 0 (S m, 1) (S m, 0))
+    by (cbn; right; split; [reflexivity | lia]).
+  pose proof (Hbox0' Hr0) as Hboxm.
+  destruct m as [|m']; cbn in Hboxm.
+  - apply (Hboxm (0, 0)). cbn. left. lia.
+  - apply (Hboxm (S m', 0)). cbn. split; [lia|lia].
+Qed.
+
+(** ** Concrete instance: [|- Box 1 (Box 3 Bot) -> Box 0 (Box 3 Bot)] is
+    UNPROVABLE.  Together with [Box 0 (Box 3 Bot) -> Box 1 (Box 3 Bot)]
+    (provable via Mon), this establishes another Fnat-incompleteness
+    witness. *)
+
+Corollary refute_box_1_box_3_bot_implies_box_0_box_3_bot :
+  ~ |- Impl (Box 1 (Box 3 Bot)) (Box 0 (Box 3 Bot)).
+Proof.
+  apply refute_box_box_bot_implies_box_0_box_m_bot; [lia|lia|reflexivity].
+Qed.
+
 (** ** Hence, in our axiom system, the Lindenbaum classes of
     [Box 0 (Box m Bot)] and [Box (S m) Bot] are NOT provably equivalent.
     [I2] refutes the reverse direction, completing the Fnat-incompleteness
