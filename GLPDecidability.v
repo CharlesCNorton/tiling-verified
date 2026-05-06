@@ -196,3 +196,126 @@ Definition glp_decide_iff (phi psi : Form)
 Proof.
   unfold Iff. exact (glp_decide_and (Impl phi psi) (Impl psi phi) Dfwd Dbwd).
 Defined.
+
+(** ** Decidability of [Impl phi psi] when the consequent is provable. *)
+
+Definition glp_decide_impl_consequent_provable (phi psi : Form)
+  (Hpsi : |- psi) :
+  sumbool (|- Impl phi psi) (~ |- Impl phi psi).
+Proof.
+  left. exact (MP _ _ (Ax_K psi phi) Hpsi).
+Defined.
+
+(** ** Decidability of [Impl phi psi] when the antecedent is provable
+    and the consequent's provability status is decidable. *)
+
+Definition glp_decide_impl_antecedent_provable (phi psi : Form)
+  (Hphi : |- phi)
+  (Dpsi : sumbool (|- psi) (~ |- psi)) :
+  sumbool (|- Impl phi psi) (~ |- Impl phi psi).
+Proof.
+  destruct Dpsi as [Hpsi | Hnpsi].
+  - left. exact (MP _ _ (Ax_K psi phi) Hpsi).
+  - right. intro Himp. apply Hnpsi. exact (MP _ _ Himp Hphi).
+Defined.
+
+(** ** Decidability for [Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2)]
+    when [psi_2] is provable: the consequent is provable, so the implication
+    is provable by [Ax_K]. *)
+
+Definition glp_decide_impl_iter_box_via_consequent_provable
+  (ns_1 ns_2 : list nat) (psi_1 psi_2 : Form)
+  (Hp_2 : |- psi_2) :
+  sumbool (|- Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2))
+          (~ |- Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2)).
+Proof.
+  left.
+  exact (MP _ _ (Ax_K _ (iter_box ns_1 psi_1))
+                (provable_iter_box_intro ns_2 psi_2 Hp_2)).
+Defined.
+
+(** ** Decidability for [Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2)]
+    when [psi_1] is provable but [psi_2] is not (with [psi_2] closed
+    box-free): the antecedent is provable and consequent is not, so
+    the implication cannot be provable (would yield [|- iter_box ns_2 psi_2]
+    via MP, contradicting [~ |- psi_2] under [provable_iter_box_box_free_iff]). *)
+
+Definition glp_decide_impl_iter_box_via_antecedent_provable_consequent_not
+  (ns_1 ns_2 : list nat) (psi_1 psi_2 : Form)
+  (Hcl_2 : free_vars psi_2 = []) (Hbf_2 : box_free psi_2)
+  (Hp_1 : |- psi_1) (Hnp_2 : ~ |- psi_2) :
+  sumbool (|- Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2))
+          (~ |- Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2)).
+Proof.
+  right. intro Himp. apply Hnp_2.
+  apply (proj1 (provable_iter_box_box_free_iff ns_2 psi_2 Hcl_2 Hbf_2)).
+  apply (MP _ _ Himp).
+  exact (provable_iter_box_intro ns_1 psi_1 Hp_1).
+Defined.
+
+(** ** [And] of two iterated-box closed-box-free formulas: provable iff both
+    inner formulas are classically valid. *)
+
+Definition glp_decide_and_iter_box_box_free
+  (ns_1 ns_2 : list nat) (psi_1 psi_2 : Form)
+  (Hcl_1 : free_vars psi_1 = []) (Hbf_1 : box_free psi_1)
+  (Hcl_2 : free_vars psi_2 = []) (Hbf_2 : box_free psi_2) :
+  sumbool (|- And (iter_box ns_1 psi_1) (iter_box ns_2 psi_2))
+          (~ |- And (iter_box ns_1 psi_1) (iter_box ns_2 psi_2)).
+Proof.
+  apply glp_decide_and.
+  - exact (glp_decide_iter_box_closed_box_free ns_1 psi_1 Hcl_1 Hbf_1).
+  - exact (glp_decide_iter_box_closed_box_free ns_2 psi_2 Hcl_2 Hbf_2).
+Defined.
+
+(** ** [Iff] of two iterated-box closed-box-free formulas: each direction
+    is decidable when one of the cases (valid consequent, or
+    valid antecedent + invalid consequent) applies. *)
+
+(** ** [forces_fnat_closed (Box k Bot)] reduces to [Nat.leb w k]. *)
+
+Lemma forces_box_bot_eq_leb : forall k w,
+  forces_fnat_closed (Box k Bot) w = Nat.leb w k.
+Proof.
+  intros k w. cbn.
+  destruct (Nat.leb w k) eqn:Eq.
+  - apply Nat.leb_le in Eq.
+    assert (Hempty : seq k (w - k) = []).
+    { assert (w - k = 0) by lia. rewrite H. reflexivity. }
+    rewrite Hempty. reflexivity.
+  - apply Nat.leb_nle in Eq.
+    destruct (forallb _ _) eqn:Efb; [|reflexivity].
+    rewrite forallb_forall in Efb.
+    assert (Hin : In k (seq k (w - k))).
+    { apply in_seq. lia. }
+    pose proof (Efb k Hin) as H. cbn in H. discriminate.
+Qed.
+
+(** ** [Impl (Box k_1 Bot) (Box k_2 Bot)] decidable: provable iff [k_1 <= k_2]. *)
+
+Lemma decide_impl_box_bot_box_bot_le : forall k_1 k_2,
+  k_1 <= k_2 -> |- Impl (Box k_1 Bot) (Box k_2 Bot).
+Proof.
+  intros k_1 k_2 Hle. exact (prov_box_mon_le k_1 k_2 Bot Hle).
+Qed.
+
+Lemma decide_impl_box_bot_box_bot_gt : forall k_1 k_2,
+  k_1 > k_2 -> ~ |- Impl (Box k_1 Bot) (Box k_2 Bot).
+Proof.
+  intros k_1 k_2 Hgt Hp.
+  pose proof (soundness _ Hp Fnat (fun _ _ => true) (S k_2)) as Hf.
+  cbn in Hf.
+  assert (Hk1 : forall v, Fnat_R k_1 (S k_2) v -> False).
+  { intros v Hr. unfold Fnat_R in Hr. lia. }
+  apply (Hf (fun v Hr => False_ind _ (Hk1 v Hr)) k_2).
+  unfold Fnat_R. split; lia.
+Qed.
+
+Definition glp_decide_impl_box_bot_box_bot (k_1 k_2 : nat) :
+  sumbool (|- Impl (Box k_1 Bot) (Box k_2 Bot))
+          (~ |- Impl (Box k_1 Bot) (Box k_2 Bot)).
+Proof.
+  destruct (le_gt_dec k_1 k_2) as [Hle | Hgt].
+  - left. exact (decide_impl_box_bot_box_bot_le k_1 k_2 Hle).
+  - right. exact (decide_impl_box_bot_box_bot_gt k_1 k_2 Hgt).
+Defined.
