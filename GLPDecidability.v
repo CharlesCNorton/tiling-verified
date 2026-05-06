@@ -588,6 +588,132 @@ Proof.
   exact (prov_compose _ _ _ Hmon Hstr).
 Qed.
 
+(** ** Witness extraction from a [false] [forallb]. *)
+
+Lemma forallb_false_witness : forall {A : Type} (f : A -> bool) (l : list A),
+  forallb f l = false -> exists x, In x l /\ f x = false.
+Proof.
+  intros A f. induction l as [|x rest IH]; intro Hfb.
+  - cbn in Hfb. discriminate Hfb.
+  - cbn in Hfb. destruct (f x) eqn:Ef.
+    + cbn in Hfb. destruct (IH Hfb) as [y [Hy_in Hy_f]].
+      exists y. split; [right; exact Hy_in | exact Hy_f].
+    + exists x. split; [left; reflexivity | exact Ef].
+Qed.
+
+(** ** Stabilization bound for closed [forces_fnat_closed].  Beyond [wbound
+    phi], [forces_fnat_closed phi w] is constant (in [w]).  This gives a
+    finite-window refutation: any closed Form refutable by [Fnat] is
+    refutable by checking [w in [0, wbound phi]]. *)
+
+Fixpoint wbound (phi : Form) : nat :=
+  match phi with
+  | Var _ => 0
+  | Bot => 0
+  | Impl X Y => Nat.max (wbound X) (wbound Y)
+  | Box n psi => S (Nat.max n (wbound psi))
+  end.
+
+Lemma forces_fnat_closed_stabilizes : forall phi w_1 w_2,
+  free_vars phi = [] ->
+  w_1 >= wbound phi -> w_2 >= wbound phi ->
+  forces_fnat_closed phi w_1 = forces_fnat_closed phi w_2.
+Proof.
+  intro phi.
+  induction phi as [k | | X IHX Y IHY | n psi IHpsi];
+    intros w_1 w_2 Hcl Hw1 Hw2.
+  - cbn in Hcl. discriminate Hcl.
+  - cbn. reflexivity.
+  - cbn in Hcl. apply app_eq_nil in Hcl. destruct Hcl as [HclX HclY].
+    cbn in Hw1, Hw2.
+    assert (Hw1X : w_1 >= wbound X) by lia.
+    assert (Hw1Y : w_1 >= wbound Y) by lia.
+    assert (Hw2X : w_2 >= wbound X) by lia.
+    assert (Hw2Y : w_2 >= wbound Y) by lia.
+    cbn. rewrite (IHX w_1 w_2 HclX Hw1X Hw2X), (IHY w_1 w_2 HclY Hw1Y Hw2Y).
+    reflexivity.
+  - cbn in Hcl. cbn in Hw1, Hw2. cbn [forces_fnat_closed].
+    destruct (forallb (fun v => forces_fnat_closed psi v) (seq n (w_1 - n))) eqn:Eb1;
+      destruct (forallb (fun v => forces_fnat_closed psi v) (seq n (w_2 - n))) eqn:Eb2;
+      try reflexivity; exfalso.
+    + (* Eb1 = true, Eb2 = false: produce a witness in seq_w_2 violating, derive contradiction with Eb1. *)
+      destruct (forallb_false_witness _ _ Eb2) as [v [Hin Hf]].
+      apply in_seq in Hin. destruct Hin as [Hvn Hvw2].
+      rewrite forallb_forall in Eb1.
+      destruct (le_gt_dec (wbound psi) v) as [Hvge | Hvlt].
+      * (* v >= wbound psi: stabilize via [max n (wbound psi)]. *)
+        assert (Hin_max : In (Nat.max n (wbound psi)) (seq n (w_1 - n))) by (apply in_seq; lia).
+        pose proof (Eb1 _ Hin_max) as Hf_max.
+        assert (Hbnd_max : Nat.max n (wbound psi) >= wbound psi) by lia.
+        pose proof (IHpsi (Nat.max n (wbound psi)) v Hcl Hbnd_max Hvge) as Heq.
+        rewrite Heq in Hf_max. rewrite Hf in Hf_max. discriminate.
+      * (* v < wbound psi: then v < w_1, so [v ∈ seq n (w_1 - n)]. *)
+        assert (Hv_in_w1 : In v (seq n (w_1 - n))) by (apply in_seq; lia).
+        pose proof (Eb1 _ Hv_in_w1) as Hf_at_v. rewrite Hf in Hf_at_v. discriminate.
+    + (* Eb1 = false, Eb2 = true: symmetric. *)
+      destruct (forallb_false_witness _ _ Eb1) as [v [Hin Hf]].
+      apply in_seq in Hin. destruct Hin as [Hvn Hvw1].
+      rewrite forallb_forall in Eb2.
+      destruct (le_gt_dec (wbound psi) v) as [Hvge | Hvlt].
+      * assert (Hin_max : In (Nat.max n (wbound psi)) (seq n (w_2 - n))) by (apply in_seq; lia).
+        pose proof (Eb2 _ Hin_max) as Hf_max.
+        assert (Hbnd_max : Nat.max n (wbound psi) >= wbound psi) by lia.
+        pose proof (IHpsi (Nat.max n (wbound psi)) v Hcl Hbnd_max Hvge) as Heq.
+        rewrite Heq in Hf_max. rewrite Hf in Hf_max. discriminate.
+      * assert (Hv_in_w2 : In v (seq n (w_2 - n))) by (apply in_seq; lia).
+        pose proof (Eb2 _ Hv_in_w2) as Hf_at_v. rewrite Hf in Hf_at_v. discriminate.
+Qed.
+
+(** ** Bounded-window characterization of universal [Fnat] validity. *)
+
+Theorem forces_fnat_closed_universal_iff_bounded : forall phi,
+  free_vars phi = [] ->
+  ((forall w, forces_fnat_closed phi w = true) <->
+   (forall w, w <= wbound phi -> forces_fnat_closed phi w = true)).
+Proof.
+  intros phi Hcl. split.
+  - intros Hall w _. exact (Hall w).
+  - intros Hbnd w. destruct (le_gt_dec w (wbound phi)) as [Hle | Hgt].
+    + exact (Hbnd w Hle).
+    + assert (Hwbnd : wbound phi >= wbound phi) by lia.
+      assert (Hwgt : w >= wbound phi) by lia.
+      rewrite (forces_fnat_closed_stabilizes phi w (wbound phi) Hcl Hwgt Hwbnd).
+      exact (Hbnd (wbound phi) (Nat.le_refl _)).
+Qed.
+
+(** ** Bounded refutation: a closed [phi] with [forces_fnat_closed phi w =
+    false] for some [w in [0, wbound phi]] is unprovable.  Sound but not
+    complete: not every Fnat-valid closed [phi] is provable in GLP*. *)
+
+Theorem closed_refutation_via_fnat : forall phi w,
+  free_vars phi = [] -> w <= wbound phi ->
+  forces_fnat_closed phi w = false -> ~ |- phi.
+Proof.
+  intros phi w Hcl _ Hf Hp.
+  pose proof (provable_implies_forces_fnat_closed phi w Hcl Hp) as Hf'.
+  rewrite Hf in Hf'. discriminate Hf'.
+Qed.
+
+(** ** Decidability of [forall w in [0, wbound phi], forces phi w = true].
+    Bounded boolean check: returns [sumbool] indicating whether [phi] is
+    Fnat-valid up to its stabilization threshold. *)
+
+Lemma forces_bounded_decidable : forall phi,
+  free_vars phi = [] ->
+  sumbool (forall w, w <= wbound phi -> forces_fnat_closed phi w = true)
+          (exists w, w <= wbound phi /\ forces_fnat_closed phi w = false).
+Proof.
+  intros phi Hcl.
+  destruct (forallb (fun w => forces_fnat_closed phi w) (seq 0 (S (wbound phi)))) eqn:Eb.
+  - left. intros w Hw.
+    rewrite forallb_forall in Eb.
+    apply Eb. apply in_seq. lia.
+  - right.
+    destruct (forallb_false_witness _ _ Eb) as [w [Hin Hf]].
+    apply in_seq in Hin. destruct Hin as [_ Hwlt].
+    exists w. split; [lia | exact Hf].
+Qed.
+
 (** ** Full decidability for [Impl (Box k_1 psi_1) (Box k_2 psi_2)] with
     closed box-free [psi_1, psi_2].  Four cases by the validity of each:
     (a) both valid: provable via Nec on [psi_2] then [Ax_K];
