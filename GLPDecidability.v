@@ -332,6 +332,36 @@ Proof.
   reflexivity.
 Qed.
 
+(** ** For closed box-free [psi], unprovability implies provability of [Neg psi]. *)
+
+Lemma not_provable_implies_provable_neg_closed_box_free : forall psi,
+  free_vars psi = [] -> box_free psi -> ~ |- psi -> |- Neg psi.
+Proof.
+  intros psi Hcl Hbf Hnp.
+  apply trivial_in_provable. apply prop_completeness.
+  - cbn. split; [exact Hbf | exact I].
+  - intro val. cbn.
+    destruct (eval val psi) eqn:E.
+    + exfalso. apply Hnp.
+      apply trivial_in_provable.
+      apply prop_completeness; [exact Hbf|].
+      intro val'.
+      pose proof (eval_box_free_closed_const psi val' val Hcl Hbf) as Heq.
+      rewrite Heq. exact E.
+    + reflexivity.
+Qed.
+
+(** ** When [|- Neg psi], [Box k psi] is provably equivalent to [Box k Bot]. *)
+
+Lemma box_psi_iff_box_bot_when_neg_provable : forall k psi,
+  |- Neg psi -> |- Iff (Box k psi) (Box k Bot).
+Proof.
+  intros k psi Hneg.
+  apply prov_iff_intro.
+  - exact (MP _ _ (Ax_BoxK k psi Bot) (Nec k _ Hneg)).
+  - exact (MP _ _ (Ax_BoxK k Bot psi) (Nec k _ (prov_explosion psi))).
+Qed.
+
 (** ** Decidability of [Impl (Box k_1 psi) (Box k_2 psi)] for closed box-free
     [psi].  Provable iff [|- psi] OR [k_1 <= k_2]; refuted by Fnat-soundness
     when [psi] is unprovable and [k_1 > k_2]. *)
@@ -363,4 +393,47 @@ Proof.
         in Hpsi_at_k2.
       pose proof (eval_box_free_closed_const psi val (fun _ => true) Hcl Hbf) as Heq.
       rewrite Heq. exact Hpsi_at_k2.
+Defined.
+
+(** ** Full decidability for [Impl (Box k_1 psi_1) (Box k_2 psi_2)] with
+    closed box-free [psi_1, psi_2].  Four cases by the validity of each:
+    (a) both valid: provable via Nec on [psi_2] then [Ax_K];
+    (b) [psi_1] valid, [psi_2] not: refuted, since MP would give [|- psi_2];
+    (c) [psi_1] not, [psi_2] valid: provable via Nec on [psi_2];
+    (d) both not valid: each [Box k psi_i] is provably equivalent to
+        [Box k Bot] (via [box_psi_iff_box_bot_when_neg_provable]), so the
+        implication reduces to [Impl (Box k_1 Bot) (Box k_2 Bot)],
+        decidable via [glp_decide_impl_box_bot_box_bot]. *)
+
+Definition glp_decide_impl_box_box_box_free_general
+  (k_1 k_2 : nat) (psi_1 psi_2 : Form)
+  (Hcl_1 : free_vars psi_1 = []) (Hbf_1 : box_free psi_1)
+  (Hcl_2 : free_vars psi_2 = []) (Hbf_2 : box_free psi_2) :
+  sumbool (|- Impl (Box k_1 psi_1) (Box k_2 psi_2))
+          (~ |- Impl (Box k_1 psi_1) (Box k_2 psi_2)).
+Proof.
+  destruct (glp_decide_closed_box_free psi_2 Hcl_2 Hbf_2) as [Hp2 | Hnp2].
+  - (* psi_2 valid: |- Box k_2 psi_2 then Ax_K. *)
+    left. exact (MP _ _ (Ax_K (Box k_2 psi_2) (Box k_1 psi_1)) (Nec k_2 psi_2 Hp2)).
+  - destruct (glp_decide_closed_box_free psi_1 Hcl_1 Hbf_1) as [Hp1 | Hnp1].
+    + (* psi_1 valid, psi_2 not: refuted via MP. *)
+      right. intro Himp. apply Hnp2.
+      apply (proj1 (provable_box_box_free_iff_provable k_2 psi_2 Hbf_2)).
+      exact (MP _ _ Himp (Nec k_1 psi_1 Hp1)).
+    + (* both not valid: reduce to [Impl (Box k_1 Bot) (Box k_2 Bot)]. *)
+      pose proof (not_provable_implies_provable_neg_closed_box_free psi_1 Hcl_1 Hbf_1 Hnp1) as Hneg1.
+      pose proof (not_provable_implies_provable_neg_closed_box_free psi_2 Hcl_2 Hbf_2 Hnp2) as Hneg2.
+      pose proof (box_psi_iff_box_bot_when_neg_provable k_1 psi_1 Hneg1) as Hiff1.
+      pose proof (box_psi_iff_box_bot_when_neg_provable k_2 psi_2 Hneg2) as Hiff2.
+      destruct (glp_decide_impl_box_bot_box_bot k_1 k_2) as [HBot | HnBot].
+      * left.
+        pose proof (prov_and_elim_l_meta _ _ Hiff1) as Hf1.
+        pose proof (prov_and_elim_r_meta _ _ Hiff2) as Hb2.
+        pose proof (prov_compose _ _ _ Hf1 HBot) as Hstep1.
+        exact (prov_compose _ _ _ Hstep1 Hb2).
+      * right. intro Himp. apply HnBot.
+        pose proof (prov_and_elim_r_meta _ _ Hiff1) as Hb1.
+        pose proof (prov_and_elim_l_meta _ _ Hiff2) as Hf2.
+        pose proof (prov_compose _ _ _ Hb1 Himp) as Hstep1.
+        exact (prov_compose _ _ _ Hstep1 Hf2).
 Defined.
