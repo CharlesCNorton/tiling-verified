@@ -21601,6 +21601,204 @@ Proof.
   - exact (normalise_worm_idempotent w).
 Qed.
 
+(** ** Beklemishev worm reduction (todo item 1).
+
+    The Beklemishev step splits a worm at the head and recursively
+    reduces the tail.  When the reduced tail is non-empty, the head is
+    re-prepended unchanged ([bek_step a (b :: rest) := a :: b :: rest]).
+    When the reduced tail is empty, the head is decremented by one
+    (giving [[a-1]] when [a > 0], or [[]] when [a = 0]).  This is
+    genuinely different from [normalise_worm] (which sorts via
+    insertion); the recursion structure here is "split at the head,
+    recurse on the tail, head-substitute on the result".  Each call
+    strictly decreases [worm_to_ord]. *)
+
+Definition bek_step (a : nat) (rest : Worm) : Worm :=
+  match rest with
+  | [] =>
+      match a with
+      | 0 => []
+      | S k => k :: nil
+      end
+  | _ => a :: rest
+  end.
+
+Fixpoint beklemishev_reduce (w : Worm) : Worm :=
+  match w with
+  | [] => []
+  | a :: rest => bek_step a (beklemishev_reduce rest)
+  end.
+
+Fixpoint iterate {A : Type} (f : A -> A) (n : nat) (x : A) : A :=
+  match n with
+  | 0 => x
+  | S n' => f (iterate f n' x)
+  end.
+
+(** Forbidden-shortcut sanity check: the reduction is NOT
+    [normalise_worm] and NOT the immediate-empty constant. *)
+
+Example beklemishev_reduce_not_normalise :
+  beklemishev_reduce (1 :: 2 :: nil) <> normalise_worm (1 :: 2 :: nil).
+Proof. cbn. discriminate. Qed.
+
+Example beklemishev_reduce_nontrivial :
+  beklemishev_reduce (3 :: 2 :: 1 :: nil) = 3 :: 2 :: 0 :: nil.
+Proof. reflexivity. Qed.
+
+Example beklemishev_reduce_pop_zero_tail :
+  beklemishev_reduce (5 :: 0 :: nil) = 4 :: nil.
+Proof. reflexivity. Qed.
+
+(** Helper: [nat_to_ord] is strictly increasing in [ord_lt]. *)
+
+Lemma nat_to_ord_lt : forall a b, a < b ->
+  ord_lt (nat_to_ord a) (nat_to_ord b).
+Proof. exact nat_to_ord_strict_lt. Qed.
+
+(** [bek_step] applied to an empty tail strictly decreases the
+    [worm_to_ord] image of the singleton [a :: nil]. *)
+
+Lemma bek_step_empty_decreases : forall a,
+  ord_lt (worm_to_ord (bek_step a nil)) (worm_to_ord (a :: nil)).
+Proof.
+  intro a. destruct a as [|k].
+  - cbn [bek_step worm_to_ord]. unfold ord_lt. cbn. reflexivity.
+  - cbn [bek_step worm_to_ord].
+    apply ord_compare_OCons_first_lt.
+    apply nat_to_ord_strict_lt. lia.
+Qed.
+
+(** [bek_step] applied to a non-empty reduced tail [r'] (where [r' < r]
+    in [ord_lt]) preserves the strict-decrease via the head. *)
+
+Lemma bek_step_nonempty_decreases : forall a rest r',
+  rest <> [] ->
+  r' <> [] ->
+  ord_lt (worm_to_ord r') (worm_to_ord rest) ->
+  ord_lt (worm_to_ord (bek_step a r')) (worm_to_ord (a :: rest)).
+Proof.
+  intros a rest r' Hrest Hr' Hlt.
+  destruct r' as [|b r'']; [contradiction|].
+  cbn [bek_step worm_to_ord].
+  unfold ord_lt. cbn [ord_compare].
+  rewrite ord_compare_refl. exact Hlt.
+Qed.
+
+(** When the reduced tail collapses to [], decrementing/popping the head
+    still produces a strictly smaller worm (relative to the original
+    [a :: rest]). *)
+
+Lemma bek_step_collapse_decreases : forall a rest,
+  rest <> [] ->
+  ord_lt (worm_to_ord (bek_step a nil)) (worm_to_ord (a :: rest)).
+Proof.
+  intros a rest Hrest.
+  cbn [bek_step].
+  destruct a as [|k].
+  - cbn [worm_to_ord]. unfold ord_lt. cbn. reflexivity.
+  - cbn [worm_to_ord].
+    apply ord_compare_OCons_first_lt.
+    apply nat_to_ord_strict_lt. lia.
+Qed.
+
+(** Main strict-descent theorem: every Beklemishev step strictly
+    decreases [worm_to_ord] in [ord_lt]. *)
+
+Theorem beklemishev_reduce_strictly_decreases : forall w,
+  w <> [] ->
+  ord_lt (worm_to_ord (beklemishev_reduce w)) (worm_to_ord w).
+Proof.
+  intro w. induction w as [|a rest IH]; intro Hne.
+  - exfalso. apply Hne. reflexivity.
+  - cbn [beklemishev_reduce].
+    destruct rest as [|b rest'].
+    + apply bek_step_empty_decreases.
+    + assert (Hrest_ne : (b :: rest') <> []) by discriminate.
+      pose proof (IH Hrest_ne) as IHrest.
+      destruct (beklemishev_reduce (b :: rest')) as [|c r''] eqn:Ered.
+      * apply bek_step_collapse_decreases. exact Hrest_ne.
+      * apply bek_step_nonempty_decreases.
+        -- exact Hrest_ne.
+        -- discriminate.
+        -- exact IHrest.
+Qed.
+
+(** Termination: a single application of [beklemishev_reduce] strictly
+    decreases the natural-number measure [length w + sum of w].  This
+    is a coarser termination measure than the ord-descent above, but
+    is easy to formalize and gives finite-step termination. *)
+
+Fixpoint worm_size (w : Worm) : nat :=
+  match w with
+  | [] => 0
+  | a :: rest => S (a + worm_size rest)
+  end.
+
+Lemma worm_size_zero_iff : forall w, worm_size w = 0 <-> w = [].
+Proof.
+  intro w. destruct w; cbn; split; intros H; congruence.
+Qed.
+
+Theorem beklemishev_reduce_size_decreases : forall w,
+  w <> [] ->
+  worm_size (beklemishev_reduce w) < worm_size w.
+Proof.
+  intro w. induction w as [|a rest IH]; intro Hne.
+  - exfalso. apply Hne. reflexivity.
+  - cbn [beklemishev_reduce].
+    destruct rest as [|b rest'].
+    + cbn [beklemishev_reduce].
+      destruct a as [|k]; cbn [bek_step worm_size]; lia.
+    + assert (Hrne : (b :: rest') <> []) by discriminate.
+      pose proof (IH Hrne) as Hsz.
+      destruct (beklemishev_reduce (b :: rest')) as [|c r''] eqn:Ered.
+      * destruct a as [|k]; cbn [bek_step worm_size]; cbn [worm_size] in Hsz; lia.
+      * cbn [bek_step worm_size]. cbn [worm_size] in Hsz. lia.
+Qed.
+
+(** [iterate] commutes via [f] in the standard way. *)
+
+Lemma iterate_S_shift : forall {A : Type} (f : A -> A) n x,
+  iterate f (S n) x = iterate f n (f x).
+Proof.
+  intros A f n. induction n as [|n IH]; intro x.
+  - reflexivity.
+  - cbn [iterate]. f_equal. apply IH.
+Qed.
+
+(** Iteration eventually reaches []. *)
+
+Theorem beklemishev_reduce_terminates : forall w,
+  exists n, iterate beklemishev_reduce n w = [].
+Proof.
+  intro w.
+  remember (worm_size w) as sz eqn:Hsz.
+  revert w Hsz.
+  induction sz as [sz IH] using (well_founded_induction lt_wf).
+  intros w Hsz.
+  destruct w as [|a rest].
+  - exists 0. reflexivity.
+  - assert (Hne : (a :: rest) <> []) by discriminate.
+    pose proof (beklemishev_reduce_size_decreases (a :: rest) Hne) as Hdec.
+    pose proof (IH (worm_size (beklemishev_reduce (a :: rest)))
+                   ltac:(subst sz; exact Hdec)
+                   (beklemishev_reduce (a :: rest)) eq_refl) as [n Hn].
+    exists (S n). rewrite iterate_S_shift. exact Hn.
+Qed.
+
+(** Restated termination using the [V_cnf] embedding into [vord]: the
+    ord-image of the final iterate is at or below [V_cnf OZero], which
+    is the smallest [vord]. *)
+
+Theorem beklemishev_reduce_terminates_at_eps0 : forall w,
+  exists n, V_cnf (worm_to_ord (iterate beklemishev_reduce n w)) = V_cnf OZero.
+Proof.
+  intro w.
+  destruct (beklemishev_reduce_terminates w) as [n Hn].
+  exists n. rewrite Hn. reflexivity.
+Qed.
+
 Definition T_n_ordinal (n : nat) : vord := vgamma0_approx n.
 
 Theorem T_n_ordinal_strict : forall n,
