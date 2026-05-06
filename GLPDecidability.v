@@ -1085,3 +1085,62 @@ Proof.
     + left. right. exact (glp_decide_worm_implication_via_bad_world ns_1 ns_2 Hgt).
 Defined.
 
+(** ** Free-variable extension for box-free [iter_box].  For arbitrary
+    [psi] (closed or open) that is box-free, [|- iter_box ns psi] iff
+    [psi] is classically valid (true under every Boolean valuation).
+    This generalises [provable_iter_box_box_free_iff] to forms with free
+    variables, leveraging [prop_completeness] (which works in the
+    box-free fragment regardless of whether variables are present). *)
+
+Lemma forces_iter_box_at_bad_world_const : forall ns psi val w,
+  box_free psi ->
+  w >= bad_world ns ->
+  forces Fnat (fun _ => val) w (iter_box ns psi) ->
+  eval val psi = true.
+Proof.
+  intro ns. induction ns as [|n rest IH]; intros psi val w Hbf Hw Hf.
+  - cbn in Hf. apply (proj1 (forces_const_box_free Fnat val w psi Hbf)). exact Hf.
+  - cbn in Hf. cbn in Hw.
+    set (v := Nat.max n (bad_world rest)).
+    assert (Hr : Fnat_R n w v).
+    { unfold Fnat_R, v. lia. }
+    pose proof (Hf v Hr) as Hinner.
+    apply (IH psi val v Hbf).
+    + unfold v. lia.
+    + exact Hinner.
+Qed.
+
+Theorem provable_iter_box_box_free_iff_classical_valid : forall ns psi,
+  box_free psi ->
+  (|- iter_box ns psi <-> classical_valid psi).
+Proof.
+  intros ns psi Hbf. unfold classical_valid. split.
+  - intros Hp val.
+    pose proof (soundness _ Hp Fnat (fun _ => val) (bad_world ns)) as Hf.
+    exact (forces_iter_box_at_bad_world_const ns psi val (bad_world ns)
+             Hbf (Nat.le_refl _) Hf).
+  - intros Hval.
+    pose proof (prop_completeness psi Hbf Hval) as Hpp.
+    pose proof (trivial_in_provable psi Hpp) as Hp.
+    exact (provable_iter_box_intro ns psi Hp).
+Qed.
+
+(** ** Decision procedure for [iter_box ns psi] with general (open)
+    box-free [psi].  Uses [decide_tautology] for the underlying classical
+    decision. *)
+
+Definition glp_decide_iter_box_box_free (ns : list nat) (psi : Form)
+  (Hbf : box_free psi) :
+  sumbool (|- iter_box ns psi) (~ |- iter_box ns psi).
+Proof.
+  destruct (decide_tautology psi) eqn:Edt.
+  - left.
+    apply (proj2 (provable_iter_box_box_free_iff_classical_valid ns psi Hbf)).
+    apply decide_tautology_correct. exact Edt.
+  - right.
+    intro Hp.
+    pose proof (proj1 (provable_iter_box_box_free_iff_classical_valid ns psi Hbf) Hp) as Hval.
+    pose proof (decide_tautology_complete psi Hval) as Edt'.
+    rewrite Edt in Edt'. discriminate.
+Defined.
+
