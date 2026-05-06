@@ -395,6 +395,199 @@ Proof.
       rewrite Heq. exact Hpsi_at_k2.
 Defined.
 
+(** ** When [psi] is closed box-free and classically refutable, the iterated
+    box [iter_box ns psi] forces in Fnat at exactly the worlds [v < bad_world ns]. *)
+
+Lemma forces_iter_box_below_bad_world : forall ns psi val,
+  free_vars psi = [] -> box_free psi -> eval val psi = false ->
+  forall v, v < bad_world ns ->
+  forces_fnat_closed (iter_box ns psi) v = true.
+Proof.
+  intro ns. induction ns as [|n rest IH]; intros psi val Hcl Hbf Heval v Hv.
+  - cbn in Hv. lia.
+  - cbn [iter_box bad_world] in *.
+    cbn [forces_fnat_closed].
+    apply forallb_forall. intros u Hu.
+    apply in_seq in Hu. destruct Hu as [Hun Huv].
+    apply (IH psi val Hcl Hbf Heval).
+    lia.
+Qed.
+
+(** ** [forces_fnat_closed (iter_box ns Bot) v = true] iff [v < bad_world ns]. *)
+
+Lemma forces_iter_box_bot_eq_ltb : forall ns v,
+  forces_fnat_closed (iter_box ns Bot) v = Nat.ltb v (bad_world ns).
+Proof.
+  intros ns v.
+  destruct (Nat.ltb v (bad_world ns)) eqn:Eq.
+  - apply Nat.ltb_lt in Eq.
+    apply (forces_iter_box_below_bad_world ns Bot (fun _ => false) eq_refl I eq_refl v Eq).
+  - apply Nat.ltb_nlt in Eq.
+    rewrite (forces_iter_box_at_bad_world ns Bot (fun _ => false) eq_refl I v); [|lia].
+    reflexivity.
+Qed.
+
+(** ** Forward direction of the iter-box-Bot implication theorem:
+    [|- (iter_box ns_1 Bot) -> (iter_box ns_2 Bot)] entails
+    [bad_world ns_1 <= bad_world ns_2]. *)
+
+Theorem provable_impl_iter_box_bot_forward : forall ns_1 ns_2,
+  |- Impl (iter_box ns_1 Bot) (iter_box ns_2 Bot) ->
+  bad_world ns_1 <= bad_world ns_2.
+Proof.
+  intros ns_1 ns_2 Hp.
+  destruct (le_gt_dec (bad_world ns_1) (bad_world ns_2)) as [Hle | Hgt]; [exact Hle|].
+  exfalso.
+  assert (Hcl_impl : free_vars (Impl (iter_box ns_1 Bot) (iter_box ns_2 Bot)) = []).
+  { cbn. rewrite (iter_box_closed ns_1 Bot eq_refl).
+    exact (iter_box_closed ns_2 Bot eq_refl). }
+  pose proof (provable_implies_forces_fnat_closed
+                (Impl (iter_box ns_1 Bot) (iter_box ns_2 Bot))
+                (bad_world ns_2) Hcl_impl Hp) as Hf.
+  cbn [forces_fnat_closed] in Hf.
+  rewrite forces_iter_box_bot_eq_ltb in Hf.
+  rewrite forces_iter_box_bot_eq_ltb in Hf.
+  assert (Hlt : Nat.ltb (bad_world ns_2) (bad_world ns_1) = true)
+    by (apply Nat.ltb_lt; lia).
+  assert (Hge : Nat.ltb (bad_world ns_2) (bad_world ns_2) = false)
+    by (apply Nat.ltb_nlt; lia).
+  rewrite Hlt, Hge in Hf. cbn in Hf. discriminate.
+Qed.
+
+(** ** Empty antecedent case is trivial via [Bot] explosion. *)
+
+Lemma provable_impl_iter_box_bot_backward_empty : forall ns_2,
+  |- Impl (iter_box [] Bot) (iter_box ns_2 Bot).
+Proof.
+  intros ns_2. cbn. exact (prov_explosion (iter_box ns_2 Bot)).
+Qed.
+
+(** ** Iterated [Mon] lift inside an iter-box wrapper. *)
+
+Lemma provable_iter_box_mon_le : forall n m psi,
+  n <= m -> |- Impl (iter_box [n] psi) (iter_box [m] psi).
+Proof.
+  intros n m psi Hle. cbn. exact (prov_box_mon_le n m psi Hle).
+Qed.
+
+(** ** Provable explosion under [Box]: if the inner antecedent is [Bot],
+    the consequent of the box-implication can be anything at the same level. *)
+
+Lemma prov_box_bot_to_box_anything : forall n psi,
+  |- Impl (Box n Bot) (Box n psi).
+Proof.
+  intros n psi.
+  pose proof (prov_explosion psi) as Hexp.
+  pose proof (Nec n _ Hexp) as Hbox_exp.
+  pose proof (Ax_BoxK n Bot psi) as HK.
+  exact (MP _ _ HK Hbox_exp).
+Qed.
+
+(** ** Lifting [Box n Bot] to [Box m psi] when [n <= m]. *)
+
+Lemma prov_box_bot_to_higher_box_anything : forall n m psi,
+  n <= m -> |- Impl (Box n Bot) (Box m psi).
+Proof.
+  intros n m psi Hle.
+  pose proof (prov_box_mon_le n m Bot Hle) as Hmon.
+  pose proof (prov_box_bot_to_box_anything m psi) as Hexp.
+  exact (prov_compose _ _ _ Hmon Hexp).
+Qed.
+
+(** ** Singleton-antecedent backward direction.  When the head of [ns_2]
+    dominates [k], the entire iter-box-Bot implication is provable directly
+    by [prov_box_bot_to_higher_box_anything].  This is a special case of the
+    Beklemishev worm theorem, sufficient when the consequent worm absorbs
+    the antecedent at its outermost layer. *)
+
+Lemma provable_impl_box_bot_iter_box_bot_head_match :
+  forall k m rest, k <= m ->
+  |- Impl (Box k Bot) (iter_box (m :: rest) Bot).
+Proof.
+  intros k m rest Hle. cbn [iter_box].
+  exact (prov_box_bot_to_higher_box_anything k m (iter_box rest Bot) Hle).
+Qed.
+
+(** ** Pointwise monotonicity for iter-box: if [ns_1] and [ns_2] have the
+    same length and [ns_1[i] <= ns_2[i]] pointwise, the worm-implication
+    follows from iterated [Mon] under [Nec]+[BoxK]. *)
+
+Lemma prov_iter_box_pointwise_mon : forall ns_1 ns_2 psi,
+  length ns_1 = length ns_2 ->
+  (forall i, i < length ns_1 -> nth i ns_1 0 <= nth i ns_2 0) ->
+  |- Impl (iter_box ns_1 psi) (iter_box ns_2 psi).
+Proof.
+  intro ns_1. induction ns_1 as [|n rest_1 IH]; intros ns_2 psi Hlen Hpt.
+  - destruct ns_2 as [|m rest_2]; [|cbn in Hlen; discriminate Hlen].
+    cbn. exact (prov_id psi).
+  - destruct ns_2 as [|m rest_2]; [cbn in Hlen; discriminate Hlen|].
+    cbn [length] in Hlen. injection Hlen as Hlen.
+    assert (Hhead : n <= m).
+    { apply (Hpt 0). cbn [length]. lia. }
+    assert (Hrest_pt : forall i, i < length rest_1 -> nth i rest_1 0 <= nth i rest_2 0).
+    { intros i Hi. apply (Hpt (S i)). cbn [length]. lia. }
+    pose proof (IH rest_2 psi Hlen Hrest_pt) as Hinner.
+    pose proof (Nec m _ Hinner) as Hboxed.
+    pose proof (Ax_BoxK m (iter_box rest_1 psi) (iter_box rest_2 psi)) as HK.
+    pose proof (MP _ _ HK Hboxed) as Hstep.
+    pose proof (prov_box_mon_le n m (iter_box rest_1 psi) Hhead) as Hmon.
+    cbn [iter_box].
+    exact (prov_compose _ _ _ Hmon Hstep).
+Qed.
+
+(** ** Strengthening the inner formula under an iter-box wrapper.  Since
+    [Bot] is the strongest closed antecedent, [|- iter_box ns Bot ->
+    iter_box ns psi] for any [psi]: explosion at the leaf, lifted through
+    the wrapper by [Nec] and [BoxK]. *)
+
+Lemma prov_iter_box_inner_strengthen : forall ns psi,
+  |- Impl (iter_box ns Bot) (iter_box ns psi).
+Proof.
+  intro ns. induction ns as [|n rest IH]; intro psi.
+  - cbn. exact (prov_explosion psi).
+  - cbn [iter_box].
+    pose proof (IH psi) as Hinner.
+    pose proof (Nec n _ Hinner) as Hboxed.
+    pose proof (Ax_BoxK n (iter_box rest Bot) (iter_box rest psi)) as HK.
+    exact (MP _ _ HK Hboxed).
+Qed.
+
+(** ** Worm-extension case.  Appending an extension to a worm preserves
+    provability of the worm-implication: [|- iter_box ns Bot ->
+    iter_box (ns ++ ext) Bot].  Follows from
+    [iter_box (ns ++ ext) Bot = iter_box ns (iter_box ext Bot)] and
+    [prov_iter_box_inner_strengthen]. *)
+
+Lemma iter_box_app : forall ns_1 ns_2 psi,
+  iter_box (ns_1 ++ ns_2) psi = iter_box ns_1 (iter_box ns_2 psi).
+Proof.
+  intro ns_1. induction ns_1 as [|n rest IH]; intros ns_2 psi.
+  - cbn. reflexivity.
+  - cbn [iter_box app]. rewrite IH. reflexivity.
+Qed.
+
+Lemma prov_iter_box_extension : forall ns ext,
+  |- Impl (iter_box ns Bot) (iter_box (ns ++ ext) Bot).
+Proof.
+  intros ns ext. rewrite iter_box_app. exact (prov_iter_box_inner_strengthen ns (iter_box ext Bot)).
+Qed.
+
+(** ** Combined head-lift + worm-extension.  When [ns_1] is a "weakening"
+    of a prefix of [ns_2] (both pointwise [<=] on the prefix and [ns_2] has
+    additional boxes appended), the worm-implication is provable. *)
+
+Lemma prov_iter_box_prefix_mon_extension : forall ns_1 prefix ext psi,
+  length ns_1 = length prefix ->
+  (forall i, i < length ns_1 -> nth i ns_1 0 <= nth i prefix 0) ->
+  |- Impl (iter_box ns_1 Bot) (iter_box (prefix ++ ext) psi).
+Proof.
+  intros ns_1 prefix ext psi Hlen Hpt.
+  pose proof (prov_iter_box_pointwise_mon ns_1 prefix Bot Hlen Hpt) as Hmon.
+  rewrite iter_box_app.
+  pose proof (prov_iter_box_inner_strengthen prefix (iter_box ext psi)) as Hstr.
+  exact (prov_compose _ _ _ Hmon Hstr).
+Qed.
+
 (** ** Full decidability for [Impl (Box k_1 psi_1) (Box k_2 psi_2)] with
     closed box-free [psi_1, psi_2].  Four cases by the validity of each:
     (a) both valid: provable via Nec on [psi_2] then [Ax_K];
