@@ -905,3 +905,36 @@ Definition glp_decide_impl_iter_box_empty_iter_box_box_free
           (~ |- Impl (iter_box [] psi_1) (iter_box ns_2 psi_2)) :=
   glp_decide_impl_psi_iter_box_psi_2_box_free
     ns_2 psi_1 psi_2 Hcl_1 Hbf_1 Hcl_2 Hbf_2.
+
+(** ** [NextCon]-explosion at the outer level.  When the inner level [n] is
+    strictly less than the outer level [m], the [Box m] of [Box n Bot]
+    collapses to [Box m Bot]: at level [m], the consistency of level [n]
+    (via [Ax_NextCon] lifted by [Mon]) refutes [Box n Bot], so MP yields
+    [Box m Bot]. *)
+
+Lemma prov_box_higher_box_lower_bot_to_box_higher_bot : forall n m,
+  n < m -> |- Impl (Box m (Box n Bot)) (Box m Bot).
+Proof.
+  intros n m Hlt.
+  pose proof (Ax_NextCon n) as Hnext.
+  pose proof (prov_box_mon_le (S n) m (Neg (Box n Bot)) Hlt) as Hmon.
+  pose proof (MP _ _ Hmon Hnext) as Hboxm_neg.
+  pose proof (Ax_BoxK m (Box n Bot) Bot) as HK.
+  exact (MP _ _ HK Hboxm_neg).
+Qed.
+
+(** ** Worm collapse for two-element worms with inner < outer.  This is the
+    simplest non-trivial case of Beklemishev's worm reduction: when the
+    second box-level is strictly less than the first, the worm collapses
+    to its single-box form. *)
+
+Theorem worm_two_element_collapse_inner_lt_outer : forall outer inner,
+  inner < outer ->
+  |- Iff (iter_box [outer; inner] Bot) (Box outer Bot).
+Proof.
+  intros outer inner Hlt. cbn [iter_box].
+  apply prov_iff_intro.
+  - exact (prov_box_higher_box_lower_bot_to_box_higher_bot inner outer Hlt).
+  - exact (prov_box_bot_to_box_anything outer (Box inner Bot)).
+Qed.
+
