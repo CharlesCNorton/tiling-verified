@@ -148,3 +148,51 @@ Proof.
   - right. intro Habs. apply Hnp.
     exact (proj1 (provable_iter_box_box_free_iff ns psi Hcl Hbf) Habs).
 Defined.
+
+(** ** Carlson-generalised unprovability of [Neg (Box n X)] for any closed [X].
+    Carlson's polymodal second-incompleteness corresponds to [X = Bot]; the
+    same Fnat-at-world-0 argument refutes [|- Neg (Box n X)] for arbitrary
+    closed [X], because [forces_fnat_closed (Box n X) 0] is vacuously [true]. *)
+
+Theorem closed_neg_box_unprovable : forall n X,
+  free_vars X = [] -> ~ |- Neg (Box n X).
+Proof.
+  intros n X Hcl Hp.
+  assert (Hclneg : free_vars (Neg (Box n X)) = []).
+  { unfold Neg. cbn. rewrite app_nil_r. exact Hcl. }
+  pose proof (provable_implies_forces_fnat_closed (Neg (Box n X)) 0 Hclneg Hp) as Hf.
+  cbn in Hf. discriminate.
+Qed.
+
+(** ** Decidability of [Neg (Box n X)] for closed [X]: always [right]. *)
+
+Definition glp_decide_neg_box_closed (n : nat) (X : Form)
+  (Hcl : free_vars X = []) :
+  sumbool (|- Neg (Box n X)) (~ |- Neg (Box n X)).
+Proof.
+  right. exact (closed_neg_box_unprovable n X Hcl).
+Defined.
+
+(** ** Decidability composition for And: combine two decidability results. *)
+
+Definition glp_decide_and (phi psi : Form)
+  (Dphi : sumbool (|- phi) (~ |- phi))
+  (Dpsi : sumbool (|- psi) (~ |- psi)) :
+  sumbool (|- And phi psi) (~ |- And phi psi).
+Proof.
+  destruct Dphi as [Hphi | Hphi]; destruct Dpsi as [Hpsi | Hpsi].
+  - left. exact (prov_and_intro_meta phi psi Hphi Hpsi).
+  - right. intro Hand. apply Hpsi. exact (prov_and_elim_r_meta phi psi Hand).
+  - right. intro Hand. apply Hphi. exact (prov_and_elim_l_meta phi psi Hand).
+  - right. intro Hand. apply Hphi. exact (prov_and_elim_l_meta phi psi Hand).
+Defined.
+
+(** ** Decidability composition for Iff: both directions decidable. *)
+
+Definition glp_decide_iff (phi psi : Form)
+  (Dfwd : sumbool (|- Impl phi psi) (~ |- Impl phi psi))
+  (Dbwd : sumbool (|- Impl psi phi) (~ |- Impl psi phi)) :
+  sumbool (|- Iff phi psi) (~ |- Iff phi psi).
+Proof.
+  unfold Iff. exact (glp_decide_and (Impl phi psi) (Impl psi phi) Dfwd Dbwd).
+Defined.
