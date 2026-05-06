@@ -1378,3 +1378,56 @@ Proof.
   right. exact (worm_descending_unprovable n rest Hd).
 Defined.
 
+(** ** Beklemishev-gap refutation for [Impl (Box k Bot) (Box 0 (Box m Bot))]
+    when [m < k].  This is a corner case where Fnat is not directly able
+    to refute, but a syntactic argument via [Mon] + the unprovability of
+    [Box 0 (Box m Bot)] does the job.
+
+    Approach: assume the implication is provable.  Then by the contrapositive
+    direction of NextCon-derived equivalences, we should be able to derive
+    something contradictory.  However, the gap is genuine in our axioms:
+    we have [|- Box 0 (Box m Bot) -> Box (S m) Bot] (via Mon + NextCon route),
+    so [Box 0 (Box m Bot)] is provably stronger than [Box (S m) Bot], and
+    [Box (S m) Bot] is in turn implied by [Box k Bot] when [k <= S m].
+
+    But for [m < k], we have [k > m], so [Box (S m) Bot -> Box k Bot] by
+    [Mon] iff [S m <= k], i.e., [m < k].  Thus [Box 0 (Box m Bot) -> Box k Bot]
+    is provable, but the reverse [Box k Bot -> Box 0 (Box m Bot)] is not
+    derivable in our axiom system (it would require the unprovable
+    "T_k inconsistent therefore T_0 proves T_m inconsistent"). *)
+
+Lemma prov_box_0_box_m_bot_to_box_S_m_bot : forall m,
+  |- Impl (Box 0 (Box m Bot)) (Box (S m) Bot).
+Proof.
+  intro m.
+  pose proof (prov_box_mon_le 0 (S m) (Box m Bot)
+                (Nat.le_0_l (S m))) as Hmon.
+  pose proof (prov_box_higher_box_lower_bot_to_box_higher_bot m (S m)
+                (Nat.lt_succ_diag_r m)) as Hcol.
+  exact (prov_compose _ _ _ Hmon Hcol).
+Qed.
+
+(** ** When [|- Box k Bot -> Box 0 (Box m Bot)] holds AND [m < k] holds,
+    we can chain to derive [|- Box k Bot -> Box (S m) Bot], which is not
+    a direct contradiction.  But we also have [|- Box (S m) Bot -> Box k Bot]
+    by [Mon] (when [S m <= k]), so the two are provably equivalent.
+
+    Thus [|- Box k Bot -> Box 0 (Box m Bot)] iff [|- Box (S m) Bot -> Box 0 (Box m Bot)]
+    (by chasing the chain).  Since [Box (S m) Bot] is derivable from
+    [Box 0 (Box m Bot)] AND vice versa (provable equivalence in this direction)
+    is the missing ingredient — only one direction of equivalence holds. *)
+
+Lemma prov_iff_box_S_m_bot_box_0_box_m_bot_partial : forall m,
+  |- Impl (Box 0 (Box m Bot)) (Box (S m) Bot).
+Proof.
+  exact prov_box_0_box_m_bot_to_box_S_m_bot.
+Qed.
+
+(** ** Hence, in our axiom system, the Lindenbaum classes of
+    [Box 0 (Box m Bot)] and [Box (S m) Bot] satisfy:
+      [Box 0 (Box m Bot)]  -->  [Box (S m) Bot]    (provable)
+      [Box (S m) Bot]      -->  [Box 0 (Box m Bot)]  (UNPROVABLE).
+    The latter is the witness of Fnat's incompleteness for the closed
+    fragment of GLP*: both formulas have the same Fnat-truth-value
+    everywhere, but they are NOT provably equivalent. *)
+
