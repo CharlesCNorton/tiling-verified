@@ -756,3 +756,152 @@ Proof.
         pose proof (prov_compose _ _ _ Hb1 Himp) as Hstep1.
         exact (prov_compose _ _ _ Hstep1 Hf2).
 Defined.
+
+(** ** When [|- Neg psi], lifting through [iter_box ns] preserves Iff with
+    [iter_box ns Bot].  This is the reduction-to-worm step: classically
+    refutable [psi] makes [iter_box ns psi] provably equivalent to a
+    worm. *)
+
+Lemma iter_box_psi_iff_iter_box_bot_when_neg_provable : forall ns psi,
+  |- Neg psi -> |- Iff (iter_box ns psi) (iter_box ns Bot).
+Proof.
+  intro ns. induction ns as [|n rest IH]; intros psi Hneg.
+  - cbn. apply prov_iff_intro.
+    + exact Hneg.
+    + exact (prov_explosion psi).
+  - cbn [iter_box].
+    pose proof (IH psi Hneg) as Hiff_inner.
+    pose proof (prov_and_elim_l_meta _ _ Hiff_inner) as Hfwd.
+    pose proof (prov_and_elim_r_meta _ _ Hiff_inner) as Hback.
+    apply prov_iff_intro.
+    + exact (MP _ _ (Ax_BoxK n (iter_box rest psi) (iter_box rest Bot))
+                  (Nec n _ Hfwd)).
+    + exact (MP _ _ (Ax_BoxK n (iter_box rest Bot) (iter_box rest psi))
+                  (Nec n _ Hback)).
+Qed.
+
+(** ** Reduction-to-worm: for closed box-free [psi_1, psi_2] both
+    classically refutable, the iter-box implication is provably equivalent
+    to the iter-box-Bot worm-implication. *)
+
+Theorem iter_box_iter_box_iff_worm_implication_when_both_neg :
+  forall ns_1 ns_2 psi_1 psi_2,
+  |- Neg psi_1 -> |- Neg psi_2 ->
+  |- Iff (Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2))
+        (Impl (iter_box ns_1 Bot) (iter_box ns_2 Bot)).
+Proof.
+  intros ns_1 ns_2 psi_1 psi_2 Hneg1 Hneg2.
+  pose proof (iter_box_psi_iff_iter_box_bot_when_neg_provable ns_1 psi_1 Hneg1) as Hiff1.
+  pose proof (iter_box_psi_iff_iter_box_bot_when_neg_provable ns_2 psi_2 Hneg2) as Hiff2.
+  exact (prov_equiv_impl_cong _ _ _ _ Hiff1 Hiff2).
+Qed.
+
+(** ** Refutation case for the both-invalid sub-case via Fnat soundness on
+    bad_world.  When [bad_world ns_1 > bad_world ns_2] and both [psi_i]
+    are closed box-free + classically refutable, the implication is
+    unprovable. *)
+
+Theorem refute_impl_iter_box_iter_box_box_free_via_bad_world :
+  forall ns_1 ns_2 psi_1 psi_2,
+  free_vars psi_1 = [] -> box_free psi_1 ->
+  free_vars psi_2 = [] -> box_free psi_2 ->
+  ~ |- psi_1 -> ~ |- psi_2 ->
+  bad_world ns_1 > bad_world ns_2 ->
+  ~ |- Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2).
+Proof.
+  intros ns_1 ns_2 psi_1 psi_2 Hcl1 Hbf1 Hcl2 Hbf2 Hnp1 Hnp2 Hgt Himp.
+  pose proof (not_provable_implies_provable_neg_closed_box_free psi_1 Hcl1 Hbf1 Hnp1) as Hneg1.
+  pose proof (not_provable_implies_provable_neg_closed_box_free psi_2 Hcl2 Hbf2 Hnp2) as Hneg2.
+  pose proof (iter_box_iter_box_iff_worm_implication_when_both_neg ns_1 ns_2 psi_1 psi_2 Hneg1 Hneg2) as Hiff.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+  pose proof (MP _ _ Hfwd Himp) as Hworm.
+  pose proof (provable_impl_iter_box_bot_forward ns_1 ns_2 Hworm) as Hle.
+  lia.
+Qed.
+
+(** ** Decider for the iter-box implication when [psi_2] is classically
+    valid: the consequent is provable, hence the implication is provable
+    via [Ax_K]. *)
+
+Definition glp_decide_impl_iter_box_iter_box_box_free_psi_2_valid
+  (ns_1 ns_2 : list nat) (psi_1 psi_2 : Form)
+  (Hcl_2 : free_vars psi_2 = []) (Hbf_2 : box_free psi_2)
+  (Hp2 : |- psi_2) :
+  sumbool (|- Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2))
+          (~ |- Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2)) :=
+  glp_decide_impl_iter_box_via_consequent_provable ns_1 ns_2 psi_1 psi_2 Hp2.
+
+(** ** Decider when [psi_1] is valid and [psi_2] is invalid: the implication
+    cannot hold, since [MP] would yield the (refutable) consequent. *)
+
+Definition glp_decide_impl_iter_box_iter_box_box_free_psi_1_valid_psi_2_invalid
+  (ns_1 ns_2 : list nat) (psi_1 psi_2 : Form)
+  (Hcl_2 : free_vars psi_2 = []) (Hbf_2 : box_free psi_2)
+  (Hp1 : |- psi_1) (Hnp2 : ~ |- psi_2) :
+  sumbool (|- Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2))
+          (~ |- Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2)) :=
+  glp_decide_impl_iter_box_via_antecedent_provable_consequent_not
+    ns_1 ns_2 psi_1 psi_2 Hcl_2 Hbf_2 Hp1 Hnp2.
+
+(** ** Refutation when both are invalid and the bad_world ordering favors
+    refutation. *)
+
+Definition glp_decide_impl_iter_box_iter_box_box_free_both_invalid_refute
+  (ns_1 ns_2 : list nat) (psi_1 psi_2 : Form)
+  (Hcl_1 : free_vars psi_1 = []) (Hbf_1 : box_free psi_1)
+  (Hcl_2 : free_vars psi_2 = []) (Hbf_2 : box_free psi_2)
+  (Hnp1 : ~ |- psi_1) (Hnp2 : ~ |- psi_2)
+  (Hgt : bad_world ns_1 > bad_world ns_2) :
+  ~ |- Impl (iter_box ns_1 psi_1) (iter_box ns_2 psi_2) :=
+  refute_impl_iter_box_iter_box_box_free_via_bad_world
+    ns_1 ns_2 psi_1 psi_2 Hcl_1 Hbf_1 Hcl_2 Hbf_2 Hnp1 Hnp2 Hgt.
+
+(** ** Empty-antecedent case for both-invalid: trivially provable since
+    [psi_1] is provably equivalent to [Bot] under [|- Neg psi_1], so
+    [iter_box [] psi_1 = psi_1] is equivalent to [Bot], from which
+    everything follows by explosion. *)
+
+Lemma provable_impl_psi_iter_box_psi_2_when_neg_psi_provable :
+  forall psi_1 ns_2 psi_2,
+  |- Neg psi_1 ->
+  |- Impl psi_1 (iter_box ns_2 psi_2).
+Proof.
+  intros psi_1 ns_2 psi_2 Hneg.
+  exact (prov_compose _ _ _ Hneg (prov_explosion (iter_box ns_2 psi_2))).
+Qed.
+
+Definition glp_decide_impl_psi_iter_box_psi_2_box_free
+  (ns_2 : list nat) (psi_1 psi_2 : Form)
+  (Hcl_1 : free_vars psi_1 = []) (Hbf_1 : box_free psi_1)
+  (Hcl_2 : free_vars psi_2 = []) (Hbf_2 : box_free psi_2) :
+  sumbool (|- Impl psi_1 (iter_box ns_2 psi_2))
+          (~ |- Impl psi_1 (iter_box ns_2 psi_2)).
+Proof.
+  destruct (glp_decide_closed_box_free psi_2 Hcl_2 Hbf_2) as [Hp2 | Hnp2].
+  - left.
+    exact (MP _ _ (Ax_K (iter_box ns_2 psi_2) psi_1)
+                  (provable_iter_box_intro ns_2 psi_2 Hp2)).
+  - destruct (glp_decide_closed_box_free psi_1 Hcl_1 Hbf_1) as [Hp1 | Hnp1].
+    + right. intro Himp.
+      apply Hnp2.
+      apply (proj1 (provable_iter_box_box_free_iff ns_2 psi_2 Hcl_2 Hbf_2)).
+      exact (MP _ _ Himp Hp1).
+    + left.
+      pose proof (not_provable_implies_provable_neg_closed_box_free
+                    psi_1 Hcl_1 Hbf_1 Hnp1) as Hneg1.
+      exact (provable_impl_psi_iter_box_psi_2_when_neg_psi_provable
+               psi_1 ns_2 psi_2 Hneg1).
+Defined.
+
+(** ** Full decidability for the special case [ns_1 = []]: when the
+    antecedent has no outer boxes, classical analysis on [psi_1, psi_2]
+    completely determines provability. *)
+
+Definition glp_decide_impl_iter_box_empty_iter_box_box_free
+  (ns_2 : list nat) (psi_1 psi_2 : Form)
+  (Hcl_1 : free_vars psi_1 = []) (Hbf_1 : box_free psi_1)
+  (Hcl_2 : free_vars psi_2 = []) (Hbf_2 : box_free psi_2) :
+  sumbool (|- Impl (iter_box [] psi_1) (iter_box ns_2 psi_2))
+          (~ |- Impl (iter_box [] psi_1) (iter_box ns_2 psi_2)) :=
+  glp_decide_impl_psi_iter_box_psi_2_box_free
+    ns_2 psi_1 psi_2 Hcl_1 Hbf_1 Hcl_2 Hbf_2.
