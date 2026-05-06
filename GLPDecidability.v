@@ -1317,3 +1317,64 @@ Proof.
   exact (prov_compose _ _ _ Hfwd Hhead).
 Qed.
 
+(** ** Beklemishev-style absorption: when an iter-box-Bot has a sub-pattern
+    [Box outer (Box inner ...)] with [inner < outer], the inner box can
+    be absorbed.  Specifically, [Box outer (Box inner phi)] entails
+    [Box outer Bot] when [inner < outer] AND [phi = Bot] — extending to
+    the case [phi = iter_box rest Bot] requires that [rest] doesn't
+    introduce new structure stronger than [Bot].  We capture the simplest
+    productive case: a worm where the second level is strictly less than
+    the first AND the remaining suffix is empty. *)
+
+Lemma worm_two_element_bot_provable_iff_outer_bot : forall outer inner,
+  inner < outer ->
+  (|- iter_box [outer; inner] Bot <-> |- Box outer Bot).
+Proof.
+  intros outer inner Hlt.
+  pose proof (worm_two_element_collapse_inner_lt_outer outer inner Hlt) as Hiff.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+  pose proof (prov_and_elim_r_meta _ _ Hiff) as Hback.
+  split.
+  - intro Hp. exact (MP _ _ Hfwd Hp).
+  - intro Hp. exact (MP _ _ Hback Hp).
+Qed.
+
+(** ** A complete decidability statement for [iter_box [outer; inner] Bot]
+    when [inner < outer]: the worm is provable iff [Box outer Bot] is,
+    which is iff false (by [closed_fragment_iterated_bot_not_provable]). *)
+
+Theorem worm_two_element_descending_unprovable : forall outer inner,
+  inner < outer ->
+  ~ |- iter_box [outer; inner] Bot.
+Proof.
+  intros outer inner Hlt Hp.
+  apply (proj1 (worm_two_element_bot_provable_iff_outer_bot outer inner Hlt)) in Hp.
+  exact (closed_fragment_iterated_bot_not_provable outer Hp).
+Qed.
+
+(** ** Same conclusion via the iterated-descending generalization: an
+    iter-box-Bot worm with strictly descending box-levels collapses to its
+    head's [Box n Bot], which is unprovable. *)
+
+Theorem worm_descending_unprovable : forall n rest,
+  is_strictly_descending (n :: rest) = true ->
+  ~ |- iter_box (n :: rest) Bot.
+Proof.
+  intros n rest Hd Hp.
+  pose proof (worm_descending_collapse_to_head n rest Hd) as Hiff.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+  pose proof (MP _ _ Hfwd Hp) as Hbox_n_bot.
+  exact (closed_fragment_iterated_bot_not_provable n Hbox_n_bot).
+Qed.
+
+(** ** Decidability of unprovability for descending worms (paired with
+    the existing positive results). *)
+
+Definition glp_decide_descending_worm
+  (n : nat) (rest : list nat)
+  (Hd : is_strictly_descending (n :: rest) = true) :
+  sumbool (|- iter_box (n :: rest) Bot) (~ |- iter_box (n :: rest) Bot).
+Proof.
+  right. exact (worm_descending_unprovable n rest Hd).
+Defined.
+
