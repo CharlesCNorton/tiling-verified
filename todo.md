@@ -15,19 +15,7 @@ Items are ordered by logical dependency: each item's stated prerequisites
 appear earlier.  Items with no in-list prerequisites come first; items
 that build on Solovay-style arithmetic completeness come last.
 
-1. **Beklemishev worm reduction with strict ordinal-descent invariant.**
-    Define `beklemishev_reduce : Worm -> Worm` by the actual
-    Beklemishev step (split at the head, recurse on the tail with
-    explicit head-substitution, NOT one-pass insertion sort). Prove
-    `beklemishev_reduce_strictly_decreases : forall w, w <> [] ->
-    ord_lt (worm_to_ord (beklemishev_reduce w)) (worm_to_ord w)` AND
-    `beklemishev_reduce_terminates_at_eps0 : forall w,
-    exists n, vord_lt (V_cnf (worm_to_ord (iter beklemishev_reduce n w))) (V_cnf OZero)`.
-    Forbidden: `beklemishev_reduce := normalise_worm`,
-    `beklemishev_reduce w := []` (immediate-empty), or returning the
-    same worm (trivial fixed point).
-
-2. **Sambin fixed-point uniqueness for arbitrary modalised contexts.**
+1. **Sambin fixed-point uniqueness for arbitrary modalised contexts.**
     Define `modalised_in_p : (Form -> Form) -> Prop` saying that
     every occurrence of the bound variable in `C p` is under at
     least one `Box _`. Prove
@@ -41,7 +29,7 @@ that build on Solovay-style arithmetic completeness come last.
     restricting to `C` with `box_levels` a singleton,
     returning `prov_iff_refl psi1` and noting `psi1 = psi2`.
 
-3. **Decidability of full GLP at every level.**
+2. **Decidability of full GLP at every level.**
     Construct `glp_decide : forall phi, sumbool (|- phi) (~ |- phi)`
     by structural recursion that proceeds case-by-case on the modal
     depth of `phi`. The procedure must terminate in primitive-
@@ -53,7 +41,7 @@ that build on Solovay-style arithmetic completeness come last.
     excluded-middle), restricting to `box_free` and falling back to
     `decide_tautology`, deferring to a hypothetical normaliser.
 
-4. **Real reverse-mathematics formalization with internal subsystem
+3. **Real reverse-mathematics formalization with internal subsystem
     calculi.** Define, for each `s : RM_subsystem`, an INDUCTIVE
     relation `RM_provable_real : RM_subsystem -> Form -> Prop` whose
     constructors include exactly the comprehension/induction axioms
@@ -68,7 +56,7 @@ that build on Solovay-style arithmetic completeness come last.
     `RM_provable_real s P := |- P` (collapses across subsystems), or
     making the hierarchy non-strict.
 
-5. **Curry-Howard realizer extraction with computational content.**
+4. **Curry-Howard realizer extraction with computational content.**
     Define `lambda_box : Type` as a typed lambda calculus with
     explicit box-introduction (graded by level), box-elimination,
     pair, app, abs, and `loeb_fixpoint : forall n phi,
@@ -84,7 +72,7 @@ that build on Solovay-style arithmetic completeness come last.
     (trivial functor), `nf := extract_realizer phi pt` (no
     reduction).
 
-6. **Lindenbaum-Tarski algebra of GLP is the FREE polymodal Magari
+5. **Lindenbaum-Tarski algebra of GLP is the FREE polymodal Magari
     algebra.** Define `polymodal_Magari_algebra` as a record with a
     Boolean-algebra carrier, family of necessitation operators
     `box_op : nat -> carrier -> carrier`, validity of K, Loeb, Mon at
@@ -98,7 +86,7 @@ that build on Solovay-style arithmetic completeness come last.
     `epi`, instantiating `A := LT_GLP` (collapses to identity),
     skipping the morphism-laws check.
 
-7. **Polymodal Craig interpolation.**
+6. **Polymodal Craig interpolation.**
     Define `box_levels : Form -> list nat` and `var_set : Form -> list nat`
     by structural recursion. Prove
     `craig_interpolation_polymodal : forall phi psi,
@@ -112,7 +100,7 @@ that build on Solovay-style arithmetic completeness come last.
     existence. Forbidden: `chi := phi` (no constraint on
     `var_set psi`-side), `chi := psi`, `chi := Top`, `chi := Bot`.
 
-8. **Yudkowsky-Herreshoff tiling theorem under arithmetic
+7. **Yudkowsky-Herreshoff tiling theorem under arithmetic
     interpretation, with explicit goal-preservation chain.** Define
     `tiling_chain : AgentRecord -> nat -> Form` as the n-fold
     self-modification of the agent's decision under its own
@@ -130,7 +118,7 @@ that build on Solovay-style arithmetic completeness come last.
     `tiling_chain A 0 := Bot` (vacuous antecedent at level 0),
     using `goal_preservation_tiling_concrete` as the entire proof.
 
-9. **Stone-duality category-equivalence.** Define
+8. **Stone-duality category-equivalence.** Define
     `Record LT_category : Type` and `Record canonical_frame_category : Type`
     with explicit object-types, hom-types, identity, composition,
     associativity, and unit-laws. Define functors
@@ -144,9 +132,9 @@ that build on Solovay-style arithmetic completeness come last.
     with `morphism := |- Impl phi psi` (this collapses the
     duality to provability), citing
     `Stone_duality_provability_iff_universal` as the discharge.
-    (Depends on item 6: `LT_GLP` as polymodal Magari algebra.)
+    (Depends on item 5: `LT_GLP` as polymodal Magari algebra.)
 
-10. **Proof-theoretic ordinal of GLP, EXACTLY at Gamma_0, upper bound
+9. **Proof-theoretic ordinal of GLP, EXACTLY at Gamma_0, upper bound
     at every level.** Define
     `Gamma_0_ordinal : vord` as the first fixed point of the Veblen
     `phi`-function above `omega`, NOT as
@@ -159,10 +147,11 @@ that build on Solovay-style arithmetic completeness come last.
     vord_lt (proof_height phi H) Gamma_0_ordinal`. Forbidden:
     redefining `Gamma_0_ordinal := Veblen_eps0_ordinal`, returning
     `OZero` for every derivation, or returning a constant.
-    (Depends on item 1: Beklemishev reduction provides the ordinal-
-    descent invariant the rank function must respect.)
+    (Builds on the completed `beklemishev_reduce` ordinal-descent
+    infrastructure: `beklemishev_reduce_strictly_decreases` and
+    `beklemishev_reduce_terminates`.)
 
-11. **Solovay's first arithmetic completeness for GL, full statement.**
+10. **Solovay's first arithmetic completeness for GL, full statement.**
     Define `solovay_function : nat -> nat` as the fixed-point of the
     Solovay tree on the integer model, with `solovay_function 0 = 0`
     and the full step relation tracking `R_i`-successors. Define
@@ -181,7 +170,7 @@ that build on Solovay-style arithmetic completeness come last.
     `arith_embed_GL (Box phi) := arith_embed_GL phi` (box-erasure),
     or `:= FOTopForm` (box-as-top).
 
-12. **Carlson polymodal second incompleteness with explicit
+11. **Carlson polymodal second incompleteness with explicit
     super-polynomial speedup.** Define `proof_length_in_T_n : forall n phi,
     Bew n phi -> nat` by structural recursion on the Bew-derivation,
     counting axiom-leaves and rule-applications. Define
@@ -194,10 +183,10 @@ that build on Solovay-style arithmetic completeness come last.
     Forbidden: `proof_length_in_T_n _ _ _ := 0` (trivializes both
     sides), `proof_length_in_T_n _ _ _ := S O` (constant), or
     using existing `Pudlak_speedup_at` as the witness.
-    (Depends on item 11: builds on the Solovay arithmetic
+    (Depends on item 10: builds on the Solovay arithmetic
     interpretation framework.)
 
-13. **Pi_2-conservativity of GLP over GL, theorem-level (not vacuous).**
+12. **Pi_2-conservativity of GLP over GL, theorem-level (not vacuous).**
     Define `is_Pi_2 : Form -> Prop` as the standard arithmetic class:
     `forall n, exists m, R(n, m)` shape with `R` Sigma_0_1.
     Prove `Pi_2_conservativity : forall phi,
@@ -211,10 +200,10 @@ that build on Solovay-style arithmetic completeness come last.
     `H` followed by case-analysis-and-discharge. Forbidden:
     showing the hypothesis is universally false (Carlson-vacuity);
     restricting to `phi = Bot`; reducing to `box_free`.
-    (Depends on items 1 and 11: Beklemishev reduction is the engine,
-    Solovay completeness is the target.)
+    (Depends on item 10 for the Solovay-completeness target;
+    builds on the completed `beklemishev_reduce` engine.)
 
-14. **Solovay's second arithmetic completeness for the truth-extension
+13. **Solovay's second arithmetic completeness for the truth-extension
     S, full statement.** Define `arith_embed_S : Form -> nat -> Prop`
     extending `arith_embed_GL` with the T-schema for true Sigma_1
     sentences (i.e., the embedding evaluates `Box phi` against the
@@ -225,9 +214,9 @@ that build on Solovay-style arithmetic completeness come last.
     -> Provable_S phi`. Forbidden: defining `arith_embed_S := arith_embed_GL`,
     using only `S_truth_completeness_box_free`, weakening to box-free,
     or treating `S_reflection` as the answer.
-    (Depends on item 11: extends the Solovay-first machinery.)
+    (Depends on item 10: extends the Solovay-first machinery.)
 
-15. **Japaridze's polymodal arithmetic completeness, full statement
+14. **Japaridze's polymodal arithmetic completeness, full statement
     with an actual Solovay tree.** Define
     `Inductive Solovay_node : Type :=
        | sol_root : Solovay_node
@@ -246,4 +235,4 @@ that build on Solovay-style arithmetic completeness come last.
     making `Solovay_node := unit` and `tree_validates := True`,
     instantiating `I := shift_interp` to MP-discharge,
     `I := identity`.
-    (Depends on item 11: polymodal generalization of the Solovay tree.)
+    (Depends on item 10: polymodal generalization of the Solovay tree.)
