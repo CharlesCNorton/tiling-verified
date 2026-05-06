@@ -1548,6 +1548,84 @@ Proof.
   exact (refute_box_k_bot_implies_box_0_box_m_bot (S m) m (Nat.lt_succ_diag_r m)).
 Qed.
 
+(** ** Refutation of [Box k Bot -> Box 0 (Box 0 (Box m Bot))] via I2.
+    Witness at [(S m, 2)].  This shows the I2 frame extends to
+    refute deeper Beklemishev-gap formulas with multiple Box-0 layers. *)
+
+Theorem refute_box_k_bot_implies_box_0_box_0_box_m_bot : forall k m,
+  m < k -> ~ |- Impl (Box k Bot) (Box 0 (Box 0 (Box m Bot))).
+Proof.
+  intros k m Hmk Hp.
+  pose proof (soundness _ Hp I2 (fun _ _ => false) (S m, 2)) as Hf.
+  cbn in Hf.
+  assert (Hboxk : forall v : nat * nat, I2_R k (S m, 2) v -> False).
+  { intros [c d]. destruct k as [|k']; cbn.
+    - intros _. lia.
+    - intros [Hac Hcn]. cbn in Hac, Hcn. lia. }
+  pose proof (Hf Hboxk) as Hbox0_box0.
+  pose proof (Hbox0_box0 (S m, 1)) as Hbox0_box0'.
+  assert (Hr0 : I2_R 0 (S m, 2) (S m, 1))
+    by (cbn; right; split; [reflexivity | lia]).
+  pose proof (Hbox0_box0' Hr0) as Hbox0_boxm.
+  pose proof (Hbox0_boxm (S m, 0)) as Hbox0_boxm'.
+  assert (Hr0' : I2_R 0 (S m, 1) (S m, 0))
+    by (cbn; right; split; [reflexivity | lia]).
+  pose proof (Hbox0_boxm' Hr0') as Hboxm.
+  destruct m as [|m']; cbn in Hboxm.
+  - apply (Hboxm (0, 0)). cbn. left. lia.
+  - apply (Hboxm (S m', 0)). cbn. split; [lia|lia].
+Qed.
+
+(** ** General refutation tool: for any iter-box-Bot consequent of the
+    form [iter_box (zeros ++ [m]) Bot] where [zeros] is a list of [0]s and
+    [m < k], the implication [Box k Bot -> ...] is unprovable.  Proof by
+    induction on [zeros], stepping into the lex-below world at each [0]. *)
+
+Lemma forces_iter_box_zeros_box_m_bot_at_drop : forall zeros,
+  Forall (fun n => n = 0) zeros ->
+  forall m a b,
+  forces I2 (fun _ _ => false) (a, b)
+         (iter_box zeros (Box m Bot)) ->
+  b >= length zeros ->
+  forces I2 (fun _ _ => false) (a, b - length zeros) (Box m Bot).
+Proof.
+  intro zeros. induction zeros as [|z rest IH]; intros Hall m a b Hf Hb.
+  - cbn. rewrite Nat.sub_0_r. exact Hf.
+  - inversion Hall as [|y ys Hz0 Hrest]. subst z.
+    cbn [iter_box length] in *.
+    pose proof (Hf (a, b - 1)) as Hf'.
+    assert (Hr : I2_R 0 (a, b) (a, b - 1)).
+    { cbn. right. split; [reflexivity | lia]. }
+    pose proof (Hf' Hr) as Hf_inner.
+    assert (Hsub : b - 1 - length rest = b - S (length rest)) by lia.
+    rewrite <- Hsub.
+    apply (IH Hrest m a (b - 1)); [exact Hf_inner | lia].
+Qed.
+
+Theorem refute_box_k_bot_implies_iter_box_zero_prefix_box_m_bot :
+  forall k m zeros,
+  m < k ->
+  Forall (fun n => n = 0) zeros ->
+  ~ |- Impl (Box k Bot) (iter_box zeros (Box m Bot)).
+Proof.
+  intros k m zeros Hmk Hall Hp.
+  pose proof (soundness _ Hp I2 (fun _ _ => false) (S m, length zeros)) as Hf.
+  cbn in Hf.
+  assert (Hboxk : forall v : nat * nat, I2_R k (S m, length zeros) v -> False).
+  { intros [c d]. destruct k as [|k']; cbn.
+    - intros _. lia.
+    - intros [Hac Hcn]. cbn in Hac, Hcn. lia. }
+  pose proof (Hf Hboxk) as Hcons.
+  pose proof (forces_iter_box_zeros_box_m_bot_at_drop
+                zeros Hall m (S m) (length zeros)
+                Hcons (Nat.le_refl _)) as Hboxm.
+  rewrite Nat.sub_diag in Hboxm.
+  cbn in Hboxm.
+  destruct m as [|m']; cbn in Hboxm.
+  - apply (Hboxm (0, 0)). cbn. left. lia.
+  - apply (Hboxm (S m', 0)). cbn. split; [lia|lia].
+Qed.
+
 (** ** Hence, in our axiom system, the Lindenbaum classes of
     [Box 0 (Box m Bot)] and [Box (S m) Bot] are NOT provably equivalent.
     [I2] refutes the reverse direction, completing the Fnat-incompleteness
