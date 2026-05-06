@@ -938,3 +938,150 @@ Proof.
   - exact (prov_box_bot_to_box_anything outer (Box inner Bot)).
 Qed.
 
+(** ** Provable [Impl (iter_box [outer; inner] Bot) (Box m Bot)] when
+    [inner < outer] and [outer <= m].  Combines worm collapse with [Mon]. *)
+
+Theorem provable_impl_iter_box_two_element_to_box_bot :
+  forall outer inner m,
+  inner < outer -> outer <= m ->
+  |- Impl (iter_box [outer; inner] Bot) (Box m Bot).
+Proof.
+  intros outer inner m Hlt Hle.
+  pose proof (worm_two_element_collapse_inner_lt_outer outer inner Hlt) as Hiff.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+  pose proof (prov_box_mon_le outer m Bot Hle) as Hmon.
+  exact (prov_compose _ _ _ Hfwd Hmon).
+Qed.
+
+(** ** Provable [Impl (iter_box [outer; inner] Bot) (iter_box (m :: rest) Bot)]
+    when [inner < outer] and [outer <= m].  Combines worm collapse with the
+    box-bot-explosion route. *)
+
+Theorem provable_impl_iter_box_two_element_to_iter_box :
+  forall outer inner m rest,
+  inner < outer -> outer <= m ->
+  |- Impl (iter_box [outer; inner] Bot) (iter_box (m :: rest) Bot).
+Proof.
+  intros outer inner m rest Hlt Hle.
+  pose proof (worm_two_element_collapse_inner_lt_outer outer inner Hlt) as Hiff.
+  pose proof (prov_and_elim_l_meta _ _ Hiff) as Hfwd.
+  pose proof (provable_impl_box_bot_iter_box_bot_head_match outer m rest Hle) as Hhead.
+  exact (prov_compose _ _ _ Hfwd Hhead).
+Qed.
+
+(** ** Two cleanly-handled sub-cases for the worm-implication with a
+    2-element collapsed antecedent: empty consequent (refute via the
+    Carlson generalisation) and head-match consequent (provable via the
+    collapse + head-match chain).  The remaining cases (consequent with
+    head [m < outer] but inner structure rich enough to dominate) are
+    genuine gaps in the bad_world-only characterisation, so we expose
+    these positive cases as separate lemmas rather than forcing a
+    [sumbool] over an indeterminate domain. *)
+
+Lemma worm_implication_two_element_collapsed_to_empty_unprovable :
+  forall outer inner,
+  inner < outer ->
+  ~ |- Impl (iter_box [outer; inner] Bot) (iter_box [] Bot).
+Proof.
+  intros outer inner Hlt Himp.
+  pose proof (worm_two_element_collapse_inner_lt_outer outer inner Hlt) as Hiff.
+  pose proof (prov_and_elim_r_meta _ _ Hiff) as Hback.
+  pose proof (prov_compose _ _ _ Hback Himp) as Hbox_outer_to_bot.
+  exact (closed_neg_box_unprovable outer Bot eq_refl Hbox_outer_to_bot).
+Qed.
+
+(** ** Boolean prefix-mon check: Boolean predicate that is [true] iff
+    [ns_2] starts with a length-[length ns_1] prefix that pointwise
+    dominates [ns_1].  Yields a syntactic sufficient condition for
+    worm-implication provability. *)
+
+Fixpoint prefix_mon_le_b (ns_1 ns_2 : list nat) : bool :=
+  match ns_1, ns_2 with
+  | [], _ => true
+  | _ :: _, [] => false
+  | n :: rest_1, m :: rest_2 => andb (Nat.leb n m) (prefix_mon_le_b rest_1 rest_2)
+  end.
+
+Lemma prefix_mon_le_b_implies_split : forall ns_1 ns_2,
+  prefix_mon_le_b ns_1 ns_2 = true ->
+  exists prefix ext,
+    ns_2 = prefix ++ ext /\
+    length ns_1 = length prefix /\
+    (forall i, i < length ns_1 -> nth i ns_1 0 <= nth i prefix 0).
+Proof.
+  intro ns_1. induction ns_1 as [|n rest_1 IH]; intros ns_2 Hb.
+  - exists [], ns_2. split; [reflexivity | split; [reflexivity|]].
+    intros i Hi. cbn in Hi. lia.
+  - destruct ns_2 as [|m rest_2]; [discriminate Hb|].
+    cbn in Hb. apply Bool.andb_true_iff in Hb. destruct Hb as [Hle Hrec].
+    apply Nat.leb_le in Hle.
+    destruct (IH rest_2 Hrec) as [prefix [ext [Heq [Hlen Hpt]]]].
+    exists (m :: prefix), ext. split; [|split].
+    + cbn. rewrite Heq. reflexivity.
+    + cbn. rewrite Hlen. reflexivity.
+    + intros i Hi. destruct i as [|i].
+      * cbn. exact Hle.
+      * cbn. cbn in Hi. apply Hpt. lia.
+Qed.
+
+(** ** Provable worm-implication from the Boolean prefix-mon check. *)
+
+Theorem prefix_mon_le_b_implies_worm_provable : forall ns_1 ns_2,
+  prefix_mon_le_b ns_1 ns_2 = true ->
+  |- Impl (iter_box ns_1 Bot) (iter_box ns_2 Bot).
+Proof.
+  intros ns_1 ns_2 Hb.
+  destruct (prefix_mon_le_b_implies_split ns_1 ns_2 Hb) as [prefix [ext [Heq [Hlen Hpt]]]].
+  rewrite Heq.
+  exact (prov_iter_box_prefix_mon_extension ns_1 prefix ext Bot Hlen Hpt).
+Qed.
+
+(** ** Decidability of the boolean prefix-mon check yields a [sumbool] for
+    a structurally identifiable subset of provable worm implications.
+    When the check fails, we cannot conclude unprovability in general
+    (the Beklemishev worm theorem provides additional positive cases
+    not captured by pointwise prefix mon). *)
+
+Definition glp_decide_worm_implication_via_prefix_mon
+  (ns_1 ns_2 : list nat) :
+  sumbool (prefix_mon_le_b ns_1 ns_2 = true)
+          (prefix_mon_le_b ns_1 ns_2 = false).
+Proof.
+  destruct (prefix_mon_le_b ns_1 ns_2) eqn:Eb.
+  - left. reflexivity.
+  - right. reflexivity.
+Defined.
+
+(** ** Full decision when the bad_world ordering FAILS: refute via the
+    forward direction of the worm-implication theorem. *)
+
+Definition glp_decide_worm_implication_via_bad_world
+  (ns_1 ns_2 : list nat)
+  (Hgt : bad_world ns_1 > bad_world ns_2) :
+  ~ |- Impl (iter_box ns_1 Bot) (iter_box ns_2 Bot).
+Proof.
+  intro Himp.
+  pose proof (provable_impl_iter_box_bot_forward ns_1 ns_2 Himp) as Hle.
+  lia.
+Defined.
+
+(** ** Combined decision principle for worm implications: the [sumbool]
+    holds when at least one of the two structural conditions decides:
+    (a) prefix-mon check passes (provable), or
+    (b) bad_world ordering fails (unprovable).  When neither decides,
+    we cannot conclude with the present tools. *)
+
+Definition glp_decide_worm_implication_via_structural_principles
+  (ns_1 ns_2 : list nat) :
+  sumbool (|- Impl (iter_box ns_1 Bot) (iter_box ns_2 Bot))
+          (~ |- Impl (iter_box ns_1 Bot) (iter_box ns_2 Bot)) +
+  ((prefix_mon_le_b ns_1 ns_2 = false) /\
+   (bad_world ns_1 <= bad_world ns_2)).
+Proof.
+  destruct (glp_decide_worm_implication_via_prefix_mon ns_1 ns_2) as [Hpref | Hpref].
+  - left. left. exact (prefix_mon_le_b_implies_worm_provable ns_1 ns_2 Hpref).
+  - destruct (le_gt_dec (bad_world ns_1) (bad_world ns_2)) as [Hle | Hgt].
+    + right. split; assumption.
+    + left. right. exact (glp_decide_worm_implication_via_bad_world ns_1 ns_2 Hgt).
+Defined.
+
