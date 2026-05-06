@@ -1423,11 +1423,133 @@ Proof.
   exact prov_box_0_box_m_bot_to_box_S_m_bot.
 Qed.
 
+(** ** An Ignatiev-style 2-dimensional Kripke frame [I2] that refutes
+    Beklemishev-gap formulas.  Worlds are pairs of naturals; [R_0] is the
+    lex order, while [R_n] for [n >= 1] depends only on the first
+    coordinate with a level-threshold.  This frame distinguishes formulas
+    that Fnat collapses, since the second coordinate provides extra
+    "depth" at each first-coordinate level. *)
+
+Definition I2_R (n : nat) (w v : nat * nat) : Prop :=
+  match n with
+  | 0 => fst w > fst v \/ (fst w = fst v /\ snd w > snd v)
+  | S k => fst w > fst v /\ fst v >= S k
+  end.
+
+Lemma I2_R_trans : forall n w v u, I2_R n w v -> I2_R n v u -> I2_R n w u.
+Proof.
+  intros [|k] [a b] [c d] [e f]; cbn.
+  - intros [Hac | [Hac Hbd]] [Hce | [Hce Hdf]].
+    + left. lia.
+    + left. lia.
+    + left. lia.
+    + right. split; [lia | lia].
+  - intros [Hac Hcn] [Hce Hen]. split; lia.
+Qed.
+
+Lemma I2_R_wf_helper :
+  forall a b,
+    Acc (fun v u : nat * nat =>
+           fst u > fst v \/ (fst u = fst v /\ snd u > snd v)) (a, b).
+Proof.
+  induction a as [a IHa] using (well_founded_induction Wf_nat.lt_wf).
+  intro b.
+  induction b as [b IHb] using (well_founded_induction Wf_nat.lt_wf).
+  apply Acc_intro. intros [c d] H.
+  destruct H as [Hac | [Hac Hbd]].
+  - cbn in Hac. apply (IHa c Hac).
+  - cbn in Hac, Hbd. subst c.
+    apply (IHb d Hbd).
+Qed.
+
+Lemma I2_R_wf : forall n, well_founded (fun u v : nat * nat => I2_R n v u).
+Proof.
+  intros [|k] [a b].
+  - apply I2_R_wf_helper.
+  - revert b.
+    induction a as [a IHa] using (well_founded_induction Wf_nat.lt_wf).
+    intro b. apply Acc_intro. intros [c d] [Hac _].
+    cbn in Hac. apply (IHa c Hac).
+Qed.
+
+Lemma I2_R_mon : forall n w v, I2_R (S n) w v -> I2_R n w v.
+Proof.
+  intros [|k] [a b] [c d]; cbn.
+  - intros [Hac _]. left. exact Hac.
+  - intros [Hac Hcn]. split; [lia|lia].
+Qed.
+
+Lemma I2_R_nextcon : forall n w v, I2_R (S n) w v -> exists u, I2_R n v u.
+Proof.
+  intros [|k] [a b] [c d]; cbn.
+  - intros [Hac Hcn].
+    exists (c - 1, 0). cbn.
+    left. lia.
+  - intros [Hac Hcn].
+    exists (S k, 0). cbn. split; [lia|lia].
+Qed.
+
+Definition I2 : Frame :=
+  mkFrame (nat * nat) I2_R I2_R_trans I2_R_wf I2_R_mon I2_R_nextcon.
+
+(** ** Concrete refutation: [|- Box 4 Bot -> Box 0 (Box 3 Bot)] is FALSE
+    in GLP*.  The witness is [I2] at world [(4, 5)]. *)
+
+Theorem refute_box_4_bot_implies_box_0_box_3_bot :
+  ~ |- Impl (Box 4 Bot) (Box 0 (Box 3 Bot)).
+Proof.
+  intro Hp.
+  pose proof (soundness _ Hp I2 (fun _ _ => false) (4, 5)) as Hf.
+  cbn in Hf.
+  assert (Hbox4 : forall v : nat * nat, I2_R 4 (4, 5) v -> False).
+  { intros [c d] [Hac Hcn]. cbn in *. lia. }
+  pose proof (Hf Hbox4) as Hbox0.
+  pose proof (Hbox0 (4, 0)) as Hbox0'.
+  assert (Hr0 : I2_R 0 (4, 5) (4, 0))
+    by (cbn; right; split; [reflexivity | lia]).
+  pose proof (Hbox0' Hr0) as Hbox3.
+  apply (Hbox3 (3, 0)).
+  cbn. split; [lia | lia].
+Qed.
+
+(** ** Generalised Beklemishev-gap refutation: for any [m < k], the
+    formula [Box k Bot -> Box 0 (Box m Bot)] is unprovable.  The witness
+    is [I2] at world [(S m, 1)]. *)
+
+Theorem refute_box_k_bot_implies_box_0_box_m_bot : forall k m,
+  m < k -> ~ |- Impl (Box k Bot) (Box 0 (Box m Bot)).
+Proof.
+  intros k m Hmk Hp.
+  pose proof (soundness _ Hp I2 (fun _ _ => false) (S m, 1)) as Hf.
+  cbn in Hf.
+  assert (Hboxk : forall v : nat * nat, I2_R k (S m, 1) v -> False).
+  { intros [c d]. destruct k as [|k']; cbn.
+    - intros _. lia.
+    - intros [Hac Hcn]. cbn in Hac, Hcn. lia. }
+  pose proof (Hf Hboxk) as Hbox0.
+  pose proof (Hbox0 (S m, 0)) as Hbox0'.
+  assert (Hr0 : I2_R 0 (S m, 1) (S m, 0))
+    by (cbn; right; split; [reflexivity | lia]).
+  pose proof (Hbox0' Hr0) as Hboxm.
+  destruct m as [|m']; cbn in Hboxm.
+  - apply (Hboxm (0, 0)). cbn. left. lia.
+  - apply (Hboxm (S m', 0)). cbn. split; [lia|lia].
+Qed.
+
+(** ** Bidirectional Lindenbaum gap: [Box (S m) Bot] does NOT imply
+    [Box 0 (Box m Bot)] (refuted via I2), but the reverse direction
+    does (provable via Mon + NextCon collapse).  Hence the two formulas
+    are NOT provably equivalent in GLP*, despite being Fnat-equivalent. *)
+
+Theorem reverse_implication_box_S_m_bot_box_0_box_m_bot_unprovable :
+  forall m, ~ |- Impl (Box (S m) Bot) (Box 0 (Box m Bot)).
+Proof.
+  intro m.
+  exact (refute_box_k_bot_implies_box_0_box_m_bot (S m) m (Nat.lt_succ_diag_r m)).
+Qed.
+
 (** ** Hence, in our axiom system, the Lindenbaum classes of
-    [Box 0 (Box m Bot)] and [Box (S m) Bot] satisfy:
-      [Box 0 (Box m Bot)]  -->  [Box (S m) Bot]    (provable)
-      [Box (S m) Bot]      -->  [Box 0 (Box m Bot)]  (UNPROVABLE).
-    The latter is the witness of Fnat's incompleteness for the closed
-    fragment of GLP*: both formulas have the same Fnat-truth-value
-    everywhere, but they are NOT provably equivalent. *)
+    [Box 0 (Box m Bot)] and [Box (S m) Bot] are NOT provably equivalent.
+    [I2] refutes the reverse direction, completing the Fnat-incompleteness
+    witness for the closed fragment of GLP*. *)
 
