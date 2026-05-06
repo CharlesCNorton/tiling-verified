@@ -319,3 +319,48 @@ Proof.
   - left. exact (decide_impl_box_bot_box_bot_le k_1 k_2 Hle).
   - right. exact (decide_impl_box_bot_box_bot_gt k_1 k_2 Hgt).
 Defined.
+
+(** ** Eval of closed box-free formulas is independent of the valuation. *)
+
+Lemma eval_box_free_closed_const : forall phi val_1 val_2,
+  free_vars phi = [] -> box_free phi ->
+  eval val_1 phi = eval val_2 phi.
+Proof.
+  intros phi val_1 val_2 Hcl Hbf.
+  rewrite <- (forces_fnat_closed_box_free_eq_eval phi Hcl Hbf 0 val_1).
+  rewrite <- (forces_fnat_closed_box_free_eq_eval phi Hcl Hbf 0 val_2).
+  reflexivity.
+Qed.
+
+(** ** Decidability of [Impl (Box k_1 psi) (Box k_2 psi)] for closed box-free
+    [psi].  Provable iff [|- psi] OR [k_1 <= k_2]; refuted by Fnat-soundness
+    when [psi] is unprovable and [k_1 > k_2]. *)
+
+Definition glp_decide_impl_box_box_box_free_same_psi
+  (k_1 k_2 : nat) (psi : Form)
+  (Hcl : free_vars psi = []) (Hbf : box_free psi) :
+  sumbool (|- Impl (Box k_1 psi) (Box k_2 psi))
+          (~ |- Impl (Box k_1 psi) (Box k_2 psi)).
+Proof.
+  destruct (glp_decide_closed_box_free psi Hcl Hbf) as [Hp | Hnp].
+  - left. exact (MP _ _ (Ax_K (Box k_2 psi) (Box k_1 psi)) (Nec k_2 psi Hp)).
+  - destruct (le_gt_dec k_1 k_2) as [Hle | Hgt].
+    + left. exact (prov_box_mon_le k_1 k_2 psi Hle).
+    + right. intro Himp.
+      pose proof (soundness _ Himp Fnat (fun _ _ => true) (S k_2)) as Hf.
+      cbn in Hf.
+      assert (Hbox1 : forall v, Fnat_R k_1 (S k_2) v ->
+                       forces Fnat (fun _ _ => true) v psi).
+      { intros v Hr. unfold Fnat_R in Hr. lia. }
+      pose proof (Hf Hbox1) as Hbox2.
+      assert (Hr : Fnat_R k_2 (S k_2) k_2) by (unfold Fnat_R; split; lia).
+      pose proof (Hbox2 k_2 Hr) as Hpsi_at_k2.
+      apply Hnp.
+      apply trivial_in_provable.
+      apply prop_completeness; [exact Hbf|].
+      intro val.
+      apply (proj1 (forces_const_box_free Fnat (fun _ : nat => true) k_2 psi Hbf))
+        in Hpsi_at_k2.
+      pose proof (eval_box_free_closed_const psi val (fun _ => true) Hcl Hbf) as Heq.
+      rewrite Heq. exact Hpsi_at_k2.
+Defined.
