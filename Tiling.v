@@ -12371,6 +12371,183 @@ Proof.
   exact (FOProvesTn_ExElim n x phi FOFalseF eq_refl).
 Qed.
 
+(** ** Propositional tautologies transfer into the T_n tower.
+
+    [FOofForm m phi] reads a modal skeleton as an FO formula through an
+    atom assignment [m].  [ProvableProp] derivations push through the
+    reading, so [prop_decide_correct] turns every boolean-checked
+    tautology skeleton into an [FOProvesTn] theorem at any level. *)
+
+Definition FOAnd (A B : FOFormula) : FOFormula :=
+  FONeg (FOImplF A (FONeg B)).
+Definition FOOr (A B : FOFormula) : FOFormula :=
+  FOImplF (FONeg A) B.
+Definition FOIff (A B : FOFormula) : FOFormula :=
+  FOAnd (FOImplF A B) (FOImplF B A).
+
+Definition FOm1 (A : FOFormula) : nat -> FOFormula := fun _ => A.
+Definition FOm2 (A B : FOFormula) : nat -> FOFormula :=
+  fun i => match i with 0 => A | _ => B end.
+Definition FOm3 (A B C : FOFormula) : nat -> FOFormula :=
+  fun i => match i with 0 => A | 1 => B | _ => C end.
+Definition FOm4 (A B C D : FOFormula) : nat -> FOFormula :=
+  fun i => match i with 0 => A | 1 => B | 2 => C | _ => D end.
+
+Fixpoint FOofForm (m : nat -> FOFormula) (phi : Form) : FOFormula :=
+  match phi with
+  | Var i => m i
+  | Bot => FOFalseF
+  | Impl a b => FOImplF (FOofForm m a) (FOofForm m b)
+  | Box _ _ => FOTrue
+  end.
+
+Lemma FOPr_of_ProvableProp : forall n (m : nat -> FOFormula) phi,
+  ProvableProp phi -> FOProvesTn n (FOofForm m phi).
+Proof.
+  intros n m phi H. induction H; cbn.
+  - apply FOProvesTn_K.
+  - apply FOProvesTn_S.
+  - apply FOProvesTn_DN.
+  - exact (FOProvesTn_MP n _ _ IHProvableProp1 IHProvableProp2).
+Qed.
+
+Lemma FOPr_taut : forall n (m : nat -> FOFormula) phi,
+  box_free phi -> decide_tautology phi = true ->
+  FOProvesTn n (FOofForm m phi).
+Proof.
+  intros n m phi Hbf Hdec.
+  exact (FOPr_of_ProvableProp n m phi (prop_decide_correct phi Hbf Hdec)).
+Qed.
+
+Lemma FOPr_efq : forall n A, FOProvesTn n (FOImplF FOFalseF A).
+Proof.
+  intros n A.
+  apply (FOPr_taut n (FOm1 A) (Impl Bot (Var 0))); [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_dni : forall n A, FOProvesTn n (FOImplF A (FONeg (FONeg A))).
+Proof.
+  intros n A.
+  apply (FOPr_taut n (FOm1 A) (Impl (Var 0) (Neg (Neg (Var 0)))));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_contrapose : forall n A B,
+  FOProvesTn n (FOImplF (FOImplF A B) (FOImplF (FONeg B) (FONeg A))).
+Proof.
+  intros n A B.
+  apply (FOPr_taut n (FOm2 A B)
+    (Impl (Impl (Var 0) (Var 1)) (Impl (Neg (Var 1)) (Neg (Var 0)))));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_syl : forall n A B C,
+  FOProvesTn n (FOImplF (FOImplF A B)
+                  (FOImplF (FOImplF B C) (FOImplF A C))).
+Proof.
+  intros n A B C.
+  apply (FOPr_taut n (FOm3 A B C)
+    (Impl (Impl (Var 0) (Var 1))
+          (Impl (Impl (Var 1) (Var 2)) (Impl (Var 0) (Var 2)))));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_imp_swap : forall n A B C,
+  FOProvesTn n (FOImplF (FOImplF A (FOImplF B C))
+                        (FOImplF B (FOImplF A C))).
+Proof.
+  intros n A B C.
+  apply (FOPr_taut n (FOm3 A B C)
+    (Impl (Impl (Var 0) (Impl (Var 1) (Var 2)))
+          (Impl (Var 1) (Impl (Var 0) (Var 2)))));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_horizontal : forall n B' B C C',
+  FOProvesTn n (FOImplF (FOImplF B' B)
+                  (FOImplF (FOImplF C C')
+                     (FOImplF (FOImplF B C) (FOImplF B' C')))).
+Proof.
+  intros n B' B C C'.
+  apply (FOPr_taut n (FOm4 B' B C C')
+    (Impl (Impl (Var 0) (Var 1))
+          (Impl (Impl (Var 2) (Var 3))
+                (Impl (Impl (Var 1) (Var 2)) (Impl (Var 0) (Var 3))))));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_and_intro : forall n A B,
+  FOProvesTn n A -> FOProvesTn n B -> FOProvesTn n (FOAnd A B).
+Proof.
+  intros n A B HA HB.
+  assert (Ht : FOProvesTn n (FOImplF A (FOImplF B (FOAnd A B)))).
+  { apply (FOPr_taut n (FOm2 A B)
+      (Impl (Var 0) (Impl (Var 1) (And (Var 0) (Var 1)))));
+      [cbn; tauto | reflexivity]. }
+  exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Ht HA) HB).
+Qed.
+
+Lemma FOPr_and_elim_l : forall n A B,
+  FOProvesTn n (FOImplF (FOAnd A B) A).
+Proof.
+  intros n A B.
+  apply (FOPr_taut n (FOm2 A B)
+    (Impl (And (Var 0) (Var 1)) (Var 0)));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_and_elim_r : forall n A B,
+  FOProvesTn n (FOImplF (FOAnd A B) B).
+Proof.
+  intros n A B.
+  apply (FOPr_taut n (FOm2 A B)
+    (Impl (And (Var 0) (Var 1)) (Var 1)));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_or_intro_l : forall n A B,
+  FOProvesTn n (FOImplF A (FOOr A B)).
+Proof.
+  intros n A B.
+  apply (FOPr_taut n (FOm2 A B)
+    (Impl (Var 0) (Or (Var 0) (Var 1))));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_or_intro_r : forall n A B,
+  FOProvesTn n (FOImplF B (FOOr A B)).
+Proof.
+  intros n A B.
+  apply (FOPr_taut n (FOm2 A B)
+    (Impl (Var 1) (Or (Var 0) (Var 1))));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_or_elim : forall n A B C,
+  FOProvesTn n (FOImplF (FOImplF A C)
+                  (FOImplF (FOImplF B C) (FOImplF (FOOr A B) C))).
+Proof.
+  intros n A B C.
+  apply (FOPr_taut n (FOm3 A B C)
+    (Impl (Impl (Var 0) (Var 2))
+          (Impl (Impl (Var 1) (Var 2)) (Impl (Or (Var 0) (Var 1)) (Var 2)))));
+    [cbn; tauto | reflexivity].
+Qed.
+
+(** Case analysis under a fixed antecedent: from [H -> A \/ B],
+    [A -> C], [B -> C], conclude [H -> C]. *)
+
+Lemma FOPr_case : forall n A B C,
+  FOProvesTn n (FOOr A B) ->
+  FOProvesTn n (FOImplF A C) -> FOProvesTn n (FOImplF B C) ->
+  FOProvesTn n C.
+Proof.
+  intros n A B C Hor HA HB.
+  exact (FOProvesTn_MP n _ _
+          (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ (FOPr_or_elim n A B C) HA)
+             HB) Hor).
+Qed.
+
 Theorem FOProvesTn_cumulative_chain : forall n m phi,
   n <= m -> FOProvesTn n phi -> FOProvesTn m phi.
 Proof.
@@ -12870,6 +13047,33 @@ Qed.
 
 Lemma FOsat_ConSentence : forall e k, FOsat e (FOConSentence k).
 Proof. intros e k. cbn. reflexivity. Qed.
+
+Lemma FOsat_FOAnd : forall e A B,
+  FOsat e (FOAnd A B) <-> (FOsat e A /\ FOsat e B).
+Proof.
+  intros e A B. cbn. split.
+  - intro H.
+    destruct (classic (FOsat e A)); destruct (classic (FOsat e B)); tauto.
+  - intros [Ha Hb] Hi. exact (Hi Ha Hb).
+Qed.
+
+Lemma FOsat_FOOr : forall e A B,
+  FOsat e (FOOr A B) <-> (FOsat e A \/ FOsat e B).
+Proof.
+  intros e A B. cbn. split.
+  - intro H. destruct (classic (FOsat e A)) as [a|a].
+    + left. exact a.
+    + right. exact (H a).
+  - intros [a|b].
+    + intro na. exfalso. exact (na a).
+    + intro. exact b.
+Qed.
+
+Lemma FOsat_FOIff : forall e A B,
+  FOsat e (FOIff A B) <-> (FOsat e A <-> FOsat e B).
+Proof.
+  intros e A B. unfold FOIff. rewrite FOsat_FOAnd. cbn. tauto.
+Qed.
 
 (** ** Provable numeral arithmetic in the T_n tower. *)
 
