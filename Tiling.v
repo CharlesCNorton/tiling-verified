@@ -17520,8 +17520,8 @@ Definition FOSTEP_substbin (B : nat)
           (FOBexC (B+4) (FOSucc (FOVar B))
              (FOAnd
                 (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
-                (FOBexC (B+6) r
-                   (FOBexC (B+8) r
+                (FOBexC (B+6) (FOSucc r)
+                   (FOBexC (B+8) (FOSucc r)
                       (FOAnd
                          (FOlookup (B+10) ct dt c1 d1 c2 d2 c3 d3 cr dr
                             len (FOnumeral lktag) x sc (FOVar (B+2))
@@ -17564,9 +17564,9 @@ Proof.
     [apply FOin_tm_above; cbn; lia | apply FOin_tm_above; cbn; lia |].
   apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
   apply FOdelta0_FOBexC;
-    [apply FOin_tm_above; lia | apply FOin_tm_above; lia |].
+    [apply FOin_tm_above; cbn; lia | apply FOin_tm_above; cbn; lia |].
   apply FOdelta0_FOBexC;
-    [apply FOin_tm_above; lia | apply FOin_tm_above; lia |].
+    [apply FOin_tm_above; cbn; lia | apply FOin_tm_above; cbn; lia |].
   apply FOdelta0_and.
   { apply FOdelta0_FOlookup; try assumption;
       rewrite ?FOmax_var_numeral; cbn; lia. }
@@ -17589,7 +17589,8 @@ Lemma FOsat_FOSTEP_substbin : forall e B ct dt c1 d1 c2 d2 c3 d3 cr dr
        cpair ktag p = FOeval e tc /\
        exists ta, ta < S p /\ exists tb, tb < S p /\
          cpair ta tb = p /\
-         exists ra, ra < FOeval e r /\ exists rb, rb < FOeval e r /\
+         exists ra, ra < S (FOeval e r) /\
+         exists rb, rb < S (FOeval e r) /\
            (exists j, j < FOeval e len /\
               beta (FOeval e ct) (FOeval e dt) j = lktag /\
               beta (FOeval e c1) (FOeval e d1) j = FOeval e x /\
@@ -17684,18 +17685,25 @@ Proof.
     apply (proj1 (FOsat_FOcpairF _ _ _ _)) in Hcp2.
     rewrite EvB3, EvB23, EvB43 in Hcp2.
     split; [exact Hcp2|].
-    rewrite (FOsat_FOBexC _ (B+6) r _
-               (FOin_tm_above r (B+6) ltac:(lia))
-               (FOin_tm_above r (S (B+6)) ltac:(lia))) in Hin.
-    rewrite (Eu3 r Hr) in Hin.
+    rewrite (FOsat_FOBexC _ (B+6) (FOSucc r) _
+               (FOin_tm_above (FOSucc r) (B+6) ltac:(cbn; lia))
+               (FOin_tm_above (FOSucc r) (S (B+6)) ltac:(cbn; lia)))
+      in Hin.
+    assert (EsR3 : FOeval e3 (FOSucc r) = S (FOeval e r)).
+    { change (S (FOeval e3 r) = S (FOeval e r)).
+      rewrite (Eu3 r Hr). reflexivity. }
+    rewrite EsR3 in Hin.
     destruct Hin as [ra [Hra Hin]].
-    rewrite (FOsat_FOBexC _ (B+8) r _
-               (FOin_tm_above r (B+8) ltac:(lia))
-               (FOin_tm_above r (S (B+8)) ltac:(lia))) in Hin.
-    assert (Er4 : FOeval (FOupdate e3 (B+6) ra) r = FOeval e r).
-    { rewrite (FOeval_upd_above r _ (B+6) ra ltac:(lia)).
-      exact (Eu3 r Hr). }
-    rewrite Er4 in Hin.
+    rewrite (FOsat_FOBexC _ (B+8) (FOSucc r) _
+               (FOin_tm_above (FOSucc r) (B+8) ltac:(cbn; lia))
+               (FOin_tm_above (FOSucc r) (S (B+8)) ltac:(cbn; lia)))
+      in Hin.
+    assert (EsR4 : FOeval (FOupdate e3 (B+6) ra) (FOSucc r)
+                   = S (FOeval e r)).
+    { change (S (FOeval (FOupdate e3 (B+6) ra) r) = S (FOeval e r)).
+      rewrite (FOeval_upd_above r _ (B+6) ra ltac:(lia)).
+      rewrite (Eu3 r Hr). reflexivity. }
+    rewrite EsR4 in Hin.
     destruct Hin as [rb [Hrb Hin]].
     exists ra. split; [exact Hra|].
     exists rb. split; [exact Hrb|].
@@ -17822,18 +17830,23 @@ Proof.
     apply (proj2 (FOsat_FOAnd _ _ _)). split.
     { apply (proj2 (FOsat_FOcpairF _ _ _ _)).
       rewrite EvB3, EvB23, EvB43. exact Hcp2. }
-    rewrite (FOsat_FOBexC _ (B+6) r _
-               (FOin_tm_above r (B+6) ltac:(lia))
-               (FOin_tm_above r (S (B+6)) ltac:(lia))).
-    rewrite (Eu3 r Hr).
+    rewrite (FOsat_FOBexC _ (B+6) (FOSucc r) _
+               (FOin_tm_above (FOSucc r) (B+6) ltac:(cbn; lia))
+               (FOin_tm_above (FOSucc r) (S (B+6)) ltac:(cbn; lia))).
+    assert (EsR3 : FOeval e3 (FOSucc r) = S (FOeval e r)).
+    { change (S (FOeval e3 r) = S (FOeval e r)).
+      rewrite (Eu3 r Hr). reflexivity. }
+    rewrite EsR3.
     exists ra. split; [exact Hra|].
-    rewrite (FOsat_FOBexC _ (B+8) r _
-               (FOin_tm_above r (B+8) ltac:(lia))
-               (FOin_tm_above r (S (B+8)) ltac:(lia))).
-    assert (Er4 : FOeval (FOupdate e3 (B+6) ra) r = FOeval e r).
-    { rewrite (FOeval_upd_above r _ (B+6) ra ltac:(lia)).
-      exact (Eu3 r Hr). }
-    rewrite Er4.
+    rewrite (FOsat_FOBexC _ (B+8) (FOSucc r) _
+               (FOin_tm_above (FOSucc r) (B+8) ltac:(cbn; lia))
+               (FOin_tm_above (FOSucc r) (S (B+8)) ltac:(cbn; lia))).
+    assert (EsR4 : FOeval (FOupdate e3 (B+6) ra) (FOSucc r)
+                   = S (FOeval e r)).
+    { change (S (FOeval (FOupdate e3 (B+6) ra) r) = S (FOeval e r)).
+      rewrite (FOeval_upd_above r _ (B+6) ra ltac:(lia)).
+      rewrite (Eu3 r Hr). reflexivity. }
+    rewrite EsR4.
     exists rb. split; [exact Hrb|].
     set (e5 := FOupdate (FOupdate e3 (B+6) ra) (B+8) rb).
     assert (Eu5 : forall t0, FOmax_var_tm t0 < B ->
@@ -17934,12 +17947,12 @@ Definition step2_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
       exists r', r' < r /\ L 2 x sc tc' r' /\ cpair 2 r' = r)
   \/ (exists p, p < S tc /\ cpair 3 p = tc /\
       exists ta, ta < S p /\ exists tb, tb < S p /\ cpair ta tb = p /\
-      exists ra, ra < r /\ exists rb, rb < r /\
+      exists ra, ra < S r /\ exists rb, rb < S r /\
         L 2 x sc ta ra /\ L 2 x sc tb rb /\
         exists q, q < S r /\ cpair ra rb = q /\ cpair 3 q = r)
   \/ (exists p, p < S tc /\ cpair 4 p = tc /\
       exists ta, ta < S p /\ exists tb, tb < S p /\ cpair ta tb = p /\
-      exists ra, ra < r /\ exists rb, rb < r /\
+      exists ra, ra < S r /\ exists rb, rb < S r /\
         L 2 x sc ta ra /\ L 2 x sc tb rb /\
         exists q, q < S r /\ cpair ra rb = q /\ cpair 4 q = r).
 
@@ -18387,13 +18400,13 @@ Definition step3_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
     (x sc pc r : nat) : Prop :=
   (exists p, p < S pc /\ cpair 0 p = pc /\
       exists ta, ta < S p /\ exists tb, tb < S p /\ cpair ta tb = p /\
-      exists ra, ra < r /\ exists rb, rb < r /\
+      exists ra, ra < S r /\ exists rb, rb < S r /\
         L 2 x sc ta ra /\ L 2 x sc tb rb /\
         exists q, q < S r /\ cpair ra rb = q /\ cpair 0 q = r)
   \/ (cpair 1 0 = pc /\ r = pc)
   \/ (exists p, p < S pc /\ cpair 2 p = pc /\
       exists ta, ta < S p /\ exists tb, tb < S p /\ cpair ta tb = p /\
-      exists ra, ra < r /\ exists rb, rb < r /\
+      exists ra, ra < S r /\ exists rb, rb < S r /\
         L 3 x sc ta ra /\ L 3 x sc tb rb /\
         exists q, q < S r /\ cpair ra rb = q /\ cpair 2 q = r)
   \/ (exists p, p < S pc /\ cpair 3 p = pc /\
