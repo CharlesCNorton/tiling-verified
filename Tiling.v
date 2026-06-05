@@ -20371,6 +20371,547 @@ Definition tblL (vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen : nat)
     beta vc2 vd2 j = a2 /\ beta vc3 vd3 j = a3 /\
     beta vcr vdr j = r.
 
+Definition mw (tg : nat) : nat :=
+  match tg with
+  | 1 => 1
+  | 3 => 1
+  | 4 => 1
+  | _ => 0
+  end.
+
+Ltac mlia :=
+  repeat match goal with
+         | H : context[mw _] |- _ => cbn [mw] in H
+         end;
+  cbn [mw]; lia.
+
+Theorem tbl_sound : forall vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr
+    vlen,
+  (forall j, j < vlen ->
+     dispatch_sem (tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen)
+       vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr j) ->
+  forall tg a1 a2 a3 r,
+    tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen tg a1 a2 a3 r ->
+    mspec tg a1 a2 a3 r.
+Proof.
+  intros vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen Hvalid.
+  assert (MAIN : forall m tg a1 a2 a3 r,
+      a1 + a2 + a3 + mw tg < m ->
+      tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen tg a1 a2 a3 r ->
+      mspec tg a1 a2 a3 r).
+  { induction m as [|m IHm].
+    { intros; lia. }
+    intros tg a1 a2 a3 r Hm Hmem.
+    destruct Hmem as [j [Hj Hf]].
+    pose proof (Hvalid j Hj) as Hd.
+    unfold dispatch_sem in Hd.
+    destruct Hd as [tg' [Htgb [a1' [Ha1b [a2' [Ha2b [a3' [Ha3b [rr'
+      [Hrrb [Hbt [Hb1 [Hb2 [Hb3 [Hbr Hsw]]]]]]]]]]]]]]].
+    destruct Hf as [Hft [Hf1 [Hf2 [Hf3 Hfr]]]].
+    assert (Etg : tg' = tg) by congruence.
+    assert (Ea1 : a1' = a1) by congruence.
+    assert (Ea2 : a2' = a2) by congruence.
+    assert (Ea3 : a3' = a3) by congruence.
+    assert (Err : rr' = r) by congruence.
+    clear Hbt Hb1 Hb2 Hb3 Hbr Hft Hf1 Hf2 Hf3 Hfr Htgb Ha1b Ha2b Ha3b
+      Hrrb Hj.
+    subst tg' a1' a2' a3' rr'.
+    destruct Hsw as [[-> Hst]|[[-> Hst]|[[-> Hst]|[[-> Hst]|[[-> Hst]
+      |[-> Hst]]]]]].
+    - (* occurrence *)
+      cbn [mspec]. intros t Ht2.
+      unfold step0_sem in Hst.
+      destruct Hst as [C|[C|[C|[C|C]]]].
+      + destruct C as [y [Hyb [Hcp Hca]]].
+        rewrite Ht2 in Hcp.
+        destruct t as [v0| |t'|t1 t2|t1 t2]; cbn [FOcode_tm] in Hcp;
+          apply cpair_inj in Hcp; destruct Hcp as [Hcp1 Hcp2];
+          try discriminate Hcp1.
+        subst v0.
+        cbn [FOin_tm].
+        destruct Hca as [[-> ->]|[Hne ->]].
+        * rewrite Nat.eqb_refl. reflexivity.
+        * rewrite (proj2 (Nat.eqb_neq y a1) Hne). reflexivity.
+      + destruct C as [Hcp ->].
+        rewrite Ht2 in Hcp.
+        destruct t as [v0| |t'|t1 t2|t1 t2]; cbn [FOcode_tm] in Hcp;
+          apply cpair_inj in Hcp; destruct Hcp as [Hcp1 _];
+          try discriminate Hcp1.
+        reflexivity.
+      + destruct C as [tc' [Htcb [Hcp HL]]].
+        rewrite Ht2 in Hcp.
+        destruct t as [v0| |t'|t1 t2|t1 t2]; cbn [FOcode_tm] in Hcp;
+          apply cpair_inj in Hcp; destruct Hcp as [Hcp1 Hcp2];
+          try discriminate Hcp1.
+        assert (Hbnd : 2 + tc' <= a2).
+        { rewrite Ht2. cbn [FOcode_tm]. rewrite Hcp2.
+          apply cpair_bound. }
+        pose proof (IHm 0 a1 tc' 0 r ltac:(mlia) HL) as IH1.
+        cbn [mspec] in IH1.
+        specialize (IH1 t' Hcp2).
+        cbn [FOin_tm]. exact IH1.
+      + destruct C as [p [Hpb [Hcp [ta [Htab [tb [Htbb [Hp Hca]]]]]]]].
+        rewrite Ht2 in Hcp.
+        destruct t as [v0| |t'|t1 t2|t1 t2]; cbn [FOcode_tm] in Hcp;
+          apply cpair_inj in Hcp; destruct Hcp as [Hcp1 Hcp2];
+          try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hta Htb].
+        assert (Hba : ta + tb < a2).
+        { rewrite Ht2. cbn [FOcode_tm]. rewrite Hta, Htb.
+          pose proof (cpair_bound 3
+            (cpair (FOcode_tm t1) (FOcode_tm t2))).
+          pose proof (cpair_bound (FOcode_tm t1) (FOcode_tm t2)).
+          lia. }
+        cbn [FOin_tm].
+        destruct Hca as [[HL ->]|[HL0 HLr]].
+        * pose proof (IHm 0 a1 ta 0 1 ltac:(mlia) HL) as IH1.
+          cbn [mspec] in IH1.
+          specialize (IH1 t1 Hta).
+          destruct (FOin_tm a1 t1) eqn:E1; [|discriminate IH1].
+          reflexivity.
+        * pose proof (IHm 0 a1 ta 0 0 ltac:(mlia) HL0) as IH0.
+          pose proof (IHm 0 a1 tb 0 r ltac:(mlia) HLr) as IHr.
+          cbn [mspec] in IH0, IHr.
+          specialize (IH0 t1 Hta). specialize (IHr t2 Htb).
+          destruct (FOin_tm a1 t1) eqn:E1; [discriminate IH0|].
+          exact IHr.
+      + destruct C as [p [Hpb [Hcp [ta [Htab [tb [Htbb [Hp Hca]]]]]]]].
+        rewrite Ht2 in Hcp.
+        destruct t as [v0| |t'|t1 t2|t1 t2]; cbn [FOcode_tm] in Hcp;
+          apply cpair_inj in Hcp; destruct Hcp as [Hcp1 Hcp2];
+          try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hta Htb].
+        assert (Hba : ta + tb < a2).
+        { rewrite Ht2. cbn [FOcode_tm]. rewrite Hta, Htb.
+          pose proof (cpair_bound 4
+            (cpair (FOcode_tm t1) (FOcode_tm t2))).
+          pose proof (cpair_bound (FOcode_tm t1) (FOcode_tm t2)).
+          lia. }
+        cbn [FOin_tm].
+        destruct Hca as [[HL ->]|[HL0 HLr]].
+        * pose proof (IHm 0 a1 ta 0 1 ltac:(mlia) HL) as IH1.
+          cbn [mspec] in IH1.
+          specialize (IH1 t1 Hta).
+          destruct (FOin_tm a1 t1) eqn:E1; [|discriminate IH1].
+          reflexivity.
+        * pose proof (IHm 0 a1 ta 0 0 ltac:(mlia) HL0) as IH0.
+          pose proof (IHm 0 a1 tb 0 r ltac:(mlia) HLr) as IHr.
+          cbn [mspec] in IH0, IHr.
+          specialize (IH0 t1 Hta). specialize (IHr t2 Htb).
+          destruct (FOin_tm a1 t1) eqn:E1; [discriminate IH0|].
+          exact IHr.
+    - (* free occurrence *)
+      cbn [mspec]. intros A HA2.
+      unfold step1_sem in Hst.
+      destruct Hst as [C|[C|[C|[C|C]]]].
+      + destruct C as [p [Hpb [Hcp [ta [Htab [tb [Htbb [Hp Hca]]]]]]]].
+        rewrite HA2 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 Hcp2]; try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hta Htb].
+        assert (Hba : ta + tb <= a2).
+        { rewrite HA2. cbn [FOcode_f]. rewrite Hta, Htb.
+          pose proof (cpair_bound 0
+            (cpair (FOcode_tm t1) (FOcode_tm t2))).
+          pose proof (cpair_bound (FOcode_tm t1) (FOcode_tm t2)).
+          lia. }
+        cbn [FOfree_in].
+        destruct Hca as [[HL ->]|[HL0 HLr]].
+        * pose proof (IHm 0 a1 ta 0 1 ltac:(mlia) HL) as IH1.
+          cbn [mspec] in IH1.
+          specialize (IH1 t1 Hta).
+          destruct (FOin_tm a1 t1) eqn:E1; [|discriminate IH1].
+          reflexivity.
+        * pose proof (IHm 0 a1 ta 0 0 ltac:(mlia) HL0) as IH0.
+          pose proof (IHm 0 a1 tb 0 r ltac:(mlia) HLr) as IHr.
+          cbn [mspec] in IH0, IHr.
+          specialize (IH0 t1 Hta). specialize (IHr t2 Htb).
+          destruct (FOin_tm a1 t1) eqn:E1; [discriminate IH0|].
+          exact IHr.
+      + destruct C as [Hcp ->].
+        rewrite HA2 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 _]; try discriminate Hcp1.
+        reflexivity.
+      + destruct C as [p [Hpb [Hcp [pa [Hpab [pb [Hpbb [Hp Hca]]]]]]]].
+        rewrite HA2 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 Hcp2]; try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hpa Hpb'].
+        assert (Hba : pa + pb < a2).
+        { rewrite HA2. cbn [FOcode_f]. rewrite Hpa, Hpb'.
+          pose proof (cpair_bound 2
+            (cpair (FOcode_f A1) (FOcode_f A2))).
+          pose proof (cpair_bound (FOcode_f A1) (FOcode_f A2)).
+          lia. }
+        cbn [FOfree_in].
+        destruct Hca as [[HL ->]|[HL0 HLr]].
+        * pose proof (IHm 1 a1 pa 0 1 ltac:(mlia) HL) as IH1.
+          cbn [mspec] in IH1.
+          specialize (IH1 A1 Hpa).
+          destruct (FOfree_in a1 A1) eqn:E1; [|discriminate IH1].
+          reflexivity.
+        * pose proof (IHm 1 a1 pa 0 0 ltac:(mlia) HL0) as IH0.
+          pose proof (IHm 1 a1 pb 0 r ltac:(mlia) HLr) as IHr.
+          cbn [mspec] in IH0, IHr.
+          specialize (IH0 A1 Hpa). specialize (IHr A2 Hpb').
+          destruct (FOfree_in a1 A1) eqn:E1; [discriminate IH0|].
+          exact IHr.
+      + destruct C as [p [Hpb [Hcp [y [Hyb [pb [Hpbb [Hp Hca]]]]]]]].
+        rewrite HA2 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 Hcp2]; try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hy Hpb'].
+        subst y0.
+        assert (Hba : pb < a2).
+        { rewrite HA2. cbn [FOcode_f]. rewrite Hpb'.
+          pose proof (cpair_bound 3 (cpair y (FOcode_f A'))).
+          pose proof (cpair_bound y (FOcode_f A')).
+          lia. }
+        cbn [FOfree_in].
+        destruct Hca as [[-> ->]|[Hne HL]].
+        * rewrite Nat.eqb_refl. reflexivity.
+        * rewrite (proj2 (Nat.eqb_neq y a1) Hne).
+          pose proof (IHm 1 a1 pb 0 r ltac:(mlia) HL) as IHr.
+          cbn [mspec] in IHr.
+          exact (IHr A' Hpb').
+      + destruct C as [p [Hpb [Hcp [y [Hyb [pb [Hpbb [Hp Hca]]]]]]]].
+        rewrite HA2 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 Hcp2]; try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hy Hpb'].
+        subst y0.
+        assert (Hba : pb < a2).
+        { rewrite HA2. cbn [FOcode_f]. rewrite Hpb'.
+          pose proof (cpair_bound 4 (cpair y (FOcode_f A'))).
+          pose proof (cpair_bound y (FOcode_f A')).
+          lia. }
+        cbn [FOfree_in].
+        destruct Hca as [[-> ->]|[Hne HL]].
+        * rewrite Nat.eqb_refl. reflexivity.
+        * rewrite (proj2 (Nat.eqb_neq y a1) Hne).
+          pose proof (IHm 1 a1 pb 0 r ltac:(mlia) HL) as IHr.
+          cbn [mspec] in IHr.
+          exact (IHr A' Hpb').
+    - (* term substitution *)
+      cbn [mspec]. intros s t Hs2 Ht3.
+      unfold step2_sem in Hst.
+      destruct Hst as [C|[C|[C|[C|C]]]].
+      + destruct C as [y [Hyb [Hcp Hca]]].
+        rewrite Ht3 in Hcp.
+        destruct t as [v0| |t'|t1 t2|t1 t2]; cbn [FOcode_tm] in Hcp;
+          apply cpair_inj in Hcp; destruct Hcp as [Hcp1 Hcp2];
+          try discriminate Hcp1.
+        subst v0.
+        cbn [FOsubst_t].
+        destruct Hca as [[-> ->]|[Hne ->]].
+        * rewrite Nat.eqb_refl. exact Hs2.
+        * rewrite (proj2 (Nat.eqb_neq y a1) Hne).
+          cbn [FOcode_tm]. exact Ht3.
+      + destruct C as [Hcp ->].
+        rewrite Ht3 in Hcp.
+        destruct t as [v0| |t'|t1 t2|t1 t2]; cbn [FOcode_tm] in Hcp;
+          apply cpair_inj in Hcp; destruct Hcp as [Hcp1 _];
+          try discriminate Hcp1.
+        cbn [FOsubst_t FOcode_tm]. exact Ht3.
+      + destruct C as [tc' [Htcb [Hcp [r' [Hr'b [HL Hr]]]]]].
+        rewrite Ht3 in Hcp.
+        destruct t as [v0| |t'|t1 t2|t1 t2]; cbn [FOcode_tm] in Hcp;
+          apply cpair_inj in Hcp; destruct Hcp as [Hcp1 Hcp2];
+          try discriminate Hcp1.
+        assert (Hbnd : 2 + tc' <= a3).
+        { rewrite Ht3. cbn [FOcode_tm]. rewrite Hcp2.
+          apply cpair_bound. }
+        pose proof (IHm 2 a1 a2 tc' r' ltac:(mlia) HL) as IH1.
+        cbn [mspec] in IH1.
+        specialize (IH1 s t' Hs2 Hcp2).
+        cbn [FOsubst_t FOcode_tm].
+        rewrite <- IH1. symmetry. exact Hr.
+      + destruct C as [p [Hpb [Hcp [ta [Htab [tb [Htbb [Hp [ra [Hrab
+          [rb [Hrbb [HLa [HLb [q [Hqb [Hq Hr]]]]]]]]]]]]]]]]].
+        rewrite Ht3 in Hcp.
+        destruct t as [v0| |t'|t1 t2|t1 t2]; cbn [FOcode_tm] in Hcp;
+          apply cpair_inj in Hcp; destruct Hcp as [Hcp1 Hcp2];
+          try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hta Htb].
+        assert (Hba : ta + tb < a3).
+        { rewrite Ht3. cbn [FOcode_tm]. rewrite Hta, Htb.
+          pose proof (cpair_bound 3
+            (cpair (FOcode_tm t1) (FOcode_tm t2))).
+          pose proof (cpair_bound (FOcode_tm t1) (FOcode_tm t2)).
+          lia. }
+        pose proof (IHm 2 a1 a2 ta ra ltac:(mlia) HLa) as IHa.
+        pose proof (IHm 2 a1 a2 tb rb ltac:(mlia) HLb) as IHb.
+        cbn [mspec] in IHa, IHb.
+        specialize (IHa s t1 Hs2 Hta). specialize (IHb s t2 Hs2 Htb).
+        cbn [FOsubst_t FOcode_tm].
+        rewrite <- IHa, <- IHb, Hq. symmetry. exact Hr.
+      + destruct C as [p [Hpb [Hcp [ta [Htab [tb [Htbb [Hp [ra [Hrab
+          [rb [Hrbb [HLa [HLb [q [Hqb [Hq Hr]]]]]]]]]]]]]]]]].
+        rewrite Ht3 in Hcp.
+        destruct t as [v0| |t'|t1 t2|t1 t2]; cbn [FOcode_tm] in Hcp;
+          apply cpair_inj in Hcp; destruct Hcp as [Hcp1 Hcp2];
+          try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hta Htb].
+        assert (Hba : ta + tb < a3).
+        { rewrite Ht3. cbn [FOcode_tm]. rewrite Hta, Htb.
+          pose proof (cpair_bound 4
+            (cpair (FOcode_tm t1) (FOcode_tm t2))).
+          pose proof (cpair_bound (FOcode_tm t1) (FOcode_tm t2)).
+          lia. }
+        pose proof (IHm 2 a1 a2 ta ra ltac:(mlia) HLa) as IHa.
+        pose proof (IHm 2 a1 a2 tb rb ltac:(mlia) HLb) as IHb.
+        cbn [mspec] in IHa, IHb.
+        specialize (IHa s t1 Hs2 Hta). specialize (IHb s t2 Hs2 Htb).
+        cbn [FOsubst_t FOcode_tm].
+        rewrite <- IHa, <- IHb, Hq. symmetry. exact Hr.
+    - (* formula substitution *)
+      cbn [mspec]. intros s A Hs2 HA3.
+      unfold step3_sem in Hst.
+      destruct Hst as [C|[C|[C|[C|C]]]].
+      + destruct C as [p [Hpb [Hcp [ta [Htab [tb [Htbb [Hp [ra [Hrab
+          [rb [Hrbb [HLa [HLb [q [Hqb [Hq Hr]]]]]]]]]]]]]]]]].
+        rewrite HA3 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 Hcp2]; try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hta Htb].
+        assert (Hba : ta + tb <= a3).
+        { rewrite HA3. cbn [FOcode_f]. rewrite Hta, Htb.
+          pose proof (cpair_bound 0
+            (cpair (FOcode_tm t1) (FOcode_tm t2))).
+          pose proof (cpair_bound (FOcode_tm t1) (FOcode_tm t2)).
+          lia. }
+        pose proof (IHm 2 a1 a2 ta ra ltac:(mlia) HLa) as IHa.
+        pose proof (IHm 2 a1 a2 tb rb ltac:(mlia) HLb) as IHb.
+        cbn [mspec] in IHa, IHb.
+        specialize (IHa s t1 Hs2 Hta). specialize (IHb s t2 Hs2 Htb).
+        cbn [FOsubst_f FOcode_f].
+        rewrite <- IHa, <- IHb, Hq. symmetry. exact Hr.
+      + destruct C as [Hcp ->].
+        rewrite HA3 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 _]; try discriminate Hcp1.
+        cbn [FOsubst_f FOcode_f]. exact HA3.
+      + destruct C as [p [Hpb [Hcp [pa [Hpab [pb [Hpbb [Hp [ra [Hrab
+          [rb [Hrbb [HLa [HLb [q [Hqb [Hq Hr]]]]]]]]]]]]]]]]].
+        rewrite HA3 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 Hcp2]; try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hpa Hpb'].
+        assert (Hba : pa + pb < a3).
+        { rewrite HA3. cbn [FOcode_f]. rewrite Hpa, Hpb'.
+          pose proof (cpair_bound 2
+            (cpair (FOcode_f A1) (FOcode_f A2))).
+          pose proof (cpair_bound (FOcode_f A1) (FOcode_f A2)).
+          lia. }
+        pose proof (IHm 3 a1 a2 pa ra ltac:(mlia) HLa) as IHa.
+        pose proof (IHm 3 a1 a2 pb rb ltac:(mlia) HLb) as IHb.
+        cbn [mspec] in IHa, IHb.
+        specialize (IHa s A1 Hs2 Hpa). specialize (IHb s A2 Hs2 Hpb').
+        cbn [FOsubst_f FOcode_f].
+        rewrite <- IHa, <- IHb, Hq. symmetry. exact Hr.
+      + destruct C as [p [Hpb [Hcp [y [Hyb [pb [Hpbb [Hp Hca]]]]]]]].
+        rewrite HA3 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 Hcp2]; try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hy Hpb'].
+        subst y0.
+        assert (Hba : pb < a3).
+        { rewrite HA3. cbn [FOcode_f]. rewrite Hpb'.
+          pose proof (cpair_bound 3 (cpair y (FOcode_f A'))).
+          pose proof (cpair_bound y (FOcode_f A')).
+          lia. }
+        cbn [FOsubst_f].
+        destruct Hca as [[-> ->]|[Hne [rb [Hrbb [HL [q [Hqb
+          [Hq Hr]]]]]]]].
+        * rewrite Nat.eqb_refl. exact HA3.
+        * rewrite (proj2 (Nat.eqb_neq y a1) Hne).
+          pose proof (IHm 3 a1 a2 pb rb ltac:(mlia) HL) as IHr.
+          cbn [mspec] in IHr.
+          specialize (IHr s A' Hs2 Hpb').
+          cbn [FOcode_f].
+          rewrite <- IHr, Hq. symmetry. exact Hr.
+      + destruct C as [p [Hpb [Hcp [y [Hyb [pb [Hpbb [Hp Hca]]]]]]]].
+        rewrite HA3 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 Hcp2]; try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hy Hpb'].
+        subst y0.
+        assert (Hba : pb < a3).
+        { rewrite HA3. cbn [FOcode_f]. rewrite Hpb'.
+          pose proof (cpair_bound 4 (cpair y (FOcode_f A'))).
+          pose proof (cpair_bound y (FOcode_f A')).
+          lia. }
+        cbn [FOsubst_f].
+        destruct Hca as [[-> ->]|[Hne [rb [Hrbb [HL [q [Hqb
+          [Hq Hr]]]]]]]].
+        * rewrite Nat.eqb_refl. exact HA3.
+        * rewrite (proj2 (Nat.eqb_neq y a1) Hne).
+          pose proof (IHm 3 a1 a2 pb rb ltac:(mlia) HL) as IHr.
+          cbn [mspec] in IHr.
+          specialize (IHr s A' Hs2 Hpb').
+          cbn [FOcode_f].
+          rewrite <- IHr, Hq. symmetry. exact Hr.
+    - (* capture test *)
+      cbn [mspec]. intros s A Hs2 HA3.
+      unfold step4_sem in Hst.
+      destruct Hst as [C|[C|[C|[C|C]]]].
+      + destruct C as [p [Hpb [Hcp ->]]].
+        rewrite HA3 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 _]; try discriminate Hcp1.
+        reflexivity.
+      + destruct C as [Hcp ->].
+        rewrite HA3 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 _]; try discriminate Hcp1.
+        reflexivity.
+      + destruct C as [p [Hpb [Hcp [pa [Hpab [pb [Hpbb [Hp Hca]]]]]]]].
+        rewrite HA3 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 Hcp2]; try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hpa Hpb'].
+        assert (Hba : pa + pb < a3).
+        { rewrite HA3. cbn [FOcode_f]. rewrite Hpa, Hpb'.
+          pose proof (cpair_bound 2
+            (cpair (FOcode_f A1) (FOcode_f A2))).
+          pose proof (cpair_bound (FOcode_f A1) (FOcode_f A2)).
+          lia. }
+        cbn [FOsubst_ok].
+        destruct Hca as [[HL ->]|[HL1 HLr]].
+        * pose proof (IHm 4 a1 a2 pa 0 ltac:(mlia) HL) as IH0.
+          cbn [mspec] in IH0.
+          specialize (IH0 s A1 Hs2 Hpa).
+          destruct (FOsubst_ok a1 s A1) eqn:E1; [discriminate IH0|].
+          reflexivity.
+        * pose proof (IHm 4 a1 a2 pa 1 ltac:(mlia) HL1) as IH1.
+          pose proof (IHm 4 a1 a2 pb r ltac:(mlia) HLr) as IHr.
+          cbn [mspec] in IH1, IHr.
+          specialize (IH1 s A1 Hs2 Hpa).
+          specialize (IHr s A2 Hs2 Hpb').
+          destruct (FOsubst_ok a1 s A1) eqn:E1; [|discriminate IH1].
+          exact IHr.
+      + destruct C as [p [Hpb [Hcp [y [Hyb [pb [Hpbb [Hp Hca]]]]]]]].
+        rewrite HA3 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 Hcp2]; try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hy Hpb'].
+        subst y0.
+        assert (Hba : y + pb + 3 <= a3).
+        { rewrite HA3. cbn [FOcode_f]. rewrite Hpb'.
+          pose proof (cpair_bound 3 (cpair y (FOcode_f A'))).
+          pose proof (cpair_bound y (FOcode_f A')).
+          lia. }
+        cbn [FOsubst_ok].
+        destruct Hca as [[-> ->]|[Hne Hca]].
+        * rewrite Nat.eqb_refl. reflexivity.
+        * rewrite (proj2 (Nat.eqb_neq y a1) Hne).
+          destruct Hca as [[HLf ->]|[HLf Hca]].
+          -- pose proof (IHm 1 a1 pb 0 0 ltac:(mlia) HLf) as IHf.
+             cbn [mspec] in IHf.
+             specialize (IHf A' Hpb').
+             destruct (FOfree_in a1 A') eqn:Ef; [discriminate IHf|].
+             reflexivity.
+          -- pose proof (IHm 1 a1 pb 0 1 ltac:(mlia) HLf) as IHf.
+             cbn [mspec] in IHf.
+             specialize (IHf A' Hpb').
+             destruct (FOfree_in a1 A') eqn:Ef; [|discriminate IHf].
+             destruct Hca as [[HLg ->]|[HLg HLr]].
+             ++ pose proof (IHm 0 y a2 0 1 ltac:(mlia) HLg) as IHg.
+                cbn [mspec] in IHg.
+                specialize (IHg s Hs2).
+                destruct (FOin_tm y s) eqn:Eg; [|discriminate IHg].
+                reflexivity.
+             ++ pose proof (IHm 0 y a2 0 0 ltac:(mlia) HLg) as IHg.
+                pose proof (IHm 4 a1 a2 pb r ltac:(mlia) HLr) as IHr.
+                cbn [mspec] in IHg, IHr.
+                specialize (IHg s Hs2).
+                specialize (IHr s A' Hs2 Hpb').
+                destruct (FOin_tm y s) eqn:Eg; [discriminate IHg|].
+                exact IHr.
+      + destruct C as [p [Hpb [Hcp [y [Hyb [pb [Hpbb [Hp Hca]]]]]]]].
+        rewrite HA3 in Hcp.
+        destruct A as [t1 t2| |A1 A2|y0 A'|y0 A']; cbn [FOcode_f]
+          in Hcp; apply cpair_inj in Hcp;
+          destruct Hcp as [Hcp1 Hcp2]; try discriminate Hcp1.
+        rewrite Hcp2 in Hp.
+        apply cpair_inj in Hp. destruct Hp as [Hy Hpb'].
+        subst y0.
+        assert (Hba : y + pb + 3 <= a3).
+        { rewrite HA3. cbn [FOcode_f]. rewrite Hpb'.
+          pose proof (cpair_bound 4 (cpair y (FOcode_f A'))).
+          pose proof (cpair_bound y (FOcode_f A')).
+          lia. }
+        cbn [FOsubst_ok].
+        destruct Hca as [[-> ->]|[Hne Hca]].
+        * rewrite Nat.eqb_refl. reflexivity.
+        * rewrite (proj2 (Nat.eqb_neq y a1) Hne).
+          destruct Hca as [[HLf ->]|[HLf Hca]].
+          -- pose proof (IHm 1 a1 pb 0 0 ltac:(mlia) HLf) as IHf.
+             cbn [mspec] in IHf.
+             specialize (IHf A' Hpb').
+             destruct (FOfree_in a1 A') eqn:Ef; [discriminate IHf|].
+             reflexivity.
+          -- pose proof (IHm 1 a1 pb 0 1 ltac:(mlia) HLf) as IHf.
+             cbn [mspec] in IHf.
+             specialize (IHf A' Hpb').
+             destruct (FOfree_in a1 A') eqn:Ef; [|discriminate IHf].
+             destruct Hca as [[HLg ->]|[HLg HLr]].
+             ++ pose proof (IHm 0 y a2 0 1 ltac:(mlia) HLg) as IHg.
+                cbn [mspec] in IHg.
+                specialize (IHg s Hs2).
+                destruct (FOin_tm y s) eqn:Eg; [|discriminate IHg].
+                reflexivity.
+             ++ pose proof (IHm 0 y a2 0 0 ltac:(mlia) HLg) as IHg.
+                pose proof (IHm 4 a1 a2 pb r ltac:(mlia) HLr) as IHr.
+                cbn [mspec] in IHg, IHr.
+                specialize (IHg s Hs2).
+                specialize (IHr s A' Hs2 Hpb').
+                destruct (FOin_tm y s) eqn:Eg; [discriminate IHg|].
+                exact IHr.
+    - (* numeral coding *)
+      cbn [mspec].
+      unfold step5_sem in Hst.
+      destruct Hst as [[-> Hr]|[k' [Hk'b [-> [r' [Hr'b [HL Hr]]]]]]].
+      + cbn [FOnumeral FOcode_tm]. symmetry. exact Hr.
+      + pose proof (IHm 5 k' 0 0 r' ltac:(mlia) HL) as IH1.
+        cbn [mspec] in IH1.
+        cbn [FOnumeral FOcode_tm].
+        rewrite <- IH1. symmetry. exact Hr.
+  }
+  intros tg a1 a2 a3 r Hmem.
+  exact (MAIN (S (a1 + a2 + a3 + mw tg)) tg a1 a2 a3 r
+           (Nat.lt_succ_diag_r _) Hmem).
+Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
