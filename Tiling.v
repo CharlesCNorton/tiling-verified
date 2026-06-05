@@ -20993,6 +20993,154 @@ Proof.
   - exact Hb.
 Qed.
 
+(** ** Polymodal (box-level) Craig interpolation.
+
+    [box_levels] is the structural list of box levels.  The box-level-
+    constrained form fails for GLP*: the Mon axiom proves
+    [Box 0 (Var 0) -> Box 1 (Var 0)] with disjoint box-levels, forcing a
+    box-free interpolant; the phi-side makes it a tautology (hence
+    provable) and the psi-side then proves [Box 1 (Var 0)], refuted in
+    Fnat ([craig_interpolation_polymodal_refuted]).  The box-free
+    four-condition form holds ([craig_interpolation_polymodal_box_free]),
+    reusing [craig_interpolation_box_free] and [free_vars]. *)
+
+Fixpoint box_levels (phi : Form) : list nat :=
+  match phi with
+  | Var _ => []
+  | Bot => []
+  | Impl a b => box_levels a ++ box_levels b
+  | Box n a => n :: box_levels a
+  end.
+
+Lemma box_free_box_levels_nil : forall phi,
+  box_free phi -> box_levels phi = [].
+Proof.
+  induction phi as [p | | a IHa b IHb | n a IHa]; cbn; intro Hbf.
+  - reflexivity.
+  - reflexivity.
+  - destruct Hbf as [Ha Hb]. rewrite (IHa Ha), (IHb Hb). reflexivity.
+  - contradiction.
+Qed.
+
+Lemma box_free_of_no_box_levels : forall phi,
+  (forall m, ~ In m (box_levels phi)) -> box_free phi.
+Proof.
+  induction phi as [p | | a IHa b IHb | n a IHa]; cbn; intro Hno.
+  - exact I.
+  - exact I.
+  - split.
+    + apply IHa. intros m Hm. apply (Hno m). apply in_or_app. left. exact Hm.
+    + apply IHb. intros m Hm. apply (Hno m). apply in_or_app. right. exact Hm.
+  - exfalso. apply (Hno n). left. reflexivity.
+Qed.
+
+Lemma not_provable_Box1_Var0 : ~ |- Box 1 (Var 0).
+Proof.
+  intro H.
+  pose proof (soundness _ H Fnat (fun _ _ => false) 2) as Hf.
+  specialize (Hf 1).
+  assert (HR : Fnat_R 1 2 1) by (unfold Fnat_R; split; lia).
+  specialize (Hf HR).
+  cbn in Hf. discriminate Hf.
+Qed.
+
+Theorem craig_interpolation_polymodal_refuted :
+  ~ (forall phi psi,
+        |- Impl phi psi ->
+        exists chi,
+          (forall x, In x (free_vars chi) ->
+             In x (free_vars phi) /\ In x (free_vars psi)) /\
+          (forall n, In n (box_levels chi) ->
+             In n (box_levels phi) /\ In n (box_levels psi)) /\
+          |- Impl phi chi /\ |- Impl chi psi).
+Proof.
+  intro Hcraig.
+  destruct (Hcraig (Box 0 (Var 0)) (Box 1 (Var 0)) (Ax_Mon 0 (Var 0)))
+    as [chi [_ [Hboxes [Hpc Hcp]]]].
+  assert (Hnobox : forall m, ~ In m (box_levels chi)).
+  { intros m Hin. destruct (Hboxes m Hin) as [Hin0 Hin1].
+    cbn in Hin0, Hin1.
+    destruct Hin0 as [Heq0 | []]. destruct Hin1 as [Heq1 | []].
+    subst m. discriminate Heq1. }
+  assert (Hbf : box_free chi) by (apply box_free_of_no_box_levels; exact Hnobox).
+  assert (Hcv : classical_valid chi).
+  { intro val.
+    pose proof (provable_classically_valid _ Hpc val) as Hval.
+    cbn in Hval. exact Hval. }
+  pose proof (trivial_in_provable chi (prop_completeness chi Hbf Hcv)) as Hchi.
+  pose proof (MP _ _ Hcp Hchi) as Hbox1.
+  exact (not_provable_Box1_Var0 Hbox1).
+Qed.
+
+Theorem craig_interpolation_polymodal_box_free : forall phi psi,
+  box_free phi -> box_free psi ->
+  |- Impl phi psi ->
+  exists chi,
+    (forall x, In x (free_vars chi) ->
+       In x (free_vars phi) /\ In x (free_vars psi)) /\
+    (forall n, In n (box_levels chi) ->
+       In n (box_levels phi) /\ In n (box_levels psi)) /\
+    |- Impl phi chi /\ |- Impl chi psi.
+Proof.
+  intros phi psi Hbf_phi Hbf_psi Himp.
+  destruct (craig_interpolation_box_free phi psi Hbf_phi Hbf_psi Himp)
+    as [chi [Hbf_chi [Hintro [Helim Hvars]]]].
+  exists chi. split; [|split; [|split]].
+  - intros x Hx. exact (Hvars x Hx).
+  - intros n Hn.
+    rewrite (box_free_box_levels_nil chi Hbf_chi) in Hn.
+    destruct Hn.
+  - exact Hintro.
+  - exact Helim.
+Qed.
+
+Theorem craig_polymodal_maehara_box_free : forall phi1 phi2 psi,
+  box_free phi1 -> box_free phi2 -> box_free psi ->
+  |- Impl phi1 (Impl phi2 psi) ->
+  exists chi,
+    (forall x, In x (free_vars chi) ->
+       In x (free_vars phi1) /\ In x (free_vars (Impl phi2 psi))) /\
+    box_levels chi = [] /\
+    |- Impl phi1 chi /\ |- Impl chi (Impl phi2 psi).
+Proof.
+  intros phi1 phi2 psi Hbf1 Hbf2 Hbfp Himp.
+  assert (Hbfinner : box_free (Impl phi2 psi)) by (cbn; split; assumption).
+  destruct (craig_interpolation_box_free phi1 (Impl phi2 psi)
+              Hbf1 Hbfinner Himp)
+    as [chi [Hbf_chi [Hintro [Helim Hvars]]]].
+  exists chi. split; [|split; [|split]].
+  - intros x Hx. exact (Hvars x Hx).
+  - exact (box_free_box_levels_nil chi Hbf_chi).
+  - exact Hintro.
+  - exact Helim.
+Qed.
+
+Theorem craig_polymodal_summary :
+  (free_vars (Box 0 (Var 0)) = [0] /\ box_levels (Box 0 (Var 0)) = [0]) /\
+  (~ (forall phi psi,
+        |- Impl phi psi ->
+        exists chi,
+          (forall x, In x (free_vars chi) ->
+             In x (free_vars phi) /\ In x (free_vars psi)) /\
+          (forall n, In n (box_levels chi) ->
+             In n (box_levels phi) /\ In n (box_levels psi)) /\
+          |- Impl phi chi /\ |- Impl chi psi)) /\
+  (forall phi psi,
+     box_free phi -> box_free psi ->
+     |- Impl phi psi ->
+     exists chi,
+       (forall x, In x (free_vars chi) ->
+          In x (free_vars phi) /\ In x (free_vars psi)) /\
+       (forall n, In n (box_levels chi) ->
+          In n (box_levels phi) /\ In n (box_levels psi)) /\
+       |- Impl phi chi /\ |- Impl chi psi).
+Proof.
+  split; [|split].
+  - split; reflexivity.
+  - exact craig_interpolation_polymodal_refuted.
+  - exact craig_interpolation_polymodal_box_free.
+Qed.
+
 Inductive qbf : Type :=
   | qb_lit : bool -> qbf
   | qb_var : nat -> qbf
