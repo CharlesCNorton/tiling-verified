@@ -11,4 +11,15 @@ Agents.v
 Tiling.v
 ModalSambin.v
 GLPDecidability.v
+SolovayFull.v
+Pi2Conservativity.v
+CarlsonSpeedup.v
+MagariFree.v
+StoneEquivalence.v
+TilingChain.v
+JaparidzeTree.v
+LambdaBox.v
+CraigPolymodal.v
+ReverseMath.v
+GLPDecide.v
 Examples.v

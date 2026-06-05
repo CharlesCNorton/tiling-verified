@@ -1,238 +1,157 @@
 # tiling-verified todo
 
-Each item below is a research program. The acceptance criterion in
-each item names a specific syntactic construction or computational
-artifact that cannot be discharged by aliasing, by vacuous-hypothesis
-shortcuts, by identity-collapse of universals, by box-as-tautology
-translations that lose modal content, by single-line constant
-functions masquerading as recursive constructions, or by repackaging
-the same theorem under a longer name. Where a closure proof must
-make a specific computational choice (a rank function, a tree
-structure, a fundamental sequence, a length-counting recursion), that
-choice is named and forbidden alternatives are listed.
+Open research programs for the GLP* formalization. Each entry names a specific
+construction or computational artifact, with the forbidden trivializations
+listed, so that completion is unambiguous. The forbidden lists deliberately
+rule out the present schematic implementations, so an item is not closed by
+re-aliasing what already exists.
 
-Items are ordered by logical dependency: each item's stated prerequisites
-appear earlier.  Items with no in-list prerequisites come first; items
-that build on Solovay-style arithmetic completeness come last.
+Completed work is not tracked here. It is documented in each module's header
+comment, the `*_summary` bundle theorem at the end of each module, the
+"Resolved research-program modules" section of `README.md`, and the git
+history.
 
-1. **Sambin fixed-point uniqueness for arbitrary modalised contexts.**
-    Define `modalised_in_p : (Form -> Form) -> Prop` saying that
-    every occurrence of the bound variable in `C p` is under at
-    least one `Box _`. Prove
-    `sambin_uniqueness_modalised : forall (C : Form -> Form),
-    modalised_in_p C ->
-    forall psi1 psi2, |- Iff psi1 (C psi1) -> |- Iff psi2 (C psi2) ->
-    |- Iff psi1 psi2`. The proof must be by induction on a measure
-    of `C` with explicit decreasing argument, NOT by appealing to
-    `polymodal_sambin_uniqueness` for a single fixed `loeb_system`.
-    Forbidden: restricting to `C := fun p => Box n (Impl p X)`,
-    restricting to `C` with `box_levels` a singleton,
-    returning `prov_iff_refl psi1` and noting `psi1 = psi2`.
+---
 
-2. **Decidability of full GLP at every level.**
-    Construct `glp_decide : forall phi, sumbool (|- phi) (~ |- phi)`
-    by structural recursion that proceeds case-by-case on the modal
-    depth of `phi`. The procedure must terminate in primitive-
-    recursive time in `length phi + modal_depth phi`. The proof
-    must contain a Fixpoint with explicit decreasing-measure
-    `(modal_depth phi, length phi)` lex-ordered. Prove
-    `glp_decide_correct : forall phi, glp_decide phi = left _ <-> |- phi`.
-    Forbidden: `glp_decide phi := classic (|- phi)` (uses
-    excluded-middle), restricting to `box_free` and falling back to
-    `decide_tautology`, deferring to a hypothetical normaliser.
+1. **Genuine first-order arithmetic layer.** The marquee "arithmetic
+   completeness" results are currently transposed into the modal `Form`
+   language: `arith_embed_GL`/`arith_embed_S` are substitutions,
+   `is_Pi_2` is a modal formula class, "standard-model satisfaction" is
+   `classical_valid`, and completeness is instantiated at fixed
+   substitutions. Build a real arithmetic layer: an inductive
+   `ArithForm` (terms over `0`, `S`, `+`, `*`; relations `=`, `<`;
+   connectives and `forall`/`exists`), an N-satisfaction relation
+   `sat : (nat -> nat) -> ArithForm -> Prop`, a Goedel numbering, and a
+   Sigma_1 provability predicate `Prov_T` for an actual inductively
+   presented theory `T` (EA or PA) proved to satisfy the three
+   Hilbert-Bernays-Loeb conditions *against `sat`*. Then redefine the
+   embeddings so `Box n` maps to the genuine Sigma_1 provability
+   sentence of `T_n`, and reprove `Solovay_first_full`,
+   `Solovay_second_full`, `Japaridze_full_via_tree`, and
+   `Pi_2_conservativity` as statements about `Prov_T` and `sat`. Prove
+   `arithmetic_layer_summary`. Forbidden:
+   `standard_model_satisfies := classical_valid`;
+   `arith_embed_* := subst_form`; instantiating any interpretation at
+   `identity`/`shift_interp`; using `Bew_n` as the provability predicate
+   without an N-satisfaction soundness proof; making `is_Pi_2` a `Form`
+   class rather than the `forall/exists` shape of `ArithForm`.
 
-3. **Real reverse-mathematics formalization with internal subsystem
-    calculi.** Define, for each `s : RM_subsystem`, an INDUCTIVE
-    relation `RM_provable_real : RM_subsystem -> Form -> Prop` whose
-    constructors include exactly the comprehension/induction axioms
-    appropriate to that subsystem (Sigma_0_1 induction for RCA_0,
-    weak Konig's lemma plus Sigma_0_1 induction for WKL_0,
-    arithmetical comprehension for ACA_0, arithmetical transfinite
-    recursion for ATR_0, Pi_1_1 comprehension for Pi_1_1-CA_0). Prove
-    `RM_provable_real_strict_hierarchy : forall s s',
-    RM_subsystem_lt s s' ->
-    exists phi, RM_provable_real s' phi /\ ~ RM_provable_real s phi`.
-    Forbidden: making `RM_provable_real s P := P`, making it
-    `RM_provable_real s P := |- P` (collapses across subsystems), or
-    making the hierarchy non-strict.
+2. **Topological completeness for full GLP\*.** Only the box-free
+   fragment has a completeness theorem (`prop_completeness`,
+   `kripke_completeness_box_free`); GLP* is relationally Kripke-
+   incomplete and the file's neighborhood layer is a lone existence
+   witness (`normal_neighborhood_witness`). Define genuine
+   neighborhood/scattered-topological (Ignatiev-style) semantics
+   `forces_topo` with frame conditions, prove `soundness_topo` and the
+   converse `topo_completeness : topo_valid phi -> |- phi` for ALL
+   `phi`. Prove `topo_completeness_summary`. Forbidden: restricting to
+   `box_free`; `topo_valid` defined via a single fixed frame (e.g.
+   `Fnat`); a `normal_neighborhood` existence statement standing in for
+   completeness; routing through `prop_completeness`.
 
-4. **Curry-Howard realizer extraction with computational content.**
-    Define `lambda_box : Type` as a typed lambda calculus with
-    explicit box-introduction (graded by level), box-elimination,
-    pair, app, abs, and `loeb_fixpoint : forall n phi,
-    (lambda_box -> lambda_box) -> lambda_box`.
-    Define `extract_realizer : forall phi, Provable_term phi -> lambda_box`
-    by structural recursion on the proof term. Prove
-    `extract_realizer_typed : forall phi (pt : Provable_term phi),
-    has_type (extract_realizer phi pt) phi` AND
-    `extract_realizer_reduces : forall phi (pt : Provable_term phi),
-    exists nf, beta_box_normalises (extract_realizer phi pt) nf`.
-    Forbidden: `lambda_box := Form` and `extract_realizer pt := phi`
-    (identity collapse), `lambda_box := Provable_term phi`
-    (trivial functor), `nf := extract_realizer phi pt` (no
-    reduction).
+3. **Full decidability of GLP\*.** `GLPDecide` only decides the
+   box-tower-over-box-free fragment; provability was shown
+   non-compositional, so a total decider needs a real finite/topological
+   model property. Construct
+   `glp_decide_total : forall phi, sumbool (|- phi) (~ |- phi)` total on
+   every formula, with a computable model bound (Ignatiev model) or a
+   terminating cut-free search, and prove
+   `glp_decide_total_correct : forall phi, (exists p, glp_decide_total phi = left p) <-> |- phi`.
+   Forbidden: `glp_decide_total phi := excluded_middle_informative (|- phi)`;
+   restricting to `is_iter_box_of_box_free`; falling back to
+   `decide_tautology` on the box-free part only; deferring to a
+   hypothetical normaliser.
 
-5. **Lindenbaum-Tarski algebra of GLP is the FREE polymodal Magari
-    algebra.** Define `polymodal_Magari_algebra` as a record with a
-    Boolean-algebra carrier, family of necessitation operators
-    `box_op : nat -> carrier -> carrier`, validity of K, Loeb, Mon at
-    every index. Define `LT_GLP : polymodal_Magari_algebra` as the
-    quotient by provable-iff. Prove
-    `LT_GLP_free : forall (A : polymodal_Magari_algebra) (val : nat -> carrier A),
-    exists! (h : LT_GLP_morphism LT_GLP A),
-    forall p, h (LT_class (Var p)) = val p`. The uniqueness must
-    follow from a calculation, not from `proof_irrelevance` or
-    `functional_extensionality`. Forbidden: defining `free` as
-    `epi`, instantiating `A := LT_GLP` (collapses to identity),
-    skipping the morphism-laws check.
+4. **Constructed Feferman-Schuette Gamma_0.** `V_gamma0` is a declared
+   nullary atom placed above the `V_phi` tower with well-foundedness
+   asserted by fiat, and the height bound is proved non-tight. Define
+   the two-argument Veblen function `veblen : ord -> ord -> ord` with
+   the standard clauses (`veblen 0 = omega-power`, continuity, and
+   fixed-point enumeration at successor/limit first arguments), and
+   define `Gamma_0` as the least `a` with `veblen a OZero = a` (the first
+   strongly critical ordinal), proved to be the supremum of the iterated
+   `veblen`-tower. Re-establish `GLP_proof_height_below_Gamma_0` against
+   this constructed `Gamma_0` and prove `veblen_Gamma_0_summary`.
+   Forbidden: a nullary atom above the carrier by fiat;
+   `Gamma_0 := veps0` or `V_phi 0 OZero` (the epsilon_0 alias);
+   asserting `Acc`/well-foundedness of the top point without deriving it
+   from the Veblen construction.
 
-6. **Polymodal Craig interpolation.**
-    Define `box_levels : Form -> list nat` and `var_set : Form -> list nat`
-    by structural recursion. Prove
-    `craig_interpolation_polymodal : forall phi psi,
-    |- Impl phi psi ->
-    exists chi,
-       (forall x, In x (var_set chi) -> In x (var_set phi) /\ In x (var_set psi)) /\
-       (forall n, In n (box_levels chi) -> In n (box_levels phi) /\ In n (box_levels psi)) /\
-       |- Impl phi chi /\ |- Impl chi psi`.
-    The construction of `chi` must be by structural recursion on a
-    derivation of `Impl phi psi`, NOT by classical choice from
-    existence. Forbidden: `chi := phi` (no constraint on
-    `var_set psi`-side), `chi := psi`, `chi := Top`, `chi := Bot`.
+5. **Ordinal proof-height directly on derivations.** Large elimination
+   from `Prop` blocks `forall phi, |- phi -> vord`, so the rank lives on
+   the Type-level `Provable_term`. Either introduce a `Provable`-in-Type
+   relation `ProvableT` with `proof_height : forall phi, ProvableT phi -> vord`
+   and `ProvableT_iff : ProvableT phi <-> inhabited (Provable_term phi)`,
+   or prove the `Provable_term` rank is invariant across all derivations
+   of a given theorem. Prove `proof_height_on_derivations_summary`.
+   Forbidden: keeping the rank only on `Provable_term` while stating it
+   ranks `|-`; a constant rank; `proof_height _ _ := OZero`.
 
-7. **Yudkowsky-Herreshoff tiling theorem under arithmetic
-    interpretation, with explicit goal-preservation chain.** Define
-    `tiling_chain : AgentRecord -> nat -> Form` as the n-fold
-    self-modification of the agent's decision under its own
-    verification. Prove
-    `tiling_succeeds_under_arithmetic_interpretation :
-    forall (A : AgentRecord) (G : Form),
-    agent_goal A = G ->
-    (forall I, is_arithmetic_interpretation I ->
-       (forall n, |- Impl (I (tiling_chain A n)) (I G))) ->
-    forall I, is_arithmetic_interpretation I ->
-    forall n, |- Impl (I (agent_decision A (Var 0))) (I G)`.
-    The proof must use the arithmetic-interpretation property
-    non-trivially (not just substitute identity). Forbidden:
-    `tiling_chain A n := agent_goal A` (constant),
-    `tiling_chain A 0 := Bot` (vacuous antecedent at level 0),
-    using `goal_preservation_tiling_concrete` as the entire proof.
+6. **Stone equivalence with proof-relevant hom-setoids.** The current
+   `StoneEquivalence` sets `ec_hom_eq := fun _ _ => True`, so naturality
+   and the triangle identities hold only because all parallel morphisms
+   are identified (a preorder collapse). Replace the hom-equality with a
+   genuine equivalence on morphisms (derivations modulo a conversion/cut
+   relation, or the canonical 2-cell structure) and reprove
+   `Stone_eta_natural`, `Stone_epsilon_natural`, `Stone_triangle_F`,
+   `Stone_triangle_G` up to that relation. Prove
+   `stone_proof_relevant_summary`. Forbidden:
+   `ec_hom_eq := fun _ _ => True`; `hom_eq f g := |- Top`; any
+   hom-equality identifying all parallel morphisms.
 
-8. **Stone-duality category-equivalence.** Define
-    `Record LT_category : Type` and `Record canonical_frame_category : Type`
-    with explicit object-types, hom-types, identity, composition,
-    associativity, and unit-laws. Define functors
-    `F : LT_category -> canonical_frame_category` and
-    `G : canonical_frame_category -> LT_category` with explicit
-    object-action and morphism-action. Define natural isomorphisms
-    `eta : forall A, A ~= G (F A)` and
-    `epsilon : forall X, F (G X) ~= X`. Prove the triangle
-    identities. Forbidden: defining `eta` and `epsilon` as
-    `eq_refl`, defining the categories as `Form` and `Form`
-    with `morphism := |- Impl phi psi` (this collapses the
-    duality to provability), citing
-    `Stone_duality_provability_iff_universal` as the discharge.
-    (Depends on item 5: `LT_GLP` as polymodal Magari algebra.)
+7. **Lambda-box strong normalisation with live combinators.** The
+   `LambdaBox` calculus keeps `tS`, `tBoxK`, `tLoeb`, `tBox4`, `tMon`,
+   `tNextCon`, and `tLoebFix` inert (no contraction rule) to keep the
+   size measure decreasing, so realizers using them are stuck-normal
+   rather than computed. Give each its genuine contraction rule (S
+   duplication; a guarded `tLoebFix` unfolding) and prove strong
+   normalisation of the typed calculus by reducibility candidates
+   (Tait-Girard), then reprove `extract_realizer_reduces` against the
+   full reduction. Prove `lambda_box_SN_summary`. Forbidden: inert
+   combinators with no reduction rule; `tLoebFix` as a value; a reduction
+   relation containing only the K / pair / box-beta redexes; a size
+   measure that excludes the duplicating rules.
 
-9. **Proof-theoretic ordinal of GLP, EXACTLY at Gamma_0, upper bound
-    at every level.** Define
-    `Gamma_0_ordinal : vord` as the first fixed point of the Veblen
-    `phi`-function above `omega`, NOT as
-    `OCons (OCons (OCons OZero OZero) OZero) OZero` (that is `omega^omega^omega = epsilon_0`-region but not `Gamma_0`). Define
-    `proof_height : forall phi, |- phi -> vord` as the rank of the
-    derivation-tree of the witness, with explicit cases for K, S, DN,
-    BoxK, Loeb (giving rank `omega`), Box4, Mon, NextCon, MP (sup of
-    children + 1), Nec (succ of child rank). Prove
-    `GLP_proof_height_below_Gamma_0 : forall phi (H : |- phi),
-    vord_lt (proof_height phi H) Gamma_0_ordinal`. Forbidden:
-    redefining `Gamma_0_ordinal := Veblen_eps0_ordinal`, returning
-    `OZero` for every derivation, or returning a constant.
-    (Builds on the completed `beklemishev_reduce` ordinal-descent
-    infrastructure: `beklemishev_reduce_strictly_decreases` and
-    `beklemishev_reduce_terminates`.)
+8. **Strict (non-setoid) Magari freeness.** `MagariFree` proves
+   uniqueness only pointwise because intensional equality of morphism
+   records is funext-strength. Build a setoid-enriched category of
+   polymodal Magari algebras whose hom-equality is pointwise by
+   definition, and state `LT_GLP_free` as a genuinely unique morphism in
+   that category (a contractible space of homomorphisms extending the
+   valuation). Prove `magari_strict_free_summary`. Forbidden: pointwise
+   uniqueness stated outside a category whose homs are quotiented; appeal
+   to `proof_irrelevance` or `functional_extensionality` to bridge
+   morphism equality.
 
-10. **Solovay's first arithmetic completeness for GL, full statement.**
-    Define `solovay_function : nat -> nat` as the fixed-point of the
-    Solovay tree on the integer model, with `solovay_function 0 = 0`
-    and the full step relation tracking `R_i`-successors. Define
-    `arith_embed_GL : Form -> nat -> Prop` translating
-    `Box phi` to the Sigma_1 sentence `exists d, encodes_proof d
-    (encode_form (arith_embed_GL phi))` in the language of `Bew_n 0`,
-    NOT to `Bew_n 0 (encode phi)` directly and NOT to `FOTopForm`.
-    Prove `Solovay_first_full : forall phi,
-    (forall I, is_arithmetic_interpretation_proper I ->
-       Bew_n 0 (encode (I phi))) -> Provable_GL phi`
-    where `is_arithmetic_interpretation_proper` requires
-    substitution-closure, MP-closure, AND `I (Box phi) = Bew_n 0 (encode (I phi))`
-    pointwise (NOT just provability preservation). Forbidden:
-    instantiating `I := identity`, instantiating
-    `I := shift_interp`, restricting `phi` to `box_free`, defining
-    `arith_embed_GL (Box phi) := arith_embed_GL phi` (box-erasure),
-    or `:= FOTopForm` (box-as-top).
+9. **Genuine QGLP quantifier semantics.** `QGLP_provable` currently sets
+   `Q_forall _ _ := True` and `Q_exists _ _ := True`, making every
+   quantified formula trivially provable. Give `QGLP_form` constant-
+   domain Kripke semantics and an inductive derivability relation with
+   real quantifier rules, prove `QGLP_soundness` against it, and
+   (target) completeness. Prove `qglp_genuine_summary`. Forbidden:
+   `QGLP_provable (Q_forall _ _) := True`;
+   `QGLP_provable (Q_exists _ _) := True`; any clause whose truth is
+   independent of the quantified body.
 
-11. **Carlson polymodal second incompleteness with explicit
-    super-polynomial speedup.** Define `proof_length_in_T_n : forall n phi,
-    Bew n phi -> nat` by structural recursion on the Bew-derivation,
-    counting axiom-leaves and rule-applications. Define
-    `tower_function : nat -> nat` by `tower_function 0 = 2;
-    tower_function (S n) = 2 ^ tower_function n`. Prove
-    `Carlson_speedup_super_polynomial : forall n,
-    exists phi (H_n_plus_1 : Bew (S n) phi),
-       proof_length_in_T_n (S n) phi H_n_plus_1 <= 100 * n /\
-       forall (H_n : Bew n phi), tower_function n <= proof_length_in_T_n n phi H_n`.
-    Forbidden: `proof_length_in_T_n _ _ _ := 0` (trivializes both
-    sides), `proof_length_in_T_n _ _ _ := S O` (constant), or
-    using existing `Pudlak_speedup_at` as the witness.
-    (Depends on item 10: builds on the Solovay arithmetic
-    interpretation framework.)
+10. **Faithfulness to canonical Japaridze GLP.** `NextCon` is only the
+    `phi := Top` instance `Box (S n) (Diamond n Top)` of GLP's general
+    negative-introspection scheme. Either prove the general scheme
+    `forall n phi, |- Impl (Diamond n phi) (Box (S n) (Diamond n phi))`
+    from the present axioms (establishing this calculus IS GLP), or
+    exhibit a sound model in which it fails (establishing a proper
+    subsystem) and document the divergence. Prove either
+    `glp_faithfulness_general_introspection` or
+    `glp_proper_subsystem_witness`. Forbidden: leaving the question
+    open; proving only the `phi := Top` instance (which is `NextCon`).
 
-12. **Pi_2-conservativity of GLP over GL, theorem-level (not vacuous).**
-    Define `is_Pi_2 : Form -> Prop` as the standard arithmetic class:
-    `forall n, exists m, R(n, m)` shape with `R` Sigma_0_1.
-    Prove `Pi_2_conservativity : forall phi,
-    is_Pi_2 phi -> Provable_full_GLP phi -> Provable_GL phi`
-    via Beklemishev's reduction (worm normalization producing a
-    GL-derivation by transfinite induction up to `omega`). The proof
-    must contain a function
-    `extract_GL_derivation : forall phi (H : Provable_full_GLP phi)
-    (Hp2 : is_Pi_2 phi), Provable_GL phi`
-    whose body recurses on the structure of `H`, NOT a reference to
-    `H` followed by case-analysis-and-discharge. Forbidden:
-    showing the hypothesis is universally false (Carlson-vacuity);
-    restricting to `phi = Bot`; reducing to `box_free`.
-    (Depends on item 10 for the Solovay-completeness target;
-    builds on the completed `beklemishev_reduce` engine.)
-
-13. **Solovay's second arithmetic completeness for the truth-extension
-    S, full statement.** Define `arith_embed_S : Form -> nat -> Prop`
-    extending `arith_embed_GL` with the T-schema for true Sigma_1
-    sentences (i.e., the embedding evaluates `Box phi` against the
-    standard model rather than against PA's internal predicate).
-    Prove `Solovay_second_full : forall phi,
-    (forall I, is_arithmetic_interpretation_proper I ->
-       Bew_n 0 (encode (I phi)) /\ standard_model_satisfies (I phi))
-    -> Provable_S phi`. Forbidden: defining `arith_embed_S := arith_embed_GL`,
-    using only `S_truth_completeness_box_free`, weakening to box-free,
-    or treating `S_reflection` as the answer.
-    (Depends on item 10: extends the Solovay-first machinery.)
-
-14. **Japaridze's polymodal arithmetic completeness, full statement
-    with an actual Solovay tree.** Define
-    `Inductive Solovay_node : Type :=
-       | sol_root : Solovay_node
-       | sol_child : Solovay_node -> nat -> Form -> Solovay_node`
-    and a recursive `solovay_tree_step : Solovay_node -> list Solovay_node`
-    that branches on box-level. The tree must be infinite-and-
-    finitely-branching with at least two branches at every node above
-    a parameter-set threshold. Define
-    `tree_validates : (Form -> Form) -> Solovay_node -> Prop`
-    by structural recursion. Prove
-    `Japaridze_full_via_tree : forall phi,
-    (forall I, is_polymodal_arithmetic_interpretation_proper I ->
-       tree_validates I (build_solovay_tree phi))
-    -> Provable_full_GLP phi`. Forbidden: making
-    `solovay_tree_step _ := []` (degenerate empty tree),
-    making `Solovay_node := unit` and `tree_validates := True`,
-    instantiating `I := shift_interp` to MP-discharge,
-    `I := identity`.
-    (Depends on item 10: polymodal generalization of the Solovay tree.)
+11. **Constructive core.** The development is wholly classical
+    (`classic`, `constructive_indefinite_description`). Carve out the
+    syntactic/decidable results — box-free decidability, the Hilbert
+    toolkit, proof-term reductions, `glp_dec_b` — into modules that
+    import neither `Classical` nor `ClassicalEpsilon`, verified by
+    `Print Assumptions` showing no classical axiom, and confine the
+    classical axioms to the Lindenbaum/completeness modules. Prove (or
+    `Print Assumptions`-witness) `constructive_core_summary`. Forbidden:
+    importing `Classical`/`ClassicalEpsilon` into the constructive
+    modules; using `NNPP`/`classic`/`excluded_middle_informative` in any
+    result claimed constructive.

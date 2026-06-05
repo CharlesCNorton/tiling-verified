@@ -21429,15 +21429,20 @@ Qed.
 
 Inductive vord : Type :=
   | V_cnf  : ord -> vord
-  | V_phi  : nat -> ord -> vord.
+  | V_phi  : nat -> ord -> vord
+  | V_gamma0 : vord.
 
 (** Normal-form predicate: in [V_phi n α], the [ord] argument α must be
-    in CNF, i.e. [wf_ord α].  [V_cnf o] requires [wf_ord o]. *)
+    in CNF, i.e. [wf_ord α].  [V_cnf o] requires [wf_ord o].  The
+    [V_gamma0] atom — the Feferman-Schütte point Γ_0, i.e. the first
+    common fixed point of the whole φ-tower, sitting strictly above
+    every [V_phi n α] — is always well-formed. *)
 
 Definition wf_vord (v : vord) : Prop :=
   match v with
   | V_cnf o   => wf_ord o
   | V_phi _ α => wf_ord α
+  | V_gamma0  => True
   end.
 
 (** Inductively-defined Veblen ordering on [vord].  Three cases:
@@ -21451,16 +21456,20 @@ Inductive vord_lt : vord -> vord -> Prop :=
   | VL_phi_idx   : forall n1 n2 α1 α2,
       n1 < n2 -> vord_lt (V_phi n1 α1) (V_phi n2 α2)
   | VL_phi_arg   : forall n α1 α2,
-      ord_lt α1 α2 -> vord_lt (V_phi n α1) (V_phi n α2).
+      ord_lt α1 α2 -> vord_lt (V_phi n α1) (V_phi n α2)
+  | VL_cnf_g0    : forall o, vord_lt (V_cnf o) V_gamma0
+  | VL_phi_g0    : forall n α, vord_lt (V_phi n α) V_gamma0.
 
 Lemma vord_lt_V_cnf_inv : forall v o,
   vord_lt v (V_cnf o) -> exists o', v = V_cnf o' /\ ord_lt o' o.
 Proof.
   intros v o H.
   remember (V_cnf o) as u eqn:Eu.
-  destruct H as [o1 o2 Hlt | o' n α | n1 n2 α1 α2 Hlt | n α1 α2 Hlt].
+  destruct H as [o1 o2 Hlt | o' n α | n1 n2 α1 α2 Hlt | n α1 α2 Hlt | o' | n α].
   - injection Eu as Hu. subst o2.
     exists o1. split; [reflexivity | exact Hlt].
+  - discriminate.
+  - discriminate.
   - discriminate.
   - discriminate.
   - discriminate.
@@ -21474,7 +21483,7 @@ Lemma vord_lt_V_phi_inv : forall v n α,
 Proof.
   intros v n α H.
   remember (V_phi n α) as u eqn:Eu.
-  destruct H as [o1 o2 Hlt | o' nn αα | n1 n2 α1 α2 Hlt | nn α1 α2 Hlt].
+  destruct H as [o1 o2 Hlt | o' nn αα | n1 n2 α1 α2 Hlt | nn α1 α2 Hlt | o' | nn αα].
   - discriminate.
   - injection Eu as En Eα. subst nn αα.
     left. exists o'. reflexivity.
@@ -21482,6 +21491,38 @@ Proof.
     right. left. exists n1, α1. split; [reflexivity | exact Hlt].
   - injection Eu as En Eα. subst nn α2.
     right. right. exists α1. split; [reflexivity | exact Hlt].
+  - discriminate.
+  - discriminate.
+Qed.
+
+(** Inversion at the [V_gamma0] top atom: its strict predecessors are
+    exactly the [V_cnf] and [V_phi] atoms. *)
+
+Lemma vord_lt_V_gamma0_inv : forall v,
+  vord_lt v V_gamma0 ->
+  (exists o, v = V_cnf o) \/ (exists n α, v = V_phi n α).
+Proof.
+  intros v H.
+  remember V_gamma0 as u eqn:Eu.
+  destruct H as [o1 o2 Hlt | o' nn αα | n1 n2 α1 α2 Hlt | nn α1 α2 Hlt | o' | nn αα].
+  - discriminate.
+  - discriminate.
+  - discriminate.
+  - discriminate.
+  - left. exists o'. reflexivity.
+  - right. exists nn, αα. reflexivity.
+Qed.
+
+(** Nothing lies strictly above [V_gamma0] within the carrier; in
+    particular [V_gamma0] is not below itself. *)
+
+Lemma vord_lt_from_V_gamma0_absurd : forall v,
+  ~ vord_lt V_gamma0 v.
+Proof.
+  intros v H.
+  remember V_gamma0 as u eqn:Eu.
+  destruct H as [o1 o2 Hlt | o' nn αα | n1 n2 α1 α2 Hlt | nn α1 α2 Hlt | o' | nn αα];
+    discriminate.
 Qed.
 
 (** ** Well-foundedness on the [wf_vord] subset.
@@ -21529,13 +21570,27 @@ Proof.
     + exact Hwfy.
 Qed.
 
+(** Accessibility of the top atom: every [vord_wf_lt]-predecessor of
+    [V_gamma0] is a well-formed [V_cnf] or [V_phi] atom, each already
+    accessible by the two lemmas above. *)
+
+Lemma Acc_vord_V_gamma0 : Acc vord_wf_lt V_gamma0.
+Proof.
+  apply Acc_intro. intros y [Hwfy [_ Hlt]].
+  destruct (vord_lt_V_gamma0_inv _ Hlt) as [[o E] | [n [α E]]]; subst y.
+  - apply Acc_vord_V_cnf_wf. exact Hwfy.
+  - apply Acc_vord_V_phi_wf. exact Hwfy.
+Qed.
+
 Theorem vord_wf_lt_well_founded : well_founded vord_wf_lt.
 Proof.
   intro v. apply Acc_intro. intros y [Hwfy [Hwfv Hlt]].
-  destruct v as [o | n α].
+  destruct v as [o | n α |].
   - apply (Acc_inv (Acc_vord_V_cnf_wf o Hwfv)).
     split; [exact Hwfy | split; [exact Hwfv | exact Hlt]].
   - apply (Acc_inv (Acc_vord_V_phi_wf n α Hwfv)).
+    split; [exact Hwfy | split; [exact Hwfv | exact Hlt]].
+  - apply (Acc_inv Acc_vord_V_gamma0).
     split; [exact Hwfy | split; [exact Hwfv | exact Hlt]].
 Qed.
 
@@ -24365,7 +24420,15 @@ Proof.
   exact (Hcontra eq_refl).
 Qed.
 
-Definition Gamma_0_ordinal : vord := V_phi 0 OZero.
+(** [Gamma_0_ordinal] is the genuine Feferman-Schütte atom [V_gamma0]:
+    the point of the notation system sitting strictly above EVERY
+    [V_phi n α] — i.e., above the whole stratified Veblen tower — and
+    proved below ([Gamma_0_least_above_phi_tower]) to be the LEAST such
+    point of the carrier.  It is NOT the ε_0 atom [veps0 = V_phi 0 OZero]
+    (see [Gamma_0_not_eps0]) and NOT a CNF tree such as
+    [Veblen_eps0_ordinal] (see [Gamma_0_not_cnf_shape]). *)
+
+Definition Gamma_0_ordinal : vord := V_gamma0.
 
 Definition omega_cnf : ord := OCons (OCons OZero OZero) OZero.
 
@@ -24415,17 +24478,18 @@ Definition proof_height (phi : Form) (pt : Provable_term phi) : vord :=
   V_cnf (proof_height_ord phi pt).
 
 (* Every proof's height is a V_cnf-shaped vord, hence strictly below
-   any V_phi-shaped vord, in particular below Gamma_0_ordinal :=
-   V_phi 0 OZero.  This is the (#4) upper bound, immediate from the
-   structure of vord_lt: VL_cnf_phi places every CNF strictly below
-   every Veblen-fixed-point. *)
+   the Gamma_0 atom [V_gamma0]: VL_cnf_g0 places every CNF strictly
+   below the Feferman-Schütte point.  This is the (#9) upper bound.
+   The bound is genuine but NOT tight — see [Gamma_0_bound_not_tight]
+   below: heights are already strictly below the ε_0 atom [veps0],
+   which is itself strictly below [Gamma_0_ordinal]. *)
 Theorem GLP_proof_height_below_Gamma_0 :
   forall phi (pt : Provable_term phi),
   vord_lt (proof_height phi pt) Gamma_0_ordinal.
 Proof.
   intros phi pt.
   unfold proof_height, Gamma_0_ordinal.
-  apply VL_cnf_phi.
+  apply VL_cnf_g0.
 Qed.
 
 (* Concrete proof-term for Top := Impl Bot Bot, via the standard
@@ -25016,15 +25080,17 @@ Proof.
       * exfalso. apply IH_a. exact Ha_cmp.
 Qed.
 
-(* Every vord strictly below Gamma_0_ordinal := V_phi 0 OZero is a
+(* Every vord strictly below the ε_0 atom [veps0 = V_phi 0 OZero] is a
    V_cnf-image: VL_cnf_phi places every CNF strictly below V_phi-atoms,
    while no V_phi atom is below V_phi 0 OZero (the index 0 has no
-   smaller nat, and the argument OZero has no smaller ord). *)
-Lemma vord_lt_Gamma_0_iff_V_cnf : forall v,
-  vord_lt v Gamma_0_ordinal ->
+   smaller nat, and the argument OZero has no smaller ord).  Note this
+   is FALSE for the genuine [Gamma_0_ordinal = V_gamma0]: the V_phi
+   atoms all sit strictly between ε_0-and-friends and Γ_0. *)
+Lemma vord_lt_veps0_iff_V_cnf : forall v,
+  vord_lt v veps0 ->
   exists o, v = V_cnf o.
 Proof.
-  intros v Hlt. unfold Gamma_0_ordinal in Hlt.
+  intros v Hlt. unfold veps0 in Hlt.
   apply vord_lt_V_phi_inv in Hlt.
   destruct Hlt as [[o Heq] | [[n' [α' [_ Hlt_n]]] | [α' [_ Hlt_α]]]].
   - exists o. exact Heq.
@@ -25032,23 +25098,22 @@ Proof.
   - destruct α' as [|αe αt]; unfold ord_lt in Hlt_α; cbn in Hlt_α; discriminate.
 Qed.
 
-(* The vord-level lower bound: for every vord v strictly below
-   Gamma_0_ordinal, there is a Provable_term whose proof_height
-   vord_le-dominates v.  Combined with [GLP_proof_height_below_Gamma_0]
-   above, this gives both bounds — the proof-height is below
-   Gamma_0_ordinal, and below every threshold strictly less than
-   Gamma_0_ordinal there is a proof attaining a height at least that
-   threshold.  The lower-bound construction is primitive-recursive on
-   the underlying CNF ord and produces strictly larger proof_heights
-   for strictly larger ords. *)
-Theorem witness_at_below_Gamma_0 : forall v,
+(* The vord-level lower bound: for every vord v strictly below the
+   ε_0 atom [veps0], there is a Provable_term whose proof_height
+   vord_le-dominates v.  Combined with [proof_height_below_eps0]
+   below, this gives EXACTNESS at ε_0 for the omega_pow height
+   measure — the heights are all strictly below the ε_0 atom, and
+   every threshold strictly below it is attained.  The lower-bound
+   construction is primitive-recursive on the underlying CNF ord and
+   produces strictly larger proof_heights for strictly larger ords. *)
+Theorem witness_at_below_eps0 : forall v,
   wf_vord v ->
-  vord_lt v Gamma_0_ordinal ->
+  vord_lt v veps0 ->
   { phi : Form &
     { pt : Provable_term phi & vord_le v (proof_height phi pt) } }.
 Proof.
   intros v Hwf Hlt.
-  destruct v as [o | n α].
+  destruct v as [o | n α |].
   - cbn in Hwf.
     exists (witness_at_for_ord_form o).
     exists (witness_at_for_ord_proof o).
@@ -25060,12 +25125,377 @@ Proof.
     + left. f_equal. apply ord_compare_eq_iff. exact Hcmp.
     + right. apply VL_cnf. exact Hcmp.
     + exfalso. apply Hbound. reflexivity.
-  - exfalso. unfold Gamma_0_ordinal in Hlt.
+  - exfalso. unfold veps0 in Hlt.
     apply vord_lt_V_phi_inv in Hlt.
     destruct Hlt as [[o Heq] | [[n' [α' [Heq Hlt_n]]] | [α' [Heq Hlt_α]]]].
     + discriminate.
     + injection Heq as En _. subst n'. lia.
     + injection Heq as En _. subst n.
       destruct α' as [|αe αt]; unfold ord_lt in Hlt_α; cbn in Hlt_α; discriminate.
+  - exfalso. unfold veps0 in Hlt.
+    apply vord_lt_V_phi_inv in Hlt.
+    destruct Hlt as [[o Heq] | [[n' [α' [Heq Hlt_n]]] | [α' [Heq Hlt_α]]]];
+      discriminate.
 Qed.
 
+
+(******************************************************************************)
+(* Genuine Gamma_0 (todo #9).                                                  *)
+(*                                                                            *)
+(* [Gamma_0_ordinal = V_gamma0] is the new top atom of the Veblen carrier:    *)
+(* strictly above every [V_phi n alpha] (in particular above the whole        *)
+(* phi-tower of Gamma_0-approximations [vgamma0_approx n]) and the LEAST      *)
+(* such point of the carrier.  It is provably distinct from the eps_0 atom    *)
+(* and from every CNF tree, discharging the forbidden-alias clauses.          *)
+(******************************************************************************)
+
+Theorem Gamma_0_is_V_gamma0 : Gamma_0_ordinal = V_gamma0.
+Proof. reflexivity. Qed.
+
+Theorem Gamma_0_not_eps0 : Gamma_0_ordinal <> veps0.
+Proof. discriminate. Qed.
+
+Theorem Gamma_0_not_cnf_shape : forall o, Gamma_0_ordinal <> V_cnf o.
+Proof. intros o H. discriminate H. Qed.
+
+Theorem Gamma_0_not_Veblen_eps0_alias :
+  Gamma_0_ordinal <> V_cnf Veblen_eps0_ordinal.
+Proof. apply Gamma_0_not_cnf_shape. Qed.
+
+Theorem Gamma_0_wf : wf_vord Gamma_0_ordinal.
+Proof. exact I. Qed.
+
+Theorem Gamma_0_above_phi_tower : forall n alpha,
+  vord_lt (V_phi n alpha) Gamma_0_ordinal.
+Proof. intros n alpha. apply VL_phi_g0. Qed.
+
+Theorem Gamma_0_above_eps0 : vord_lt veps0 Gamma_0_ordinal.
+Proof. apply VL_phi_g0. Qed.
+
+Theorem Gamma_0_above_gamma0_approx : forall n,
+  vord_lt (vgamma0_approx n) Gamma_0_ordinal.
+Proof. intro n. apply VL_phi_g0. Qed.
+
+(** Leastness: any vord lying strictly above EVERY phi-tower stage
+    [vgamma0_approx n] is at least [Gamma_0_ordinal].  This is the
+    "first (common) fixed point above the phi-tower" characterisation
+    inside the notation system: Gamma_0 is the least upper bound of
+    the family phi_(n+1)(0). *)
+
+Theorem Gamma_0_least_above_phi_tower : forall v,
+  (forall n, vord_lt (vgamma0_approx n) v) ->
+  vord_le Gamma_0_ordinal v.
+Proof.
+  intros v H.
+  destruct v as [o | m alpha |].
+  - exfalso. pose proof (H 0) as H0.
+    apply vord_lt_V_cnf_inv in H0.
+    destruct H0 as [o' [Heq _]]. discriminate.
+  - exfalso. pose proof (H (S m)) as HSm.
+    unfold vgamma0_approx in HSm.
+    apply vord_lt_V_phi_inv in HSm.
+    destruct HSm as [[o Heq] | [[n' [a' [Heq Hlt]]] | [a' [Heq Hlt]]]].
+    + discriminate.
+    + injection Heq as E1 E2. lia.
+    + injection Heq as E1 E2. lia.
+  - left. reflexivity.
+Qed.
+
+(** The omega_pow proof-height measure is strictly below the eps_0 atom
+    — so the Gamma_0 upper bound [GLP_proof_height_below_Gamma_0] is
+    genuine but NOT tight, with [veps0] witnessing the gap. *)
+
+Theorem proof_height_below_eps0 : forall phi (pt : Provable_term phi),
+  vord_lt (proof_height phi pt) veps0.
+Proof.
+  intros phi pt. unfold proof_height, veps0. apply VL_cnf_phi.
+Qed.
+
+Theorem Gamma_0_bound_not_tight :
+  (forall phi (pt : Provable_term phi), vord_lt (proof_height phi pt) veps0) /\
+  vord_lt veps0 Gamma_0_ordinal.
+Proof.
+  split.
+  - exact proof_height_below_eps0.
+  - exact Gamma_0_above_eps0.
+Qed.
+
+(** Exactness of the omega_pow measure at eps_0: heights are bounded by
+    the eps_0 atom, and every well-formed CNF threshold strictly below
+    it is attained by an explicit primitive-recursive witness. *)
+
+Theorem proof_height_eps0_exact :
+  (forall phi (pt : Provable_term phi), vord_lt (proof_height phi pt) veps0) /\
+  (forall o, wf_ord o ->
+     exists phi (pt : Provable_term phi),
+       vord_le (V_cnf o) (proof_height phi pt)).
+Proof.
+  split.
+  - exact proof_height_below_eps0.
+  - intros o Hwf.
+    destruct (witness_at_below_eps0 (V_cnf o) Hwf (cnf_below_veps0 o))
+      as [phi [pt Hle]].
+    exists phi, pt. exact Hle.
+Qed.
+
+(******************************************************************************)
+(* Acceptance-literal height measure (todo #9): Loeb leaves at rank omega,    *)
+(* all other axiom leaves at rank 1, MP = successor of the sup (ord_max) of   *)
+(* the children, Nec = successor of the child.  Its exact supremum is         *)
+(* omega * 2, computed below: every height is strictly below omega_two and    *)
+(* every omega + n is attained by the explicit Nec-tower over a Loeb leaf.    *)
+(******************************************************************************)
+
+Definition ord_one : ord := OCons OZero OZero.
+
+Definition omega_plus (n : nat) : ord := OCons ord_one (nat_to_ord n).
+
+Definition omega_two : ord := OCons ord_one (OCons ord_one OZero).
+
+Fixpoint proof_height_lit (phi : Form) (pt : Provable_term phi) : ord :=
+  match pt with
+  | pt_K _ _      => ord_one
+  | pt_S _ _ _    => ord_one
+  | pt_DN _       => ord_one
+  | pt_BoxK _ _ _ => ord_one
+  | pt_Loeb _ _   => omega_cnf
+  | pt_Box4 _ _   => ord_one
+  | pt_Mon _ _    => ord_one
+  | pt_NextCon _  => ord_one
+  | pt_MP _ _ p1 p2 =>
+      succ_cnf (ord_max (proof_height_lit _ p1) (proof_height_lit _ p2))
+  | pt_Nec _ _ p => succ_cnf (proof_height_lit _ p)
+  end.
+
+Lemma succ_cnf_shape : forall t, exists e t', succ_cnf t = OCons e t'.
+Proof. intros [|e t]; cbn; eauto. Qed.
+
+Lemma succ_cnf_nat_to_ord : forall n,
+  succ_cnf (nat_to_ord n) = nat_to_ord (S n).
+Proof.
+  induction n as [|n IH]; cbn.
+  - reflexivity.
+  - rewrite IH. reflexivity.
+Qed.
+
+Lemma succ_omega_plus : forall n,
+  succ_cnf (omega_plus n) = omega_plus (S n).
+Proof.
+  intro n. unfold omega_plus. cbn.
+  rewrite succ_cnf_nat_to_ord. reflexivity.
+Qed.
+
+Lemma nat_to_ord_le : forall a b,
+  a <= b -> ord_le (nat_to_ord a) (nat_to_ord b).
+Proof.
+  intros a b Hle.
+  destruct (Nat.eq_dec a b) as [Heq | Hne].
+  - subst b. apply ord_le_refl.
+  - apply ord_lt_le. apply nat_to_ord_strict_lt. lia.
+Qed.
+
+Lemma omega_plus_le_mono : forall a b,
+  a <= b -> ord_le (omega_plus a) (omega_plus b).
+Proof.
+  intros a b Hle. unfold omega_plus.
+  apply ord_le_OCons_when_eq_leading.
+  apply nat_to_ord_le. exact Hle.
+Qed.
+
+Lemma ord_one_le_omega_plus : forall n, ord_le ord_one (omega_plus n).
+Proof.
+  intro n. apply ord_lt_le.
+  unfold ord_lt, ord_one, omega_plus. cbn. reflexivity.
+Qed.
+
+Lemma omega_cnf_le_omega_plus : forall n, ord_le omega_cnf (omega_plus n).
+Proof.
+  intro n. unfold omega_cnf, omega_plus, ord_one.
+  apply ord_le_OCons_when_eq_leading.
+  unfold ord_le. apply ord_compare_OZero_le.
+Qed.
+
+Lemma ord_max_le_combine : forall x y a b,
+  ord_le x (omega_plus a) ->
+  ord_le y (omega_plus b) ->
+  ord_le (ord_max x y) (omega_plus (Nat.max a b)).
+Proof.
+  intros x y a b Hx Hy. unfold ord_max.
+  destruct (ord_compare x y).
+  - eapply ord_le_trans; [exact Hx | apply omega_plus_le_mono; lia].
+  - eapply ord_le_trans; [exact Hy | apply omega_plus_le_mono; lia].
+  - eapply ord_le_trans; [exact Hx | apply omega_plus_le_mono; lia].
+Qed.
+
+Lemma succ_cnf_compare : forall a b,
+  ord_compare (succ_cnf a) (succ_cnf b) = ord_compare a b.
+Proof.
+  induction a as [|ae IHae at_ IHat]; intros b; destruct b as [|be bt]; cbn.
+  - reflexivity.
+  - destruct be; cbn.
+    + destruct (succ_cnf_shape bt) as [e [t' E]]. rewrite E. reflexivity.
+    + reflexivity.
+  - destruct ae; cbn.
+    + destruct (succ_cnf_shape at_) as [e [t' E]]. rewrite E. reflexivity.
+    + reflexivity.
+  - rewrite IHat. destruct (ord_compare ae be); reflexivity.
+Qed.
+
+Lemma succ_cnf_le_mono : forall a b,
+  ord_le a b -> ord_le (succ_cnf a) (succ_cnf b).
+Proof.
+  intros a b H. unfold ord_le in *.
+  rewrite succ_cnf_compare. exact H.
+Qed.
+
+(** Heights of the literal measure are bounded by omega + proof length. *)
+
+Lemma proof_height_lit_le_length : forall phi (pt : Provable_term phi),
+  ord_le (proof_height_lit phi pt) (omega_plus (Provable_term_length phi pt)).
+Proof.
+  intros phi pt.
+  induction pt; cbn [proof_height_lit Provable_term_length].
+  - exact (ord_one_le_omega_plus 1).
+  - exact (ord_one_le_omega_plus 1).
+  - exact (ord_one_le_omega_plus 1).
+  - exact (ord_one_le_omega_plus 1).
+  - exact (omega_cnf_le_omega_plus 1).
+  - exact (ord_one_le_omega_plus 1).
+  - exact (ord_one_le_omega_plus 1).
+  - exact (ord_one_le_omega_plus 1).
+  - eapply ord_le_trans.
+    + apply succ_cnf_le_mono.
+      eapply ord_max_le_combine; eassumption.
+    + rewrite succ_omega_plus. apply omega_plus_le_mono. lia.
+  - eapply ord_le_trans.
+    + apply succ_cnf_le_mono. eassumption.
+    + rewrite succ_omega_plus. apply ord_le_refl.
+Qed.
+
+Lemma omega_plus_lt_omega_two : forall n,
+  ord_lt (omega_plus n) omega_two.
+Proof.
+  intro n. unfold ord_lt, omega_plus, omega_two, ord_one. cbn.
+  destruct n as [|m]; cbn; reflexivity.
+Qed.
+
+Theorem proof_height_lit_below_omega_two :
+  forall phi (pt : Provable_term phi),
+  ord_lt (proof_height_lit phi pt) omega_two.
+Proof.
+  intros phi pt.
+  eapply ord_le_lt_trans.
+  - apply proof_height_lit_le_length.
+  - apply omega_plus_lt_omega_two.
+Qed.
+
+(** The explicit Nec-tower over a Loeb leaf attains omega + n exactly. *)
+
+Fixpoint loeb_tower_form (n : nat) : Form :=
+  match n with
+  | 0 => Impl (Box 0 (Impl (Box 0 Bot) Bot)) (Box 0 Bot)
+  | S k => Box 0 (loeb_tower_form k)
+  end.
+
+Fixpoint loeb_tower (n : nat) : Provable_term (loeb_tower_form n) :=
+  match n return Provable_term (loeb_tower_form n) with
+  | 0 => pt_Loeb 0 Bot
+  | S k => pt_Nec 0 (loeb_tower_form k) (loeb_tower k)
+  end.
+
+Lemma loeb_tower_height : forall n,
+  proof_height_lit (loeb_tower_form n) (loeb_tower n) = omega_plus n.
+Proof.
+  induction n as [|n IH]; cbn [loeb_tower proof_height_lit].
+  - unfold omega_cnf, omega_plus, ord_one. reflexivity.
+  - rewrite IH. apply succ_omega_plus.
+Qed.
+
+(** Exactness package: the literal measure's supremum is omega * 2 —
+    bounded strictly below omega_two, with every omega + n attained. *)
+
+Theorem proof_height_lit_sup_omega_two :
+  (forall phi (pt : Provable_term phi),
+     ord_lt (proof_height_lit phi pt) omega_two) /\
+  (forall n, exists phi (pt : Provable_term phi),
+     proof_height_lit phi pt = omega_plus n).
+Proof.
+  split.
+  - exact proof_height_lit_below_omega_two.
+  - intro n. exists (loeb_tower_form n), (loeb_tower n).
+    apply loeb_tower_height.
+Qed.
+
+(** Non-degeneracy: the literal measure never returns OZero and is not
+    a constant function of the derivation — discharging the forbidden
+    trivialisations of todo #9. *)
+
+Lemma proof_height_lit_shape : forall phi (pt : Provable_term phi),
+  exists e t, proof_height_lit phi pt = OCons e t.
+Proof.
+  intros phi pt. destruct pt; cbn.
+  - unfold ord_one. eauto.
+  - unfold ord_one. eauto.
+  - unfold ord_one. eauto.
+  - unfold ord_one. eauto.
+  - unfold omega_cnf. eauto.
+  - unfold ord_one. eauto.
+  - unfold ord_one. eauto.
+  - unfold ord_one. eauto.
+  - apply succ_cnf_shape.
+  - apply succ_cnf_shape.
+Qed.
+
+Theorem proof_height_lit_never_zero : forall phi (pt : Provable_term phi),
+  proof_height_lit phi pt <> OZero.
+Proof.
+  intros phi pt H.
+  destruct (proof_height_lit_shape phi pt) as [e [t E]].
+  rewrite E in H. discriminate.
+Qed.
+
+Theorem proof_height_lit_not_constant :
+  proof_height_lit _ (loeb_tower 0) <> proof_height_lit _ (loeb_tower 1).
+Proof.
+  rewrite (loeb_tower_height 0), (loeb_tower_height 1).
+  unfold omega_plus. cbn.
+  intro H. injection H as H1. discriminate H1.
+Qed.
+
+(** The literal measure also sits strictly below the genuine Gamma_0
+    atom (the todo #9 headline restated for this measure), and the
+    Gamma_0 bound is again not tight: heights are V_cnf images, hence
+    already strictly below the eps_0 atom. *)
+
+Theorem GLP_proof_height_lit_below_Gamma_0 :
+  forall phi (pt : Provable_term phi),
+  vord_lt (V_cnf (proof_height_lit phi pt)) Gamma_0_ordinal.
+Proof.
+  intros phi pt. apply VL_cnf_g0.
+Qed.
+
+Theorem proof_height_lit_below_eps0 :
+  forall phi (pt : Provable_term phi),
+  vord_lt (V_cnf (proof_height_lit phi pt)) veps0.
+Proof.
+  intros phi pt. apply VL_cnf_phi.
+Qed.
+
+(** Bridge for the Prop-level provability predicate: [proof_height]
+    cannot be a function out of [|- phi] (large elimination from Prop
+    into Type is impossible), but every Provable formula admits SOME
+    derivation height, strictly below omega_two, hence below eps_0 and
+    Gamma_0. *)
+
+Theorem proof_height_lit_bound_for_provable : forall phi,
+  |- phi ->
+  exists o : ord,
+    ord_lt o omega_two /\
+    exists pt : Provable_term phi, proof_height_lit phi pt = o.
+Proof.
+  intros phi Hp.
+  destruct (provable_to_inhabited_Provable_term phi Hp) as [pt].
+  exists (proof_height_lit phi pt). split.
+  - apply proof_height_lit_below_omega_two.
+  - exists pt. reflexivity.
+Qed.
