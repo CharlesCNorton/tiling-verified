@@ -12515,6 +12515,235 @@ Qed.
 Lemma FOsat_ConSentence : forall e k, FOsat e (FOConSentence k).
 Proof. intros e k. cbn. reflexivity. Qed.
 
+(** ** Provable numeral arithmetic in the T_n tower. *)
+
+Lemma FOPr_weaken : forall n A B,
+  FOProvesTn n A -> FOProvesTn n (FOImplF B A).
+Proof.
+  intros n A B H. exact (FOProvesTn_MP n _ _ (FOProvesTn_K n A B) H).
+Qed.
+
+Lemma FOPr_compose : forall n A B C,
+  FOProvesTn n (FOImplF A B) -> FOProvesTn n (FOImplF B C) ->
+  FOProvesTn n (FOImplF A C).
+Proof.
+  intros n A B C HAB HBC.
+  pose proof (FOProvesTn_S n A B C) as HS.
+  pose proof (FOPr_weaken n _ A HBC) as HW.
+  exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ HS HW) HAB).
+Qed.
+
+Lemma FOPr_mp2 : forall n A B C,
+  FOProvesTn n (FOImplF A (FOImplF B C)) ->
+  FOProvesTn n A -> FOProvesTn n B -> FOProvesTn n C.
+Proof.
+  intros n A B C H HA HB.
+  exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ H HA) HB).
+Qed.
+
+Lemma FOPr_swap_mp : forall n A B C,
+  FOProvesTn n (FOImplF A (FOImplF B C)) -> FOProvesTn n B ->
+  FOProvesTn n (FOImplF A C).
+Proof.
+  intros n A B C H HB.
+  pose proof (FOProvesTn_S n A B C) as HS.
+  pose proof (FOProvesTn_MP n _ _ HS H) as H1.
+  exact (FOProvesTn_MP n _ _ H1 (FOPr_weaken n B A HB)).
+Qed.
+
+(** Numeral substitution into any theorem. *)
+
+Lemma FOPr_inst1 : forall n x k A,
+  FOProvesTn n A -> FOProvesTn n (FOsubst_num x k A).
+Proof.
+  intros n x k A H.
+  exact (FOProvesTn_MP n _ _ (FOProvesTn_AllElimNum n x k A)
+           (FOProvesTn_Gen n x A H)).
+Qed.
+
+Lemma FOsubst_tm_numeral : forall x k m,
+  FOsubst_tm x k (FOnumeral m) = FOnumeral m.
+Proof.
+  intros x k m. induction m as [|m IH]; cbn;
+    [reflexivity | rewrite IH; reflexivity].
+Qed.
+
+(** Robinson Q instances at numerals. *)
+
+Lemma FOPr_succ_nonzero : forall n k,
+  FOProvesTn n (FONeg (FOEq (FOSucc (FOnumeral k)) FOZero)).
+Proof.
+  intros n k.
+  pose proof (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_S_nonzero 0))) as H.
+  pose proof (FOPr_inst1 n 0 k _ H) as H2.
+  cbn in H2. exact H2.
+Qed.
+
+Lemma FOPr_succ_inj : forall n a b,
+  FOProvesTn n (FOImplF (FOEq (FOSucc (FOnumeral a)) (FOSucc (FOnumeral b)))
+                        (FOEq (FOnumeral a) (FOnumeral b))).
+Proof.
+  intros n a b.
+  pose proof (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_S_inj 0 1))) as H.
+  pose proof (FOPr_inst1 n 1 b _ H) as H2. cbn in H2.
+  pose proof (FOPr_inst1 n 0 a _ H2) as H3. cbn in H3.
+  rewrite !FOsubst_tm_numeral in H3. exact H3.
+Qed.
+
+Lemma FOPr_plus_zero : forall n a,
+  FOProvesTn n (FOEq (FOPlus (FOnumeral a) FOZero) (FOnumeral a)).
+Proof.
+  intros n a.
+  pose proof (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_plus_zero 0))) as H.
+  pose proof (FOPr_inst1 n 0 a _ H) as H2. cbn in H2. exact H2.
+Qed.
+
+Lemma FOPr_plus_succ : forall n a b,
+  FOProvesTn n (FOEq (FOPlus (FOnumeral a) (FOSucc (FOnumeral b)))
+                     (FOSucc (FOPlus (FOnumeral a) (FOnumeral b)))).
+Proof.
+  intros n a b.
+  pose proof (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_plus_succ 0 1))) as H.
+  pose proof (FOPr_inst1 n 1 b _ H) as H2. cbn in H2.
+  pose proof (FOPr_inst1 n 0 a _ H2) as H3. cbn in H3.
+  rewrite !FOsubst_tm_numeral in H3. exact H3.
+Qed.
+
+Lemma FOPr_mult_zero : forall n a,
+  FOProvesTn n (FOEq (FOMult (FOnumeral a) FOZero) FOZero).
+Proof.
+  intros n a.
+  pose proof (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_mult_zero 0))) as H.
+  pose proof (FOPr_inst1 n 0 a _ H) as H2. cbn in H2. exact H2.
+Qed.
+
+Lemma FOPr_mult_succ : forall n a b,
+  FOProvesTn n (FOEq (FOMult (FOnumeral a) (FOSucc (FOnumeral b)))
+                     (FOPlus (FOMult (FOnumeral a) (FOnumeral b)) (FOnumeral a))).
+Proof.
+  intros n a b.
+  pose proof (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_mult_succ 0 1))) as H.
+  pose proof (FOPr_inst1 n 1 b _ H) as H2. cbn in H2.
+  pose proof (FOPr_inst1 n 0 a _ H2) as H3. cbn in H3.
+  rewrite !FOsubst_tm_numeral in H3. exact H3.
+Qed.
+
+(** Numeral addition and multiplication are provable. *)
+
+Lemma FOPr_add_numerals : forall n a b,
+  FOProvesTn n (FOEq (FOPlus (FOnumeral a) (FOnumeral b)) (FOnumeral (a + b))).
+Proof.
+  intros n a b. induction b as [|b IH].
+  - rewrite Nat.add_0_r. exact (FOPr_plus_zero n a).
+  - cbn [FOnumeral]. rewrite Nat.add_succ_r. cbn [FOnumeral].
+    pose proof (FOPr_plus_succ n a b) as Hps.
+    pose proof (FOProvesTn_MP n _ _ (FOProvesTn_CongS n _ _) IH) as Hcong.
+    exact (FOPr_mp2 n _ _ _ (FOProvesTn_EqTrans n _ _ _) Hps Hcong).
+Qed.
+
+Lemma FOPr_mul_numerals : forall n a b,
+  FOProvesTn n (FOEq (FOMult (FOnumeral a) (FOnumeral b)) (FOnumeral (a * b))).
+Proof.
+  intros n a b. induction b as [|b IH].
+  - rewrite Nat.mul_0_r. exact (FOPr_mult_zero n a).
+  - cbn [FOnumeral]. rewrite Nat.mul_succ_r.
+    pose proof (FOPr_mult_succ n a b) as Hms.
+    pose proof (FOPr_mp2 n _ _ _ (FOProvesTn_CongPlus n _ _ _ _) IH
+                  (FOProvesTn_EqRefl n (FOnumeral a))) as Hcong.
+    pose proof (FOPr_add_numerals n (a * b) a) as Hadd.
+    pose proof (FOPr_mp2 n _ _ _ (FOProvesTn_EqTrans n _ _ _) Hcong Hadd)
+      as Htrans1.
+    exact (FOPr_mp2 n _ _ _ (FOProvesTn_EqTrans n _ _ _) Hms Htrans1).
+Qed.
+
+(** Distinct numerals are provably distinct. *)
+
+Lemma FOPr_num_neq : forall n a b,
+  a <> b ->
+  FOProvesTn n (FONeg (FOEq (FOnumeral a) (FOnumeral b))).
+Proof.
+  intros n a. induction a as [|a IH]; intros b Hne; destruct b as [|b].
+  - exfalso. apply Hne. reflexivity.
+  - cbn [FOnumeral].
+    pose proof (FOPr_succ_nonzero n b) as Hnz.
+    pose proof (FOProvesTn_EqSym n FOZero (FOSucc (FOnumeral b))) as Hsym.
+    exact (FOPr_compose n _ _ _ Hsym Hnz).
+  - cbn [FOnumeral]. exact (FOPr_succ_nonzero n a).
+  - cbn [FOnumeral].
+    assert (Hne' : a <> b) by (intro; apply Hne; f_equal; assumption).
+    pose proof (FOPr_succ_inj n a b) as Hinj.
+    pose proof (IH b Hne') as Hihb.
+    exact (FOPr_compose n _ _ _ Hinj Hihb).
+Qed.
+
+(** Closed terms provably evaluate to their numerals. *)
+
+Fixpoint FOclosed_tm (t : FOTerm) : Prop :=
+  match t with
+  | FOVar _ => False
+  | FOZero => True
+  | FOSucc a => FOclosed_tm a
+  | FOPlus a b => FOclosed_tm a /\ FOclosed_tm b
+  | FOMult a b => FOclosed_tm a /\ FOclosed_tm b
+  end.
+
+Lemma FOPr_closed_term_eval : forall n t, FOclosed_tm t ->
+  FOProvesTn n (FOEq t (FOnumeral (FOeval (fun _ => 0) t))).
+Proof.
+  intros n t. induction t as [v | | a IHa | a IHa b IHb | a IHa b IHb];
+    cbn; intro Hc.
+  - contradiction.
+  - exact (FOProvesTn_EqRefl n FOZero).
+  - pose proof (IHa Hc) as IH.
+    exact (FOProvesTn_MP n _ _ (FOProvesTn_CongS n _ _) IH).
+  - destruct Hc as [H1 H2].
+    pose proof (FOPr_mp2 n _ _ _ (FOProvesTn_CongPlus n _ _ _ _)
+                  (IHa H1) (IHb H2)) as Hcong.
+    pose proof (FOPr_add_numerals n (FOeval (fun _ => 0) a)
+                  (FOeval (fun _ => 0) b)) as Hadd.
+    exact (FOPr_mp2 n _ _ _ (FOProvesTn_EqTrans n _ _ _) Hcong Hadd).
+  - destruct Hc as [H1 H2].
+    pose proof (FOPr_mp2 n _ _ _ (FOProvesTn_CongMult n _ _ _ _)
+                  (IHa H1) (IHb H2)) as Hcong.
+    pose proof (FOPr_mul_numerals n (FOeval (fun _ => 0) a)
+                  (FOeval (fun _ => 0) b)) as Hmul.
+    exact (FOPr_mp2 n _ _ _ (FOProvesTn_EqTrans n _ _ _) Hcong Hmul).
+Qed.
+
+(** Closed equations are provably decided by their truth value. *)
+
+Lemma FOPr_closed_eq_true : forall n a b,
+  FOclosed_tm a -> FOclosed_tm b ->
+  FOeval (fun _ => 0) a = FOeval (fun _ => 0) b ->
+  FOProvesTn n (FOEq a b).
+Proof.
+  intros n a b Hca Hcb Heq.
+  pose proof (FOPr_closed_term_eval n a Hca) as Ta.
+  pose proof (FOPr_closed_term_eval n b Hcb) as Tb.
+  rewrite Heq in Ta.
+  pose proof (FOProvesTn_MP n _ _ (FOProvesTn_EqSym n _ _) Tb) as Tb'.
+  exact (FOPr_mp2 n _ _ _ (FOProvesTn_EqTrans n _ _ _) Ta Tb').
+Qed.
+
+Lemma FOPr_closed_eq_false : forall n a b,
+  FOclosed_tm a -> FOclosed_tm b ->
+  FOeval (fun _ => 0) a <> FOeval (fun _ => 0) b ->
+  FOProvesTn n (FONeg (FOEq a b)).
+Proof.
+  intros n a b Hca Hcb Hne.
+  pose proof (FOPr_closed_term_eval n a Hca) as Ta.
+  pose proof (FOPr_closed_term_eval n b Hcb) as Tb.
+  pose proof (FOProvesTn_MP n _ _ (FOProvesTn_EqSym n _ _) Ta) as Ta'.
+  pose proof (FOProvesTn_MP n _ _
+    (FOProvesTn_EqTrans n (FOnumeral (FOeval (fun _ => 0) a)) a b) Ta') as S1.
+  pose proof (FOPr_swap_mp n _ _ _
+    (FOProvesTn_EqTrans n (FOnumeral (FOeval (fun _ => 0) a)) b
+       (FOnumeral (FOeval (fun _ => 0) b))) Tb) as S2.
+  pose proof (FOPr_compose n _ _ _ S1 S2) as S3.
+  pose proof (FOPr_num_neq n _ _ Hne) as Hnn.
+  exact (FOPr_compose n _ _ _ S3 Hnn).
+Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
