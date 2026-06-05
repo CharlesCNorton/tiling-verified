@@ -22,8 +22,135 @@ From Stdlib Require Import Logic.Classical.
 From Stdlib Require Import Logic.ClassicalEpsilon.
 Import ListNotations.
 
-From Tiling Require Export Calculus.
-From Tiling Require Export Hilbert.
+(** ** The calculus: formulas and the GLP* axioms. *)
+
+Inductive Form : Type :=
+  | Var  : nat -> Form
+  | Bot  : Form
+  | Impl : Form -> Form -> Form
+  | Box  : nat -> Form -> Form.
+
+Definition Neg (phi : Form) : Form := Impl phi Bot.
+Definition Top : Form := Impl Bot Bot.
+Definition Diamond (n : nat) (phi : Form) : Form := Neg (Box n (Neg phi)).
+Definition And (phi psi : Form) : Form := Neg (Impl phi (Neg psi)).
+Definition Or (phi psi : Form) : Form := Impl (Neg phi) psi.
+Definition Iff (phi psi : Form) : Form := And (Impl phi psi) (Impl psi phi).
+
+Lemma Form_eq_dec : forall (f g : Form), {f = g} + {f <> g}.
+Proof.
+  decide equality; apply Nat.eq_dec.
+Defined.
+
+Inductive Provable : Form -> Prop :=
+  | Ax_K   : forall phi psi,
+      Provable (Impl phi (Impl psi phi))
+  | Ax_S   : forall phi psi chi,
+      Provable (Impl (Impl phi (Impl psi chi))
+                     (Impl (Impl phi psi) (Impl phi chi)))
+  | Ax_DN  : forall phi,
+      Provable (Impl (Neg (Neg phi)) phi)
+  | Ax_BoxK : forall n phi psi,
+      Provable (Impl (Box n (Impl phi psi))
+                     (Impl (Box n phi) (Box n psi)))
+  | Ax_Loeb : forall n phi,
+      Provable (Impl (Box n (Impl (Box n phi) phi)) (Box n phi))
+  | Ax_Box4 : forall n phi,
+      Provable (Impl (Box n phi) (Box n (Box n phi)))
+  | Ax_Mon  : forall n phi,
+      Provable (Impl (Box n phi) (Box (S n) phi))
+  | Ax_NextCon : forall n,
+      Provable (Box (S n) (Neg (Box n Bot)))
+  | MP : forall phi psi,
+      Provable (Impl phi psi) -> Provable phi -> Provable psi
+  | Nec : forall n phi,
+      Provable phi -> Provable (Box n phi).
+
+Notation "|- f" := (Provable f) (at level 75, no associativity).
+
+(** ** Basic Hilbert combinators. *)
+
+Lemma prov_id : forall phi, |- Impl phi phi.
+Proof.
+  intro phi.
+  pose proof (Ax_S phi (Impl phi phi) phi) as Hs.
+  pose proof (Ax_K phi (Impl phi phi)) as Hk1.
+  pose proof (Ax_K phi phi) as Hk2.
+  exact (MP _ _ (MP _ _ Hs Hk1) Hk2).
+Qed.
+
+Lemma prov_weaken : forall phi psi, |- phi -> |- Impl psi phi.
+Proof.
+  intros phi psi Hphi.
+  exact (MP _ _ (Ax_K phi psi) Hphi).
+Qed.
+
+Lemma prov_compose : forall phi psi chi,
+  |- Impl phi psi -> |- Impl psi chi -> |- Impl phi chi.
+Proof.
+  intros phi psi chi Hpq Hqr.
+  pose proof (Ax_S phi psi chi) as Hs.
+  pose proof (prov_weaken _ phi Hqr) as Hpqr.
+  exact (MP _ _ (MP _ _ Hs Hpqr) Hpq).
+Qed.
+
+Lemma prov_perm : forall phi psi chi,
+  |- Impl phi (Impl psi chi) -> |- Impl psi (Impl phi chi).
+Proof.
+  intros phi psi chi H.
+  pose proof (Ax_S phi psi chi) as Hs.
+  pose proof (MP _ _ Hs H) as H1.
+  pose proof (Ax_K psi phi) as Hk.
+  pose proof (prov_compose _ _ _ Hk H1) as H2.
+  exact H2.
+Qed.
+
+Lemma prov_mp2 : forall phi psi chi,
+  |- Impl phi (Impl psi chi) -> |- phi -> |- psi -> |- chi.
+Proof.
+  intros phi psi chi H Hphi Hpsi.
+  exact (MP _ _ (MP _ _ H Hphi) Hpsi).
+Qed.
+
+Lemma prov_DN_intro : forall phi, |- Impl phi (Neg (Neg phi)).
+Proof.
+  intro phi.
+  unfold Neg.
+  pose proof (prov_id (Impl phi Bot)) as Hid.
+  exact (prov_perm _ _ _ Hid).
+Qed.
+
+Lemma prov_explosion : forall phi, |- Impl Bot phi.
+Proof.
+  intro phi.
+  pose proof (prov_id Bot) as HBB.
+  pose proof (Ax_K Bot (Neg phi)) as Hk.
+  pose proof (Ax_DN phi) as HDN.
+  exact (prov_compose _ _ _ Hk HDN).
+Qed.
+
+Lemma prov_compose_internal : forall phi psi chi,
+  |- Impl (Impl psi chi) (Impl (Impl phi psi) (Impl phi chi)).
+Proof.
+  intros phi psi chi.
+  pose proof (Ax_K (Impl psi chi) phi) as Hk.
+  pose proof (Ax_S phi psi chi) as Hs.
+  exact (prov_compose _ _ _ Hk Hs).
+Qed.
+
+Lemma prov_perm_internal : forall a b c,
+  |- Impl (Impl a (Impl b c)) (Impl b (Impl a c)).
+Proof.
+  intros a b c.
+  pose proof (Ax_S a b c) as H_S.
+  pose proof (Ax_S (Impl a (Impl b c)) (Impl a b) (Impl a c)) as H_S2.
+  pose proof (MP _ _ H_S2 H_S) as H1.
+  pose proof (Ax_K b a) as H_K1.
+  pose proof (Ax_K (Impl a b) (Impl a (Impl b c))) as H_K2.
+  pose proof (prov_compose _ _ _ H_K1 H_K2) as H2.
+  pose proof (prov_compose _ _ _ H2 H1) as H3.
+  exact (prov_perm _ _ _ H3).
+Qed.
 
 (** ** And-introduction: [|- phi -> psi -> phi /\ psi].
 
@@ -1399,12 +1526,274 @@ Qed.
 
     Forcing is defined classically with [bool]-valued valuations. *)
 
-From Tiling Require Export Kripke.
-From Tiling Require Export FixedPoints.
-From Tiling Require Export Bew.
-From Tiling Require Export ProofTerms.
-From Tiling Require Export Worms.
-From Tiling Require Export Agents.
+Record Frame : Type := mkFrame {
+  fW : Type;
+  fR : nat -> fW -> fW -> Prop;
+  fR_trans : forall n w v u, fR n w v -> fR n v u -> fR n w u;
+  fR_wf : forall n, well_founded (fun u v => fR n v u);
+  fR_mon : forall n w v, fR (S n) w v -> fR n w v;
+  fR_nextcon : forall n w v, fR (S n) w v -> exists u, fR n v u
+}.
+
+Fixpoint forces (F : Frame) (V : fW F -> nat -> bool)
+                (w : fW F) (phi : Form) : Prop :=
+  match phi with
+  | Var p => V w p = true
+  | Bot => False
+  | Impl X Y => forces F V w X -> forces F V w Y
+  | Box n psi => forall v, fR F n w v -> forces F V v psi
+  end.
+
+Definition Valid (phi : Form) : Prop :=
+  forall F V w, forces F V w phi.
+
+Theorem soundness : forall phi, |- phi -> Valid phi.
+Proof.
+  intros phi H. induction H.
+  - unfold Valid. intros F V w. simpl. intros Hphi _. exact Hphi.
+  - unfold Valid. intros F V w. simpl. intros Hf Hg Hphi.
+    apply Hf; [exact Hphi | apply Hg; exact Hphi].
+  - unfold Valid. intros F V w. simpl. intro Hnnp.
+    apply NNPP. exact Hnnp.
+  - unfold Valid. intros F V w. simpl. intros Himp Hphi v Hwv.
+    apply (Himp v Hwv). apply (Hphi v Hwv).
+  - unfold Valid. intros F V w. simpl. intros Hbox v Hwv.
+    pose proof (fR_wf F n) as Hwf.
+    set (P := fun u => fR F n w u -> forces F V u phi).
+    cut (P v); [intro Hpv; exact (Hpv Hwv) |].
+    apply (well_founded_ind Hwf P).
+    intros u IH. unfold P. intro Hwu.
+    apply (Hbox u Hwu).
+    intros u' Huu'.
+    apply (IH u' Huu' (fR_trans F n w u u' Hwu Huu')).
+  - unfold Valid. intros F V w. simpl. intros Hphi v Hwv u Hvu.
+    apply Hphi. apply (fR_trans F n w v u Hwv Hvu).
+  - unfold Valid. intros F V w. simpl. intros Hphi v Hwv.
+    apply Hphi. apply (fR_mon F n w v Hwv).
+  - unfold Valid. intros F V w. simpl. intros v Hwv Hbox.
+    destruct (fR_nextcon F n w v Hwv) as [u Hvu].
+    exact (Hbox u Hvu).
+  - unfold Valid. intros F V w.
+    apply (IHProvable1 F V w). apply (IHProvable2 F V w).
+  - unfold Valid. intros F V w. simpl.
+    intros v _. apply (IHProvable F V v).
+Qed.
+
+Lemma fp_and_intro_meta : forall phi psi, |- phi -> |- psi -> |- And phi psi.
+Proof.
+  intros phi psi Hphi Hpsi.
+  unfold And, Neg.
+  pose proof (prov_id (Impl phi (Impl psi Bot))) as Hid.
+  pose proof (Ax_S (Impl phi (Impl psi Bot)) phi (Impl psi Bot)) as HS1.
+  pose proof (MP _ _ HS1 Hid) as Hstep1.
+  pose proof (prov_weaken _ (Impl phi (Impl psi Bot)) Hphi) as Hphi_w.
+  pose proof (MP _ _ Hstep1 Hphi_w) as Hstep2.
+  pose proof (Ax_S (Impl phi (Impl psi Bot)) psi Bot) as HS2.
+  pose proof (MP _ _ HS2 Hstep2) as Hstep3.
+  pose proof (prov_weaken _ (Impl phi (Impl psi Bot)) Hpsi) as Hpsi_w.
+  exact (MP _ _ Hstep3 Hpsi_w).
+Qed.
+
+Theorem fixed_point_loeb_witness : forall n X,
+  |- Iff (Box n X) (Box n (Impl (Box n X) X)).
+Proof.
+  intros n X.
+  apply fp_and_intro_meta.
+  - pose proof (Ax_K X (Box n X)) as Hk1.
+    pose proof (Nec n _ Hk1) as Hnec1.
+    pose proof (Ax_BoxK n X (Impl (Box n X) X)) as HBK1.
+    exact (MP _ _ HBK1 Hnec1).
+  - exact (Ax_Loeb n X).
+Qed.
+
+Theorem fixed_point_existence_loeb_form : forall n X,
+  exists psi, |- Iff psi (Box n (Impl psi X)).
+Proof.
+  intros n X. exists (Box n X). exact (fixed_point_loeb_witness n X).
+Qed.
+
+Inductive T_axiom (n : nat) : Form -> Prop :=
+  | TAx_K : forall phi psi,
+      T_axiom n (Impl phi (Impl psi phi))
+  | TAx_S : forall phi psi chi,
+      T_axiom n (Impl (Impl phi (Impl psi chi))
+                      (Impl (Impl phi psi) (Impl phi chi)))
+  | TAx_DN : forall phi,
+      T_axiom n (Impl (Neg (Neg phi)) phi)
+  | TAx_BoxK : forall k phi psi, k < n ->
+      T_axiom n (Impl (Box k (Impl phi psi)) (Impl (Box k phi) (Box k psi)))
+  | TAx_Loeb : forall k phi, k < n ->
+      T_axiom n (Impl (Box k (Impl (Box k phi) phi)) (Box k phi))
+  | TAx_Box4 : forall k phi, k < n ->
+      T_axiom n (Impl (Box k phi) (Box k (Box k phi)))
+  | TAx_Mon : forall k phi, S k < n ->
+      T_axiom n (Impl (Box k phi) (Box (S k) phi))
+  | TAx_NextCon : forall k, S k < n ->
+      T_axiom n (Box (S k) (Neg (Box k Bot))).
+
+Inductive Bew (n : nat) : Form -> Prop :=
+  | Bew_ax  : forall phi, T_axiom n phi -> Bew n phi
+  | Bew_MP  : forall phi psi, Bew n (Impl phi psi) -> Bew n phi -> Bew n psi
+  | Bew_Nec : forall k phi, k < n -> Bew n phi -> Bew n (Box k phi).
+
+Theorem Bew_HBL_K : forall n k phi psi, k < n ->
+  Bew n (Impl (Box k (Impl phi psi)) (Impl (Box k phi) (Box k psi))).
+Proof. intros n k phi psi Hk. apply Bew_ax. apply TAx_BoxK; assumption. Qed.
+
+Theorem Bew_HBL_Loeb : forall n k phi, k < n ->
+  Bew n (Impl (Box k (Impl (Box k phi) phi)) (Box k phi)).
+Proof. intros n k phi Hk. apply Bew_ax. apply TAx_Loeb; assumption. Qed.
+
+Theorem Bew_HBL_Box4 : forall n k phi, k < n ->
+  Bew n (Impl (Box k phi) (Box k (Box k phi))).
+Proof. intros n k phi Hk. apply Bew_ax. apply TAx_Box4; assumption. Qed.
+
+Theorem Bew_HBL_Nec : forall n k phi, k < n ->
+  Bew n phi -> Bew n (Box k phi).
+Proof. intros n k phi Hk H. exact (Bew_Nec n k phi Hk H). Qed.
+
+Theorem Bew_HBL_MP : forall n phi psi,
+  Bew n (Impl phi psi) -> Bew n phi -> Bew n psi.
+Proof. exact Bew_MP. Qed.
+
+Theorem T_axiom_cumulative : forall n phi,
+  T_axiom n phi -> T_axiom (S n) phi.
+Proof.
+  intros n phi H. induction H.
+  - apply TAx_K.
+  - apply TAx_S.
+  - apply TAx_DN.
+  - apply TAx_BoxK; lia.
+  - apply TAx_Loeb; lia.
+  - apply TAx_Box4; lia.
+  - apply TAx_Mon; lia.
+  - apply TAx_NextCon; lia.
+Qed.
+
+Theorem Bew_cumulative : forall n phi,
+  Bew n phi -> Bew (S n) phi.
+Proof.
+  intros n phi H. induction H as [phi Hax | phi psi _ IH1 _ IH2 | k phi Hk _ IH].
+  - apply Bew_ax. exact (T_axiom_cumulative n phi Hax).
+  - exact (Bew_MP _ _ _ IH1 IH2).
+  - apply Bew_Nec; [lia|exact IH].
+Qed.
+
+Theorem Bew_to_Provable : forall n phi, Bew n phi -> |- phi.
+Proof.
+  intros n phi H. induction H as [phi Hax | phi psi _ IH1 _ IH2 | k phi Hk _ IH].
+  - induction Hax.
+    + apply Ax_K.
+    + apply Ax_S.
+    + apply Ax_DN.
+    + apply Ax_BoxK.
+    + apply Ax_Loeb.
+    + apply Ax_Box4.
+    + apply Ax_Mon.
+    + apply Ax_NextCon.
+  - exact (MP _ _ IH1 IH2).
+  - exact (Nec _ _ IH).
+Qed.
+
+Inductive Provable_term : Form -> Type :=
+  | pt_K       : forall phi psi,
+      Provable_term (Impl phi (Impl psi phi))
+  | pt_S       : forall phi psi chi,
+      Provable_term (Impl (Impl phi (Impl psi chi))
+                       (Impl (Impl phi psi) (Impl phi chi)))
+  | pt_DN      : forall phi,
+      Provable_term (Impl (Neg (Neg phi)) phi)
+  | pt_BoxK    : forall n phi psi,
+      Provable_term (Impl (Box n (Impl phi psi))
+                       (Impl (Box n phi) (Box n psi)))
+  | pt_Loeb    : forall n phi,
+      Provable_term (Impl (Box n (Impl (Box n phi) phi)) (Box n phi))
+  | pt_Box4    : forall n phi,
+      Provable_term (Impl (Box n phi) (Box n (Box n phi)))
+  | pt_Mon     : forall n phi,
+      Provable_term (Impl (Box n phi) (Box (S n) phi))
+  | pt_NextCon : forall n,
+      Provable_term (Box (S n) (Neg (Box n Bot)))
+  | pt_MP      : forall phi psi,
+      Provable_term (Impl phi psi) -> Provable_term phi -> Provable_term psi
+  | pt_Nec     : forall n phi,
+      Provable_term phi -> Provable_term (Box n phi).
+
+Theorem Provable_term_sound : forall phi, Provable_term phi -> |- phi.
+Proof.
+  intros phi pt. induction pt.
+  - exact (Ax_K phi psi).
+  - exact (Ax_S phi psi chi).
+  - exact (Ax_DN phi).
+  - exact (Ax_BoxK n phi psi).
+  - exact (Ax_Loeb n phi).
+  - exact (Ax_Box4 n phi).
+  - exact (Ax_Mon n phi).
+  - exact (Ax_NextCon n).
+  - exact (MP _ _ IHpt1 IHpt2).
+  - exact (Nec n _ IHpt).
+Qed.
+
+Theorem provable_to_inhabited_Provable_term : forall phi,
+  |- phi -> inhabited (Provable_term phi).
+Proof.
+  intros phi H. induction H.
+  - exact (inhabits (pt_K phi psi)).
+  - exact (inhabits (pt_S phi psi chi)).
+  - exact (inhabits (pt_DN phi)).
+  - exact (inhabits (pt_BoxK n phi psi)).
+  - exact (inhabits (pt_Loeb n phi)).
+  - exact (inhabits (pt_Box4 n phi)).
+  - exact (inhabits (pt_Mon n phi)).
+  - exact (inhabits (pt_NextCon n)).
+  - destruct IHProvable1 as [pt1]. destruct IHProvable2 as [pt2].
+    exact (inhabits (pt_MP _ _ pt1 pt2)).
+  - destruct IHProvable as [pt]. exact (inhabits (pt_Nec n _ pt)).
+Qed.
+
+Theorem Provable_term_iff_inhabited : forall phi,
+  |- phi <-> inhabited (Provable_term phi).
+Proof.
+  intros phi. split.
+  - exact (provable_to_inhabited_Provable_term phi).
+  - intros [pt]. exact (Provable_term_sound phi pt).
+Qed.
+
+Definition Worm := list nat.
+
+Fixpoint worm_to_form (w : Worm) : Form :=
+  match w with
+  | [] => Top
+  | k :: rest => Box k (worm_to_form rest)
+  end.
+
+Theorem worm_top_provable : |- worm_to_form [].
+Proof. simpl. apply prov_id. Qed.
+
+Theorem worm_box_provable : forall k w,
+  |- worm_to_form w -> |- worm_to_form (k :: w).
+Proof.
+  intros k w H. simpl. apply Nec. exact H.
+Qed.
+
+Record AgentRecord : Type := mkAgent {
+  agent_level : nat;
+  agent_goal : Form;
+  agent_action_space : list Form;
+  agent_decision : Form -> Form;
+  agent_verification : Form -> bool
+}.
+
+Definition agent_licenses (A : AgentRecord) (sigma : Form) : Form :=
+  if agent_verification A sigma
+  then agent_decision A sigma
+  else Bot.
+
+Definition Box_licenses_via_agent (A : AgentRecord) (sigma : Form) : Form :=
+  Box (agent_level A) (agent_licenses A sigma).
+
+Definition canonical_box_n_agent (n : nat) (G : Form) : AgentRecord :=
+  mkAgent n G [] (fun phi => phi) (fun _ => true).
 
 (** ** A two-world frame refuting [Box 0 Bot].
 
