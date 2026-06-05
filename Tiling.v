@@ -20925,6 +20925,888 @@ Proof.
            (Nat.lt_succ_diag_r _) Hmem).
 Qed.
 
+(** ** Trace builders: completeness of the master table.
+
+    For each represented function, a structurally recursive builder
+    collects the entries of the recursion's call tree.  [entry_ok]
+    states an entry's per-tag justification over the membership
+    relation of a list; each builder's entries are justified within
+    any superset of the builder's own output, with the seed entry
+    present carrying the function's value. *)
+
+Record TEntry : Type := mkTE {
+  te_tg : nat;
+  te_a1 : nat;
+  te_a2 : nat;
+  te_a3 : nat;
+  te_r : nat
+}.
+
+Definition listL (L : list TEntry)
+    : nat -> nat -> nat -> nat -> nat -> Prop :=
+  fun tg a1 a2 a3 r => In (mkTE tg a1 a2 a3 r) L.
+
+Definition entry_ok (L : list TEntry) (e : TEntry) : Prop :=
+  match e with
+  | mkTE 0 a1 a2 _ r => step0_sem (listL L) a1 a2 r
+  | mkTE 1 a1 a2 _ r => step1_sem (listL L) a1 a2 r
+  | mkTE 2 a1 a2 a3 r => step2_sem (listL L) a1 a2 a3 r
+  | mkTE 3 a1 a2 a3 r => step3_sem (listL L) a1 a2 a3 r
+  | mkTE 4 a1 a2 a3 r => step4_sem (listL L) a1 a2 a3 r
+  | mkTE 5 a1 _ _ r => step5_sem (listL L) a1 r
+  | mkTE _ _ _ _ _ => False
+  end.
+
+Lemma entry_ok_0 : forall L a1 a2 a3 r,
+  step0_sem (listL L) a1 a2 r -> entry_ok L (mkTE 0 a1 a2 a3 r).
+Proof. intros L a1 a2 a3 r H. exact H. Qed.
+
+Lemma entry_ok_1 : forall L a1 a2 a3 r,
+  step1_sem (listL L) a1 a2 r -> entry_ok L (mkTE 1 a1 a2 a3 r).
+Proof. intros L a1 a2 a3 r H. exact H. Qed.
+
+Lemma entry_ok_2 : forall L a1 a2 a3 r,
+  step2_sem (listL L) a1 a2 a3 r -> entry_ok L (mkTE 2 a1 a2 a3 r).
+Proof. intros L a1 a2 a3 r H. exact H. Qed.
+
+Lemma entry_ok_3 : forall L a1 a2 a3 r,
+  step3_sem (listL L) a1 a2 a3 r -> entry_ok L (mkTE 3 a1 a2 a3 r).
+Proof. intros L a1 a2 a3 r H. exact H. Qed.
+
+Lemma entry_ok_4 : forall L a1 a2 a3 r,
+  step4_sem (listL L) a1 a2 a3 r -> entry_ok L (mkTE 4 a1 a2 a3 r).
+Proof. intros L a1 a2 a3 r H. exact H. Qed.
+
+Lemma entry_ok_5 : forall L a1 a2 a3 r,
+  step5_sem (listL L) a1 r -> entry_ok L (mkTE 5 a1 a2 a3 r).
+Proof. intros L a1 a2 a3 r H. exact H. Qed.
+
+Lemma in_last : forall (X : Type) (l : list X) (x : X), In x (l ++ [x]).
+Proof. intros X l x. apply in_or_app. right. left. reflexivity. Qed.
+
+Lemma incl_app_head : forall (X : Type) (l1 l2 L : list X),
+  incl (l1 ++ l2) L -> incl l1 L.
+Proof.
+  intros X l1 l2 L H z Hz. apply H. apply in_or_app. left. exact Hz.
+Qed.
+
+Lemma incl_app_tail : forall (X : Type) (l1 l2 L : list X),
+  incl (l1 ++ l2) L -> incl l2 L.
+Proof.
+  intros X l1 l2 L H z Hz. apply H. apply in_or_app. right. exact Hz.
+Qed.
+
+Definition t0E (w : nat) (t : FOTerm) : TEntry :=
+  mkTE 0 w (FOcode_tm t) 0 (if FOin_tm w t then 1 else 0).
+
+Definition t1E (w : nat) (A : FOFormula) : TEntry :=
+  mkTE 1 w (FOcode_f A) 0 (if FOfree_in w A then 1 else 0).
+
+Definition t2E (x : nat) (s t : FOTerm) : TEntry :=
+  mkTE 2 x (FOcode_tm s) (FOcode_tm t) (FOcode_tm (FOsubst_t x s t)).
+
+Definition t3E (x : nat) (s : FOTerm) (A : FOFormula) : TEntry :=
+  mkTE 3 x (FOcode_tm s) (FOcode_f A) (FOcode_f (FOsubst_f x s A)).
+
+Definition t4E (x : nat) (s : FOTerm) (A : FOFormula) : TEntry :=
+  mkTE 4 x (FOcode_tm s) (FOcode_f A)
+    (if FOsubst_ok x s A then 1 else 0).
+
+Definition t5E (k : nat) : TEntry :=
+  mkTE 5 k 0 0 (FOcode_tm (FOnumeral k)).
+
+Fixpoint trace0 (w : nat) (t : FOTerm) : list TEntry :=
+  match t with
+  | FOVar y => [t0E w (FOVar y)]
+  | FOZero => [t0E w FOZero]
+  | FOSucc a => trace0 w a ++ [t0E w (FOSucc a)]
+  | FOPlus a b => trace0 w a ++ trace0 w b ++ [t0E w (FOPlus a b)]
+  | FOMult a b => trace0 w a ++ trace0 w b ++ [t0E w (FOMult a b)]
+  end.
+
+Fixpoint trace1 (w : nat) (A : FOFormula) : list TEntry :=
+  match A with
+  | FOEq a b => trace0 w a ++ trace0 w b ++ [t1E w (FOEq a b)]
+  | FOFalseF => [t1E w FOFalseF]
+  | FOImplF B C => trace1 w B ++ trace1 w C ++ [t1E w (FOImplF B C)]
+  | FOForall y B => trace1 w B ++ [t1E w (FOForall y B)]
+  | FOExists y B => trace1 w B ++ [t1E w (FOExists y B)]
+  end.
+
+Fixpoint trace2 (x : nat) (s t : FOTerm) : list TEntry :=
+  match t with
+  | FOVar y => [t2E x s (FOVar y)]
+  | FOZero => [t2E x s FOZero]
+  | FOSucc a => trace2 x s a ++ [t2E x s (FOSucc a)]
+  | FOPlus a b => trace2 x s a ++ trace2 x s b ++ [t2E x s (FOPlus a b)]
+  | FOMult a b => trace2 x s a ++ trace2 x s b ++ [t2E x s (FOMult a b)]
+  end.
+
+Fixpoint trace3 (x : nat) (s : FOTerm) (A : FOFormula) : list TEntry :=
+  match A with
+  | FOEq a b => trace2 x s a ++ trace2 x s b ++ [t3E x s (FOEq a b)]
+  | FOFalseF => [t3E x s FOFalseF]
+  | FOImplF B C =>
+      trace3 x s B ++ trace3 x s C ++ [t3E x s (FOImplF B C)]
+  | FOForall y B => trace3 x s B ++ [t3E x s (FOForall y B)]
+  | FOExists y B => trace3 x s B ++ [t3E x s (FOExists y B)]
+  end.
+
+Fixpoint trace4 (x : nat) (s : FOTerm) (A : FOFormula) : list TEntry :=
+  match A with
+  | FOEq a b => [t4E x s (FOEq a b)]
+  | FOFalseF => [t4E x s FOFalseF]
+  | FOImplF B C =>
+      trace4 x s B ++ trace4 x s C ++ [t4E x s (FOImplF B C)]
+  | FOForall y B =>
+      trace1 x B ++ trace0 y s ++ trace4 x s B
+        ++ [t4E x s (FOForall y B)]
+  | FOExists y B =>
+      trace1 x B ++ trace0 y s ++ trace4 x s B
+        ++ [t4E x s (FOExists y B)]
+  end.
+
+Fixpoint trace5 (k : nat) : list TEntry :=
+  match k with
+  | 0 => [t5E 0]
+  | S k' => trace5 k' ++ [t5E (S k')]
+  end.
+
+Lemma trace0_seed : forall w t r,
+  r = (if FOin_tm w t then 1 else 0) ->
+  In (mkTE 0 w (FOcode_tm t) 0 r) (trace0 w t).
+Proof.
+  intros w t r ->.
+  destruct t as [y | | a | a b | a b]; cbn [trace0].
+  - left. reflexivity.
+  - left. reflexivity.
+  - apply in_last.
+  - apply in_or_app. right. apply in_last.
+  - apply in_or_app. right. apply in_last.
+Qed.
+
+Lemma trace1_seed : forall w A r,
+  r = (if FOfree_in w A then 1 else 0) ->
+  In (mkTE 1 w (FOcode_f A) 0 r) (trace1 w A).
+Proof.
+  intros w A r ->.
+  destruct A as [a b | | B C | y B | y B]; cbn [trace1].
+  - apply in_or_app. right. apply in_last.
+  - left. reflexivity.
+  - apply in_or_app. right. apply in_last.
+  - apply in_last.
+  - apply in_last.
+Qed.
+
+Lemma trace2_seed : forall x s t r,
+  r = FOcode_tm (FOsubst_t x s t) ->
+  In (mkTE 2 x (FOcode_tm s) (FOcode_tm t) r) (trace2 x s t).
+Proof.
+  intros x s t r ->.
+  destruct t as [y | | a | a b | a b]; cbn [trace2].
+  - left. reflexivity.
+  - left. reflexivity.
+  - apply in_last.
+  - apply in_or_app. right. apply in_last.
+  - apply in_or_app. right. apply in_last.
+Qed.
+
+Lemma trace3_seed : forall x s A r,
+  r = FOcode_f (FOsubst_f x s A) ->
+  In (mkTE 3 x (FOcode_tm s) (FOcode_f A) r) (trace3 x s A).
+Proof.
+  intros x s A r ->.
+  destruct A as [a b | | B C | y B | y B]; cbn [trace3].
+  - apply in_or_app. right. apply in_last.
+  - left. reflexivity.
+  - apply in_or_app. right. apply in_last.
+  - apply in_last.
+  - apply in_last.
+Qed.
+
+Lemma trace4_seed : forall x s A r,
+  r = (if FOsubst_ok x s A then 1 else 0) ->
+  In (mkTE 4 x (FOcode_tm s) (FOcode_f A) r) (trace4 x s A).
+Proof.
+  intros x s A r ->.
+  destruct A as [a b | | B C | y B | y B]; cbn [trace4].
+  - left. reflexivity.
+  - left. reflexivity.
+  - apply in_or_app. right. apply in_last.
+  - apply in_or_app. right. apply in_or_app. right. apply in_last.
+  - apply in_or_app. right. apply in_or_app. right. apply in_last.
+Qed.
+
+Lemma trace5_seed : forall k r,
+  r = FOcode_tm (FOnumeral k) ->
+  In (mkTE 5 k 0 0 r) (trace5 k).
+Proof.
+  intros k r ->.
+  destruct k as [|k']; cbn [trace5].
+  - left. reflexivity.
+  - apply in_last.
+Qed.
+
+Lemma trace0_ok : forall w t L,
+  incl (trace0 w t) L ->
+  forall e, In e (trace0 w t) -> entry_ok L e.
+Proof.
+  intros w t. induction t as [y | | a IHa | a IHa b IHb | a IHa b IHb];
+    intros L Hincl e HeIn; cbn [trace0] in HeIn.
+  - destruct HeIn as [<- | []].
+    apply entry_ok_0. cbn [FOin_tm FOcode_tm].
+    unfold step0_sem. left.
+    exists y. split.
+    { pose proof (cpair_bound 0 y). lia. }
+    split. { reflexivity. }
+    destruct (Nat.eqb y w) eqn:Ey.
+    + left. split. { apply Nat.eqb_eq. exact Ey. } { reflexivity. }
+    + right. split. { apply Nat.eqb_neq. exact Ey. } { reflexivity. }
+  - destruct HeIn as [<- | []].
+    apply entry_ok_0. unfold step0_sem.
+    right; left. split; reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHa L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + destruct HeIn as [<- | []].
+      apply entry_ok_0. cbn [FOin_tm FOcode_tm].
+      unfold step0_sem. right; right; left.
+      exists (FOcode_tm a). split.
+      { pose proof (cpair_bound 2 (FOcode_tm a)). lia. }
+      split. { reflexivity. }
+      apply Hincl. cbn [trace0]. apply in_or_app. left.
+      apply trace0_seed. reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHa L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+      * apply (IHb L
+          (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl)) e HeIn).
+      * destruct HeIn as [<- | []].
+        apply entry_ok_0. cbn [FOin_tm FOcode_tm].
+        unfold step0_sem. right; right; right; left.
+        exists (cpair (FOcode_tm a) (FOcode_tm b)). split.
+        { pose proof (cpair_bound 3 (cpair (FOcode_tm a) (FOcode_tm b))).
+          lia. }
+        split. { reflexivity. }
+        exists (FOcode_tm a). split.
+        { pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia. }
+        exists (FOcode_tm b). split.
+        { pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia. }
+        split. { reflexivity. }
+        destruct (FOin_tm w a) eqn:E1; cbn [orb].
+        -- left. split.
+           ++ apply Hincl. cbn [trace0]. apply in_or_app. left.
+              apply trace0_seed. rewrite E1. reflexivity.
+           ++ reflexivity.
+        -- right. split.
+           ++ apply Hincl. cbn [trace0]. apply in_or_app. left.
+              apply trace0_seed. rewrite E1. reflexivity.
+           ++ apply Hincl. cbn [trace0]. apply in_or_app. right.
+              apply in_or_app. left.
+              apply trace0_seed. reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHa L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+      * apply (IHb L
+          (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl)) e HeIn).
+      * destruct HeIn as [<- | []].
+        apply entry_ok_0. cbn [FOin_tm FOcode_tm].
+        unfold step0_sem. right; right; right; right.
+        exists (cpair (FOcode_tm a) (FOcode_tm b)). split.
+        { pose proof (cpair_bound 4 (cpair (FOcode_tm a) (FOcode_tm b))).
+          lia. }
+        split. { reflexivity. }
+        exists (FOcode_tm a). split.
+        { pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia. }
+        exists (FOcode_tm b). split.
+        { pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia. }
+        split. { reflexivity. }
+        destruct (FOin_tm w a) eqn:E1; cbn [orb].
+        -- left. split.
+           ++ apply Hincl. cbn [trace0]. apply in_or_app. left.
+              apply trace0_seed. rewrite E1. reflexivity.
+           ++ reflexivity.
+        -- right. split.
+           ++ apply Hincl. cbn [trace0]. apply in_or_app. left.
+              apply trace0_seed. rewrite E1. reflexivity.
+           ++ apply Hincl. cbn [trace0]. apply in_or_app. right.
+              apply in_or_app. left.
+              apply trace0_seed. reflexivity.
+Qed.
+
+Lemma trace1_ok : forall w A L,
+  incl (trace1 w A) L ->
+  forall e, In e (trace1 w A) -> entry_ok L e.
+Proof.
+  intros w A. induction A as [a b | | B IHB C IHC | y B IHB | y B IHB];
+    intros L Hincl e HeIn; cbn [trace1] in HeIn.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (trace0_ok w a L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+      * apply (trace0_ok w b L
+          (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl)) e HeIn).
+      * destruct HeIn as [<- | []].
+        apply entry_ok_1. cbn [FOfree_in FOcode_f].
+        unfold step1_sem. left.
+        exists (cpair (FOcode_tm a) (FOcode_tm b)). split.
+        { pose proof (cpair_bound 0 (cpair (FOcode_tm a) (FOcode_tm b))).
+          lia. }
+        split. { reflexivity. }
+        exists (FOcode_tm a). split.
+        { pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia. }
+        exists (FOcode_tm b). split.
+        { pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia. }
+        split. { reflexivity. }
+        destruct (FOin_tm w a) eqn:E1; cbn [orb].
+        -- left. split.
+           ++ apply Hincl. cbn [trace1]. apply in_or_app. left.
+              apply trace0_seed. rewrite E1. reflexivity.
+           ++ reflexivity.
+        -- right. split.
+           ++ apply Hincl. cbn [trace1]. apply in_or_app. left.
+              apply trace0_seed. rewrite E1. reflexivity.
+           ++ apply Hincl. cbn [trace1]. apply in_or_app. right.
+              apply in_or_app. left.
+              apply trace0_seed. reflexivity.
+  - destruct HeIn as [<- | []].
+    apply entry_ok_1. unfold step1_sem.
+    right; left. split; reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHB L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+      * apply (IHC L
+          (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl)) e HeIn).
+      * destruct HeIn as [<- | []].
+        apply entry_ok_1. cbn [FOfree_in FOcode_f].
+        unfold step1_sem. right; right; left.
+        exists (cpair (FOcode_f B) (FOcode_f C)). split.
+        { pose proof (cpair_bound 2 (cpair (FOcode_f B) (FOcode_f C))).
+          lia. }
+        split. { reflexivity. }
+        exists (FOcode_f B). split.
+        { pose proof (cpair_bound (FOcode_f B) (FOcode_f C)). lia. }
+        exists (FOcode_f C). split.
+        { pose proof (cpair_bound (FOcode_f B) (FOcode_f C)). lia. }
+        split. { reflexivity. }
+        destruct (FOfree_in w B) eqn:E1; cbn [orb].
+        -- left. split.
+           ++ apply Hincl. cbn [trace1]. apply in_or_app. left.
+              apply trace1_seed. rewrite E1. reflexivity.
+           ++ reflexivity.
+        -- right. split.
+           ++ apply Hincl. cbn [trace1]. apply in_or_app. left.
+              apply trace1_seed. rewrite E1. reflexivity.
+           ++ apply Hincl. cbn [trace1]. apply in_or_app. right.
+              apply in_or_app. left.
+              apply trace1_seed. reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHB L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + destruct HeIn as [<- | []].
+      apply entry_ok_1. cbn [FOfree_in FOcode_f].
+      unfold step1_sem. right; right; right; left.
+      exists (cpair y (FOcode_f B)). split.
+      { pose proof (cpair_bound 3 (cpair y (FOcode_f B))). lia. }
+      split. { reflexivity. }
+      exists y. split.
+      { pose proof (cpair_bound y (FOcode_f B)). lia. }
+      exists (FOcode_f B). split.
+      { pose proof (cpair_bound y (FOcode_f B)). lia. }
+      split. { reflexivity. }
+      destruct (Nat.eqb y w) eqn:Ey.
+      * left. split. { apply Nat.eqb_eq. exact Ey. } { reflexivity. }
+      * right. split. { apply Nat.eqb_neq. exact Ey. }
+        apply Hincl. cbn [trace1]. apply in_or_app. left.
+        apply trace1_seed. reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHB L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + destruct HeIn as [<- | []].
+      apply entry_ok_1. cbn [FOfree_in FOcode_f].
+      unfold step1_sem. right; right; right; right.
+      exists (cpair y (FOcode_f B)). split.
+      { pose proof (cpair_bound 4 (cpair y (FOcode_f B))). lia. }
+      split. { reflexivity. }
+      exists y. split.
+      { pose proof (cpair_bound y (FOcode_f B)). lia. }
+      exists (FOcode_f B). split.
+      { pose proof (cpair_bound y (FOcode_f B)). lia. }
+      split. { reflexivity. }
+      destruct (Nat.eqb y w) eqn:Ey.
+      * left. split. { apply Nat.eqb_eq. exact Ey. } { reflexivity. }
+      * right. split. { apply Nat.eqb_neq. exact Ey. }
+        apply Hincl. cbn [trace1]. apply in_or_app. left.
+        apply trace1_seed. reflexivity.
+Qed.
+
+Lemma trace2_ok : forall x s t L,
+  incl (trace2 x s t) L ->
+  forall e, In e (trace2 x s t) -> entry_ok L e.
+Proof.
+  intros x s t.
+  induction t as [y | | a IHa | a IHa b IHb | a IHa b IHb];
+    intros L Hincl e HeIn; cbn [trace2] in HeIn.
+  - destruct HeIn as [<- | []].
+    apply entry_ok_2. cbn [FOsubst_t FOcode_tm].
+    unfold step2_sem. left.
+    exists y. split.
+    { pose proof (cpair_bound 0 y). lia. }
+    split. { reflexivity. }
+    destruct (Nat.eqb y x) eqn:Ey.
+    + left. split. { apply Nat.eqb_eq. exact Ey. } { reflexivity. }
+    + right. split. { apply Nat.eqb_neq. exact Ey. }
+      cbn [FOcode_tm]. reflexivity.
+  - destruct HeIn as [<- | []].
+    apply entry_ok_2. unfold step2_sem.
+    right; left. split; reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHa L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + destruct HeIn as [<- | []].
+      apply entry_ok_2. cbn [FOsubst_t FOcode_tm].
+      unfold step2_sem. right; right; left.
+      exists (FOcode_tm a). split.
+      { pose proof (cpair_bound 2 (FOcode_tm a)). lia. }
+      split. { reflexivity. }
+      exists (FOcode_tm (FOsubst_t x s a)). split.
+      { pose proof (cpair_bound 2 (FOcode_tm (FOsubst_t x s a))). lia. }
+      split.
+      { apply Hincl. cbn [trace2]. apply in_or_app. left.
+        apply trace2_seed. reflexivity. }
+      reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHa L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+      * apply (IHb L
+          (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl)) e HeIn).
+      * destruct HeIn as [<- | []].
+        apply entry_ok_2. cbn [FOsubst_t FOcode_tm].
+        unfold step2_sem. right; right; right; left.
+        exists (cpair (FOcode_tm a) (FOcode_tm b)). split.
+        { pose proof (cpair_bound 3 (cpair (FOcode_tm a) (FOcode_tm b))).
+          lia. }
+        split. { reflexivity. }
+        exists (FOcode_tm a). split.
+        { pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia. }
+        exists (FOcode_tm b). split.
+        { pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia. }
+        split. { reflexivity. }
+        exists (FOcode_tm (FOsubst_t x s a)). split.
+        { pose proof (cpair_bound 3
+            (cpair (FOcode_tm (FOsubst_t x s a))
+                   (FOcode_tm (FOsubst_t x s b)))).
+          pose proof (cpair_bound (FOcode_tm (FOsubst_t x s a))
+                        (FOcode_tm (FOsubst_t x s b))).
+          lia. }
+        exists (FOcode_tm (FOsubst_t x s b)). split.
+        { pose proof (cpair_bound 3
+            (cpair (FOcode_tm (FOsubst_t x s a))
+                   (FOcode_tm (FOsubst_t x s b)))).
+          pose proof (cpair_bound (FOcode_tm (FOsubst_t x s a))
+                        (FOcode_tm (FOsubst_t x s b))).
+          lia. }
+        split.
+        { apply Hincl. cbn [trace2]. apply in_or_app. left.
+          apply trace2_seed. reflexivity. }
+        split.
+        { apply Hincl. cbn [trace2]. apply in_or_app. right.
+          apply in_or_app. left.
+          apply trace2_seed. reflexivity. }
+        exists (cpair (FOcode_tm (FOsubst_t x s a))
+                      (FOcode_tm (FOsubst_t x s b))).
+        split.
+        { pose proof (cpair_bound 3
+            (cpair (FOcode_tm (FOsubst_t x s a))
+                   (FOcode_tm (FOsubst_t x s b)))).
+          lia. }
+        split; reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHa L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+      * apply (IHb L
+          (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl)) e HeIn).
+      * destruct HeIn as [<- | []].
+        apply entry_ok_2. cbn [FOsubst_t FOcode_tm].
+        unfold step2_sem. right; right; right; right.
+        exists (cpair (FOcode_tm a) (FOcode_tm b)). split.
+        { pose proof (cpair_bound 4 (cpair (FOcode_tm a) (FOcode_tm b))).
+          lia. }
+        split. { reflexivity. }
+        exists (FOcode_tm a). split.
+        { pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia. }
+        exists (FOcode_tm b). split.
+        { pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia. }
+        split. { reflexivity. }
+        exists (FOcode_tm (FOsubst_t x s a)). split.
+        { pose proof (cpair_bound 4
+            (cpair (FOcode_tm (FOsubst_t x s a))
+                   (FOcode_tm (FOsubst_t x s b)))).
+          pose proof (cpair_bound (FOcode_tm (FOsubst_t x s a))
+                        (FOcode_tm (FOsubst_t x s b))).
+          lia. }
+        exists (FOcode_tm (FOsubst_t x s b)). split.
+        { pose proof (cpair_bound 4
+            (cpair (FOcode_tm (FOsubst_t x s a))
+                   (FOcode_tm (FOsubst_t x s b)))).
+          pose proof (cpair_bound (FOcode_tm (FOsubst_t x s a))
+                        (FOcode_tm (FOsubst_t x s b))).
+          lia. }
+        split.
+        { apply Hincl. cbn [trace2]. apply in_or_app. left.
+          apply trace2_seed. reflexivity. }
+        split.
+        { apply Hincl. cbn [trace2]. apply in_or_app. right.
+          apply in_or_app. left.
+          apply trace2_seed. reflexivity. }
+        exists (cpair (FOcode_tm (FOsubst_t x s a))
+                      (FOcode_tm (FOsubst_t x s b))).
+        split.
+        { pose proof (cpair_bound 4
+            (cpair (FOcode_tm (FOsubst_t x s a))
+                   (FOcode_tm (FOsubst_t x s b)))).
+          lia. }
+        split; reflexivity.
+Qed.
+
+Lemma trace3_ok : forall x s A L,
+  incl (trace3 x s A) L ->
+  forall e, In e (trace3 x s A) -> entry_ok L e.
+Proof.
+  intros x s A.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB];
+    intros L Hincl e HeIn; cbn [trace3] in HeIn.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (trace2_ok x s a L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+      * apply (trace2_ok x s b L
+          (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl)) e HeIn).
+      * destruct HeIn as [<- | []].
+        apply entry_ok_3. cbn [FOsubst_f FOcode_f].
+        unfold step3_sem. left.
+        exists (cpair (FOcode_tm a) (FOcode_tm b)). split.
+        { pose proof (cpair_bound 0 (cpair (FOcode_tm a) (FOcode_tm b))).
+          lia. }
+        split. { reflexivity. }
+        exists (FOcode_tm a). split.
+        { pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia. }
+        exists (FOcode_tm b). split.
+        { pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia. }
+        split. { reflexivity. }
+        exists (FOcode_tm (FOsubst_t x s a)). split.
+        { pose proof (cpair_bound 0
+            (cpair (FOcode_tm (FOsubst_t x s a))
+                   (FOcode_tm (FOsubst_t x s b)))).
+          pose proof (cpair_bound (FOcode_tm (FOsubst_t x s a))
+                        (FOcode_tm (FOsubst_t x s b))).
+          lia. }
+        exists (FOcode_tm (FOsubst_t x s b)). split.
+        { pose proof (cpair_bound 0
+            (cpair (FOcode_tm (FOsubst_t x s a))
+                   (FOcode_tm (FOsubst_t x s b)))).
+          pose proof (cpair_bound (FOcode_tm (FOsubst_t x s a))
+                        (FOcode_tm (FOsubst_t x s b))).
+          lia. }
+        split.
+        { apply Hincl. cbn [trace3]. apply in_or_app. left.
+          apply trace2_seed. reflexivity. }
+        split.
+        { apply Hincl. cbn [trace3]. apply in_or_app. right.
+          apply in_or_app. left.
+          apply trace2_seed. reflexivity. }
+        exists (cpair (FOcode_tm (FOsubst_t x s a))
+                      (FOcode_tm (FOsubst_t x s b))).
+        split.
+        { pose proof (cpair_bound 0
+            (cpair (FOcode_tm (FOsubst_t x s a))
+                   (FOcode_tm (FOsubst_t x s b)))).
+          lia. }
+        split; reflexivity.
+  - destruct HeIn as [<- | []].
+    apply entry_ok_3. unfold step3_sem.
+    right; left. split; reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHB L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+      * apply (IHC L
+          (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl)) e HeIn).
+      * destruct HeIn as [<- | []].
+        apply entry_ok_3. cbn [FOsubst_f FOcode_f].
+        unfold step3_sem. right; right; left.
+        exists (cpair (FOcode_f B) (FOcode_f C)). split.
+        { pose proof (cpair_bound 2 (cpair (FOcode_f B) (FOcode_f C))).
+          lia. }
+        split. { reflexivity. }
+        exists (FOcode_f B). split.
+        { pose proof (cpair_bound (FOcode_f B) (FOcode_f C)). lia. }
+        exists (FOcode_f C). split.
+        { pose proof (cpair_bound (FOcode_f B) (FOcode_f C)). lia. }
+        split. { reflexivity. }
+        exists (FOcode_f (FOsubst_f x s B)). split.
+        { pose proof (cpair_bound 2
+            (cpair (FOcode_f (FOsubst_f x s B))
+                   (FOcode_f (FOsubst_f x s C)))).
+          pose proof (cpair_bound (FOcode_f (FOsubst_f x s B))
+                        (FOcode_f (FOsubst_f x s C))).
+          lia. }
+        exists (FOcode_f (FOsubst_f x s C)). split.
+        { pose proof (cpair_bound 2
+            (cpair (FOcode_f (FOsubst_f x s B))
+                   (FOcode_f (FOsubst_f x s C)))).
+          pose proof (cpair_bound (FOcode_f (FOsubst_f x s B))
+                        (FOcode_f (FOsubst_f x s C))).
+          lia. }
+        split.
+        { apply Hincl. cbn [trace3]. apply in_or_app. left.
+          apply trace3_seed. reflexivity. }
+        split.
+        { apply Hincl. cbn [trace3]. apply in_or_app. right.
+          apply in_or_app. left.
+          apply trace3_seed. reflexivity. }
+        exists (cpair (FOcode_f (FOsubst_f x s B))
+                      (FOcode_f (FOsubst_f x s C))).
+        split.
+        { pose proof (cpair_bound 2
+            (cpair (FOcode_f (FOsubst_f x s B))
+                   (FOcode_f (FOsubst_f x s C)))).
+          lia. }
+        split; reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHB L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + destruct HeIn as [<- | []].
+      apply entry_ok_3. cbn [FOsubst_f FOcode_f].
+      unfold step3_sem. right; right; right; left.
+      exists (cpair y (FOcode_f B)). split.
+      { pose proof (cpair_bound 3 (cpair y (FOcode_f B))). lia. }
+      split. { reflexivity. }
+      exists y. split.
+      { pose proof (cpair_bound y (FOcode_f B)). lia. }
+      exists (FOcode_f B). split.
+      { pose proof (cpair_bound y (FOcode_f B)). lia. }
+      split. { reflexivity. }
+      destruct (Nat.eqb y x) eqn:Ey.
+      * left. split. { apply Nat.eqb_eq. exact Ey. }
+        cbn [FOcode_f]. reflexivity.
+      * right. split. { apply Nat.eqb_neq. exact Ey. }
+        exists (FOcode_f (FOsubst_f x s B)). split.
+        { cbn [FOcode_f].
+          pose proof (cpair_bound 3
+            (cpair y (FOcode_f (FOsubst_f x s B)))).
+          pose proof (cpair_bound y (FOcode_f (FOsubst_f x s B))).
+          lia. }
+        split.
+        { apply Hincl. cbn [trace3]. apply in_or_app. left.
+          apply trace3_seed. reflexivity. }
+        exists (cpair y (FOcode_f (FOsubst_f x s B))).
+        split.
+        { cbn [FOcode_f].
+          pose proof (cpair_bound 3
+            (cpair y (FOcode_f (FOsubst_f x s B)))).
+          lia. }
+        split. { reflexivity. }
+        cbn [FOcode_f]. reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHB L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + destruct HeIn as [<- | []].
+      apply entry_ok_3. cbn [FOsubst_f FOcode_f].
+      unfold step3_sem. right; right; right; right.
+      exists (cpair y (FOcode_f B)). split.
+      { pose proof (cpair_bound 4 (cpair y (FOcode_f B))). lia. }
+      split. { reflexivity. }
+      exists y. split.
+      { pose proof (cpair_bound y (FOcode_f B)). lia. }
+      exists (FOcode_f B). split.
+      { pose proof (cpair_bound y (FOcode_f B)). lia. }
+      split. { reflexivity. }
+      destruct (Nat.eqb y x) eqn:Ey.
+      * left. split. { apply Nat.eqb_eq. exact Ey. }
+        cbn [FOcode_f]. reflexivity.
+      * right. split. { apply Nat.eqb_neq. exact Ey. }
+        exists (FOcode_f (FOsubst_f x s B)). split.
+        { cbn [FOcode_f].
+          pose proof (cpair_bound 4
+            (cpair y (FOcode_f (FOsubst_f x s B)))).
+          pose proof (cpair_bound y (FOcode_f (FOsubst_f x s B))).
+          lia. }
+        split.
+        { apply Hincl. cbn [trace3]. apply in_or_app. left.
+          apply trace3_seed. reflexivity. }
+        exists (cpair y (FOcode_f (FOsubst_f x s B))).
+        split.
+        { cbn [FOcode_f].
+          pose proof (cpair_bound 4
+            (cpair y (FOcode_f (FOsubst_f x s B)))).
+          lia. }
+        split. { reflexivity. }
+        cbn [FOcode_f]. reflexivity.
+Qed.
+
+Lemma trace4_ok : forall x s A L,
+  incl (trace4 x s A) L ->
+  forall e, In e (trace4 x s A) -> entry_ok L e.
+Proof.
+  intros x s A.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB];
+    intros L Hincl e HeIn; cbn [trace4] in HeIn.
+  - destruct HeIn as [<- | []].
+    apply entry_ok_4. cbn [FOsubst_ok FOcode_f].
+    unfold step4_sem. left.
+    exists (cpair (FOcode_tm a) (FOcode_tm b)). split.
+    { pose proof (cpair_bound 0 (cpair (FOcode_tm a) (FOcode_tm b))).
+      lia. }
+    split; reflexivity.
+  - destruct HeIn as [<- | []].
+    apply entry_ok_4. unfold step4_sem.
+    right; left. split; reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IHB L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+      * apply (IHC L
+          (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl)) e HeIn).
+      * destruct HeIn as [<- | []].
+        apply entry_ok_4. cbn [FOsubst_ok FOcode_f].
+        unfold step4_sem. right; right; left.
+        exists (cpair (FOcode_f B) (FOcode_f C)). split.
+        { pose proof (cpair_bound 2 (cpair (FOcode_f B) (FOcode_f C))).
+          lia. }
+        split. { reflexivity. }
+        exists (FOcode_f B). split.
+        { pose proof (cpair_bound (FOcode_f B) (FOcode_f C)). lia. }
+        exists (FOcode_f C). split.
+        { pose proof (cpair_bound (FOcode_f B) (FOcode_f C)). lia. }
+        split. { reflexivity. }
+        destruct (FOsubst_ok x s B) eqn:E1; cbn [andb].
+        -- right. split.
+           ++ apply Hincl. cbn [trace4]. apply in_or_app. left.
+              apply trace4_seed. rewrite E1. reflexivity.
+           ++ apply Hincl. cbn [trace4]. apply in_or_app. right.
+              apply in_or_app. left.
+              apply trace4_seed. reflexivity.
+        -- left. split.
+           ++ apply Hincl. cbn [trace4]. apply in_or_app. left.
+              apply trace4_seed. rewrite E1. reflexivity.
+           ++ reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (trace1_ok x B L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+      * apply (trace0_ok y s L
+          (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl)) e HeIn).
+      * apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+        -- apply (IHB L
+             (incl_app_head _ _ _ _
+               (incl_app_tail _ _ _ _ (incl_app_tail _ _ _ _ Hincl)))
+             e HeIn).
+        -- destruct HeIn as [<- | []].
+           apply entry_ok_4. cbn [FOsubst_ok FOcode_f].
+           unfold step4_sem. right; right; right; left.
+           exists (cpair y (FOcode_f B)). split.
+           { pose proof (cpair_bound 3 (cpair y (FOcode_f B))). lia. }
+           split. { reflexivity. }
+           exists y. split.
+           { pose proof (cpair_bound y (FOcode_f B)). lia. }
+           exists (FOcode_f B). split.
+           { pose proof (cpair_bound y (FOcode_f B)). lia. }
+           split. { reflexivity. }
+           destruct (Nat.eqb y x) eqn:Eyx.
+           ++ left. split. { apply Nat.eqb_eq. exact Eyx. }
+              { reflexivity. }
+           ++ right. split. { apply Nat.eqb_neq. exact Eyx. }
+              destruct (FOfree_in x B) eqn:Ef.
+              ** right. split.
+                 { apply Hincl. cbn [trace4]. apply in_or_app. left.
+                   apply trace1_seed. rewrite Ef. reflexivity. }
+                 destruct (FOin_tm y s) eqn:Eys; cbn [negb andb].
+                 --- left. split.
+                     { apply Hincl. cbn [trace4].
+                       apply in_or_app. right.
+                       apply in_or_app. left.
+                       apply trace0_seed. rewrite Eys. reflexivity. }
+                     { reflexivity. }
+                 --- right. split.
+                     { apply Hincl. cbn [trace4].
+                       apply in_or_app. right.
+                       apply in_or_app. left.
+                       apply trace0_seed. rewrite Eys. reflexivity. }
+                     { apply Hincl. cbn [trace4].
+                       apply in_or_app. right.
+                       apply in_or_app. right.
+                       apply in_or_app. left.
+                       apply trace4_seed. reflexivity. }
+              ** left. split.
+                 { apply Hincl. cbn [trace4]. apply in_or_app. left.
+                   apply trace1_seed. rewrite Ef. reflexivity. }
+                 { reflexivity. }
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (trace1_ok x B L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+      * apply (trace0_ok y s L
+          (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl)) e HeIn).
+      * apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+        -- apply (IHB L
+             (incl_app_head _ _ _ _
+               (incl_app_tail _ _ _ _ (incl_app_tail _ _ _ _ Hincl)))
+             e HeIn).
+        -- destruct HeIn as [<- | []].
+           apply entry_ok_4. cbn [FOsubst_ok FOcode_f].
+           unfold step4_sem. right; right; right; right.
+           exists (cpair y (FOcode_f B)). split.
+           { pose proof (cpair_bound 4 (cpair y (FOcode_f B))). lia. }
+           split. { reflexivity. }
+           exists y. split.
+           { pose proof (cpair_bound y (FOcode_f B)). lia. }
+           exists (FOcode_f B). split.
+           { pose proof (cpair_bound y (FOcode_f B)). lia. }
+           split. { reflexivity. }
+           destruct (Nat.eqb y x) eqn:Eyx.
+           ++ left. split. { apply Nat.eqb_eq. exact Eyx. }
+              { reflexivity. }
+           ++ right. split. { apply Nat.eqb_neq. exact Eyx. }
+              destruct (FOfree_in x B) eqn:Ef.
+              ** right. split.
+                 { apply Hincl. cbn [trace4]. apply in_or_app. left.
+                   apply trace1_seed. rewrite Ef. reflexivity. }
+                 destruct (FOin_tm y s) eqn:Eys; cbn [negb andb].
+                 --- left. split.
+                     { apply Hincl. cbn [trace4].
+                       apply in_or_app. right.
+                       apply in_or_app. left.
+                       apply trace0_seed. rewrite Eys. reflexivity. }
+                     { reflexivity. }
+                 --- right. split.
+                     { apply Hincl. cbn [trace4].
+                       apply in_or_app. right.
+                       apply in_or_app. left.
+                       apply trace0_seed. rewrite Eys. reflexivity. }
+                     { apply Hincl. cbn [trace4].
+                       apply in_or_app. right.
+                       apply in_or_app. right.
+                       apply in_or_app. left.
+                       apply trace4_seed. reflexivity. }
+              ** left. split.
+                 { apply Hincl. cbn [trace4]. apply in_or_app. left.
+                   apply trace1_seed. rewrite Ef. reflexivity. }
+                 { reflexivity. }
+Qed.
+
+Lemma trace5_ok : forall k L,
+  incl (trace5 k) L ->
+  forall e, In e (trace5 k) -> entry_ok L e.
+Proof.
+  intros k. induction k as [|k' IH]; intros L Hincl e HeIn;
+    cbn [trace5] in HeIn.
+  - destruct HeIn as [<- | []].
+    apply entry_ok_5. unfold step5_sem.
+    left. split; reflexivity.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn | HeIn].
+    + apply (IH L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + destruct HeIn as [<- | []].
+      apply entry_ok_5. cbn [FOnumeral FOcode_tm].
+      unfold step5_sem. right.
+      exists k'. split. { lia. }
+      split. { reflexivity. }
+      exists (FOcode_tm (FOnumeral k')). split.
+      { pose proof (cpair_bound 2 (FOcode_tm (FOnumeral k'))). lia. }
+      split.
+      { apply Hincl. cbn [trace5]. apply in_or_app. left.
+        apply trace5_seed. reflexivity. }
+      reflexivity.
+Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
