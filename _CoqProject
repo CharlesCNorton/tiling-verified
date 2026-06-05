@@ -9,7 +9,6 @@ ProofTerms.v
 Worms.v
 Agents.v
 Tiling.v
-ModalSambin.v
 GLPDecidability.v
 GLPDecide.v
 ArithmeticLayer.v
