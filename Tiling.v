@@ -20188,6 +20188,153 @@ Proof.
   reflexivity.
 Qed.
 
+(** ** Decode equations on paired codes. *)
+
+Lemma cunpair_bound : forall n,
+  fst (cunpair n) + snd (cunpair n) <= n.
+Proof.
+  intro n. pose proof (cpair_cunpair n) as H.
+  pose proof (cpair_bound (fst (cunpair n)) (snd (cunpair n))) as Hb.
+  lia.
+Qed.
+
+Lemma FOdecode_tm_b_stable : forall c d d',
+  c < d -> c < d' ->
+  FOdecode_tm_b d c = FOdecode_tm_b d' c.
+Proof.
+  intro c. induction c as [c IH] using lt_wf_ind. intros d d' Hd Hd'.
+  destruct d as [|d]; [lia|]. destruct d' as [|d']; [lia|].
+  cbn [FOdecode_tm_b].
+  pose proof (cunpair_bound c) as Hcb.
+  pose proof (cunpair_bound (snd (cunpair c))) as Hpb.
+  destruct (fst (cunpair c)) as [|[|[|[|[|t5]]]]] eqn:Etag.
+  - reflexivity.
+  - reflexivity.
+  - f_equal. apply IH; lia.
+  - f_equal; apply IH; lia.
+  - f_equal; apply IH; lia.
+  - reflexivity.
+Qed.
+
+Lemma FOdecode_tm_var : forall y, FOdecode_tm (cpair 0 y) = FOVar y.
+Proof.
+  intro y. unfold FOdecode_tm. cbn [FOdecode_tm_b].
+  rewrite cunpair_cpair. reflexivity.
+Qed.
+
+Lemma FOdecode_tm_zero : forall z, FOdecode_tm (cpair 1 z) = FOZero.
+Proof.
+  intro z. unfold FOdecode_tm. cbn [FOdecode_tm_b].
+  rewrite cunpair_cpair. reflexivity.
+Qed.
+
+Lemma FOdecode_tm_succ : forall p,
+  FOdecode_tm (cpair 2 p) = FOSucc (FOdecode_tm p).
+Proof.
+  intro p. unfold FOdecode_tm at 1. cbn [FOdecode_tm_b].
+  rewrite cunpair_cpair. cbn [fst snd].
+  f_equal. unfold FOdecode_tm.
+  apply FOdecode_tm_b_stable.
+  - pose proof (cpair_bound 2 p). lia.
+  - lia.
+Qed.
+
+Lemma FOdecode_tm_plus : forall a b,
+  FOdecode_tm (cpair 3 (cpair a b))
+  = FOPlus (FOdecode_tm a) (FOdecode_tm b).
+Proof.
+  intros a b. unfold FOdecode_tm at 1. cbn [FOdecode_tm_b].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. cbn [fst snd].
+  pose proof (cpair_bound 3 (cpair a b)).
+  pose proof (cpair_bound a b).
+  unfold FOdecode_tm.
+  f_equal; apply FOdecode_tm_b_stable; lia.
+Qed.
+
+Lemma FOdecode_tm_mult : forall a b,
+  FOdecode_tm (cpair 4 (cpair a b))
+  = FOMult (FOdecode_tm a) (FOdecode_tm b).
+Proof.
+  intros a b. unfold FOdecode_tm at 1. cbn [FOdecode_tm_b].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. cbn [fst snd].
+  pose proof (cpair_bound 4 (cpair a b)).
+  pose proof (cpair_bound a b).
+  unfold FOdecode_tm.
+  f_equal; apply FOdecode_tm_b_stable; lia.
+Qed.
+
+Lemma FOdecode_f_b_stable : forall c d d',
+  c < d -> c < d' ->
+  FOdecode_f_b d c = FOdecode_f_b d' c.
+Proof.
+  intro c. induction c as [c IH] using lt_wf_ind. intros d d' Hd Hd'.
+  destruct d as [|d]; [lia|]. destruct d' as [|d']; [lia|].
+  cbn [FOdecode_f_b].
+  pose proof (cunpair_bound c) as Hcb.
+  pose proof (cunpair_bound (snd (cunpair c))) as Hpb.
+  destruct (fst (cunpair c)) as [|[|[|[|[|t5]]]]] eqn:Etag.
+  - reflexivity.
+  - reflexivity.
+  - f_equal; apply IH; lia.
+  - f_equal; apply IH; lia.
+  - f_equal; apply IH; lia.
+  - reflexivity.
+Qed.
+
+Lemma FOdecode_f_eq : forall a b,
+  FOdecode_f (cpair 0 (cpair a b))
+  = FOEq (FOdecode_tm a) (FOdecode_tm b).
+Proof.
+  intros a b. unfold FOdecode_f. cbn [FOdecode_f_b].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. reflexivity.
+Qed.
+
+Lemma FOdecode_f_false : forall z, FOdecode_f (cpair 1 z) = FOFalseF.
+Proof.
+  intro z. unfold FOdecode_f. cbn [FOdecode_f_b].
+  rewrite cunpair_cpair. reflexivity.
+Qed.
+
+Lemma FOdecode_f_impl : forall a b,
+  FOdecode_f (cpair 2 (cpair a b))
+  = FOImplF (FOdecode_f a) (FOdecode_f b).
+Proof.
+  intros a b. unfold FOdecode_f at 1. cbn [FOdecode_f_b].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. cbn [fst snd].
+  pose proof (cpair_bound 2 (cpair a b)).
+  pose proof (cpair_bound a b).
+  unfold FOdecode_f.
+  f_equal; apply FOdecode_f_b_stable; lia.
+Qed.
+
+Lemma FOdecode_f_forall : forall y b,
+  FOdecode_f (cpair 3 (cpair y b)) = FOForall y (FOdecode_f b).
+Proof.
+  intros y b. unfold FOdecode_f at 1. cbn [FOdecode_f_b].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. cbn [fst snd].
+  pose proof (cpair_bound 3 (cpair y b)).
+  pose proof (cpair_bound y b).
+  unfold FOdecode_f.
+  f_equal; apply FOdecode_f_b_stable; lia.
+Qed.
+
+Lemma FOdecode_f_exists : forall y b,
+  FOdecode_f (cpair 4 (cpair y b)) = FOExists y (FOdecode_f b).
+Proof.
+  intros y b. unfold FOdecode_f at 1. cbn [FOdecode_f_b].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. cbn [fst snd].
+  pose proof (cpair_bound 4 (cpair y b)).
+  pose proof (cpair_bound y b).
+  unfold FOdecode_f.
+  f_equal; apply FOdecode_f_b_stable; lia.
+Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
