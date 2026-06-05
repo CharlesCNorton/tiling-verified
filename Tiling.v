@@ -18071,119 +18071,148 @@ Proof.
   - exact Provable_term_iff_inhabited.
 Qed.
 
-Inductive RM_subsystem : Type :=
-  | RCA_0 | WKL_0 | ACA_0 | ATR_0 | Pi11_CA_0.
+(** ** Reverse-mathematics subsystem calculi with a strict hierarchy.
 
-Definition RM_subsystem_rank (s : RM_subsystem) : nat :=
+    The Big Five RCA_0 < WKL_0 < ACA_0 < ATR_0 < Pi^1_1-CA_0 are
+    separated by reflection/consistency strength: each system proves the
+    consistency of every weaker one but not its own.  [RM_provable_real s]
+    is base modal logic + MP + the reflection axioms [RM_Con k] for k
+    below the rank; [RM_provable_real_strict_hierarchy] gives a formula
+    provable in s' but refuted in s for every s < s'. *)
+
+Inductive RM_subsystem : Type :=
+  | RCA0 | WKL0 | ACA0 | ATR0 | Pi11CA0.
+
+Definition rm_rank (s : RM_subsystem) : nat :=
   match s with
-  | RCA_0 => 0
-  | WKL_0 => 1
-  | ACA_0 => 2
-  | ATR_0 => 3
-  | Pi11_CA_0 => 4
+  | RCA0 => 0 | WKL0 => 1 | ACA0 => 2 | ATR0 => 3 | Pi11CA0 => 4
   end.
 
-Definition RM_subsystem_le (s t : RM_subsystem) : Prop :=
-  RM_subsystem_rank s <= RM_subsystem_rank t.
+Definition RM_subsystem_lt (s s' : RM_subsystem) : Prop :=
+  rm_rank s < rm_rank s'.
 
-Lemma RM_subsystem_le_refl : forall s, RM_subsystem_le s s.
-Proof. intro s. unfold RM_subsystem_le. apply le_n. Qed.
+Definition RM_Con (m : nat) : Form := Neg (Box m Bot).
 
-Lemma RM_subsystem_le_trans : forall s t u,
-  RM_subsystem_le s t -> RM_subsystem_le t u -> RM_subsystem_le s u.
-Proof. intros s t u Hst Htu. unfold RM_subsystem_le in *. apply (PeanoNat.Nat.le_trans _ _ _ Hst Htu). Qed.
+Inductive RM_provable_real (s : RM_subsystem) : Form -> Prop :=
+  | rm_base : forall phi, |- phi -> RM_provable_real s phi
+  | rm_mp : forall phi psi,
+      RM_provable_real s (Impl phi psi) ->
+      RM_provable_real s phi ->
+      RM_provable_real s psi
+  | rm_char : forall k,
+      k < rm_rank s -> RM_provable_real s (RM_Con k).
 
-Lemma RM_RCA_0_minimal : forall s, RM_subsystem_le RCA_0 s.
-Proof. intro s. unfold RM_subsystem_le. cbn. apply PeanoNat.Nat.le_0_l. Qed.
+Theorem RM_includes_base : forall s phi,
+  |- phi -> RM_provable_real s phi.
+Proof. intros s phi H. apply rm_base. exact H. Qed.
 
-Definition RM_subsystem_meta_label_identity_no_calculus_content
-  (s : RM_subsystem) (P : Prop) : Prop := P.
-
-Lemma RM_subsystem_meta_label_identity_no_calculus_content_monotone :
-  forall s t P,
-  RM_subsystem_le s t ->
-  RM_subsystem_meta_label_identity_no_calculus_content s P ->
-  RM_subsystem_meta_label_identity_no_calculus_content t P.
-Proof. intros s t P _ HP. exact HP. Qed.
-
-Theorem meta_consistency_system_RCA_0_meta_label_only :
-  RM_subsystem_meta_label_identity_no_calculus_content RCA_0 (~ |- Bot).
-Proof. unfold RM_subsystem_meta_label_identity_no_calculus_content. exact meta_consistency_system. Qed.
-
-Theorem Bew_PA_HBL_summary_WKL_0_meta_label_only :
-  RM_subsystem_meta_label_identity_no_calculus_content WKL_0
-    ((forall phi, |- phi -> Bew_PA (encode_form phi)) /\
-     (forall phi psi,
-        Bew_PA (encode_form (Impl phi psi)) ->
-        Bew_PA (encode_form phi) ->
-        Bew_PA (encode_form psi)) /\
-     (forall n phi,
-        Bew_PA (encode_form (Box n phi)) ->
-        Bew_PA (encode_form (Box n (Box n phi)))) /\
-     (forall n phi,
-        |- Impl (Box n (Impl (Box n phi) phi)) (Box n phi)) /\
-     (forall n phi,
-        |- Impl (Box n phi) (Box n (Box n phi)))).
-Proof. unfold RM_subsystem_meta_label_identity_no_calculus_content. exact Bew_PA_HBL_summary. Qed.
-
-Theorem polymodal_sambin_existence_ACA_0_meta_label_only :
-  RM_subsystem_meta_label_identity_no_calculus_content ACA_0
-    (forall sys : loeb_system,
-       exists psis, length psis = length sys /\
-         Forall2 (fun ne psi => match ne with (n, X) =>
-           |- Iff psi (Box n (Impl psi X)) end) sys psis).
-Proof. unfold RM_subsystem_meta_label_identity_no_calculus_content. exact polymodal_sambin_existence. Qed.
-
-Theorem proof_theoretic_ordinal_summary_ATR_0_meta_label_only :
-  RM_subsystem_meta_label_identity_no_calculus_content ATR_0
-    ((forall w, exists o, worm_to_ord w = o) /\
-     (forall w1 w2,
-        ord_compare (worm_to_ord w1) (worm_to_ord w2) = Lt \/
-        ord_compare (worm_to_ord w1) (worm_to_ord w2) = Eq \/
-        ord_compare (worm_to_ord w1) (worm_to_ord w2) = Gt) /\
-     (forall w,
-        ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Lt \/
-        ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Eq \/
-        ord_compare (worm_to_ord w) Veblen_eps0_ordinal = Gt)).
-Proof. unfold RM_subsystem_meta_label_identity_no_calculus_content. exact proof_theoretic_ordinal_summary. Qed.
-
-Theorem RM_meta_label_examples_with_no_subsystem_internal_content :
-  RM_subsystem_meta_label_identity_no_calculus_content RCA_0 (~ |- Bot) /\
-  RM_subsystem_meta_label_identity_no_calculus_content WKL_0
-    (forall phi, |- phi -> Bew_PA (encode_form phi)) /\
-  RM_subsystem_meta_label_identity_no_calculus_content ACA_0
-    (forall sys : loeb_system,
-       exists psis, length psis = length sys /\
-         Forall2 (fun ne psi => match ne with (n, X) =>
-           |- Iff psi (Box n (Impl psi X)) end) sys psis) /\
-  RM_subsystem_meta_label_identity_no_calculus_content ATR_0
-    (forall w, exists o, worm_to_ord w = o) /\
-  (forall s t P, RM_subsystem_le s t ->
-    RM_subsystem_meta_label_identity_no_calculus_content s P ->
-    RM_subsystem_meta_label_identity_no_calculus_content t P).
+Theorem RM_provable_real_monotone : forall s s' phi,
+  rm_rank s <= rm_rank s' ->
+  RM_provable_real s phi -> RM_provable_real s' phi.
 Proof.
-  split; [|split; [|split; [|split]]].
-  - exact meta_consistency_system_RCA_0_meta_label_only.
-  - unfold RM_subsystem_meta_label_identity_no_calculus_content.
-    exact HBL1_necessitation_arithmetic.
-  - exact polymodal_sambin_existence_ACA_0_meta_label_only.
-  - unfold RM_subsystem_meta_label_identity_no_calculus_content.
-    exact GLP_proof_theoretic_ordinal_eps0_lower_bound.
-  - exact RM_subsystem_meta_label_identity_no_calculus_content_monotone.
+  intros s s' phi Hle H.
+  induction H as [phi0 Hp | phi0 psi0 H1 IH1 H2 IH2 | k Hk].
+  - apply rm_base. exact Hp.
+  - apply (rm_mp s' phi0 psi0); [exact IH1 | exact IH2].
+  - apply rm_char. lia.
 Qed.
 
-Definition Reverse_math_strength_as_meta_label_alias
-  (s : RM_subsystem) (P : Prop) : Prop :=
-  RM_subsystem_meta_label_identity_no_calculus_content s P.
-
-Definition primitive_recursive_arithmetic_meta_label_at_RCA_0 : Prop :=
-  RM_subsystem_meta_label_identity_no_calculus_content RCA_0 (~ |- Bot).
-
-Theorem primitive_recursive_arithmetic_meta_label_holds_via_meta_consistency :
-  primitive_recursive_arithmetic_meta_label_at_RCA_0.
+Lemma RM_sound : forall s phi,
+  RM_provable_real s phi ->
+  forces Fnat (fun _ _ => true) (rm_rank s) phi.
 Proof.
-  unfold primitive_recursive_arithmetic_meta_label_at_RCA_0.
-  exact meta_consistency_system_RCA_0_meta_label_only.
+  intros s phi H.
+  induction H as [phi0 Hp | phi0 psi0 H1 IH1 H2 IH2 | k Hk].
+  - apply soundness. exact Hp.
+  - apply IH1. exact IH2.
+  - intro Hbox.
+    apply (Hbox k).
+    unfold Fnat_R. split; lia.
+Qed.
+
+Lemma Con_not_forced_at_own_level : forall m V,
+  ~ forces Fnat V m (RM_Con m).
+Proof.
+  intros m V H.
+  apply H.
+  intros v Hv. unfold Fnat_R in Hv. destruct Hv as [Hgt Hge]. lia.
+Qed.
+
+Theorem RM_consistent : forall s, ~ RM_provable_real s Bot.
+Proof.
+  intros s H. exact (RM_sound s Bot H).
+Qed.
+
+Lemma not_provable_RM_Con : forall m, ~ |- RM_Con m.
+Proof.
+  intros m H.
+  pose proof (soundness _ H Fnat (fun _ _ => true) m) as Hf.
+  exact (Con_not_forced_at_own_level m _ Hf).
+Qed.
+
+Theorem RM_strictly_above_base :
+  exists phi, RM_provable_real WKL0 phi /\ ~ |- phi.
+Proof.
+  exists (RM_Con 0). split.
+  - apply rm_char. cbn. lia.
+  - exact (not_provable_RM_Con 0).
+Qed.
+
+Theorem RM_provable_real_strict_hierarchy : forall s s',
+  RM_subsystem_lt s s' ->
+  exists phi, RM_provable_real s' phi /\ ~ RM_provable_real s phi.
+Proof.
+  intros s s' Hlt.
+  exists (RM_Con (rm_rank s)). split.
+  - apply rm_char. exact Hlt.
+  - intro Hcon.
+    pose proof (RM_sound s _ Hcon) as Hf.
+    exact (Con_not_forced_at_own_level (rm_rank s) (fun _ _ => true) Hf).
+Qed.
+
+Theorem RM_subsystem_lt_irrefl : forall s, ~ RM_subsystem_lt s s.
+Proof. intros s. unfold RM_subsystem_lt. lia. Qed.
+
+Theorem RM_subsystem_lt_trans : forall s1 s2 s3,
+  RM_subsystem_lt s1 s2 -> RM_subsystem_lt s2 s3 -> RM_subsystem_lt s1 s3.
+Proof. intros s1 s2 s3. unfold RM_subsystem_lt. lia. Qed.
+
+Theorem RM_big_five_chain :
+  RM_subsystem_lt RCA0 WKL0 /\ RM_subsystem_lt WKL0 ACA0 /\
+  RM_subsystem_lt ACA0 ATR0 /\ RM_subsystem_lt ATR0 Pi11CA0.
+Proof.
+  unfold RM_subsystem_lt; cbn. repeat split; lia.
+Qed.
+
+(** A non-adjacent separation: Pi^1_1-CA_0 proves Con(WKL_0) but ACA_0
+    does not. *)
+
+Theorem RM_separation_ACA_below_Pi11CA :
+  RM_provable_real Pi11CA0 (RM_Con (rm_rank ACA0)) /\
+  ~ RM_provable_real ACA0 (RM_Con (rm_rank ACA0)).
+Proof.
+  split.
+  - apply rm_char. cbn. lia.
+  - intro Hcon.
+    pose proof (RM_sound ACA0 _ Hcon) as Hf.
+    exact (Con_not_forced_at_own_level (rm_rank ACA0) (fun _ _ => true) Hf).
+Qed.
+
+Theorem reverse_math_summary :
+  (forall s phi, |- phi -> RM_provable_real s phi) /\
+  (exists phi, RM_provable_real WKL0 phi /\ ~ |- phi) /\
+  (forall s, ~ RM_provable_real s Bot) /\
+  (forall s s' phi, rm_rank s <= rm_rank s' ->
+     RM_provable_real s phi -> RM_provable_real s' phi) /\
+  (forall s s', RM_subsystem_lt s s' ->
+     exists phi, RM_provable_real s' phi /\ ~ RM_provable_real s phi).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact RM_includes_base.
+  - exact RM_strictly_above_base.
+  - exact RM_consistent.
+  - exact RM_provable_real_monotone.
+  - exact RM_provable_real_strict_hierarchy.
 Qed.
 
 Fixpoint box_free_bool (phi : Form) : bool :=

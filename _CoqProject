@@ -11,6 +11,5 @@ Agents.v
 Tiling.v
 ModalSambin.v
 GLPDecidability.v
-ReverseMath.v
 GLPDecide.v
 Examples.v
