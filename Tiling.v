@@ -20335,6 +20335,42 @@ Proof.
   f_equal; apply FOdecode_f_b_stable; lia.
 Qed.
 
+Lemma cpair_inj : forall a b c d,
+  cpair a b = cpair c d -> a = c /\ b = d.
+Proof.
+  intros a b c d H.
+  pose proof (cunpair_cpair a b) as Ha.
+  pose proof (cunpair_cpair c d) as Hc.
+  rewrite H in Ha. rewrite Hc in Ha.
+  injection Ha. intros. split; congruence.
+Qed.
+
+(** The per-tag specification a sound table entry meets: at genuine
+    codes, the result is the represented function's value. *)
+
+Definition mspec (tg a1 a2 a3 r : nat) : Prop :=
+  match tg with
+  | 0 => forall t, a2 = FOcode_tm t ->
+         r = (if FOin_tm a1 t then 1 else 0)
+  | 1 => forall A, a2 = FOcode_f A ->
+         r = (if FOfree_in a1 A then 1 else 0)
+  | 2 => forall s t, a2 = FOcode_tm s -> a3 = FOcode_tm t ->
+         r = FOcode_tm (FOsubst_t a1 s t)
+  | 3 => forall s A, a2 = FOcode_tm s -> a3 = FOcode_f A ->
+         r = FOcode_f (FOsubst_f a1 s A)
+  | 4 => forall s A, a2 = FOcode_tm s -> a3 = FOcode_f A ->
+         r = (if FOsubst_ok a1 s A then 1 else 0)
+  | 5 => r = FOcode_tm (FOnumeral a1)
+  | _ => True
+  end.
+
+Definition tblL (vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen : nat)
+    : nat -> nat -> nat -> nat -> nat -> Prop :=
+  fun tg a1 a2 a3 r => exists j, j < vlen /\
+    beta vct vdt j = tg /\ beta vc1 vd1 j = a1 /\
+    beta vc2 vd2 j = a2 /\ beta vc3 vd3 j = a3 /\
+    beta vcr vdr j = r.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
