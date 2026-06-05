@@ -15569,6 +15569,371 @@ Proof.
   exact (FOsigma1_completeness (FOfsize A) A (Nat.le_refl _) HS Hcl Hsat n).
 Qed.
 
+(** ** Builders for arithmetized Delta_0 formulas.
+
+    The arithmetization is assembled from equation atoms over +, *, S
+    terms, conjunction and disjunction, and the canonical bounded
+    quantifiers.  Variables are allocated in consecutive pairs (v, S v)
+    with every argument term's variables strictly below the binder, so
+    each builder's side conditions discharge by a max-var bound. *)
+
+Lemma FOin_tm_above : forall t v,
+  FOmax_var_tm t < v -> FOin_tm v t = false.
+Proof.
+  induction t; intros v Hv; cbn in *.
+  - apply Nat.eqb_neq. lia.
+  - reflexivity.
+  - apply IHt. exact Hv.
+  - rewrite IHt1, IHt2; [reflexivity | lia | lia].
+  - rewrite IHt1, IHt2; [reflexivity | lia | lia].
+Qed.
+
+Lemma FOdelta0_and : forall A B,
+  FOdelta0 A -> FOdelta0 B -> FOdelta0 (FOAnd A B).
+Proof.
+  intros A B HA HB. unfold FOAnd, FONeg.
+  apply FOd0_impl; [apply FOd0_impl|apply FOd0_false].
+  - exact HA.
+  - apply FOd0_impl; [exact HB | apply FOd0_false].
+Qed.
+
+Lemma FOdelta0_or : forall A B,
+  FOdelta0 A -> FOdelta0 B -> FOdelta0 (FOOr A B).
+Proof.
+  intros A B HA HB. unfold FOOr, FONeg.
+  apply FOd0_impl.
+  - apply FOd0_impl; [exact HA | apply FOd0_false].
+  - exact HB.
+Qed.
+
+Lemma FOdelta0_neg : forall A, FOdelta0 A -> FOdelta0 (FONeg A).
+Proof.
+  intros A HA. unfold FONeg.
+  apply FOd0_impl; [exact HA | apply FOd0_false].
+Qed.
+
+Lemma FOfree_in_FOAnd : forall w A B,
+  FOfree_in w (FOAnd A B) = (FOfree_in w A || FOfree_in w B)%bool.
+Proof.
+  intros w A B. cbn. rewrite !Bool.orb_false_r. reflexivity.
+Qed.
+
+Lemma FOfree_in_FOOr : forall w A B,
+  FOfree_in w (FOOr A B) = (FOfree_in w A || FOfree_in w B)%bool.
+Proof.
+  intros w A B. cbn. rewrite !Bool.orb_false_r. reflexivity.
+Qed.
+
+Lemma FOfree_in_FONeg : forall w A,
+  FOfree_in w (FONeg A) = FOfree_in w A.
+Proof.
+  intros w A. cbn. rewrite !Bool.orb_false_r. reflexivity.
+Qed.
+
+(** The Cantor-pair equation as a term-level atom:
+    [2c = (a+b)(a+b+1) + 2b]. *)
+
+Lemma triangle_double : forall s, 2 * to_triangle s = s * S s.
+Proof.
+  induction s as [|s IH]; cbn [to_triangle]; nia.
+Qed.
+
+Definition FOcpairF (a b c : FOTerm) : FOFormula :=
+  FOEq (FOPlus c c)
+       (FOPlus (FOMult (FOPlus a b) (FOSucc (FOPlus a b)))
+               (FOPlus b b)).
+
+Lemma FOsat_FOcpairF : forall e a b c,
+  FOsat e (FOcpairF a b c)
+  <-> cpair (FOeval e a) (FOeval e b) = FOeval e c.
+Proof.
+  intros e a b c. unfold FOcpairF. cbn.
+  pose proof (triangle_double (FOeval e a + FOeval e b)) as Ht.
+  unfold cpair. split; intro H; nia.
+Qed.
+
+Lemma FOdelta0_FOcpairF : forall a b c, FOdelta0 (FOcpairF a b c).
+Proof. intros. apply FOd0_eq. Qed.
+
+Lemma FOfree_in_FOcpairF : forall w a b c,
+  FOfree_in w (FOcpairF a b c)
+  = (FOin_tm w a || FOin_tm w b || FOin_tm w c)%bool.
+Proof.
+  intros w a b c. cbn.
+  destruct (FOin_tm w a); destruct (FOin_tm w b);
+    destruct (FOin_tm w c); reflexivity.
+Qed.
+
+(** The canonical bounded quantifiers as builders with their
+    satisfaction laws. *)
+
+Definition FOBexC (v : nat) (t : FOTerm) (A : FOFormula) : FOFormula :=
+  FOExists v
+    (FOAnd
+       (FOExists (S v)
+          (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t))
+       A).
+
+Definition FOBallC (v : nat) (t : FOTerm) (A : FOFormula) : FOFormula :=
+  FOForall v
+    (FOImplF
+       (FOExists (S v)
+          (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t))
+       A).
+
+Lemma FOdelta0_FOBexC : forall v t A,
+  FOin_tm v t = false -> FOin_tm (S v) t = false -> FOdelta0 A ->
+  FOdelta0 (FOBexC v t A).
+Proof. intros. apply FOd0_bex; assumption. Qed.
+
+Lemma FOdelta0_FOBallC : forall v t A,
+  FOin_tm v t = false -> FOin_tm (S v) t = false -> FOdelta0 A ->
+  FOdelta0 (FOBallC v t A).
+Proof. intros. apply FOd0_ball; assumption. Qed.
+
+Lemma FOsat_lt_witness : forall e v t w,
+  FOin_tm v t = false -> FOin_tm (S v) t = false ->
+  (FOsat (FOupdate e v w)
+     (FOExists (S v)
+        (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t))
+   <-> w < FOeval e t).
+Proof.
+  intros e v t w Hvt HSvt.
+  assert (EvSv : Nat.eqb v (S v) = false) by (apply Nat.eqb_neq; lia).
+  split.
+  - intros [z Hz].
+    cbn -[Nat.eqb FOupdate] in Hz.
+    rewrite (FOeval_update_not_in t _ (S v) z HSvt) in Hz.
+    rewrite (FOeval_update_not_in t _ v w Hvt) in Hz.
+    unfold FOupdate in Hz.
+    rewrite EvSv, !Nat.eqb_refl in Hz.
+    cbn in Hz. lia.
+  - intro Hw. cbn -[Nat.eqb FOupdate].
+    exists (FOeval e t - w - 1).
+    rewrite (FOeval_update_not_in t _ (S v) _ HSvt).
+    rewrite (FOeval_update_not_in t _ v w Hvt).
+    unfold FOupdate. rewrite EvSv, !Nat.eqb_refl. cbn. lia.
+Qed.
+
+Lemma FOsat_FOBexC : forall e v t A,
+  FOin_tm v t = false -> FOin_tm (S v) t = false ->
+  (FOsat e (FOBexC v t A)
+   <-> exists w, w < FOeval e t /\ FOsat (FOupdate e v w) A).
+Proof.
+  intros e v t A Hvt HSvt. unfold FOBexC.
+  split.
+  - intros [w Hw].
+    pose proof (proj1 (FOsat_FOAnd _ _ _) Hw) as [HL HA].
+    exists w. split.
+    + exact (proj1 (FOsat_lt_witness e v t w Hvt HSvt) HL).
+    + exact HA.
+  - intros [w [Hwlt HA]].
+    exists w.
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    + exact (proj2 (FOsat_lt_witness e v t w Hvt HSvt) Hwlt).
+    + exact HA.
+Qed.
+
+Lemma FOsat_FOBallC : forall e v t A,
+  FOin_tm v t = false -> FOin_tm (S v) t = false ->
+  (FOsat e (FOBallC v t A)
+   <-> forall w, w < FOeval e t -> FOsat (FOupdate e v w) A).
+Proof.
+  intros e v t A Hvt HSvt. unfold FOBallC.
+  split.
+  - intros Hf w Hw.
+    exact (Hf w (proj2 (FOsat_lt_witness e v t w Hvt HSvt) Hw)).
+  - intros Hf w HL.
+    exact (Hf w (proj1 (FOsat_lt_witness e v t w Hvt HSvt) HL)).
+Qed.
+
+Lemma FOfree_in_FOBexC : forall w v t A,
+  w <> v -> w <> S v ->
+  FOfree_in w (FOBexC v t A) = (FOin_tm w t || FOfree_in w A)%bool.
+Proof.
+  intros w v t A Hwv HwSv. unfold FOBexC.
+  assert (Evw : Nat.eqb v w = false)
+    by (apply Nat.eqb_neq; intro e; apply Hwv; symmetry; exact e).
+  assert (ESvw : Nat.eqb (S v) w = false)
+    by (apply Nat.eqb_neq; intro e; apply HwSv; symmetry; exact e).
+  cbn -[Nat.eqb]. rewrite Evw, ESvw. cbn.
+  rewrite !Bool.orb_false_r. reflexivity.
+Qed.
+
+Lemma FOfree_in_FOBexC_self : forall v t A,
+  FOfree_in v (FOBexC v t A) = false.
+Proof.
+  intros v t A. unfold FOBexC. cbn -[Nat.eqb].
+  rewrite Nat.eqb_refl. reflexivity.
+Qed.
+
+Lemma FOfree_in_FOBexC_succ : forall v t A,
+  FOfree_in (S v) (FOBexC v t A) = FOfree_in (S v) A.
+Proof.
+  intros v t A. unfold FOBexC.
+  assert (EvSv : Nat.eqb v (S v) = false) by (apply Nat.eqb_neq; lia).
+  cbn -[Nat.eqb]. rewrite EvSv, !Nat.eqb_refl. cbn.
+  rewrite !Bool.orb_false_r. reflexivity.
+Qed.
+
+Lemma FOfree_in_FOBallC : forall w v t A,
+  w <> v -> w <> S v ->
+  FOfree_in w (FOBallC v t A) = (FOin_tm w t || FOfree_in w A)%bool.
+Proof.
+  intros w v t A Hwv HwSv. unfold FOBallC.
+  assert (Evw : Nat.eqb v w = false)
+    by (apply Nat.eqb_neq; intro e; apply Hwv; symmetry; exact e).
+  assert (ESvw : Nat.eqb (S v) w = false)
+    by (apply Nat.eqb_neq; intro e; apply HwSv; symmetry; exact e).
+  cbn -[Nat.eqb]. rewrite Evw, ESvw. cbn. reflexivity.
+Qed.
+
+Lemma FOfree_in_FOBallC_self : forall v t A,
+  FOfree_in v (FOBallC v t A) = false.
+Proof.
+  intros v t A. unfold FOBallC. cbn -[Nat.eqb].
+  rewrite Nat.eqb_refl. reflexivity.
+Qed.
+
+Lemma FOfree_in_FOBallC_succ : forall v t A,
+  FOfree_in (S v) (FOBallC v t A) = FOfree_in (S v) A.
+Proof.
+  intros v t A. unfold FOBallC.
+  assert (EvSv : Nat.eqb v (S v) = false) by (apply Nat.eqb_neq; lia).
+  cbn -[Nat.eqb]. rewrite EvSv, !Nat.eqb_refl. cbn. reflexivity.
+Qed.
+
+(** Beta access as a Delta_0 formula: [x = beta c d i], using the
+    block (v, S v, S (S v), S (S (S v))). *)
+
+Definition FObetaF (v : nat) (c d i x : FOTerm) : FOFormula :=
+  FOBexC v (FOSucc c)
+    (FOAnd
+       (FOEq c (FOPlus
+                  (FOMult (FOVar v) (FOSucc (FOMult d (FOSucc i))))
+                  x))
+       (FOBexC (S (S v)) (FOSucc (FOMult d (FOSucc i)))
+          (FOEq (FOPlus x (FOSucc (FOVar (S (S v)))))
+                (FOSucc (FOMult d (FOSucc i)))))).
+
+Lemma FOdelta0_FObetaF : forall v c d i x,
+  FOmax_var_tm c < v -> FOmax_var_tm d < v ->
+  FOmax_var_tm i < v -> FOmax_var_tm x < v ->
+  FOdelta0 (FObetaF v c d i x).
+Proof.
+  intros v c d i x Hc Hd Hi Hx. unfold FObetaF.
+  apply FOdelta0_FOBexC.
+  - apply FOin_tm_above. cbn. lia.
+  - apply FOin_tm_above. cbn. lia.
+  - apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOBexC.
+    + apply FOin_tm_above. cbn. lia.
+    + apply FOin_tm_above. cbn. lia.
+    + apply FOd0_eq.
+Qed.
+
+Lemma FOsat_FObetaF : forall e v c d i x,
+  FOmax_var_tm c < v -> FOmax_var_tm d < v ->
+  FOmax_var_tm i < v -> FOmax_var_tm x < v ->
+  (FOsat e (FObetaF v c d i x)
+   <-> beta (FOeval e c) (FOeval e d) (FOeval e i) = FOeval e x).
+Proof.
+  intros e v c d i x Hc Hd Hi Hx.
+  assert (HinSc_v : FOin_tm v (FOSucc c) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSc_Sv : FOin_tm (S v) (FOSucc c) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinM_2 : FOin_tm (S (S v))
+      (FOSucc (FOMult d (FOSucc i))) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinM_3 : FOin_tm (S (S (S v)))
+      (FOSucc (FOMult d (FOSucc i))) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (Hin_c_v : FOin_tm v c = false) by (apply FOin_tm_above; lia).
+  assert (Hin_d_v : FOin_tm v d = false) by (apply FOin_tm_above; lia).
+  assert (Hin_i_v : FOin_tm v i = false) by (apply FOin_tm_above; lia).
+  assert (Hin_x_v : FOin_tm v x = false) by (apply FOin_tm_above; lia).
+  assert (Hin_d_2 : FOin_tm (S (S v)) d = false)
+    by (apply FOin_tm_above; lia).
+  assert (Hin_i_2 : FOin_tm (S (S v)) i = false)
+    by (apply FOin_tm_above; lia).
+  assert (Hin_x_2 : FOin_tm (S (S v)) x = false)
+    by (apply FOin_tm_above; lia).
+  unfold FObetaF.
+  split.
+  - intro H.
+    apply (proj1 (FOsat_FOBexC e v (FOSucc c) _ HinSc_v HinSc_Sv)) in H.
+    destruct H as [q [Hqlt Hq]].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hq.
+    destruct Hq as [H1 H2].
+    apply (proj1 (FOsat_FOBexC _ (S (S v))
+                    (FOSucc (FOMult d (FOSucc i))) _ HinM_2 HinM_3)) in H2.
+    destruct H2 as [z [Hzlt Hz]].
+    cbn -[Nat.eqb FOupdate] in H1.
+    rewrite (FOeval_update_not_in c _ v q Hin_c_v) in H1.
+    rewrite (FOeval_update_not_in d _ v q Hin_d_v) in H1.
+    rewrite (FOeval_update_not_in i _ v q Hin_i_v) in H1.
+    rewrite (FOeval_update_not_in x _ v q Hin_x_v) in H1.
+    unfold FOupdate in H1. rewrite Nat.eqb_refl in H1. cbn in H1.
+    cbn -[Nat.eqb FOupdate] in Hz.
+    rewrite (FOeval_update_not_in x _ (S (S v)) z Hin_x_2) in Hz.
+    rewrite (FOeval_update_not_in d _ (S (S v)) z Hin_d_2) in Hz.
+    rewrite (FOeval_update_not_in i _ (S (S v)) z Hin_i_2) in Hz.
+    rewrite (FOeval_update_not_in x _ v q Hin_x_v) in Hz.
+    rewrite (FOeval_update_not_in d _ v q Hin_d_v) in Hz.
+    rewrite (FOeval_update_not_in i _ v q Hin_i_v) in Hz.
+    unfold FOupdate in Hz. rewrite Nat.eqb_refl in Hz. cbn in Hz.
+    apply beta_spec.
+    exists q. split; lia.
+  - intro H. apply beta_spec in H. destruct H as [q [Hceq Hxlt]].
+    apply (proj2 (FOsat_FOBexC e v (FOSucc c) _ HinSc_v HinSc_Sv)).
+    exists q. split.
+    + cbn. nia.
+    + apply (proj2 (FOsat_FOAnd _ _ _)). split.
+      * cbn -[Nat.eqb FOupdate].
+        rewrite (FOeval_update_not_in c _ v q Hin_c_v).
+        rewrite (FOeval_update_not_in d _ v q Hin_d_v).
+        rewrite (FOeval_update_not_in i _ v q Hin_i_v).
+        rewrite (FOeval_update_not_in x _ v q Hin_x_v).
+        unfold FOupdate. rewrite Nat.eqb_refl. cbn. lia.
+      * apply (proj2 (FOsat_FOBexC _ (S (S v))
+                        (FOSucc (FOMult d (FOSucc i))) _ HinM_2 HinM_3)).
+        assert (HMq : FOeval (FOupdate e v q)
+                        (FOSucc (FOMult d (FOSucc i)))
+                      = FOeval e d * S (FOeval e i) + 1).
+        { cbn -[Nat.eqb FOupdate].
+          rewrite (FOeval_update_not_in d _ v q Hin_d_v),
+                  (FOeval_update_not_in i _ v q Hin_i_v). lia. }
+        rewrite HMq.
+        exists (FOeval e d * S (FOeval e i) - FOeval e x).
+        split.
+        -- lia.
+        -- cbn -[Nat.eqb FOupdate].
+           rewrite (FOeval_update_not_in x _ (S (S v)) _ Hin_x_2).
+           rewrite (FOeval_update_not_in d _ (S (S v)) _ Hin_d_2).
+           rewrite (FOeval_update_not_in i _ (S (S v)) _ Hin_i_2).
+           rewrite (FOeval_update_not_in x _ v q Hin_x_v).
+           rewrite (FOeval_update_not_in d _ v q Hin_d_v).
+           rewrite (FOeval_update_not_in i _ v q Hin_i_v).
+           unfold FOupdate. rewrite Nat.eqb_refl. cbn. lia.
+Qed.
+
+Lemma FOfree_in_FObetaF_low : forall w v c d i x,
+  w < v ->
+  FOfree_in w (FObetaF v c d i x)
+  = (FOin_tm w c || FOin_tm w d || FOin_tm w i || FOin_tm w x)%bool.
+Proof.
+  intros w v c d i x Hwv. unfold FObetaF.
+  rewrite (FOfree_in_FOBexC w v _ _ ltac:(lia) ltac:(lia)).
+  rewrite FOfree_in_FOAnd.
+  rewrite (FOfree_in_FOBexC w (S (S v)) _ _ ltac:(lia) ltac:(lia)).
+  assert (Evw : Nat.eqb v w = false) by (apply Nat.eqb_neq; lia).
+  assert (ESSvw : Nat.eqb (S (S v)) w = false) by (apply Nat.eqb_neq; lia).
+  cbn -[Nat.eqb]. rewrite Evw, ESSvw.
+  destruct (FOin_tm w c); destruct (FOin_tm w d);
+    destruct (FOin_tm w i); destruct (FOin_tm w x); reflexivity.
+Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
