@@ -19475,6 +19475,610 @@ Proof.
     apply FOdelta0_FOSTEP5; try assumption; cbn; lia. }
 Qed.
 
+(** The step semantics are extensional in the lookup relation. *)
+
+Lemma step0_sem_ext : forall L L' w tc r,
+  (forall a b c d f, L a b c d f <-> L' a b c d f) ->
+  (step0_sem L w tc r <-> step0_sem L' w tc r).
+Proof.
+  intros L L' w tc r HL. unfold step0_sem.
+  split; intro H;
+    destruct H as [H|[H|[H|[H|H]]]];
+    [left | right; left | right; right; left
+    | right; right; right; left | right; right; right; right
+    | left | right; left | right; right; left
+    | right; right; right; left | right; right; right; right];
+    try exact H.
+  - destruct H as [tc' [H1 [H2 H3]]].
+    exists tc'. split; [exact H1|]. split; [exact H2|].
+    rewrite <- (HL 0 w tc' 0 r). exact H3.
+  - destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists ta. split; [exact H3|]. exists tb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; [rewrite <- (HL 0 w ta 0 1); exact Ha | exact Hb].
+    + right. split; [rewrite <- (HL 0 w ta 0 0); exact Ha
+                    |rewrite <- (HL 0 w tb 0 r); exact Hb].
+  - destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists ta. split; [exact H3|]. exists tb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; [rewrite <- (HL 0 w ta 0 1); exact Ha | exact Hb].
+    + right. split; [rewrite <- (HL 0 w ta 0 0); exact Ha
+                    |rewrite <- (HL 0 w tb 0 r); exact Hb].
+  - destruct H as [tc' [H1 [H2 H3]]].
+    exists tc'. split; [exact H1|]. split; [exact H2|].
+    rewrite (HL 0 w tc' 0 r). exact H3.
+  - destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists ta. split; [exact H3|]. exists tb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; [rewrite (HL 0 w ta 0 1); exact Ha | exact Hb].
+    + right. split; [rewrite (HL 0 w ta 0 0); exact Ha
+                    |rewrite (HL 0 w tb 0 r); exact Hb].
+  - destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists ta. split; [exact H3|]. exists tb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; [rewrite (HL 0 w ta 0 1); exact Ha | exact Hb].
+    + right. split; [rewrite (HL 0 w ta 0 0); exact Ha
+                    |rewrite (HL 0 w tb 0 r); exact Hb].
+Qed.
+
+Lemma step1_sem_ext : forall L L' w pc r,
+  (forall a b c d f, L a b c d f <-> L' a b c d f) ->
+  (step1_sem L w pc r <-> step1_sem L' w pc r).
+Proof.
+  intros L L' w pc r HL. unfold step1_sem.
+  split; intro H;
+    destruct H as [H|[H|[H|[H|H]]]];
+    [left | right; left | right; right; left
+    | right; right; right; left | right; right; right; right
+    | left | right; left | right; right; left
+    | right; right; right; left | right; right; right; right];
+    try exact H;
+    destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 H6]]]]]]]];
+    exists p; (split; [exact H1|]); (split; [exact H2|]);
+    exists ta; (split; [exact H3|]); exists tb; (split; [exact H4|]);
+    (split; [exact H5|]).
+  - destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; [rewrite <- (HL 0 w ta 0 1); exact Ha | exact Hb].
+    + right. split; [rewrite <- (HL 0 w ta 0 0); exact Ha
+                    |rewrite <- (HL 0 w tb 0 r); exact Hb].
+  - destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; [rewrite <- (HL 1 w ta 0 1); exact Ha | exact Hb].
+    + right. split; [rewrite <- (HL 1 w ta 0 0); exact Ha
+                    |rewrite <- (HL 1 w tb 0 r); exact Hb].
+  - destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; assumption.
+    + right. split; [exact Ha | rewrite <- (HL 1 w tb 0 r); exact Hb].
+  - destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; assumption.
+    + right. split; [exact Ha | rewrite <- (HL 1 w tb 0 r); exact Hb].
+  - destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; [rewrite (HL 0 w ta 0 1); exact Ha | exact Hb].
+    + right. split; [rewrite (HL 0 w ta 0 0); exact Ha
+                    |rewrite (HL 0 w tb 0 r); exact Hb].
+  - destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; [rewrite (HL 1 w ta 0 1); exact Ha | exact Hb].
+    + right. split; [rewrite (HL 1 w ta 0 0); exact Ha
+                    |rewrite (HL 1 w tb 0 r); exact Hb].
+  - destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; assumption.
+    + right. split; [exact Ha | rewrite (HL 1 w tb 0 r); exact Hb].
+  - destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; assumption.
+    + right. split; [exact Ha | rewrite (HL 1 w tb 0 r); exact Hb].
+Qed.
+
+Lemma step2_sem_ext : forall L L' x sc tc r,
+  (forall a b c d f, L a b c d f <-> L' a b c d f) ->
+  (step2_sem L x sc tc r <-> step2_sem L' x sc tc r).
+Proof.
+  intros L L' x sc tc r HL. unfold step2_sem.
+  split; intro H;
+    destruct H as [H|[H|[H|[H|H]]]];
+    [left | right; left | right; right; left
+    | right; right; right; left | right; right; right; right
+    | left | right; left | right; right; left
+    | right; right; right; left | right; right; right; right];
+    try exact H.
+  - destruct H as [tc' [H1 [H2 [r' [H3 [H4 H5]]]]]].
+    exists tc'. split; [exact H1|]. split; [exact H2|].
+    exists r'. split; [exact H3|].
+    split; [rewrite <- (HL 2 x sc tc' r'); exact H4 | exact H5].
+  - destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 [ra [H6 [rb [H7
+      [H8 [H9 H10]]]]]]]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists ta. split; [exact H3|]. exists tb. split; [exact H4|].
+    split; [exact H5|].
+    exists ra. split; [exact H6|]. exists rb. split; [exact H7|].
+    split; [rewrite <- (HL 2 x sc ta ra); exact H8|].
+    split; [rewrite <- (HL 2 x sc tb rb); exact H9 | exact H10].
+  - destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 [ra [H6 [rb [H7
+      [H8 [H9 H10]]]]]]]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists ta. split; [exact H3|]. exists tb. split; [exact H4|].
+    split; [exact H5|].
+    exists ra. split; [exact H6|]. exists rb. split; [exact H7|].
+    split; [rewrite <- (HL 2 x sc ta ra); exact H8|].
+    split; [rewrite <- (HL 2 x sc tb rb); exact H9 | exact H10].
+  - destruct H as [tc' [H1 [H2 [r' [H3 [H4 H5]]]]]].
+    exists tc'. split; [exact H1|]. split; [exact H2|].
+    exists r'. split; [exact H3|].
+    split; [rewrite (HL 2 x sc tc' r'); exact H4 | exact H5].
+  - destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 [ra [H6 [rb [H7
+      [H8 [H9 H10]]]]]]]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists ta. split; [exact H3|]. exists tb. split; [exact H4|].
+    split; [exact H5|].
+    exists ra. split; [exact H6|]. exists rb. split; [exact H7|].
+    split; [rewrite (HL 2 x sc ta ra); exact H8|].
+    split; [rewrite (HL 2 x sc tb rb); exact H9 | exact H10].
+  - destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 [ra [H6 [rb [H7
+      [H8 [H9 H10]]]]]]]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists ta. split; [exact H3|]. exists tb. split; [exact H4|].
+    split; [exact H5|].
+    exists ra. split; [exact H6|]. exists rb. split; [exact H7|].
+    split; [rewrite (HL 2 x sc ta ra); exact H8|].
+    split; [rewrite (HL 2 x sc tb rb); exact H9 | exact H10].
+Qed.
+
+Lemma step3_sem_ext : forall L L' x sc pc r,
+  (forall a b c d f, L a b c d f <-> L' a b c d f) ->
+  (step3_sem L x sc pc r <-> step3_sem L' x sc pc r).
+Proof.
+  intros L L' x sc pc r HL. unfold step3_sem.
+  split; intro H;
+    destruct H as [H|[H|[H|[H|H]]]];
+    [left | right; left | right; right; left
+    | right; right; right; left | right; right; right; right
+    | left | right; left | right; right; left
+    | right; right; right; left | right; right; right; right];
+    try exact H.
+  - destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 [ra [H6 [rb [H7
+      [H8 [H9 H10]]]]]]]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists ta. split; [exact H3|]. exists tb. split; [exact H4|].
+    split; [exact H5|].
+    exists ra. split; [exact H6|]. exists rb. split; [exact H7|].
+    split; [rewrite <- (HL 2 x sc ta ra); exact H8|].
+    split; [rewrite <- (HL 2 x sc tb rb); exact H9 | exact H10].
+  - destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 [ra [H6 [rb [H7
+      [H8 [H9 H10]]]]]]]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists ta. split; [exact H3|]. exists tb. split; [exact H4|].
+    split; [exact H5|].
+    exists ra. split; [exact H6|]. exists rb. split; [exact H7|].
+    split; [rewrite <- (HL 3 x sc ta ra); exact H8|].
+    split; [rewrite <- (HL 3 x sc tb rb); exact H9 | exact H10].
+  - destruct H as [p [H1 [H2 [y [H3 [pb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists y. split; [exact H3|]. exists pb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [H6|[Ha [rb [H7 [H8 [q [H9 [H10 H11]]]]]]]].
+    + left. exact H6.
+    + right. split; [exact Ha|].
+      exists rb. split; [exact H7|].
+      split; [rewrite <- (HL 3 x sc pb rb); exact H8|].
+      exists q. split; [exact H9|]. split; [exact H10 | exact H11].
+  - destruct H as [p [H1 [H2 [y [H3 [pb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists y. split; [exact H3|]. exists pb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [H6|[Ha [rb [H7 [H8 [q [H9 [H10 H11]]]]]]]].
+    + left. exact H6.
+    + right. split; [exact Ha|].
+      exists rb. split; [exact H7|].
+      split; [rewrite <- (HL 3 x sc pb rb); exact H8|].
+      exists q. split; [exact H9|]. split; [exact H10 | exact H11].
+  - destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 [ra [H6 [rb [H7
+      [H8 [H9 H10]]]]]]]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists ta. split; [exact H3|]. exists tb. split; [exact H4|].
+    split; [exact H5|].
+    exists ra. split; [exact H6|]. exists rb. split; [exact H7|].
+    split; [rewrite (HL 2 x sc ta ra); exact H8|].
+    split; [rewrite (HL 2 x sc tb rb); exact H9 | exact H10].
+  - destruct H as [p [H1 [H2 [ta [H3 [tb [H4 [H5 [ra [H6 [rb [H7
+      [H8 [H9 H10]]]]]]]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists ta. split; [exact H3|]. exists tb. split; [exact H4|].
+    split; [exact H5|].
+    exists ra. split; [exact H6|]. exists rb. split; [exact H7|].
+    split; [rewrite (HL 3 x sc ta ra); exact H8|].
+    split; [rewrite (HL 3 x sc tb rb); exact H9 | exact H10].
+  - destruct H as [p [H1 [H2 [y [H3 [pb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists y. split; [exact H3|]. exists pb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [H6|[Ha [rb [H7 [H8 [q [H9 [H10 H11]]]]]]]].
+    + left. exact H6.
+    + right. split; [exact Ha|].
+      exists rb. split; [exact H7|].
+      split; [rewrite (HL 3 x sc pb rb); exact H8|].
+      exists q. split; [exact H9|]. split; [exact H10 | exact H11].
+  - destruct H as [p [H1 [H2 [y [H3 [pb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists y. split; [exact H3|]. exists pb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [H6|[Ha [rb [H7 [H8 [q [H9 [H10 H11]]]]]]]].
+    + left. exact H6.
+    + right. split; [exact Ha|].
+      exists rb. split; [exact H7|].
+      split; [rewrite (HL 3 x sc pb rb); exact H8|].
+      exists q. split; [exact H9|]. split; [exact H10 | exact H11].
+Qed.
+
+Lemma step4_sem_ext : forall L L' x sc pc r,
+  (forall a b c d f, L a b c d f <-> L' a b c d f) ->
+  (step4_sem L x sc pc r <-> step4_sem L' x sc pc r).
+Proof.
+  intros L L' x sc pc r HL. unfold step4_sem.
+  split; intro H;
+    destruct H as [H|[H|[H|[H|H]]]];
+    [left | right; left | right; right; left
+    | right; right; right; left | right; right; right; right
+    | left | right; left | right; right; left
+    | right; right; right; left | right; right; right; right];
+    try exact H.
+  - destruct H as [p [H1 [H2 [pa [H3 [pb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists pa. split; [exact H3|]. exists pb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; [rewrite <- (HL 4 x sc pa 0); exact Ha | exact Hb].
+    + right. split; [rewrite <- (HL 4 x sc pa 1); exact Ha
+                    |rewrite <- (HL 4 x sc pb r); exact Hb].
+  - destruct H as [p [H1 [H2 [y [H3 [pb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists y. split; [exact H3|]. exists pb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [H6|[Ha H6]]; [left; exact H6|].
+    right. split; [exact Ha|].
+    destruct H6 as [[Hb Hc]|[Hb H6]].
+    + left. split; [rewrite <- (HL 1 x pb 0 0); exact Hb | exact Hc].
+    + right. split; [rewrite <- (HL 1 x pb 0 1); exact Hb|].
+      destruct H6 as [[Hd He]|[Hd He]].
+      * left. split; [rewrite <- (HL 0 y sc 0 1); exact Hd | exact He].
+      * right. split; [rewrite <- (HL 0 y sc 0 0); exact Hd
+                      |rewrite <- (HL 4 x sc pb r); exact He].
+  - destruct H as [p [H1 [H2 [y [H3 [pb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists y. split; [exact H3|]. exists pb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [H6|[Ha H6]]; [left; exact H6|].
+    right. split; [exact Ha|].
+    destruct H6 as [[Hb Hc]|[Hb H6]].
+    + left. split; [rewrite <- (HL 1 x pb 0 0); exact Hb | exact Hc].
+    + right. split; [rewrite <- (HL 1 x pb 0 1); exact Hb|].
+      destruct H6 as [[Hd He]|[Hd He]].
+      * left. split; [rewrite <- (HL 0 y sc 0 1); exact Hd | exact He].
+      * right. split; [rewrite <- (HL 0 y sc 0 0); exact Hd
+                      |rewrite <- (HL 4 x sc pb r); exact He].
+  - destruct H as [p [H1 [H2 [pa [H3 [pb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists pa. split; [exact H3|]. exists pb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [[Ha Hb]|[Ha Hb]].
+    + left. split; [rewrite (HL 4 x sc pa 0); exact Ha | exact Hb].
+    + right. split; [rewrite (HL 4 x sc pa 1); exact Ha
+                    |rewrite (HL 4 x sc pb r); exact Hb].
+  - destruct H as [p [H1 [H2 [y [H3 [pb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists y. split; [exact H3|]. exists pb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [H6|[Ha H6]]; [left; exact H6|].
+    right. split; [exact Ha|].
+    destruct H6 as [[Hb Hc]|[Hb H6]].
+    + left. split; [rewrite (HL 1 x pb 0 0); exact Hb | exact Hc].
+    + right. split; [rewrite (HL 1 x pb 0 1); exact Hb|].
+      destruct H6 as [[Hd He]|[Hd He]].
+      * left. split; [rewrite (HL 0 y sc 0 1); exact Hd | exact He].
+      * right. split; [rewrite (HL 0 y sc 0 0); exact Hd
+                      |rewrite (HL 4 x sc pb r); exact He].
+  - destruct H as [p [H1 [H2 [y [H3 [pb [H4 [H5 H6]]]]]]]].
+    exists p. split; [exact H1|]. split; [exact H2|].
+    exists y. split; [exact H3|]. exists pb. split; [exact H4|].
+    split; [exact H5|].
+    destruct H6 as [H6|[Ha H6]]; [left; exact H6|].
+    right. split; [exact Ha|].
+    destruct H6 as [[Hb Hc]|[Hb H6]].
+    + left. split; [rewrite (HL 1 x pb 0 0); exact Hb | exact Hc].
+    + right. split; [rewrite (HL 1 x pb 0 1); exact Hb|].
+      destruct H6 as [[Hd He]|[Hd He]].
+      * left. split; [rewrite (HL 0 y sc 0 1); exact Hd | exact He].
+      * right. split; [rewrite (HL 0 y sc 0 0); exact Hd
+                      |rewrite (HL 4 x sc pb r); exact He].
+Qed.
+
+Lemma step5_sem_ext : forall L L' a1 r,
+  (forall a b c d f, L a b c d f <-> L' a b c d f) ->
+  (step5_sem L a1 r <-> step5_sem L' a1 r).
+Proof.
+  intros L L' a1 r HL. unfold step5_sem.
+  split; intro H; destruct H as [H|H]; [left; exact H | right
+                                       |left; exact H | right];
+    destruct H as [k' [H1 [H2 [r' [H3 [H4 H5]]]]]];
+    exists k'; (split; [exact H1|]); (split; [exact H2|]);
+    exists r'; (split; [exact H3|]).
+  - split; [rewrite <- (HL 5 k' 0 0 r'); exact H4 | exact H5].
+  - split; [rewrite (HL 5 k' 0 0 r'); exact H4 | exact H5].
+Qed.
+
+Lemma FOsat_FOSTEPDISPATCH : forall e B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len j,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm j < B ->
+  (FOsat e (FOSTEPDISPATCH B ct dt c1 d1 c2 d2 c3 d3 cr dr len j)
+   <-> dispatch_sem
+         (fun tg x1 x2 x3 rr => exists j', j' < FOeval e len /\
+            beta (FOeval e ct) (FOeval e dt) j' = tg /\
+            beta (FOeval e c1) (FOeval e d1) j' = x1 /\
+            beta (FOeval e c2) (FOeval e d2) j' = x2 /\
+            beta (FOeval e c3) (FOeval e d3) j' = x3 /\
+            beta (FOeval e cr) (FOeval e dr) j' = rr)
+         (FOeval e ct) (FOeval e dt) (FOeval e c1) (FOeval e d1)
+         (FOeval e c2) (FOeval e d2) (FOeval e c3) (FOeval e d3)
+         (FOeval e cr) (FOeval e dr) (FOeval e j)).
+Proof.
+  intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len j Htb Hj.
+  pose proof Htb as Htb'.
+  destruct Htb' as [Hct [Hdt [Hc1 [Hd1 [Hc2 [Hd2 [Hc3 [Hd3
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  assert (Htb30 : tbl_below (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (E02 : Nat.eqb B (B+2) = false) by (apply Nat.eqb_neq; lia).
+  assert (E04 : Nat.eqb B (B+4) = false) by (apply Nat.eqb_neq; lia).
+  assert (E06 : Nat.eqb B (B+6) = false) by (apply Nat.eqb_neq; lia).
+  assert (E08 : Nat.eqb B (B+8) = false) by (apply Nat.eqb_neq; lia).
+  assert (E24 : Nat.eqb (B+2) (B+4) = false) by (apply Nat.eqb_neq; lia).
+  assert (E26 : Nat.eqb (B+2) (B+6) = false) by (apply Nat.eqb_neq; lia).
+  assert (E28 : Nat.eqb (B+2) (B+8) = false) by (apply Nat.eqb_neq; lia).
+  assert (E46 : Nat.eqb (B+4) (B+6) = false) by (apply Nat.eqb_neq; lia).
+  assert (E48 : Nat.eqb (B+4) (B+8) = false) by (apply Nat.eqb_neq; lia).
+  assert (E68 : Nat.eqb (B+6) (B+8) = false) by (apply Nat.eqb_neq; lia).
+  unfold FOSTEPDISPATCH, dispatch_sem.
+  rewrite (FOsat_FOBexC e B (FOSucc ct) _
+             (FOin_tm_above (FOSucc ct) B ltac:(cbn; lia))
+             (FOin_tm_above (FOSucc ct) (S B) ltac:(cbn; lia))).
+  assert (Es0 : FOeval e (FOSucc ct) = S (FOeval e ct)) by reflexivity.
+  rewrite Es0.
+  apply Morphisms_Prop.ex_iff_morphism. intro tg.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  set (e1 := FOupdate e B tg).
+  assert (Eu1 : forall t0, FOmax_var_tm t0 < B ->
+      FOeval e1 t0 = FOeval e t0).
+  { intros t0 Ht0. unfold e1. exact (FOeval_upd_above t0 e B tg Ht0). }
+  rewrite (FOsat_FOBexC e1 (B+2) (FOSucc c1) _
+             (FOin_tm_above (FOSucc c1) (B+2) ltac:(cbn; lia))
+             (FOin_tm_above (FOSucc c1) (S (B+2)) ltac:(cbn; lia))).
+  assert (Es1 : FOeval e1 (FOSucc c1) = S (FOeval e c1)).
+  { change (S (FOeval e1 c1) = S (FOeval e c1)).
+    rewrite (Eu1 c1 Hc1). reflexivity. }
+  rewrite Es1.
+  apply Morphisms_Prop.ex_iff_morphism. intro a1.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  set (e2 := FOupdate e1 (B+2) a1).
+  assert (Eu2 : forall t0, FOmax_var_tm t0 < B ->
+      FOeval e2 t0 = FOeval e t0).
+  { intros t0 Ht0. unfold e2.
+    rewrite (FOeval_upd_above t0 _ (B+2) a1 ltac:(lia)).
+    exact (Eu1 t0 Ht0). }
+  rewrite (FOsat_FOBexC e2 (B+4) (FOSucc c2) _
+             (FOin_tm_above (FOSucc c2) (B+4) ltac:(cbn; lia))
+             (FOin_tm_above (FOSucc c2) (S (B+4)) ltac:(cbn; lia))).
+  assert (Es2 : FOeval e2 (FOSucc c2) = S (FOeval e c2)).
+  { change (S (FOeval e2 c2) = S (FOeval e c2)).
+    rewrite (Eu2 c2 Hc2). reflexivity. }
+  rewrite Es2.
+  apply Morphisms_Prop.ex_iff_morphism. intro a2.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  set (e3 := FOupdate e2 (B+4) a2).
+  assert (Eu3 : forall t0, FOmax_var_tm t0 < B ->
+      FOeval e3 t0 = FOeval e t0).
+  { intros t0 Ht0. unfold e3.
+    rewrite (FOeval_upd_above t0 _ (B+4) a2 ltac:(lia)).
+    exact (Eu2 t0 Ht0). }
+  rewrite (FOsat_FOBexC e3 (B+6) (FOSucc c3) _
+             (FOin_tm_above (FOSucc c3) (B+6) ltac:(cbn; lia))
+             (FOin_tm_above (FOSucc c3) (S (B+6)) ltac:(cbn; lia))).
+  assert (Es3 : FOeval e3 (FOSucc c3) = S (FOeval e c3)).
+  { change (S (FOeval e3 c3) = S (FOeval e c3)).
+    rewrite (Eu3 c3 Hc3). reflexivity. }
+  rewrite Es3.
+  apply Morphisms_Prop.ex_iff_morphism. intro a3.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  set (e4 := FOupdate e3 (B+6) a3).
+  assert (Eu4 : forall t0, FOmax_var_tm t0 < B ->
+      FOeval e4 t0 = FOeval e t0).
+  { intros t0 Ht0. unfold e4.
+    rewrite (FOeval_upd_above t0 _ (B+6) a3 ltac:(lia)).
+    exact (Eu3 t0 Ht0). }
+  rewrite (FOsat_FOBexC e4 (B+8) (FOSucc cr) _
+             (FOin_tm_above (FOSucc cr) (B+8) ltac:(cbn; lia))
+             (FOin_tm_above (FOSucc cr) (S (B+8)) ltac:(cbn; lia))).
+  assert (Es4 : FOeval e4 (FOSucc cr) = S (FOeval e cr)).
+  { change (S (FOeval e4 cr) = S (FOeval e cr)).
+    rewrite (Eu4 cr Hcr). reflexivity. }
+  rewrite Es4.
+  apply Morphisms_Prop.ex_iff_morphism. intro rr.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  set (e5 := FOupdate e4 (B+8) rr).
+  assert (Eu5 : forall t0, FOmax_var_tm t0 < B ->
+      FOeval e5 t0 = FOeval e t0).
+  { intros t0 Ht0. unfold e5.
+    rewrite (FOeval_upd_above t0 _ (B+8) rr ltac:(lia)).
+    exact (Eu4 t0 Ht0). }
+  assert (EvB : FOeval e5 (FOVar B) = tg).
+  { unfold e5, e4, e3, e2, e1. cbn. unfold FOupdate.
+    rewrite E08, E06, E04, E02, Nat.eqb_refl. reflexivity. }
+  assert (EvB2 : FOeval e5 (FOVar (B+2)) = a1).
+  { unfold e5, e4, e3, e2. cbn. unfold FOupdate.
+    rewrite E28, E26, E24, Nat.eqb_refl. reflexivity. }
+  assert (EvB4 : FOeval e5 (FOVar (B+4)) = a2).
+  { unfold e5, e4, e3. cbn. unfold FOupdate.
+    rewrite E48, E46, Nat.eqb_refl. reflexivity. }
+  assert (EvB6 : FOeval e5 (FOVar (B+6)) = a3).
+  { unfold e5, e4. cbn. unfold FOupdate.
+    rewrite E68, Nat.eqb_refl. reflexivity. }
+  assert (EvB8 : FOeval e5 (FOVar (B+8)) = rr).
+  { unfold e5. cbn. unfold FOupdate.
+    rewrite Nat.eqb_refl. reflexivity. }
+  rewrite (FOsat_FOAnd e5 _ _).
+  rewrite (FOsat_FObetaF e5 (B+10) ct dt j (FOVar B)
+             ltac:(lia) ltac:(lia) ltac:(lia) ltac:(cbn; lia)).
+  rewrite (Eu5 ct Hct), (Eu5 dt Hdt), (Eu5 j Hj), EvB.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  rewrite (FOsat_FOAnd e5 _ _).
+  rewrite (FOsat_FObetaF e5 (B+14) c1 d1 j (FOVar (B+2))
+             ltac:(lia) ltac:(lia) ltac:(lia) ltac:(cbn; lia)).
+  rewrite (Eu5 c1 Hc1), (Eu5 d1 Hd1), (Eu5 j Hj), EvB2.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  rewrite (FOsat_FOAnd e5 _ _).
+  rewrite (FOsat_FObetaF e5 (B+18) c2 d2 j (FOVar (B+4))
+             ltac:(lia) ltac:(lia) ltac:(lia) ltac:(cbn; lia)).
+  rewrite (Eu5 c2 Hc2), (Eu5 d2 Hd2), (Eu5 j Hj), EvB4.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  rewrite (FOsat_FOAnd e5 _ _).
+  rewrite (FOsat_FObetaF e5 (B+22) c3 d3 j (FOVar (B+6))
+             ltac:(lia) ltac:(lia) ltac:(lia) ltac:(cbn; lia)).
+  rewrite (Eu5 c3 Hc3), (Eu5 d3 Hd3), (Eu5 j Hj), EvB6.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  rewrite (FOsat_FOAnd e5 _ _).
+  rewrite (FOsat_FObetaF e5 (B+26) cr dr j (FOVar (B+8))
+             ltac:(lia) ltac:(lia) ltac:(lia) ltac:(cbn; lia)).
+  rewrite (Eu5 cr Hcr), (Eu5 dr Hdr), (Eu5 j Hj), EvB8.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  rewrite (FOsat_FOOr e5 _ _).
+  apply Morphisms_Prop.or_iff_morphism.
+  { rewrite (FOsat_FOAnd e5 _ _).
+    change (FOsat e5 (FOEq (FOVar B) FOZero))
+      with (FOeval e5 (FOVar B) = FOeval e5 FOZero).
+    change (FOeval e5 FOZero) with 0.
+    rewrite EvB.
+    apply Morphisms_Prop.and_iff_morphism; [tauto|].
+    rewrite (FOsat_FOSTEP0 e5 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+8)) Htb30
+               ltac:(cbn; lia) ltac:(cbn; lia) ltac:(cbn; lia)).
+    rewrite EvB2, EvB4, EvB8.
+    apply step0_sem_ext.
+    intros a b c d f.
+    setoid_rewrite (Eu5 len Hlen).
+    setoid_rewrite (Eu5 ct Hct). setoid_rewrite (Eu5 dt Hdt).
+    setoid_rewrite (Eu5 c1 Hc1). setoid_rewrite (Eu5 d1 Hd1).
+    setoid_rewrite (Eu5 c2 Hc2). setoid_rewrite (Eu5 d2 Hd2).
+    setoid_rewrite (Eu5 c3 Hc3). setoid_rewrite (Eu5 d3 Hd3).
+    setoid_rewrite (Eu5 cr Hcr). setoid_rewrite (Eu5 dr Hdr).
+    reflexivity. }
+  rewrite (FOsat_FOOr e5 _ _).
+  apply Morphisms_Prop.or_iff_morphism.
+  { rewrite (FOsat_FOAnd e5 _ _).
+    change (FOsat e5 (FOEq (FOVar B) (FOnumeral 1)))
+      with (FOeval e5 (FOVar B) = FOeval e5 (FOnumeral 1)).
+    rewrite EvB, FOeval_numeral.
+    apply Morphisms_Prop.and_iff_morphism; [tauto|].
+    rewrite (FOsat_FOSTEP1 e5 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+8)) Htb30
+               ltac:(cbn; lia) ltac:(cbn; lia) ltac:(cbn; lia)).
+    rewrite EvB2, EvB4, EvB8.
+    apply step1_sem_ext.
+    intros a b c d f.
+    setoid_rewrite (Eu5 len Hlen).
+    setoid_rewrite (Eu5 ct Hct). setoid_rewrite (Eu5 dt Hdt).
+    setoid_rewrite (Eu5 c1 Hc1). setoid_rewrite (Eu5 d1 Hd1).
+    setoid_rewrite (Eu5 c2 Hc2). setoid_rewrite (Eu5 d2 Hd2).
+    setoid_rewrite (Eu5 c3 Hc3). setoid_rewrite (Eu5 d3 Hd3).
+    setoid_rewrite (Eu5 cr Hcr). setoid_rewrite (Eu5 dr Hdr).
+    reflexivity. }
+  rewrite (FOsat_FOOr e5 _ _).
+  apply Morphisms_Prop.or_iff_morphism.
+  { rewrite (FOsat_FOAnd e5 _ _).
+    change (FOsat e5 (FOEq (FOVar B) (FOnumeral 2)))
+      with (FOeval e5 (FOVar B) = FOeval e5 (FOnumeral 2)).
+    rewrite EvB, FOeval_numeral.
+    apply Morphisms_Prop.and_iff_morphism; [tauto|].
+    rewrite (FOsat_FOSTEP2 e5 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+6)) (FOVar (B+8))
+               Htb30 ltac:(cbn; lia) ltac:(cbn; lia) ltac:(cbn; lia)
+               ltac:(cbn; lia)).
+    rewrite EvB2, EvB4, EvB6, EvB8.
+    apply step2_sem_ext.
+    intros a b c d f.
+    setoid_rewrite (Eu5 len Hlen).
+    setoid_rewrite (Eu5 ct Hct). setoid_rewrite (Eu5 dt Hdt).
+    setoid_rewrite (Eu5 c1 Hc1). setoid_rewrite (Eu5 d1 Hd1).
+    setoid_rewrite (Eu5 c2 Hc2). setoid_rewrite (Eu5 d2 Hd2).
+    setoid_rewrite (Eu5 c3 Hc3). setoid_rewrite (Eu5 d3 Hd3).
+    setoid_rewrite (Eu5 cr Hcr). setoid_rewrite (Eu5 dr Hdr).
+    reflexivity. }
+  rewrite (FOsat_FOOr e5 _ _).
+  apply Morphisms_Prop.or_iff_morphism.
+  { rewrite (FOsat_FOAnd e5 _ _).
+    change (FOsat e5 (FOEq (FOVar B) (FOnumeral 3)))
+      with (FOeval e5 (FOVar B) = FOeval e5 (FOnumeral 3)).
+    rewrite EvB, FOeval_numeral.
+    apply Morphisms_Prop.and_iff_morphism; [tauto|].
+    rewrite (FOsat_FOSTEP3 e5 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+6)) (FOVar (B+8))
+               Htb30 ltac:(cbn; lia) ltac:(cbn; lia) ltac:(cbn; lia)
+               ltac:(cbn; lia)).
+    rewrite EvB2, EvB4, EvB6, EvB8.
+    apply step3_sem_ext.
+    intros a b c d f.
+    setoid_rewrite (Eu5 len Hlen).
+    setoid_rewrite (Eu5 ct Hct). setoid_rewrite (Eu5 dt Hdt).
+    setoid_rewrite (Eu5 c1 Hc1). setoid_rewrite (Eu5 d1 Hd1).
+    setoid_rewrite (Eu5 c2 Hc2). setoid_rewrite (Eu5 d2 Hd2).
+    setoid_rewrite (Eu5 c3 Hc3). setoid_rewrite (Eu5 d3 Hd3).
+    setoid_rewrite (Eu5 cr Hcr). setoid_rewrite (Eu5 dr Hdr).
+    reflexivity. }
+  rewrite (FOsat_FOOr e5 _ _).
+  apply Morphisms_Prop.or_iff_morphism.
+  { rewrite (FOsat_FOAnd e5 _ _).
+    change (FOsat e5 (FOEq (FOVar B) (FOnumeral 4)))
+      with (FOeval e5 (FOVar B) = FOeval e5 (FOnumeral 4)).
+    rewrite EvB, FOeval_numeral.
+    apply Morphisms_Prop.and_iff_morphism; [tauto|].
+    rewrite (FOsat_FOSTEP4 e5 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+6)) (FOVar (B+8))
+               Htb30 ltac:(cbn; lia) ltac:(cbn; lia) ltac:(cbn; lia)
+               ltac:(cbn; lia)).
+    rewrite EvB2, EvB4, EvB6, EvB8.
+    apply step4_sem_ext.
+    intros a b c d f.
+    setoid_rewrite (Eu5 len Hlen).
+    setoid_rewrite (Eu5 ct Hct). setoid_rewrite (Eu5 dt Hdt).
+    setoid_rewrite (Eu5 c1 Hc1). setoid_rewrite (Eu5 d1 Hd1).
+    setoid_rewrite (Eu5 c2 Hc2). setoid_rewrite (Eu5 d2 Hd2).
+    setoid_rewrite (Eu5 c3 Hc3). setoid_rewrite (Eu5 d3 Hd3).
+    setoid_rewrite (Eu5 cr Hcr). setoid_rewrite (Eu5 dr Hdr).
+    reflexivity. }
+  { rewrite (FOsat_FOAnd e5 _ _).
+    change (FOsat e5 (FOEq (FOVar B) (FOnumeral 5)))
+      with (FOeval e5 (FOVar B) = FOeval e5 (FOnumeral 5)).
+    rewrite EvB, FOeval_numeral.
+    apply Morphisms_Prop.and_iff_morphism; [tauto|].
+    rewrite (FOsat_FOSTEP5 e5 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+8)) Htb30
+               ltac:(cbn; lia) ltac:(cbn; lia)).
+    rewrite EvB2, EvB8.
+    apply step5_sem_ext.
+    intros a b c d f.
+    setoid_rewrite (Eu5 len Hlen).
+    setoid_rewrite (Eu5 ct Hct). setoid_rewrite (Eu5 dt Hdt).
+    setoid_rewrite (Eu5 c1 Hc1). setoid_rewrite (Eu5 d1 Hd1).
+    setoid_rewrite (Eu5 c2 Hc2). setoid_rewrite (Eu5 d2 Hd2).
+    setoid_rewrite (Eu5 c3 Hc3). setoid_rewrite (Eu5 d3 Hd3).
+    setoid_rewrite (Eu5 cr Hcr). setoid_rewrite (Eu5 dr Hdr).
+    reflexivity. }
+Qed.
+
 Definition FOTBLVALID (B : nat)
     (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm) : FOFormula :=
   FOBallC B len
