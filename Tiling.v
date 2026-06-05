@@ -13496,6 +13496,202 @@ Proof.
         exact (FOPr_weaken n _ _ (FOPr_idf n (FOExists y B))).
 Qed.
 
+(** ** Internal facts about the order relation at numerals.
+
+    [FOLtF (FOVar v) t] has witness variable [S v] whenever [t] is
+    closed, so the bounded quantifier [FOBall v t A] keeps one
+    canonical binder throughout. *)
+
+Lemma FOclosed_numeral : forall m, FOclosed_tm (FOnumeral m).
+Proof. induction m as [|m IH]; cbn; [exact I | exact IH]. Qed.
+
+Lemma FOmax_var_numeral : forall k, FOmax_var_tm (FOnumeral k) = 0.
+Proof. induction k as [|k IH]; cbn; [reflexivity | exact IH]. Qed.
+
+Lemma FOmax_var_closed : forall t, FOclosed_tm t -> FOmax_var_tm t = 0.
+Proof.
+  induction t; cbn; intro Hc.
+  - contradiction.
+  - reflexivity.
+  - exact (IHt Hc).
+  - destruct Hc as [H1 H2]. rewrite (IHt1 H1), (IHt2 H2). reflexivity.
+  - destruct Hc as [H1 H2]. rewrite (IHt1 H1), (IHt2 H2). reflexivity.
+Qed.
+
+Lemma FOLtF_var_num : forall v k,
+  FOLtF (FOVar v) (FOnumeral k)
+  = FOExists (S v)
+      (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) (FOnumeral k)).
+Proof.
+  intros v k. unfold FOLtF. cbn [FOmax_var_tm].
+  rewrite FOmax_var_numeral, Nat.max_0_r. reflexivity.
+Qed.
+
+Lemma FOLtF_var_closed : forall v t,
+  FOclosed_tm t ->
+  FOLtF (FOVar v) t
+  = FOExists (S v) (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t).
+Proof.
+  intros v t Hc. unfold FOLtF. cbn [FOmax_var_tm].
+  rewrite (FOmax_var_closed t Hc), Nat.max_0_r. reflexivity.
+Qed.
+
+Lemma FOLtF_num_num : forall i k,
+  FOLtF (FOnumeral i) (FOnumeral k)
+  = FOExists 1
+      (FOEq (FOPlus (FOnumeral i) (FOSucc (FOVar 1))) (FOnumeral k)).
+Proof.
+  intros i k. unfold FOLtF. rewrite !FOmax_var_numeral. reflexivity.
+Qed.
+
+Lemma FOPr_absorb2 : forall n X M Y H,
+  FOProvesTn n (FOImplF (FOImplF X (FOImplF M Y))
+                  (FOImplF (FOImplF H M)
+                     (FOImplF X (FOImplF H Y)))).
+Proof.
+  intros n X M Y H.
+  apply (FOPr_taut n (FOm4 X M Y H)
+    (Impl (Impl (Var 0) (Impl (Var 1) (Var 2)))
+          (Impl (Impl (Var 3) (Var 1))
+                (Impl (Var 0) (Impl (Var 3) (Var 2))))));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_compose2 : forall n X H Y Z,
+  FOProvesTn n (FOImplF (FOImplF X (FOImplF H Y))
+                  (FOImplF (FOImplF Y Z)
+                     (FOImplF X (FOImplF H Z)))).
+Proof.
+  intros n X H Y Z.
+  apply (FOPr_taut n (FOm4 X H Y Z)
+    (Impl (Impl (Var 0) (Impl (Var 1) (Var 2)))
+          (Impl (Impl (Var 2) (Var 3))
+                (Impl (Var 0) (Impl (Var 1) (Var 3))))));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_not_lt_zero : forall n u,
+  FOProvesTn n (FONeg (FOLtF u FOZero)).
+Proof.
+  intros n u. unfold FOLtF.
+  apply (FOProvesTn_MP n _ _ (FOProvesTn_AllNegToNegEx n _ _)).
+  apply FOProvesTn_Gen.
+  pose proof (FOPr_q_plus_succ n u
+                (FOVar (S (Nat.max (FOmax_var_tm u) (FOmax_var_tm FOZero)))))
+    as Hps.
+  pose proof (FOProvesTn_MP n _ _
+                (FOProvesTn_EqSym n
+                   (FOPlus u (FOSucc (FOVar (S (Nat.max (FOmax_var_tm u)
+                                                 (FOmax_var_tm FOZero))))))
+                   (FOSucc (FOPlus u (FOVar (S (Nat.max (FOmax_var_tm u)
+                                                 (FOmax_var_tm FOZero)))))))
+                Hps) as Hps'.
+  pose proof (FOProvesTn_MP n _ _
+                (FOProvesTn_EqTrans n
+                   (FOSucc (FOPlus u (FOVar (S (Nat.max (FOmax_var_tm u)
+                                                 (FOmax_var_tm FOZero))))))
+                   (FOPlus u (FOSucc (FOVar (S (Nat.max (FOmax_var_tm u)
+                                                 (FOmax_var_tm FOZero))))))
+                   FOZero) Hps') as Himp.
+  exact (FOPr_compose n _ _ _ Himp
+           (FOPr_q_succ_nonzero n
+              (FOPlus u (FOVar (S (Nat.max (FOmax_var_tm u)
+                                     (FOmax_var_tm FOZero))))))).
+Qed.
+
+Lemma FOPr_ex_mono : forall n w phi psi,
+  FOProvesTn n (FOForall w (FOImplF phi psi)) ->
+  FOProvesTn n (FOImplF (FOExists w phi) (FOExists w psi)).
+Proof.
+  intros n w phi psi Hall.
+  pose proof (FOProvesTn_ExIntroT n w (FOVar w) psi
+                (FOsubst_ok_var_self psi w)) as EX0.
+  rewrite (FOsubst_f_id psi w) in EX0.
+  pose proof (FOProvesTn_MP n _ _
+                (FOPr_imp_swap n (FOImplF phi psi)
+                   (FOImplF psi (FOExists w psi))
+                   (FOImplF phi (FOExists w psi)))
+                (FOPr_syl n phi psi (FOExists w psi))) as SW.
+  pose proof (FOProvesTn_MP n _ _ SW EX0) as PW.
+  pose proof (FOProvesTn_Gen n w _ PW) as G.
+  pose proof (FOProvesTn_MP n _ _
+                (FOProvesTn_AllK n w (FOImplF phi psi)
+                   (FOImplF phi (FOExists w psi))) G) as DK.
+  pose proof (FOProvesTn_MP n _ _ DK Hall) as G2.
+  assert (Hside : FOfree_in w (FOExists w psi) = false).
+  { cbn. rewrite Nat.eqb_refl. reflexivity. }
+  exact (FOProvesTn_MP n _ _
+           (FOProvesTn_ExElim n w phi (FOExists w psi) Hside) G2).
+Qed.
+
+Lemma FOPr_lt_bound_to_num : forall n v t,
+  FOclosed_tm t ->
+  FOProvesTn n (FOImplF (FOLtF (FOVar v) t)
+                  (FOLtF (FOVar v) (FOnumeral (FOeval (fun _ => 0) t)))).
+Proof.
+  intros n v t Hc.
+  rewrite (FOLtF_var_closed v t Hc), FOLtF_var_num.
+  apply FOPr_ex_mono.
+  apply FOProvesTn_Gen.
+  pose proof (FOPr_closed_term_eval n t Hc) as Ht.
+  exact (FOPr_swap_mp n _ _ _
+          (FOProvesTn_EqTrans n
+             (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t
+             (FOnumeral (FOeval (fun _ => 0) t))) Ht).
+Qed.
+
+Lemma FOPr_lt_num : forall n i k, i < k ->
+  FOProvesTn n (FOLtF (FOnumeral i) (FOnumeral k)).
+Proof.
+  intros n i k Hik. rewrite FOLtF_num_num.
+  apply (FOProvesTn_MP n _ _
+          (FOProvesTn_ExIntroNum n 1 (k - i - 1)
+             (FOEq (FOPlus (FOnumeral i) (FOSucc (FOVar 1)))
+                   (FOnumeral k)))).
+  cbn [FOsubst_num FOsubst_tm].
+  rewrite !FOsubst_tm_numeral.
+  apply FOPr_closed_eq_true.
+  - cbn. split; [apply FOclosed_numeral | apply FOclosed_numeral].
+  - apply FOclosed_numeral.
+  - change (FOeval (fun _ => 0) (FOnumeral i)
+              + S (FOeval (fun _ => 0) (FOnumeral (k - i - 1)))
+            = FOeval (fun _ => 0) (FOnumeral k)).
+    rewrite !FOeval_numeral. lia.
+Qed.
+
+Lemma FOPr_lt_subst_inst : forall n v i k, i < k ->
+  FOProvesTn n (FOsubst_num v i (FOLtF (FOVar v) (FOnumeral k))).
+Proof.
+  intros n v i k Hik. rewrite FOLtF_var_num.
+  assert (ESvv : Nat.eqb (S v) v = false) by (apply Nat.eqb_neq; lia).
+  assert (Hs : FOsubst_num v i
+      (FOExists (S v)
+         (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) (FOnumeral k)))
+    = FOExists (S v)
+        (FOEq (FOPlus (FOnumeral i) (FOSucc (FOVar (S v)))) (FOnumeral k))).
+  { cbn -[Nat.eqb]. rewrite ESvv, Nat.eqb_refl, FOsubst_tm_numeral.
+    reflexivity. }
+  rewrite Hs.
+  apply (FOProvesTn_MP n _ _
+          (FOProvesTn_ExIntroNum n (S v) (k - i - 1)
+             (FOEq (FOPlus (FOnumeral i) (FOSucc (FOVar (S v))))
+                   (FOnumeral k)))).
+  assert (Hs2 : FOsubst_num (S v) (k - i - 1)
+      (FOEq (FOPlus (FOnumeral i) (FOSucc (FOVar (S v)))) (FOnumeral k))
+    = FOEq (FOPlus (FOnumeral i) (FOSucc (FOnumeral (k - i - 1))))
+        (FOnumeral k)).
+  { cbn -[Nat.eqb]. rewrite Nat.eqb_refl, !FOsubst_tm_numeral.
+    reflexivity. }
+  rewrite Hs2.
+  apply FOPr_closed_eq_true.
+  - cbn. split; [apply FOclosed_numeral | apply FOclosed_numeral].
+  - apply FOclosed_numeral.
+  - change (FOeval (fun _ => 0) (FOnumeral i)
+              + S (FOeval (fun _ => 0) (FOnumeral (k - i - 1)))
+            = FOeval (fun _ => 0) (FOnumeral k)).
+    rewrite !FOeval_numeral. lia.
+Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
