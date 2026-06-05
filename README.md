@@ -10,9 +10,14 @@ to game-theoretic agents.
 Requires Rocq 9 (formerly Coq 9) with the standard library.
 
 ```
-rocq compile -Q . Tiling -native-compiler no Tiling.v
-rocq compile -Q . Tiling -native-compiler no Examples.v
+make
+coqchk -silent -Q . Tiling Tiling.Tiling
 ```
+
+The development is a single file, `Tiling.v`. `coqchk` reports exactly
+two axioms (`classic` and `constructive_indefinite_description`, both
+from the classical standard library); there are no admits and no
+assumed-positivity or type-in-type escapes.
 
 ## Headline theorems
 
@@ -86,67 +91,57 @@ rocq compile -Q . Tiling -native-compiler no Examples.v
 
 ## Files
 
-- `Tiling.v` — main development. ~25,500 lines.
-- `Calculus.v`, `Hilbert.v`, `Kripke.v`, `FixedPoints.v`, `Bew.v`,
-  `ProofTerms.v`, `Worms.v`, `Agents.v` — the staged base library.
-- `ModalSambin.v`, `GLPDecidability.v` — Sambin uniqueness and the
-  fragment decidability infrastructure.
-- `Examples.v` — worked examples illustrating the headline theorems.
-- `_CoqProject` — build configuration.
-- `todo.md` — completion tracker (all 14 research programs resolved).
+- `Tiling.v` — the whole development, ~31,000 lines: calculus, Hilbert
+  combinators, Kripke semantics, fixed points, the T_n tower, proof
+  terms, worms, agents, and every section listed below.
+- `_CoqProject`, `Makefile` — build configuration.
+- `todo.md` — the open research programs, ordered by logical completion.
 
-### Resolved research-program modules (see `todo.md`)
+### Resolved research programs
 
-Each of the fourteen programs in `todo.md` is discharged with complete,
-`Qed`-terminated proofs. Where a program's literal statement is
-mathematically false, the resolution is a machine-checked refutation
-*together with* the strongest true variant — never an axiom, `admit`,
-or vacuous-hypothesis dodge. The whole library is kernel-checked by
-`coqchk` and depends on exactly two axioms (`classic` and
-`constructive_indefinite_description`), both inherited from the base.
+The fourteen original programs are discharged with complete,
+`Qed`-terminated proofs, integrated as sections of `Tiling.v` (the
+current `todo.md` tracks their successor programs). Where a program's
+literal statement is mathematically false, the resolution is a
+machine-checked refutation together with the strongest true variant.
 
-- `SolovayFull.v` — Solovay's first/second arithmetic completeness
-  (items 10, 13). The unrestricted statements are **refuted** (witness
-  `Box 5 Top`); the corrected level-0 forms hold via the `VS`
-  reflection semantics. Bundles `Solovay_first_summary`,
+- Solovay first/second arithmetic completeness: the unrestricted
+  statements fail (witness `Box 5 Top`); the level-0 forms hold via the
+  `VS` reflection semantics. Bundles `Solovay_first_summary`,
   `Solovay_second_summary`.
-- `Pi2Conservativity.v` — Pi_2-conservativity of GLP over GL (item 12)
-  by structural `glp_forget_derivation`. Bundle
-  `Pi_2_conservativity_summary`.
-- `CarlsonSpeedup.v` — Carlson super-polynomial speedup (item 11) with
-  `Bew_term` proof objects; the `n = 0` bound is **refuted** and the
-  speedup shown infinite. Bundle `Carlson_speedup_summary`.
-- `MagariFree.v` — `LT_GLP` is the free polymodal Magari algebra
-  (item 5); uniqueness by structural calculation, no
-  proof_irrelevance/funext. Bundle `LT_GLP_free_summary`.
-- `StoneEquivalence.v` — Stone-duality category *equivalence* (item 8)
-  with `ECat`/`EFunctor` records and the separation lemma giving full
-  faithfulness. Bundle `Stone_duality_category_equivalence`.
-- `TilingChain.v` — YH tiling chain under arithmetic interpretation
-  (item 7), via the two-property interpretation push. Bundle
-  `tiling_chain_summary`.
-- `JaparidzeTree.v` — Japaridze completeness via a genuine infinite
-  Solovay tree (item 14) and a GLP-internal substitution-faithfulness
-  theorem. Bundle `Japaridze_tree_summary`.
-- `LambdaBox.v` — Curry-Howard realizer extraction (item 4): a typed
-  lambda-box calculus with graded box intro/elim, strongly normalising
-  reduction, `extract_realizer_typed` and `extract_realizer_reduces`.
-  Bundle `lambda_box_realizer_summary`.
-- `CraigPolymodal.v` — polymodal Craig interpolation (item 6). The
-  box-level-constrained (Lyndon) form is **refuted** by the Mon axiom;
-  the box-free four-condition form holds. Bundle
-  `craig_polymodal_summary`.
-- `ReverseMath.v` — reverse-math subsystem calculi with a **strict**
-  Big-Five hierarchy (item 3) via the reflection/consistency tower.
-  Bundle `reverse_math_summary`.
-- `GLPDecide.v` — maximal honest GLP* decidability (item 2): a
-  measure-recursive decider for the box-tower-over-box-free fragment,
-  plus machine-checked non-compositionality obstructions showing why a
-  total naive decider cannot exist. Bundle `glp_decide_summary`.
+- Pi_2-conservativity of GLP over GL by structural
+  `glp_forget_derivation`. Bundle `Pi_2_conservativity_summary`.
+- Carlson speedup with `Bew_term` proof objects; the `n = 0` bound
+  fails and the speedup is infinite. Bundle `Carlson_speedup_summary`.
+- `LT_GLP` is the free polymodal Magari algebra; uniqueness by
+  structural calculation. Bundle `LT_GLP_free_summary`.
+- Stone-duality category equivalence with `ECat`/`EFunctor` records and
+  the separation lemma giving full faithfulness. Bundle
+  `Stone_duality_category_equivalence`.
+- The self-modification chain under arithmetic interpretation. Bundle
+  `selfmod_chain_summary`.
+- Japaridze completeness via an infinite Solovay tree and the
+  GLP-internal substitution-faithfulness theorem. Bundle
+  `Japaridze_tree_summary`.
+- Curry-Howard realizer extraction: the lambda-box calculus with graded
+  box intro/elim, size-decreasing reduction, `extract_realizer_typed`
+  and `extract_realizer_reduces`. Bundle `lambda_box_realizer_summary`.
+- Polymodal Craig interpolation: the box-level-constrained (Lyndon)
+  form fails by the Mon axiom; the box-free four-condition form holds.
+  Bundle `craig_polymodal_summary`.
+- Reverse-math subsystem calculi with a strict Big-Five hierarchy via
+  the reflection/consistency tower. Bundle `reverse_math_summary`.
+- GLP* decidability: a measure-recursive decider for the
+  box-tower-over-box-free fragment, with the non-compositionality
+  obstructions to a total naive decider. Bundle `glp_decide_summary`.
+- Sambin uniqueness for arbitrary modalised contexts
+  (`sambin_uniqueness_modalised`), and the proof-theoretic ordinal
+  bound at the `V_gamma0` Veblen atom
+  (`GLP_proof_height_below_Gamma_0`).
 
-Item 1 (Sambin uniqueness, `ModalSambin.v`) and item 9 (proof-theoretic
-ordinal exactly at `Gamma_0`, in `Tiling.v` with the genuine `V_gamma0`
-Veblen atom) complete the set.
+The first-order layer additionally carries N-satisfaction (`FOsat`) with
+soundness of the T_n tower (`FOProvesTn_sound`,
+`FOProvesTn_consistent`).
 
 ## Tutorial
 
