@@ -12101,25 +12101,36 @@ Fixpoint FOnumeral (n : nat) : FOTerm :=
   | S k => FOSucc (FOnumeral k)
   end.
 
+Fixpoint FOmax_var_tm (t : FOTerm) : nat :=
+  match t with
+  | FOVar n => n
+  | FOZero => 0
+  | FOSucc a => FOmax_var_tm a
+  | FOPlus a b => Nat.max (FOmax_var_tm a) (FOmax_var_tm b)
+  | FOMult a b => Nat.max (FOmax_var_tm a) (FOmax_var_tm b)
+  end.
+
+(** The Robinson Q axioms, schematic in arbitrary terms.  The
+    zero-or-succ witness variable is chosen above every variable of the
+    instantiating term. *)
+
 Inductive FORobinsonQ : FOFormula -> Prop :=
-  | RQ_S_inj : forall x y,
-      FORobinsonQ (FOImplF (FOEq (FOSucc (FOVar x)) (FOSucc (FOVar y)))
-                            (FOEq (FOVar x) (FOVar y)))
-  | RQ_S_nonzero : forall x,
-      FORobinsonQ (FONeg (FOEq (FOSucc (FOVar x)) FOZero))
-  | RQ_zero_or_succ : forall x,
-      FORobinsonQ (FOImplF (FONeg (FOEq (FOVar x) FOZero))
-                            (FOExists (S x) (FOEq (FOVar x) (FOSucc (FOVar (S x))))))
-  | RQ_plus_zero : forall x,
-      FORobinsonQ (FOEq (FOPlus (FOVar x) FOZero) (FOVar x))
-  | RQ_plus_succ : forall x y,
-      FORobinsonQ (FOEq (FOPlus (FOVar x) (FOSucc (FOVar y)))
-                        (FOSucc (FOPlus (FOVar x) (FOVar y))))
-  | RQ_mult_zero : forall x,
-      FORobinsonQ (FOEq (FOMult (FOVar x) FOZero) FOZero)
-  | RQ_mult_succ : forall x y,
-      FORobinsonQ (FOEq (FOMult (FOVar x) (FOSucc (FOVar y)))
-                        (FOPlus (FOMult (FOVar x) (FOVar y)) (FOVar x))).
+  | RQ_S_inj : forall a b,
+      FORobinsonQ (FOImplF (FOEq (FOSucc a) (FOSucc b)) (FOEq a b))
+  | RQ_S_nonzero : forall a,
+      FORobinsonQ (FONeg (FOEq (FOSucc a) FOZero))
+  | RQ_zero_or_succ : forall a,
+      FORobinsonQ (FOImplF (FONeg (FOEq a FOZero))
+                            (FOExists (S (FOmax_var_tm a))
+                               (FOEq a (FOSucc (FOVar (S (FOmax_var_tm a)))))))
+  | RQ_plus_zero : forall a,
+      FORobinsonQ (FOEq (FOPlus a FOZero) a)
+  | RQ_plus_succ : forall a b,
+      FORobinsonQ (FOEq (FOPlus a (FOSucc b)) (FOSucc (FOPlus a b)))
+  | RQ_mult_zero : forall a,
+      FORobinsonQ (FOEq (FOMult a FOZero) FOZero)
+  | RQ_mult_succ : forall a b,
+      FORobinsonQ (FOEq (FOMult a (FOSucc b)) (FOPlus (FOMult a b) a)).
 
 Definition FOConSentence (n : nat) : FOFormula :=
   FOEq (FOnumeral n) (FOnumeral n).
@@ -12419,15 +12430,6 @@ Qed.
 (** The order relation, defined Diophantine-style with a variable above
     both terms. *)
 
-Fixpoint FOmax_var_tm (t : FOTerm) : nat :=
-  match t with
-  | FOVar n => n
-  | FOZero => 0
-  | FOSucc a => FOmax_var_tm a
-  | FOPlus a b => Nat.max (FOmax_var_tm a) (FOmax_var_tm b)
-  | FOMult a b => Nat.max (FOmax_var_tm a) (FOmax_var_tm b)
-  end.
-
 Lemma FOeval_update_above : forall t e z v,
   FOmax_var_tm t < z ->
   FOeval (FOupdate e z v) t = FOeval e t.
@@ -12474,16 +12476,15 @@ Proof.
                  | t | a b | a b c | a b | a b c d | a b c d
                  | x k phi | x k phi | x phi]; intro e.
   - destruct Hax as [n1 phi1 HQ | n1 k Hk].
-    + destruct HQ as [x y | x | x | x | x y | x | x y]; cbn.
-      * intro Hxy. lia.
-      * intro Hx. lia.
+    + destruct HQ as [a b | a | a | a | a b | a | a b]; cbn.
+      * intro Hab. lia.
+      * intro Ha. lia.
       * intro Hne.
-        destruct (e x) as [|m] eqn:Ex.
+        destruct (FOeval e a) as [|m] eqn:Ea.
         { exfalso. apply Hne. reflexivity. }
         { exists m.
-          assert (Exx : Nat.eqb x (S x) = false) by (apply Nat.eqb_neq; lia).
-          try unfold FOupdate.
-          rewrite Exx, Nat.eqb_refl. cbn. exact Ex. }
+          rewrite (FOeval_update_above a); [|lia].
+          try unfold FOupdate. rewrite Nat.eqb_refl. cbn. exact Ea. }
       * lia.
       * lia.
       * lia.
@@ -12568,64 +12569,81 @@ Proof.
     [reflexivity | rewrite IH; reflexivity].
 Qed.
 
-(** Robinson Q instances at numerals. *)
+(** Robinson Q instances; the term-schematic axioms apply directly. *)
+
+Lemma FOPr_q_succ_inj : forall n a b,
+  FOProvesTn n (FOImplF (FOEq (FOSucc a) (FOSucc b)) (FOEq a b)).
+Proof.
+  intros n a b. exact (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_S_inj a b))).
+Qed.
+
+Lemma FOPr_q_succ_nonzero : forall n a,
+  FOProvesTn n (FONeg (FOEq (FOSucc a) FOZero)).
+Proof.
+  intros n a. exact (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_S_nonzero a))).
+Qed.
+
+Lemma FOPr_q_plus_zero : forall n a,
+  FOProvesTn n (FOEq (FOPlus a FOZero) a).
+Proof.
+  intros n a. exact (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_plus_zero a))).
+Qed.
+
+Lemma FOPr_q_plus_succ : forall n a b,
+  FOProvesTn n (FOEq (FOPlus a (FOSucc b)) (FOSucc (FOPlus a b))).
+Proof.
+  intros n a b. exact (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_plus_succ a b))).
+Qed.
+
+Lemma FOPr_q_mult_zero : forall n a,
+  FOProvesTn n (FOEq (FOMult a FOZero) FOZero).
+Proof.
+  intros n a. exact (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_mult_zero a))).
+Qed.
+
+Lemma FOPr_q_mult_succ : forall n a b,
+  FOProvesTn n (FOEq (FOMult a (FOSucc b)) (FOPlus (FOMult a b) a)).
+Proof.
+  intros n a b. exact (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_mult_succ a b))).
+Qed.
 
 Lemma FOPr_succ_nonzero : forall n k,
   FOProvesTn n (FONeg (FOEq (FOSucc (FOnumeral k)) FOZero)).
 Proof.
-  intros n k.
-  pose proof (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_S_nonzero 0))) as H.
-  pose proof (FOPr_inst1 n 0 k _ H) as H2.
-  cbn in H2. exact H2.
+  intros n k. exact (FOPr_q_succ_nonzero n (FOnumeral k)).
 Qed.
 
 Lemma FOPr_succ_inj : forall n a b,
   FOProvesTn n (FOImplF (FOEq (FOSucc (FOnumeral a)) (FOSucc (FOnumeral b)))
                         (FOEq (FOnumeral a) (FOnumeral b))).
 Proof.
-  intros n a b.
-  pose proof (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_S_inj 0 1))) as H.
-  pose proof (FOPr_inst1 n 1 b _ H) as H2. cbn in H2.
-  pose proof (FOPr_inst1 n 0 a _ H2) as H3. cbn in H3.
-  rewrite !FOsubst_tm_numeral in H3. exact H3.
+  intros n a b. exact (FOPr_q_succ_inj n (FOnumeral a) (FOnumeral b)).
 Qed.
 
 Lemma FOPr_plus_zero : forall n a,
   FOProvesTn n (FOEq (FOPlus (FOnumeral a) FOZero) (FOnumeral a)).
 Proof.
-  intros n a.
-  pose proof (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_plus_zero 0))) as H.
-  pose proof (FOPr_inst1 n 0 a _ H) as H2. cbn in H2. exact H2.
+  intros n a. exact (FOPr_q_plus_zero n (FOnumeral a)).
 Qed.
 
 Lemma FOPr_plus_succ : forall n a b,
   FOProvesTn n (FOEq (FOPlus (FOnumeral a) (FOSucc (FOnumeral b)))
                      (FOSucc (FOPlus (FOnumeral a) (FOnumeral b)))).
 Proof.
-  intros n a b.
-  pose proof (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_plus_succ 0 1))) as H.
-  pose proof (FOPr_inst1 n 1 b _ H) as H2. cbn in H2.
-  pose proof (FOPr_inst1 n 0 a _ H2) as H3. cbn in H3.
-  rewrite !FOsubst_tm_numeral in H3. exact H3.
+  intros n a b. exact (FOPr_q_plus_succ n (FOnumeral a) (FOnumeral b)).
 Qed.
 
 Lemma FOPr_mult_zero : forall n a,
   FOProvesTn n (FOEq (FOMult (FOnumeral a) FOZero) FOZero).
 Proof.
-  intros n a.
-  pose proof (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_mult_zero 0))) as H.
-  pose proof (FOPr_inst1 n 0 a _ H) as H2. cbn in H2. exact H2.
+  intros n a. exact (FOPr_q_mult_zero n (FOnumeral a)).
 Qed.
 
 Lemma FOPr_mult_succ : forall n a b,
   FOProvesTn n (FOEq (FOMult (FOnumeral a) (FOSucc (FOnumeral b)))
                      (FOPlus (FOMult (FOnumeral a) (FOnumeral b)) (FOnumeral a))).
 Proof.
-  intros n a b.
-  pose proof (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_mult_succ 0 1))) as H.
-  pose proof (FOPr_inst1 n 1 b _ H) as H2. cbn in H2.
-  pose proof (FOPr_inst1 n 0 a _ H2) as H3. cbn in H3.
-  rewrite !FOsubst_tm_numeral in H3. exact H3.
+  intros n a b. exact (FOPr_q_mult_succ n (FOnumeral a) (FOnumeral b)).
 Qed.
 
 (** Numeral addition and multiplication are provable. *)
