@@ -16,6 +16,7 @@
 
 From Stdlib Require Import Arith.Arith.
 From Stdlib Require Import Arith.Wf_nat.
+From Stdlib Require Import Arith.Factorial.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import micromega.Lia.
 From Stdlib Require Import Logic.Classical.
@@ -12483,6 +12484,207 @@ Proof.
   intros A B H.
   rewrite <- (FOdecode_code_f A), <- (FOdecode_code_f B), H.
   reflexivity.
+Qed.
+
+(** ** The Goedel beta function, complete for finite sequences by the
+    Chinese remainder construction with factorial moduli. *)
+
+Definition beta (c d i : nat) : nat := c mod (d * S i + 1).
+
+Lemma fact_ge : forall n, n <= fact n.
+Proof.
+  induction n as [|n IH].
+  - cbn. lia.
+  - cbn [fact]. pose proof (lt_O_fact n). nia.
+Qed.
+
+Lemma fact_divide : forall k n, 1 <= k -> k <= n -> Nat.divide k (fact n).
+Proof.
+  intros k n Hk. induction n as [|n IH]; intro Hkn.
+  - lia.
+  - destruct (Nat.eq_dec k (S n)) as [->|Hne].
+    + cbn [fact]. apply Nat.divide_factor_l.
+    + cbn [fact]. apply Nat.divide_mul_r. apply IH. lia.
+Qed.
+
+Fixpoint mprod (m : nat -> nat) (k : nat) : nat :=
+  match k with
+  | 0 => 1
+  | S k' => mprod m k' * m k'
+  end.
+
+Lemma mprod_divide : forall m k i, i < k -> Nat.divide (m i) (mprod m k).
+Proof.
+  intros m k. induction k as [|k IH]; intros i Hik.
+  - lia.
+  - cbn. destruct (Nat.eq_dec i k) as [->|Hne].
+    + apply Nat.divide_factor_r.
+    + apply Nat.divide_mul_l. apply IH. lia.
+Qed.
+
+Lemma coprime_mul_l_pre : forall a b p,
+  Nat.gcd a p = 1 -> Nat.gcd b p = 1 -> Nat.gcd (a * b) p = 1.
+Proof.
+  intros a b p Ha Hb.
+  apply Nat.divide_1_r.
+  rewrite <- Hb.
+  apply Nat.gcd_greatest.
+  - apply (Nat.gauss _ a).
+    + exact (Nat.gcd_divide_l (a * b) p).
+    + apply Nat.divide_1_r.
+      rewrite <- Ha.
+      apply Nat.gcd_greatest.
+      * apply Nat.gcd_divide_r.
+      * eapply Nat.divide_trans.
+        -- apply Nat.gcd_divide_l.
+        -- apply Nat.gcd_divide_r.
+  - apply Nat.gcd_divide_r.
+Qed.
+
+Lemma coprime_mprod : forall m k p,
+  (forall i, i < k -> Nat.gcd (m i) p = 1) ->
+  Nat.gcd (mprod m k) p = 1.
+Proof.
+  intros m k p H. induction k as [|k IH].
+  - cbn. reflexivity.
+  - cbn. apply coprime_mul_l_pre.
+    + apply IH. intros i Hi. apply H. lia.
+    + apply H. lia.
+Qed.
+
+Lemma crt_step : forall P m, 0 < m -> Nat.gcd P m = 1 ->
+  forall x0 a, exists t, (x0 + P * t) mod m = a mod m.
+Proof.
+  intros P m Hm Hg x0 a.
+  destruct (Nat.eq_dec m 1) as [->|Hm1].
+  { exists 0. rewrite !Nat.mod_1_r. reflexivity. }
+  assert (HB : exists u v, u * P = 1 + v * m).
+  { destruct (Nat.gcd_bezout P m) as [HBz|HBz]; rewrite Hg in HBz;
+      destruct HBz as [u [v Huv]].
+    - exists u, v. exact Huv.
+    - destruct m as [|w]; [lia|].
+      assert (Hw1 : 1 <= w) by lia.
+      assert (Hu1 : 1 <= u) by nia.
+      exists (v * w), (u * w - 1).
+      assert (EvP : v * P = u * S w - 1) by lia.
+      assert (E1 : v * w * P = w * (v * P)) by nia.
+      rewrite E1, EvP.
+      assert (Huw : 1 <= u * w) by nia.
+      nia. }
+  destruct HB as [u [v HuP]].
+  set (s := a + (m - x0 mod m)).
+  exists (u * s).
+  assert (E1 : x0 + P * (u * s) = x0 + s + v * s * m) by nia.
+  rewrite E1.
+  rewrite Nat.Div0.mod_add.
+  pose proof (Nat.div_mod_eq x0 m) as Hdm.
+  pose proof (Nat.mod_upper_bound x0 m ltac:(lia)) as Hub.
+  assert (E2 : x0 + s = a + (S (x0 / m)) * m) by (unfold s; nia).
+  rewrite E2.
+  rewrite Nat.Div0.mod_add.
+  reflexivity.
+Qed.
+
+Lemma crt_chain : forall (a m : nat -> nat) (len : nat),
+  (forall i j, i < j -> j < len -> Nat.gcd (m i) (m j) = 1) ->
+  (forall i, i < len -> 0 < m i) ->
+  exists c, forall i, i < len -> c mod m i = a i mod m i.
+Proof.
+  intros a m len. induction len as [|len IH]; intros Hcop Hpos.
+  - exists 0. intros i Hi. lia.
+  - assert (Hcop' : forall i j, i < j -> j < len -> Nat.gcd (m i) (m j) = 1)
+      by (intros; apply Hcop; lia).
+    assert (Hpos' : forall i, i < len -> 0 < m i)
+      by (intros; apply Hpos; lia).
+    destruct (IH Hcop' Hpos') as [c0 Hc0].
+    assert (HgP : Nat.gcd (mprod m len) (m len) = 1).
+    { apply coprime_mprod. intros i Hi. apply Hcop; lia. }
+    destruct (crt_step (mprod m len) (m len)
+                (Hpos len (Nat.lt_succ_diag_r len)) HgP c0 (a len))
+      as [t Ht].
+    exists (c0 + mprod m len * t).
+    intros i Hi.
+    destruct (Nat.eq_dec i len) as [->|Hne].
+    + exact Ht.
+    + assert (Hil : i < len) by lia.
+      destruct (mprod_divide m len i Hil) as [q Hq].
+      rewrite Hq.
+      replace (c0 + q * m i * t) with (c0 + (q * t) * m i) by nia.
+      rewrite Nat.Div0.mod_add.
+      exact (Hc0 i Hil).
+Qed.
+
+Lemma fold_max_base : forall l b, b <= fold_right Nat.max b l.
+Proof.
+  induction l as [|x l IH]; intro b; cbn.
+  - lia.
+  - pose proof (IH b). lia.
+Qed.
+
+Lemma fold_max_in : forall l b x, In x l -> x <= fold_right Nat.max b l.
+Proof.
+  induction l as [|y l IH]; intros b x Hin; cbn.
+  - destruct Hin.
+  - destruct Hin as [->|Hin]; [lia|]. pose proof (IH b x Hin). lia.
+Qed.
+
+Theorem beta_complete : forall l : list nat,
+  exists c d, forall i, i < length l -> beta c d i = nth i l 0.
+Proof.
+  intro l.
+  set (N := fold_right Nat.max (length l) l).
+  assert (HNlen : length l <= N) by apply fold_max_base.
+  assert (HNin : forall i, i < length l -> nth i l 0 <= N).
+  { intros i Hi. apply fold_max_in. apply nth_In. exact Hi. }
+  set (d := fact N).
+  assert (HdN : N <= d) by apply fact_ge.
+  assert (Hdpos : 0 < d) by apply lt_O_fact.
+  destruct (crt_chain (fun i => nth i l 0) (fun i => d * S i + 1)
+              (length l)) as [c Hc].
+  - intros i j Hij Hj.
+    set (g := Nat.gcd (d * S i + 1) (d * S j + 1)).
+    assert (Hgi : Nat.divide g (d * S i + 1)) by apply Nat.gcd_divide_l.
+    assert (Hgj : Nat.divide g (d * S j + 1)) by apply Nat.gcd_divide_r.
+    assert (Hgd : Nat.divide g (d * (j - i))).
+    { replace (d * (j - i)) with ((d * S j + 1) - (d * S i + 1)) by nia.
+      apply Nat.divide_sub_r; assumption. }
+    assert (Hgd1 : Nat.gcd g d = 1).
+    { apply Nat.divide_1_r.
+      replace 1 with ((d * S i + 1) - d * S i) by lia.
+      apply Nat.divide_sub_r.
+      - eapply Nat.divide_trans; [apply Nat.gcd_divide_l | exact Hgi].
+      - apply Nat.divide_mul_l. apply Nat.gcd_divide_r. }
+    assert (Hgji : Nat.divide g (j - i)).
+    { apply (Nat.gauss g d (j - i)); [exact Hgd | exact Hgd1]. }
+    assert (Hjid : Nat.divide (j - i) d).
+    { unfold d. apply fact_divide; lia. }
+    apply Nat.divide_1_r.
+    replace 1 with ((d * S i + 1) - d * S i) by lia.
+    apply Nat.divide_sub_r.
+    + exact Hgi.
+    + apply Nat.divide_mul_l.
+      eapply Nat.divide_trans; [exact Hgji | exact Hjid].
+  - intros i Hi. lia.
+  - exists c, d. intros i Hi.
+    unfold beta. rewrite (Hc i Hi).
+    apply Nat.mod_small.
+    pose proof (HNin i Hi). lia.
+Qed.
+
+(** The defining Diophantine characterization of [beta]: this is the
+    shape the arithmetized access formula mirrors. *)
+
+Lemma beta_spec : forall c d i x,
+  beta c d i = x
+  <-> (exists q, c = q * (d * S i + 1) + x /\ x < d * S i + 1).
+Proof.
+  intros c d i x. unfold beta. split.
+  - intro H. exists (c / (d * S i + 1)). split.
+    + pose proof (Nat.div_mod_eq c (d * S i + 1)). nia.
+    + rewrite <- H. apply Nat.mod_upper_bound. lia.
+  - intros [q [Hc Hx]]. subst c.
+    rewrite Nat.add_comm, Nat.Div0.mod_add.
+    apply Nat.mod_small. exact Hx.
 Qed.
 
 (** ** Shape recognizers for the rules of the T_n calculus.
