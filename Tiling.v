@@ -12246,12 +12246,16 @@ Inductive FOProvesTn (n : nat) : FOFormula -> Prop :=
   | FOProvesTn_CongMult : forall a b c d,
       FOProvesTn n (FOImplF (FOEq a b)
                       (FOImplF (FOEq c d) (FOEq (FOMult a c) (FOMult b d))))
-  | FOProvesTn_AllElimNum : forall x k phi,
-      FOProvesTn n (FOImplF (FOForall x phi) (FOsubst_num x k phi))
-  | FOProvesTn_ExIntroNum : forall x k phi,
-      FOProvesTn n (FOImplF (FOsubst_num x k phi) (FOExists x phi))
-  | FOProvesTn_AllNegToNegEx : forall x phi,
-      FOProvesTn n (FOImplF (FOForall x (FONeg phi)) (FONeg (FOExists x phi))).
+  | FOProvesTn_AllElimT : forall x t phi,
+      FOsubst_ok x t phi = true ->
+      FOProvesTn n (FOImplF (FOForall x phi) (FOsubst_f x t phi))
+  | FOProvesTn_ExIntroT : forall x t phi,
+      FOsubst_ok x t phi = true ->
+      FOProvesTn n (FOImplF (FOsubst_f x t phi) (FOExists x phi))
+  | FOProvesTn_ExElim : forall x phi psi,
+      FOfree_in x psi = false ->
+      FOProvesTn n (FOImplF (FOForall x (FOImplF phi psi))
+                            (FOImplF (FOExists x phi) psi)).
 
 Theorem FOAxiomTn_cumulative : forall n phi,
   FOAxiomTn n phi -> FOAxiomTn (S n) phi.
@@ -12277,7 +12281,7 @@ Proof.
   induction H as [phi Hax | phi psi | phi psi chi | phi |
                    phi psi _ IH1 _ IH2 | x phi _ IH
                    | t | a b | a b c | a b | a b c d | a b c d
-                   | x k phi | x k phi | x phi].
+                   | x t phi Hok | x t phi Hok | x phi psi Hnf].
   - apply FOProvesTn_ax. exact (FOAxiomTn_cumulative n phi Hax).
   - exact (FOProvesTn_K (S n) phi psi).
   - exact (FOProvesTn_S (S n) phi psi chi).
@@ -12290,9 +12294,81 @@ Proof.
   - exact (FOProvesTn_CongS (S n) a b).
   - exact (FOProvesTn_CongPlus (S n) a b c d).
   - exact (FOProvesTn_CongMult (S n) a b c d).
-  - exact (FOProvesTn_AllElimNum (S n) x k phi).
-  - exact (FOProvesTn_ExIntroNum (S n) x k phi).
-  - exact (FOProvesTn_AllNegToNegEx (S n) x phi).
+  - exact (FOProvesTn_AllElimT (S n) x t phi Hok).
+  - exact (FOProvesTn_ExIntroT (S n) x t phi Hok).
+  - exact (FOProvesTn_ExElim (S n) x phi psi Hnf).
+Qed.
+
+(** Numerals are variable-free, so numeral substitution is always
+    capture-free; the numeral rules are instances of the term rules. *)
+
+Lemma FOin_tm_numeral : forall y k, FOin_tm y (FOnumeral k) = false.
+Proof.
+  intros y k. induction k as [|k IH]; cbn; [reflexivity | exact IH].
+Qed.
+
+Lemma FOsubst_ok_numeral : forall A x k,
+  FOsubst_ok x (FOnumeral k) A = true.
+Proof.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB];
+    intros x k; cbn.
+  - reflexivity.
+  - reflexivity.
+  - rewrite IHB, IHC. reflexivity.
+  - destruct (Nat.eqb y x); [reflexivity|].
+    destruct (FOfree_in x B); [|reflexivity].
+    rewrite FOin_tm_numeral, IHB. reflexivity.
+  - destruct (Nat.eqb y x); [reflexivity|].
+    destruct (FOfree_in x B); [|reflexivity].
+    rewrite FOin_tm_numeral, IHB. reflexivity.
+Qed.
+
+Lemma FOsubst_t_num : forall t x k,
+  FOsubst_t x (FOnumeral k) t = FOsubst_tm x k t.
+Proof.
+  induction t; intros x k; cbn.
+  - reflexivity.
+  - reflexivity.
+  - rewrite IHt. reflexivity.
+  - rewrite IHt1, IHt2. reflexivity.
+  - rewrite IHt1, IHt2. reflexivity.
+Qed.
+
+Lemma FOsubst_f_num : forall A x k,
+  FOsubst_f x (FOnumeral k) A = FOsubst_num x k A.
+Proof.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB];
+    intros x k; cbn.
+  - rewrite !FOsubst_t_num. reflexivity.
+  - reflexivity.
+  - rewrite IHB, IHC. reflexivity.
+  - destruct (Nat.eqb y x); [reflexivity | rewrite IHB; reflexivity].
+  - destruct (Nat.eqb y x); [reflexivity | rewrite IHB; reflexivity].
+Qed.
+
+Lemma FOProvesTn_AllElimNum : forall n x k phi,
+  FOProvesTn n (FOImplF (FOForall x phi) (FOsubst_num x k phi)).
+Proof.
+  intros n x k phi.
+  rewrite <- (FOsubst_f_num phi x k).
+  exact (FOProvesTn_AllElimT n x (FOnumeral k) phi
+           (FOsubst_ok_numeral phi x k)).
+Qed.
+
+Lemma FOProvesTn_ExIntroNum : forall n x k phi,
+  FOProvesTn n (FOImplF (FOsubst_num x k phi) (FOExists x phi)).
+Proof.
+  intros n x k phi.
+  rewrite <- (FOsubst_f_num phi x k).
+  exact (FOProvesTn_ExIntroT n x (FOnumeral k) phi
+           (FOsubst_ok_numeral phi x k)).
+Qed.
+
+Lemma FOProvesTn_AllNegToNegEx : forall n x phi,
+  FOProvesTn n (FOImplF (FOForall x (FONeg phi)) (FONeg (FOExists x phi))).
+Proof.
+  intros n x phi.
+  exact (FOProvesTn_ExElim n x phi FOFalseF eq_refl).
 Qed.
 
 Theorem FOProvesTn_cumulative_chain : forall n m phi,
@@ -12752,7 +12828,7 @@ Proof.
   induction H as [phi Hax | phi psi | phi psi chi | phi
                  | phi psi H1 IH1 H2 IH2 | x phi H IH
                  | t | a b | a b c | a b | a b c d | a b c d
-                 | x k phi | x k phi | x phi]; intro e.
+                 | x t phi Hok | x t phi Hok | x phi psi Hnf]; intro e.
   - destruct Hax as [n1 phi1 HQ | n1 k Hk].
     + destruct HQ as [a b | a | a | a | a b | a | a b]; cbn.
       * intro Hab. lia.
@@ -12780,10 +12856,11 @@ Proof.
   - cbn. intros H1 H2. rewrite H1, H2. reflexivity.
   - cbn. intros H1 H2. rewrite H1, H2. reflexivity.
   - cbn. intro Hall.
-    apply (proj2 (FOsat_subst_num phi x k e)). exact (Hall k).
+    apply (proj2 (FOsat_subst_f phi x t e Hok)). exact (Hall (FOeval e t)).
   - cbn. intro Hs.
-    exists k. exact (proj1 (FOsat_subst_num phi x k e) Hs).
-  - cbn. intros Hall [v Hv]. exact (Hall v Hv).
+    exists (FOeval e t). exact (proj1 (FOsat_subst_f phi x t e Hok) Hs).
+  - cbn. intros Hall [v Hv].
+    exact (proj1 (FOsat_update_not_free psi e x v Hnf) (Hall v Hv)).
 Qed.
 
 Theorem FOProvesTn_consistent : forall n, ~ FOProvesTn n FOFalseF.
