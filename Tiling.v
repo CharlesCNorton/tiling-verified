@@ -12129,6 +12129,26 @@ Inductive FOAxiomTn : nat -> FOFormula -> Prop :=
   | FOAx_ConPrev : forall n k, k < n ->
       FOAxiomTn n (FOConSentence k).
 
+Fixpoint FOsubst_tm (x k : nat) (t : FOTerm) : FOTerm :=
+  match t with
+  | FOVar y => if Nat.eqb y x then FOnumeral k else FOVar y
+  | FOZero => FOZero
+  | FOSucc a => FOSucc (FOsubst_tm x k a)
+  | FOPlus a b => FOPlus (FOsubst_tm x k a) (FOsubst_tm x k b)
+  | FOMult a b => FOMult (FOsubst_tm x k a) (FOsubst_tm x k b)
+  end.
+
+Fixpoint FOsubst_num (x k : nat) (A : FOFormula) : FOFormula :=
+  match A with
+  | FOEq a b => FOEq (FOsubst_tm x k a) (FOsubst_tm x k b)
+  | FOFalseF => FOFalseF
+  | FOImplF A B => FOImplF (FOsubst_num x k A) (FOsubst_num x k B)
+  | FOForall y A =>
+      if Nat.eqb y x then FOForall y A else FOForall y (FOsubst_num x k A)
+  | FOExists y A =>
+      if Nat.eqb y x then FOExists y A else FOExists y (FOsubst_num x k A)
+  end.
+
 Inductive FOProvesTn (n : nat) : FOFormula -> Prop :=
   | FOProvesTn_ax : forall phi, FOAxiomTn n phi -> FOProvesTn n phi
   | FOProvesTn_K : forall phi psi, FOProvesTn n (FOImplF phi (FOImplF psi phi))
@@ -12140,7 +12160,26 @@ Inductive FOProvesTn (n : nat) : FOFormula -> Prop :=
   | FOProvesTn_MP : forall phi psi,
       FOProvesTn n (FOImplF phi psi) -> FOProvesTn n phi -> FOProvesTn n psi
   | FOProvesTn_Gen : forall x phi,
-      FOProvesTn n phi -> FOProvesTn n (FOForall x phi).
+      FOProvesTn n phi -> FOProvesTn n (FOForall x phi)
+  | FOProvesTn_EqRefl : forall t, FOProvesTn n (FOEq t t)
+  | FOProvesTn_EqSym : forall a b,
+      FOProvesTn n (FOImplF (FOEq a b) (FOEq b a))
+  | FOProvesTn_EqTrans : forall a b c,
+      FOProvesTn n (FOImplF (FOEq a b) (FOImplF (FOEq b c) (FOEq a c)))
+  | FOProvesTn_CongS : forall a b,
+      FOProvesTn n (FOImplF (FOEq a b) (FOEq (FOSucc a) (FOSucc b)))
+  | FOProvesTn_CongPlus : forall a b c d,
+      FOProvesTn n (FOImplF (FOEq a b)
+                      (FOImplF (FOEq c d) (FOEq (FOPlus a c) (FOPlus b d))))
+  | FOProvesTn_CongMult : forall a b c d,
+      FOProvesTn n (FOImplF (FOEq a b)
+                      (FOImplF (FOEq c d) (FOEq (FOMult a c) (FOMult b d))))
+  | FOProvesTn_AllElimNum : forall x k phi,
+      FOProvesTn n (FOImplF (FOForall x phi) (FOsubst_num x k phi))
+  | FOProvesTn_ExIntroNum : forall x k phi,
+      FOProvesTn n (FOImplF (FOsubst_num x k phi) (FOExists x phi))
+  | FOProvesTn_AllNegToNegEx : forall x phi,
+      FOProvesTn n (FOImplF (FOForall x (FONeg phi)) (FONeg (FOExists x phi))).
 
 Theorem FOAxiomTn_cumulative : forall n phi,
   FOAxiomTn n phi -> FOAxiomTn (S n) phi.
@@ -12164,13 +12203,24 @@ Theorem FOProvesTn_cumulative : forall n phi,
 Proof.
   intros n phi H.
   induction H as [phi Hax | phi psi | phi psi chi | phi |
-                   phi psi _ IH1 _ IH2 | x phi _ IH].
+                   phi psi _ IH1 _ IH2 | x phi _ IH
+                   | t | a b | a b c | a b | a b c d | a b c d
+                   | x k phi | x k phi | x phi].
   - apply FOProvesTn_ax. exact (FOAxiomTn_cumulative n phi Hax).
   - exact (FOProvesTn_K (S n) phi psi).
   - exact (FOProvesTn_S (S n) phi psi chi).
   - exact (FOProvesTn_DN (S n) phi).
   - exact (FOProvesTn_MP (S n) phi psi IH1 IH2).
   - exact (FOProvesTn_Gen (S n) x phi IH).
+  - exact (FOProvesTn_EqRefl (S n) t).
+  - exact (FOProvesTn_EqSym (S n) a b).
+  - exact (FOProvesTn_EqTrans (S n) a b c).
+  - exact (FOProvesTn_CongS (S n) a b).
+  - exact (FOProvesTn_CongPlus (S n) a b c d).
+  - exact (FOProvesTn_CongMult (S n) a b c d).
+  - exact (FOProvesTn_AllElimNum (S n) x k phi).
+  - exact (FOProvesTn_ExIntroNum (S n) x k phi).
+  - exact (FOProvesTn_AllNegToNegEx (S n) x phi).
 Qed.
 
 Theorem FOProvesTn_cumulative_chain : forall n m phi,
@@ -12307,26 +12357,6 @@ Proof.
       intro n. unfold FOupdate. destruct (Nat.eqb n x); [reflexivity | apply H].
 Qed.
 
-Fixpoint FOsubst_tm (x k : nat) (t : FOTerm) : FOTerm :=
-  match t with
-  | FOVar y => if Nat.eqb y x then FOnumeral k else FOVar y
-  | FOZero => FOZero
-  | FOSucc a => FOSucc (FOsubst_tm x k a)
-  | FOPlus a b => FOPlus (FOsubst_tm x k a) (FOsubst_tm x k b)
-  | FOMult a b => FOMult (FOsubst_tm x k a) (FOsubst_tm x k b)
-  end.
-
-Fixpoint FOsubst_num (x k : nat) (A : FOFormula) : FOFormula :=
-  match A with
-  | FOEq a b => FOEq (FOsubst_tm x k a) (FOsubst_tm x k b)
-  | FOFalseF => FOFalseF
-  | FOImplF A B => FOImplF (FOsubst_num x k A) (FOsubst_num x k B)
-  | FOForall y A =>
-      if Nat.eqb y x then FOForall y A else FOForall y (FOsubst_num x k A)
-  | FOExists y A =>
-      if Nat.eqb y x then FOExists y A else FOExists y (FOsubst_num x k A)
-  end.
-
 Lemma FOeval_subst_tm : forall t x k e,
   FOeval e (FOsubst_tm x k t) = FOeval (FOupdate e x k) t.
 Proof.
@@ -12386,12 +12416,63 @@ Proof.
                   (fun n => FOupdate_comm e y x v k n E)). exact Hv.
 Qed.
 
+(** The order relation, defined Diophantine-style with a variable above
+    both terms. *)
+
+Fixpoint FOmax_var_tm (t : FOTerm) : nat :=
+  match t with
+  | FOVar n => n
+  | FOZero => 0
+  | FOSucc a => FOmax_var_tm a
+  | FOPlus a b => Nat.max (FOmax_var_tm a) (FOmax_var_tm b)
+  | FOMult a b => Nat.max (FOmax_var_tm a) (FOmax_var_tm b)
+  end.
+
+Lemma FOeval_update_above : forall t e z v,
+  FOmax_var_tm t < z ->
+  FOeval (FOupdate e z v) t = FOeval e t.
+Proof.
+  induction t; intros e z v Hz; cbn in *.
+  - unfold FOupdate.
+    destruct (Nat.eqb_spec n z) as [E|E]; [lia | reflexivity].
+  - reflexivity.
+  - rewrite (IHt e z v Hz). reflexivity.
+  - rewrite (IHt1 e z v), (IHt2 e z v); [reflexivity | lia | lia].
+  - rewrite (IHt1 e z v), (IHt2 e z v); [reflexivity | lia | lia].
+Qed.
+
+Definition FOLtF (a b : FOTerm) : FOFormula :=
+  FOExists (S (Nat.max (FOmax_var_tm a) (FOmax_var_tm b)))
+    (FOEq (FOPlus a (FOSucc
+             (FOVar (S (Nat.max (FOmax_var_tm a) (FOmax_var_tm b))))))
+          b).
+
+Lemma FOsat_FOLtF : forall e a b,
+  FOsat e (FOLtF a b) <-> FOeval e a < FOeval e b.
+Proof.
+  intros e a b. unfold FOLtF. cbn.
+  split.
+  - intros [v Hv].
+    rewrite (FOeval_update_above a) in Hv; [|lia].
+    rewrite (FOeval_update_above b) in Hv; [|lia].
+    try unfold FOupdate in Hv. rewrite Nat.eqb_refl in Hv. cbn in Hv.
+    lia.
+  - intro Hlt.
+    exists (FOeval e b - FOeval e a - 1).
+    rewrite (FOeval_update_above a); [|lia].
+    rewrite (FOeval_update_above b); [|lia].
+    try unfold FOupdate. rewrite Nat.eqb_refl. cbn.
+    lia.
+Qed.
+
 Theorem FOProvesTn_sound : forall n A,
   FOProvesTn n A -> forall e, FOsat e A.
 Proof.
   intros n A H.
   induction H as [phi Hax | phi psi | phi psi chi | phi
-                 | phi psi H1 IH1 H2 IH2 | x phi H IH]; intro e.
+                 | phi psi H1 IH1 H2 IH2 | x phi H IH
+                 | t | a b | a b c | a b | a b c d | a b c d
+                 | x k phi | x k phi | x phi]; intro e.
   - destruct Hax as [n1 phi1 HQ | n1 k Hk].
     + destruct HQ as [x y | x | x | x | x y | x | x y]; cbn.
       * intro Hxy. lia.
@@ -12413,6 +12494,17 @@ Proof.
   - cbn. intro Hnn. apply NNPP. exact Hnn.
   - exact (IH1 e (IH2 e)).
   - cbn. intro v. exact (IH (FOupdate e x v)).
+  - cbn. reflexivity.
+  - cbn. intro H1. symmetry. exact H1.
+  - cbn. intros H1 H2. rewrite H1. exact H2.
+  - cbn. intro H1. rewrite H1. reflexivity.
+  - cbn. intros H1 H2. rewrite H1, H2. reflexivity.
+  - cbn. intros H1 H2. rewrite H1, H2. reflexivity.
+  - cbn. intro Hall.
+    apply (proj2 (FOsat_subst_num phi x k e)). exact (Hall k).
+  - cbn. intro Hs.
+    exists k. exact (proj1 (FOsat_subst_num phi x k e) Hs).
+  - cbn. intros Hall [v Hv]. exact (Hall v Hv).
 Qed.
 
 Theorem FOProvesTn_consistent : forall n, ~ FOProvesTn n FOFalseF.
