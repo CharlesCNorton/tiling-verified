@@ -12160,6 +12160,67 @@ Fixpoint FOsubst_num (x k : nat) (A : FOFormula) : FOFormula :=
       if Nat.eqb y x then FOExists y A else FOExists y (FOsubst_num x k A)
   end.
 
+(** Term-level substitution with its capture test.  [FOin_tm v t]:
+    [v] occurs in [t].  [FOfree_in v A]: [v] occurs free in [A].
+    [FOsubst_f x s A] replaces free [x] by [s], stopping under a binder
+    of [x].  [FOsubst_ok x s A]: [s] is free for [x] in [A], so the
+    substitution is capture-free. *)
+
+Fixpoint FOin_tm (v : nat) (t : FOTerm) : bool :=
+  match t with
+  | FOVar y => Nat.eqb y v
+  | FOZero => false
+  | FOSucc a => FOin_tm v a
+  | FOPlus a b => FOin_tm v a || FOin_tm v b
+  | FOMult a b => FOin_tm v a || FOin_tm v b
+  end.
+
+Fixpoint FOfree_in (v : nat) (A : FOFormula) : bool :=
+  match A with
+  | FOEq a b => FOin_tm v a || FOin_tm v b
+  | FOFalseF => false
+  | FOImplF B C => FOfree_in v B || FOfree_in v C
+  | FOForall y B => if Nat.eqb y v then false else FOfree_in v B
+  | FOExists y B => if Nat.eqb y v then false else FOfree_in v B
+  end.
+
+Fixpoint FOsubst_t (x : nat) (s : FOTerm) (t : FOTerm) : FOTerm :=
+  match t with
+  | FOVar y => if Nat.eqb y x then s else FOVar y
+  | FOZero => FOZero
+  | FOSucc a => FOSucc (FOsubst_t x s a)
+  | FOPlus a b => FOPlus (FOsubst_t x s a) (FOsubst_t x s b)
+  | FOMult a b => FOMult (FOsubst_t x s a) (FOsubst_t x s b)
+  end.
+
+Fixpoint FOsubst_f (x : nat) (s : FOTerm) (A : FOFormula) : FOFormula :=
+  match A with
+  | FOEq a b => FOEq (FOsubst_t x s a) (FOsubst_t x s b)
+  | FOFalseF => FOFalseF
+  | FOImplF B C => FOImplF (FOsubst_f x s B) (FOsubst_f x s C)
+  | FOForall y B =>
+      if Nat.eqb y x then FOForall y B else FOForall y (FOsubst_f x s B)
+  | FOExists y B =>
+      if Nat.eqb y x then FOExists y B else FOExists y (FOsubst_f x s B)
+  end.
+
+Fixpoint FOsubst_ok (x : nat) (s : FOTerm) (A : FOFormula) : bool :=
+  match A with
+  | FOEq _ _ => true
+  | FOFalseF => true
+  | FOImplF B C => FOsubst_ok x s B && FOsubst_ok x s C
+  | FOForall y B =>
+      if Nat.eqb y x then true
+      else if FOfree_in x B
+           then negb (FOin_tm y s) && FOsubst_ok x s B
+           else true
+  | FOExists y B =>
+      if Nat.eqb y x then true
+      else if FOfree_in x B
+           then negb (FOin_tm y s) && FOsubst_ok x s B
+           else true
+  end.
+
 Inductive FOProvesTn (n : nat) : FOFormula -> Prop :=
   | FOProvesTn_ax : forall phi, FOAxiomTn n phi -> FOProvesTn n phi
   | FOProvesTn_K : forall phi psi, FOProvesTn n (FOImplF phi (FOImplF psi phi))
@@ -12425,6 +12486,223 @@ Proof.
         rewrite (FOsat_ext A (FOupdate (FOupdate e y v) x k)
                   (FOupdate (FOupdate e x k) y v)
                   (fun n => FOupdate_comm e y x v k n E)). exact Hv.
+Qed.
+
+(** Semantics of term-level substitution. *)
+
+Lemma FOeval_subst_t : forall t x s e,
+  FOeval e (FOsubst_t x s t) = FOeval (FOupdate e x (FOeval e s)) t.
+Proof.
+  induction t; intros x s e; cbn.
+  - destruct (Nat.eqb n x) eqn:E.
+    + unfold FOupdate. rewrite E. reflexivity.
+    + cbn. unfold FOupdate. rewrite E. reflexivity.
+  - reflexivity.
+  - rewrite IHt. reflexivity.
+  - rewrite IHt1, IHt2. reflexivity.
+  - rewrite IHt1, IHt2. reflexivity.
+Qed.
+
+Lemma FOeval_agree_in : forall t e1 e2,
+  (forall v, FOin_tm v t = true -> e1 v = e2 v) ->
+  FOeval e1 t = FOeval e2 t.
+Proof.
+  induction t; intros e1 e2 H; cbn.
+  - apply H. cbn. apply Nat.eqb_refl.
+  - reflexivity.
+  - rewrite (IHt e1 e2 H). reflexivity.
+  - rewrite (IHt1 e1 e2
+      (fun v Hv => H v (proj2 (Bool.orb_true_iff _ _) (or_introl Hv)))).
+    rewrite (IHt2 e1 e2
+      (fun v Hv => H v (proj2 (Bool.orb_true_iff _ _) (or_intror Hv)))).
+    reflexivity.
+  - rewrite (IHt1 e1 e2
+      (fun v Hv => H v (proj2 (Bool.orb_true_iff _ _) (or_introl Hv)))).
+    rewrite (IHt2 e1 e2
+      (fun v Hv => H v (proj2 (Bool.orb_true_iff _ _) (or_intror Hv)))).
+    reflexivity.
+Qed.
+
+Lemma FOeval_update_not_in : forall t e x w,
+  FOin_tm x t = false ->
+  FOeval (FOupdate e x w) t = FOeval e t.
+Proof.
+  intros t e x w Hni. apply FOeval_agree_in.
+  intros v Hv. unfold FOupdate.
+  destruct (Nat.eqb_spec v x) as [E|E].
+  - subst v. rewrite Hv in Hni. discriminate.
+  - reflexivity.
+Qed.
+
+Lemma FOsat_agree_free : forall A e1 e2,
+  (forall v, FOfree_in v A = true -> e1 v = e2 v) ->
+  (FOsat e1 A <-> FOsat e2 A).
+Proof.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB];
+    intros e1 e2 H; cbn.
+  - rewrite (FOeval_agree_in a e1 e2
+      (fun v Hv => H v (proj2 (Bool.orb_true_iff _ _) (or_introl Hv)))).
+    rewrite (FOeval_agree_in b e1 e2
+      (fun v Hv => H v (proj2 (Bool.orb_true_iff _ _) (or_intror Hv)))).
+    reflexivity.
+  - reflexivity.
+  - rewrite (IHB e1 e2
+      (fun v Hv => H v (proj2 (Bool.orb_true_iff _ _) (or_introl Hv)))).
+    rewrite (IHC e1 e2
+      (fun v Hv => H v (proj2 (Bool.orb_true_iff _ _) (or_intror Hv)))).
+    reflexivity.
+  - assert (Hpt : forall v0, forall v, FOfree_in v B = true ->
+      FOupdate e1 y v0 v = FOupdate e2 y v0 v).
+    { intros v0 v Hv. unfold FOupdate.
+      destruct (Nat.eqb_spec v y) as [E|E]; [reflexivity|].
+      apply H. cbn.
+      destruct (Nat.eqb_spec y v) as [E2|E2].
+      - exfalso. apply E. symmetry. exact E2.
+      - exact Hv. }
+    split; intros Hf v0; specialize (Hf v0).
+    + rewrite <- (IHB _ _ (Hpt v0)). exact Hf.
+    + rewrite (IHB _ _ (Hpt v0)). exact Hf.
+  - assert (Hpt : forall v0, forall v, FOfree_in v B = true ->
+      FOupdate e1 y v0 v = FOupdate e2 y v0 v).
+    { intros v0 v Hv. unfold FOupdate.
+      destruct (Nat.eqb_spec v y) as [E|E]; [reflexivity|].
+      apply H. cbn.
+      destruct (Nat.eqb_spec y v) as [E2|E2].
+      - exfalso. apply E. symmetry. exact E2.
+      - exact Hv. }
+    split; intros [v0 Hv0]; exists v0.
+    + rewrite <- (IHB _ _ (Hpt v0)). exact Hv0.
+    + rewrite (IHB _ _ (Hpt v0)). exact Hv0.
+Qed.
+
+Lemma FOsat_update_not_free : forall A e x w,
+  FOfree_in x A = false ->
+  (FOsat (FOupdate e x w) A <-> FOsat e A).
+Proof.
+  intros A e x w Hnf. apply FOsat_agree_free.
+  intros v Hv. unfold FOupdate.
+  destruct (Nat.eqb_spec v x) as [E|E].
+  - subst v. rewrite Hv in Hnf. discriminate.
+  - reflexivity.
+Qed.
+
+Lemma FOsubst_t_not_in : forall t x s,
+  FOin_tm x t = false -> FOsubst_t x s t = t.
+Proof.
+  induction t; intros x s Hni; cbn in *.
+  - destruct (Nat.eqb_spec n x) as [E|E].
+    + discriminate Hni.
+    + reflexivity.
+  - reflexivity.
+  - rewrite (IHt x s Hni). reflexivity.
+  - apply Bool.orb_false_iff in Hni. destruct Hni as [H1 H2].
+    rewrite (IHt1 x s H1), (IHt2 x s H2). reflexivity.
+  - apply Bool.orb_false_iff in Hni. destruct Hni as [H1 H2].
+    rewrite (IHt1 x s H1), (IHt2 x s H2). reflexivity.
+Qed.
+
+Lemma FOsubst_f_not_free : forall A x s,
+  FOfree_in x A = false -> FOsubst_f x s A = A.
+Proof.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB];
+    intros x s Hnf; cbn in *.
+  - apply Bool.orb_false_iff in Hnf. destruct Hnf as [H1 H2].
+    rewrite (FOsubst_t_not_in a x s H1), (FOsubst_t_not_in b x s H2).
+    reflexivity.
+  - reflexivity.
+  - apply Bool.orb_false_iff in Hnf. destruct Hnf as [H1 H2].
+    rewrite (IHB x s H1), (IHC x s H2). reflexivity.
+  - destruct (Nat.eqb_spec y x) as [E|E].
+    + reflexivity.
+    + rewrite (IHB x s Hnf). reflexivity.
+  - destruct (Nat.eqb_spec y x) as [E|E].
+    + reflexivity.
+    + rewrite (IHB x s Hnf). reflexivity.
+Qed.
+
+(** The substitution lemma: a capture-free substitution evaluates the
+    substituted term in the outer environment. *)
+
+Lemma FOsat_subst_f : forall A x s e,
+  FOsubst_ok x s A = true ->
+  (FOsat e (FOsubst_f x s A) <-> FOsat (FOupdate e x (FOeval e s)) A).
+Proof.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB];
+    intros x s e Hok; cbn.
+  - rewrite (FOeval_subst_t a), (FOeval_subst_t b). reflexivity.
+  - reflexivity.
+  - cbn in Hok. apply Bool.andb_true_iff in Hok. destruct Hok as [H1 H2].
+    rewrite (IHB x s e H1), (IHC x s e H2). reflexivity.
+  - cbn in Hok. destruct (Nat.eqb_spec y x) as [E|E].
+    + subst y. cbn.
+      split; intros Hf v0; specialize (Hf v0).
+      * rewrite (FOsat_ext B (FOupdate (FOupdate e x (FOeval e s)) x v0)
+                  (FOupdate e x v0)
+                  (FOupdate_shadow e x (FOeval e s) v0)).
+        exact Hf.
+      * rewrite (FOsat_ext B (FOupdate (FOupdate e x (FOeval e s)) x v0)
+                  (FOupdate e x v0)
+                  (FOupdate_shadow e x (FOeval e s) v0)) in Hf.
+        exact Hf.
+    + destruct (FOfree_in x B) eqn:EF.
+      * apply Bool.andb_true_iff in Hok. destruct Hok as [Hns Hok].
+        apply Bool.negb_true_iff in Hns.
+        cbn. split; intros Hf v0; specialize (Hf v0).
+        -- rewrite (IHB x s (FOupdate e y v0) Hok) in Hf.
+           rewrite (FOeval_update_not_in s e y v0 Hns) in Hf.
+           rewrite (FOsat_ext B _ _
+             (fun nn => FOupdate_comm e y x v0 (FOeval e s) nn E)) in Hf.
+           exact Hf.
+        -- rewrite (IHB x s (FOupdate e y v0) Hok).
+           rewrite (FOeval_update_not_in s e y v0 Hns).
+           rewrite (FOsat_ext B _ _
+             (fun nn => FOupdate_comm e y x v0 (FOeval e s) nn E)).
+           exact Hf.
+      * rewrite (FOsubst_f_not_free B x s EF).
+        assert (Hpt : forall v0, forall v, FOfree_in v B = true ->
+          FOupdate e y v0 v = FOupdate (FOupdate e x (FOeval e s)) y v0 v).
+        { intros v0 v Hv. unfold FOupdate.
+          destruct (Nat.eqb v y) eqn:Evy; [reflexivity|].
+          destruct (Nat.eqb_spec v x) as [Ex|Ex]; [|reflexivity].
+          subst v. rewrite Hv in EF. discriminate. }
+        cbn. split; intros Hf v0; specialize (Hf v0).
+        -- rewrite <- (FOsat_agree_free B _ _ (Hpt v0)). exact Hf.
+        -- rewrite (FOsat_agree_free B _ _ (Hpt v0)). exact Hf.
+  - cbn in Hok. destruct (Nat.eqb_spec y x) as [E|E].
+    + subst y. cbn.
+      split; intros [v0 Hv0]; exists v0.
+      * rewrite (FOsat_ext B (FOupdate (FOupdate e x (FOeval e s)) x v0)
+                  (FOupdate e x v0)
+                  (FOupdate_shadow e x (FOeval e s) v0)).
+        exact Hv0.
+      * rewrite (FOsat_ext B (FOupdate (FOupdate e x (FOeval e s)) x v0)
+                  (FOupdate e x v0)
+                  (FOupdate_shadow e x (FOeval e s) v0)) in Hv0.
+        exact Hv0.
+    + destruct (FOfree_in x B) eqn:EF.
+      * apply Bool.andb_true_iff in Hok. destruct Hok as [Hns Hok].
+        apply Bool.negb_true_iff in Hns.
+        cbn. split; intros [v0 Hv0]; exists v0.
+        -- rewrite (IHB x s (FOupdate e y v0) Hok) in Hv0.
+           rewrite (FOeval_update_not_in s e y v0 Hns) in Hv0.
+           rewrite (FOsat_ext B _ _
+             (fun nn => FOupdate_comm e y x v0 (FOeval e s) nn E)) in Hv0.
+           exact Hv0.
+        -- rewrite (IHB x s (FOupdate e y v0) Hok).
+           rewrite (FOeval_update_not_in s e y v0 Hns).
+           rewrite (FOsat_ext B _ _
+             (fun nn => FOupdate_comm e y x v0 (FOeval e s) nn E)).
+           exact Hv0.
+      * rewrite (FOsubst_f_not_free B x s EF).
+        assert (Hpt : forall v0, forall v, FOfree_in v B = true ->
+          FOupdate e y v0 v = FOupdate (FOupdate e x (FOeval e s)) y v0 v).
+        { intros v0 v Hv. unfold FOupdate.
+          destruct (Nat.eqb v y) eqn:Evy; [reflexivity|].
+          destruct (Nat.eqb_spec v x) as [Ex|Ex]; [|reflexivity].
+          subst v. rewrite Hv in EF. discriminate. }
+        cbn. split; intros [v0 Hv0]; exists v0.
+        -- rewrite <- (FOsat_agree_free B _ _ (Hpt v0)). exact Hv0.
+        -- rewrite (FOsat_agree_free B _ _ (Hpt v0)). exact Hv0.
 Qed.
 
 (** The order relation, defined Diophantine-style with a variable above
