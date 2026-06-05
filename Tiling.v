@@ -12485,6 +12485,217 @@ Proof.
   reflexivity.
 Qed.
 
+(** ** Shape recognizers for the rules of the T_n calculus.
+
+    Each premise-free rule conclusion is recognized by a boolean test
+    on the formula; quantifier instantiation carries its variable and
+    term as certificates.  Derivations are then checkable sequences of
+    (formula, justification) entries, parametric in the theory-axiom
+    test and the provability-sentence former. *)
+
+Fixpoint FOnum_of_tm (t : FOTerm) : option nat :=
+  match t with
+  | FOZero => Some 0
+  | FOSucc a =>
+      match FOnum_of_tm a with
+      | Some k => Some (S k)
+      | None => None
+      end
+  | _ => None
+  end.
+
+Lemma FOnum_of_tm_numeral : forall k, FOnum_of_tm (FOnumeral k) = Some k.
+Proof.
+  induction k as [|k IH]; cbn; [reflexivity | rewrite IH; reflexivity].
+Qed.
+
+Lemma FOnum_of_tm_correct : forall t k,
+  FOnum_of_tm t = Some k -> t = FOnumeral k.
+Proof.
+  induction t as [x | | a IH | |]; intros k H; cbn in H;
+    try discriminate.
+  - injection H. intro e. rewrite <- e. reflexivity.
+  - destruct (FOnum_of_tm a) as [m|] eqn:E; [|discriminate].
+    injection H. intro e. rewrite <- e. cbn.
+    rewrite (IH m eq_refl). reflexivity.
+Qed.
+
+Definition FOis_RQ (A : FOFormula) : bool :=
+  match A with
+  | FOImplF (FOEq (FOSucc a) (FOSucc b)) (FOEq a' b') =>
+      FOterm_eqb a a' && FOterm_eqb b b'
+  | FOImplF (FOEq (FOSucc a) FOZero) FOFalseF => true
+  | FOImplF (FOImplF (FOEq a FOZero) FOFalseF)
+            (FOExists w (FOEq a' (FOSucc (FOVar w')))) =>
+      FOterm_eqb a a' && Nat.eqb w (S (FOmax_var_tm a))
+        && Nat.eqb w' (S (FOmax_var_tm a))
+  | FOEq (FOPlus a FOZero) a' => FOterm_eqb a a'
+  | FOEq (FOPlus a (FOSucc b)) (FOSucc (FOPlus a' b')) =>
+      FOterm_eqb a a' && FOterm_eqb b b'
+  | FOEq (FOMult a FOZero) FOZero => true
+  | FOEq (FOMult a (FOSucc b)) (FOPlus (FOMult a' b') a'') =>
+      FOterm_eqb a a' && FOterm_eqb b b' && FOterm_eqb a a''
+  | _ => false
+  end.
+
+Definition FOis_K (A : FOFormula) : bool :=
+  match A with
+  | FOImplF P (FOImplF _ P') => FOform_eqb P P'
+  | _ => false
+  end.
+
+Definition FOis_S (A : FOFormula) : bool :=
+  match A with
+  | FOImplF (FOImplF P (FOImplF Q R))
+            (FOImplF (FOImplF P' Q') (FOImplF P'' R')) =>
+      FOform_eqb P P' && FOform_eqb P P'' && FOform_eqb Q Q'
+        && FOform_eqb R R'
+  | _ => false
+  end.
+
+Definition FOis_DN (A : FOFormula) : bool :=
+  match A with
+  | FOImplF (FOImplF (FOImplF P FOFalseF) FOFalseF) P' => FOform_eqb P P'
+  | _ => false
+  end.
+
+Definition FOis_EqRefl (A : FOFormula) : bool :=
+  match A with
+  | FOEq a a' => FOterm_eqb a a'
+  | _ => false
+  end.
+
+Definition FOis_EqSym (A : FOFormula) : bool :=
+  match A with
+  | FOImplF (FOEq a b) (FOEq b' a') => FOterm_eqb a a' && FOterm_eqb b b'
+  | _ => false
+  end.
+
+Definition FOis_EqTrans (A : FOFormula) : bool :=
+  match A with
+  | FOImplF (FOEq a b) (FOImplF (FOEq b' c) (FOEq a' c')) =>
+      FOterm_eqb a a' && FOterm_eqb b b' && FOterm_eqb c c'
+  | _ => false
+  end.
+
+Definition FOis_CongS (A : FOFormula) : bool :=
+  match A with
+  | FOImplF (FOEq a b) (FOEq (FOSucc a') (FOSucc b')) =>
+      FOterm_eqb a a' && FOterm_eqb b b'
+  | _ => false
+  end.
+
+Definition FOis_CongPlus (A : FOFormula) : bool :=
+  match A with
+  | FOImplF (FOEq a b)
+            (FOImplF (FOEq c d) (FOEq (FOPlus a' c') (FOPlus b' d'))) =>
+      FOterm_eqb a a' && FOterm_eqb b b' && FOterm_eqb c c'
+        && FOterm_eqb d d'
+  | _ => false
+  end.
+
+Definition FOis_CongMult (A : FOFormula) : bool :=
+  match A with
+  | FOImplF (FOEq a b)
+            (FOImplF (FOEq c d) (FOEq (FOMult a' c') (FOMult b' d'))) =>
+      FOterm_eqb a a' && FOterm_eqb b b' && FOterm_eqb c c'
+        && FOterm_eqb d d'
+  | _ => false
+  end.
+
+Definition FOis_ExElim (A : FOFormula) : bool :=
+  match A with
+  | FOImplF (FOForall x (FOImplF P Q)) (FOImplF (FOExists x' P') Q') =>
+      Nat.eqb x x' && FOform_eqb P P' && FOform_eqb Q Q'
+        && negb (FOfree_in x Q)
+  | _ => false
+  end.
+
+Definition FOis_AllK (A : FOFormula) : bool :=
+  match A with
+  | FOImplF (FOForall y (FOImplF P Q))
+            (FOImplF (FOForall y' P') (FOForall y'' Q')) =>
+      Nat.eqb y y' && Nat.eqb y y'' && FOform_eqb P P' && FOform_eqb Q Q'
+  | _ => false
+  end.
+
+Definition FOis_AllExport (A : FOFormula) : bool :=
+  match A with
+  | FOImplF (FOForall y (FOImplF H R))
+            (FOImplF H' (FOForall y' R')) =>
+      Nat.eqb y y' && FOform_eqb H H' && FOform_eqb R R'
+        && negb (FOfree_in y H)
+  | _ => false
+  end.
+
+Definition FOis_AllElim (x : nat) (t : FOTerm) (A : FOFormula) : bool :=
+  match A with
+  | FOImplF (FOForall x' P) Q =>
+      Nat.eqb x x' && FOsubst_ok x t P && FOform_eqb Q (FOsubst_f x t P)
+  | _ => false
+  end.
+
+Definition FOis_ExIntro (x : nat) (t : FOTerm) (A : FOFormula) : bool :=
+  match A with
+  | FOImplF Q (FOExists x' P) =>
+      Nat.eqb x x' && FOsubst_ok x t P && FOform_eqb Q (FOsubst_f x t P)
+  | _ => false
+  end.
+
+Definition FOis_logical_axiom (A : FOFormula) : bool :=
+  FOis_K A || FOis_S A || FOis_DN A || FOis_EqRefl A || FOis_EqSym A
+  || FOis_EqTrans A || FOis_CongS A || FOis_CongPlus A || FOis_CongMult A
+  || FOis_ExElim A || FOis_AllK A || FOis_AllExport A.
+
+Inductive FOjust : Type :=
+  | J_thax : FOjust
+  | J_log : FOjust
+  | J_AllElim : nat -> FOTerm -> FOjust
+  | J_ExIntro : nat -> FOTerm -> FOjust
+  | J_MP : nat -> nat -> FOjust
+  | J_Gen : nat -> FOjust
+  | J_Loeb : nat -> FOjust.
+
+Definition FOentry_check (axb : FOFormula -> bool)
+    (PrF : FOFormula -> FOFormula)
+    (prev : list FOFormula) (A : FOFormula) (j : FOjust) : bool :=
+  match j with
+  | J_thax => axb A
+  | J_log => FOis_logical_axiom A
+  | J_AllElim x t => FOis_AllElim x t A
+  | J_ExIntro x t => FOis_ExIntro x t A
+  | J_MP i j' =>
+      match nth_error prev i, nth_error prev j' with
+      | Some AB, Some B => FOform_eqb AB (FOImplF B A)
+      | _, _ => false
+      end
+  | J_Gen i =>
+      match A with
+      | FOForall _ B =>
+          match nth_error prev i with
+          | Some B' => FOform_eqb B B'
+          | None => false
+          end
+      | _ => false
+      end
+  | J_Loeb i =>
+      match nth_error prev i with
+      | Some P => FOform_eqb P (FOImplF (PrF A) A)
+      | None => false
+      end
+  end.
+
+Fixpoint FOseq_check (axb : FOFormula -> bool)
+    (PrF : FOFormula -> FOFormula)
+    (done : list FOFormula)
+    (rest : list (FOFormula * FOjust)) : bool :=
+  match rest with
+  | [] => true
+  | (A, j) :: rest' =>
+      FOentry_check axb PrF done A j
+        && FOseq_check axb PrF (done ++ [A]) rest'
+  end.
+
 Inductive FOProvesTn (n : nat) : FOFormula -> Prop :=
   | FOProvesTn_ax : forall phi, FOAxiomTn n phi -> FOProvesTn n phi
   | FOProvesTn_K : forall phi psi, FOProvesTn n (FOImplF phi (FOImplF psi phi))
@@ -12681,6 +12892,400 @@ Lemma FOProvesTn_AllNegToNegEx : forall n x phi,
 Proof.
   intros n x phi.
   exact (FOProvesTn_ExElim n x phi FOFalseF eq_refl).
+Qed.
+
+(** ** The shape recognizers are sound and complete for their rules. *)
+
+Lemma FOterm_eqb_refl : forall a, FOterm_eqb a a = true.
+Proof. intro a. apply FOterm_eqb_eq. reflexivity. Qed.
+
+Lemma FOform_eqb_refl : forall A, FOform_eqb A A = true.
+Proof. intro A. apply FOform_eqb_eq. reflexivity. Qed.
+
+Lemma FOis_RQ_complete : forall A, FORobinsonQ A -> FOis_RQ A = true.
+Proof.
+  intros A H. destruct H as [a b | a | a | a | a b | a | a b]; cbn.
+  - rewrite !FOterm_eqb_refl. reflexivity.
+  - reflexivity.
+  - rewrite FOterm_eqb_refl, !Nat.eqb_refl. reflexivity.
+  - rewrite FOterm_eqb_refl. reflexivity.
+  - rewrite !FOterm_eqb_refl. reflexivity.
+  - reflexivity.
+  - rewrite !FOterm_eqb_refl. reflexivity.
+Qed.
+
+Lemma FOis_RQ_sound : forall A, FOis_RQ A = true -> FORobinsonQ A.
+Proof.
+  intros A H.
+  destruct A as [t1 t2 | | L R | x B | x B]; try discriminate.
+  - destruct t1 as [x | | a | a u | a u]; try discriminate.
+    + destruct u as [y | | b | u1 u2 | u1 u2]; try discriminate.
+      * cbn in H. apply FOterm_eqb_eq in H. subst t2.
+        apply RQ_plus_zero.
+      * destruct t2 as [y | | s | s1 s2 | s1 s2]; try discriminate.
+        destruct s as [y | | | a' b' | s1 s2]; try discriminate.
+        cbn in H.
+        apply Bool.andb_true_iff in H. destruct H as [H1 H2].
+        apply FOterm_eqb_eq in H1, H2. subst a' b'.
+        apply RQ_plus_succ.
+    + destruct u as [y | | b | u1 u2 | u1 u2]; try discriminate.
+      * destruct t2 as [y | | s | s1 s2 | s1 s2]; try discriminate.
+        apply RQ_mult_zero.
+      * destruct t2 as [y | | s | m a'' | s1 s2]; try discriminate.
+        destruct m as [y | | s | s1 s2 | a' b']; try discriminate.
+        cbn in H.
+        apply Bool.andb_true_iff in H. destruct H as [H H3].
+        apply Bool.andb_true_iff in H. destruct H as [H1 H2].
+        apply FOterm_eqb_eq in H1, H2, H3. subst a' b' a''.
+        apply RQ_mult_succ.
+  - destruct L as [l1 l2 | | L1 L2 | y B | y B]; try discriminate.
+    + destruct l1 as [y | | a | u1 u2 | u1 u2]; try discriminate.
+      destruct l2 as [y | | b | u1 u2 | u1 u2]; try discriminate.
+      * destruct R as [a' b' | | R1 R2 | y B | y B]; try discriminate.
+        exact (RQ_S_nonzero a).
+      * destruct R as [a' b' | | R1 R2 | y B | y B]; try discriminate.
+        cbn in H.
+        apply Bool.andb_true_iff in H. destruct H as [H1 H2].
+        apply FOterm_eqb_eq in H1, H2. subst a' b'.
+        apply RQ_S_inj.
+    + destruct L1 as [a z | | M1 M2 | y B | y B]; try discriminate.
+      destruct z as [y | | s | u1 u2 | u1 u2]; try discriminate.
+      destruct L2 as [u1 u2 | | M1 M2 | y B | y B]; try discriminate.
+      destruct R as [u1 u2 | | R1 R2 | y B | w RB]; try discriminate.
+      destruct RB as [a' su | | R1 R2 | y B | y B]; try discriminate.
+      destruct su as [y | | sv | u1 u2 | u1 u2]; try discriminate.
+      destruct sv as [w' | | s | u1 u2 | u1 u2]; try discriminate.
+      cbn in H.
+      apply Bool.andb_true_iff in H. destruct H as [H Hw'].
+      apply Bool.andb_true_iff in H. destruct H as [Ha Hw].
+      apply FOterm_eqb_eq in Ha. apply Nat.eqb_eq in Hw, Hw'.
+      subst a' w w'.
+      exact (RQ_zero_or_succ a).
+Qed.
+
+Lemma FOis_K_sound : forall n A, FOis_K A = true -> FOProvesTn n A.
+Proof.
+  intros n A H.
+  destruct A as [a b | | P R | x B | x B]; try discriminate.
+  destruct R as [a b | | Q P' | x B | x B]; try discriminate.
+  cbn in H. apply FOform_eqb_eq in H. subst P'.
+  apply FOProvesTn_K.
+Qed.
+
+Lemma FOis_K_complete : forall P Q,
+  FOis_K (FOImplF P (FOImplF Q P)) = true.
+Proof. intros P Q. cbn. apply FOform_eqb_refl. Qed.
+
+Lemma FOis_S_sound : forall n A, FOis_S A = true -> FOProvesTn n A.
+Proof.
+  intros n A H.
+  destruct A as [a b | | L R | x B | x B]; try discriminate.
+  destruct L as [a b | | P QR | x B | x B]; try discriminate.
+  destruct QR as [a b | | Q R0 | x B | x B]; try discriminate.
+  destruct R as [a b | | PQ PR | x B | x B]; try discriminate.
+  destruct PQ as [a b | | P' Q' | x B | x B]; try discriminate.
+  destruct PR as [a b | | P'' R' | x B | x B]; try discriminate.
+  cbn in H.
+  apply Bool.andb_true_iff in H. destruct H as [H H4].
+  apply Bool.andb_true_iff in H. destruct H as [H H3].
+  apply Bool.andb_true_iff in H. destruct H as [H1 H2].
+  apply FOform_eqb_eq in H1, H2, H3, H4.
+  subst. apply FOProvesTn_S.
+Qed.
+
+Lemma FOis_S_complete : forall P Q R,
+  FOis_S (FOImplF (FOImplF P (FOImplF Q R))
+                  (FOImplF (FOImplF P Q) (FOImplF P R))) = true.
+Proof. intros. cbn. rewrite !FOform_eqb_refl. reflexivity. Qed.
+
+Lemma FOis_DN_sound : forall n A, FOis_DN A = true -> FOProvesTn n A.
+Proof.
+  intros n A H.
+  destruct A as [a b | | L P' | x B | x B]; try discriminate.
+  destruct L as [a b | | M F1 | x B | x B]; try discriminate.
+  destruct M as [a b | | P F2 | x B | x B]; try discriminate.
+  destruct F2 as [a b | | M1 M2 | x B | x B]; try discriminate.
+  destruct F1 as [a b | | M1 M2 | x B | x B]; try discriminate.
+  cbn in H. apply FOform_eqb_eq in H. subst P'.
+  apply FOProvesTn_DN.
+Qed.
+
+Lemma FOis_DN_complete : forall P,
+  FOis_DN (FOImplF (FONeg (FONeg P)) P) = true.
+Proof. intro P. cbn. apply FOform_eqb_refl. Qed.
+
+Lemma FOis_EqRefl_sound : forall n A,
+  FOis_EqRefl A = true -> FOProvesTn n A.
+Proof.
+  intros n A H.
+  destruct A as [a a' | | B C | x B | x B]; try discriminate.
+  cbn in H. apply FOterm_eqb_eq in H. subst a'.
+  apply FOProvesTn_EqRefl.
+Qed.
+
+Lemma FOis_EqRefl_complete : forall t, FOis_EqRefl (FOEq t t) = true.
+Proof. intro t. cbn. apply FOterm_eqb_refl. Qed.
+
+Lemma FOis_EqSym_sound : forall n A,
+  FOis_EqSym A = true -> FOProvesTn n A.
+Proof.
+  intros n A H.
+  destruct A as [a b | | L R | x B | x B]; try discriminate.
+  destruct L as [a b | | B C | x B | x B]; try discriminate.
+  destruct R as [b' a' | | B C | x B | x B]; try discriminate.
+  cbn in H.
+  apply Bool.andb_true_iff in H. destruct H as [H1 H2].
+  apply FOterm_eqb_eq in H1, H2. subst a' b'.
+  apply FOProvesTn_EqSym.
+Qed.
+
+Lemma FOis_EqSym_complete : forall a b,
+  FOis_EqSym (FOImplF (FOEq a b) (FOEq b a)) = true.
+Proof. intros a b. cbn. rewrite !FOterm_eqb_refl. reflexivity. Qed.
+
+Lemma FOis_EqTrans_sound : forall n A,
+  FOis_EqTrans A = true -> FOProvesTn n A.
+Proof.
+  intros n A H.
+  destruct A as [a b | | L R | x B | x B]; try discriminate.
+  destruct L as [a b | | B C | x B | x B]; try discriminate.
+  destruct R as [u1 u2 | | M N | y1 D1 | y2 D2]; try discriminate.
+  destruct M as [b' c | | B2 C2 | y3 D3 | y4 D4]; try discriminate.
+  destruct N as [a' c' | | B3 C3 | y5 D5 | y6 D6]; try discriminate.
+  cbn in H.
+  apply Bool.andb_true_iff in H. destruct H as [H H3].
+  apply Bool.andb_true_iff in H. destruct H as [H1 H2].
+  apply FOterm_eqb_eq in H1, H2, H3. subst a' b' c'.
+  apply FOProvesTn_EqTrans.
+Qed.
+
+Lemma FOis_EqTrans_complete : forall a b c,
+  FOis_EqTrans (FOImplF (FOEq a b) (FOImplF (FOEq b c) (FOEq a c)))
+  = true.
+Proof. intros. cbn. rewrite !FOterm_eqb_refl. reflexivity. Qed.
+
+Lemma FOis_CongS_sound : forall n A,
+  FOis_CongS A = true -> FOProvesTn n A.
+Proof.
+  intros n A H.
+  destruct A as [a b | | L R | x B | x B]; try discriminate.
+  destruct L as [a b | | B C | x B | x B]; try discriminate.
+  destruct R as [sa sb | | B2 C2 | y1 D1 | y2 D2]; try discriminate.
+  destruct sa as [z1 | | a' | u1 u2 | u3 u4]; try discriminate.
+  destruct sb as [z2 | | b' | u5 u6 | u7 u8]; try discriminate.
+  cbn in H.
+  apply Bool.andb_true_iff in H. destruct H as [H1 H2].
+  apply FOterm_eqb_eq in H1, H2. subst a' b'.
+  apply FOProvesTn_CongS.
+Qed.
+
+Lemma FOis_CongS_complete : forall a b,
+  FOis_CongS (FOImplF (FOEq a b) (FOEq (FOSucc a) (FOSucc b))) = true.
+Proof. intros. cbn. rewrite !FOterm_eqb_refl. reflexivity. Qed.
+
+Lemma FOis_CongPlus_sound : forall n A,
+  FOis_CongPlus A = true -> FOProvesTn n A.
+Proof.
+  intros n A H.
+  destruct A as [a b | | L R | x B | x B]; try discriminate.
+  destruct L as [a b | | B C | x B | x B]; try discriminate.
+  destruct R as [u1 u2 | | M N | y1 D1 | y2 D2]; try discriminate.
+  destruct M as [c d | | B2 C2 | y3 D3 | y4 D4]; try discriminate.
+  destruct N as [pa pb | | B3 C3 | y5 D5 | y6 D6]; try discriminate.
+  destruct pa as [z1 | | s1 | a' c' | u3 u4]; try discriminate.
+  destruct pb as [z2 | | s2 | b' d' | u5 u6]; try discriminate.
+  cbn in H.
+  apply Bool.andb_true_iff in H. destruct H as [H H4].
+  apply Bool.andb_true_iff in H. destruct H as [H H3].
+  apply Bool.andb_true_iff in H. destruct H as [H1 H2].
+  apply FOterm_eqb_eq in H1, H2, H3, H4. subst a' b' c' d'.
+  apply FOProvesTn_CongPlus.
+Qed.
+
+Lemma FOis_CongPlus_complete : forall a b c d,
+  FOis_CongPlus (FOImplF (FOEq a b)
+    (FOImplF (FOEq c d) (FOEq (FOPlus a c) (FOPlus b d)))) = true.
+Proof. intros. cbn. rewrite !FOterm_eqb_refl. reflexivity. Qed.
+
+Lemma FOis_CongMult_sound : forall n A,
+  FOis_CongMult A = true -> FOProvesTn n A.
+Proof.
+  intros n A H.
+  destruct A as [a b | | L R | x B | x B]; try discriminate.
+  destruct L as [a b | | B C | x B | x B]; try discriminate.
+  destruct R as [u1 u2 | | M N | y1 D1 | y2 D2]; try discriminate.
+  destruct M as [c d | | B2 C2 | y3 D3 | y4 D4]; try discriminate.
+  destruct N as [pa pb | | B3 C3 | y5 D5 | y6 D6]; try discriminate.
+  destruct pa as [z1 | | s1 | u3 u4 | a' c']; try discriminate.
+  destruct pb as [z2 | | s2 | u5 u6 | b' d']; try discriminate.
+  cbn in H.
+  apply Bool.andb_true_iff in H. destruct H as [H H4].
+  apply Bool.andb_true_iff in H. destruct H as [H H3].
+  apply Bool.andb_true_iff in H. destruct H as [H1 H2].
+  apply FOterm_eqb_eq in H1, H2, H3, H4. subst a' b' c' d'.
+  apply FOProvesTn_CongMult.
+Qed.
+
+Lemma FOis_CongMult_complete : forall a b c d,
+  FOis_CongMult (FOImplF (FOEq a b)
+    (FOImplF (FOEq c d) (FOEq (FOMult a c) (FOMult b d)))) = true.
+Proof. intros. cbn. rewrite !FOterm_eqb_refl. reflexivity. Qed.
+
+Lemma FOis_ExElim_sound : forall n A,
+  FOis_ExElim A = true -> FOProvesTn n A.
+Proof.
+  intros n A H.
+  destruct A as [a b | | L R | x B | x B]; try discriminate.
+  destruct L as [a b | | B C | x B | x B]; try discriminate.
+  destruct B as [a b | | P Q | y C | y C]; try discriminate.
+  destruct R as [a b | | EX Q' | y C | y C]; try discriminate.
+  destruct EX as [a b | | B C | y C | x' P']; try discriminate.
+  cbn in H.
+  apply Bool.andb_true_iff in H. destruct H as [H Hf].
+  apply Bool.andb_true_iff in H. destruct H as [H HQ].
+  apply Bool.andb_true_iff in H. destruct H as [Hx HP].
+  apply Nat.eqb_eq in Hx. apply FOform_eqb_eq in HP, HQ.
+  apply Bool.negb_true_iff in Hf.
+  subst. apply FOProvesTn_ExElim. exact Hf.
+Qed.
+
+Lemma FOis_ExElim_complete : forall x P Q,
+  FOfree_in x Q = false ->
+  FOis_ExElim (FOImplF (FOForall x (FOImplF P Q))
+                       (FOImplF (FOExists x P) Q)) = true.
+Proof.
+  intros x P Q Hf. cbn.
+  rewrite Nat.eqb_refl, !FOform_eqb_refl, Hf. reflexivity.
+Qed.
+
+Lemma FOis_AllK_sound : forall n A,
+  FOis_AllK A = true -> FOProvesTn n A.
+Proof.
+  intros n A H.
+  destruct A as [a b | | L R | x B | x B]; try discriminate.
+  destruct L as [a b | | B C | y B | x B]; try discriminate.
+  destruct B as [a b | | P Q | z C | z C]; try discriminate.
+  destruct R as [a b | | FP FQ | z C | z C]; try discriminate.
+  destruct FP as [a b | | B C | y' P' | z C]; try discriminate.
+  destruct FQ as [a b | | B C | y'' Q' | z C]; try discriminate.
+  cbn in H.
+  apply Bool.andb_true_iff in H. destruct H as [H H4].
+  apply Bool.andb_true_iff in H. destruct H as [H H3].
+  apply Bool.andb_true_iff in H. destruct H as [H1 H2].
+  apply Nat.eqb_eq in H1, H2. apply FOform_eqb_eq in H3, H4.
+  subst. apply FOProvesTn_AllK.
+Qed.
+
+Lemma FOis_AllK_complete : forall y P Q,
+  FOis_AllK (FOImplF (FOForall y (FOImplF P Q))
+                     (FOImplF (FOForall y P) (FOForall y Q))) = true.
+Proof.
+  intros. cbn. rewrite !Nat.eqb_refl, !FOform_eqb_refl. reflexivity.
+Qed.
+
+Lemma FOis_AllExport_sound : forall n A,
+  FOis_AllExport A = true -> FOProvesTn n A.
+Proof.
+  intros n A H.
+  destruct A as [a b | | L R | x B | x B]; try discriminate.
+  destruct L as [a b | | B C | y B | x B]; try discriminate.
+  destruct B as [a b | | Hh Rr | z C | z C]; try discriminate.
+  destruct R as [a b | | H' FR | z C | z C]; try discriminate.
+  destruct FR as [a b | | B C | y' R' | z C]; try discriminate.
+  cbn in H.
+  apply Bool.andb_true_iff in H. destruct H as [H Hf].
+  apply Bool.andb_true_iff in H. destruct H as [H H3].
+  apply Bool.andb_true_iff in H. destruct H as [H1 H2].
+  apply Nat.eqb_eq in H1. apply FOform_eqb_eq in H2, H3.
+  apply Bool.negb_true_iff in Hf.
+  subst. apply FOProvesTn_AllExport. exact Hf.
+Qed.
+
+Lemma FOis_AllExport_complete : forall y Hh R,
+  FOfree_in y Hh = false ->
+  FOis_AllExport (FOImplF (FOForall y (FOImplF Hh R))
+                          (FOImplF Hh (FOForall y R))) = true.
+Proof.
+  intros y Hh R Hf. cbn.
+  rewrite Nat.eqb_refl, !FOform_eqb_refl, Hf. reflexivity.
+Qed.
+
+Lemma FOis_AllElim_sound : forall n x t A,
+  FOis_AllElim x t A = true -> FOProvesTn n A.
+Proof.
+  intros n x t A H.
+  destruct A as [a b | | L Q | y B | y B]; try discriminate.
+  destruct L as [a b | | B C | x' P | y B]; try discriminate.
+  cbn in H.
+  apply Bool.andb_true_iff in H. destruct H as [H HQ].
+  apply Bool.andb_true_iff in H. destruct H as [Hx Hok].
+  apply Nat.eqb_eq in Hx. apply FOform_eqb_eq in HQ.
+  subst x' Q.
+  apply FOProvesTn_AllElimT. exact Hok.
+Qed.
+
+Lemma FOis_AllElim_complete : forall x t P,
+  FOsubst_ok x t P = true ->
+  FOis_AllElim x t (FOImplF (FOForall x P) (FOsubst_f x t P)) = true.
+Proof.
+  intros x t P Hok. cbn.
+  rewrite Nat.eqb_refl, Hok, FOform_eqb_refl. reflexivity.
+Qed.
+
+Lemma FOis_ExIntro_sound : forall n x t A,
+  FOis_ExIntro x t A = true -> FOProvesTn n A.
+Proof.
+  intros n x t A H.
+  destruct A as [a b | | Q R | y B | y B]; try discriminate.
+  destruct R as [a b | | B C | y B | x' P]; try discriminate.
+  cbn in H.
+  apply Bool.andb_true_iff in H. destruct H as [H HQ].
+  apply Bool.andb_true_iff in H. destruct H as [Hx Hok].
+  apply Nat.eqb_eq in Hx. apply FOform_eqb_eq in HQ.
+  subst x' Q.
+  apply FOProvesTn_ExIntroT. exact Hok.
+Qed.
+
+Lemma FOis_ExIntro_complete : forall x t P,
+  FOsubst_ok x t P = true ->
+  FOis_ExIntro x t (FOImplF (FOsubst_f x t P) (FOExists x P)) = true.
+Proof.
+  intros x t P Hok. cbn.
+  rewrite Nat.eqb_refl, Hok, FOform_eqb_refl. reflexivity.
+Qed.
+
+Lemma FOis_logical_axiom_sound : forall n A,
+  FOis_logical_axiom A = true -> FOProvesTn n A.
+Proof.
+  intros n A H. unfold FOis_logical_axiom in H.
+  repeat (apply Bool.orb_true_iff in H; destruct H as [H|H]).
+  - exact (FOis_K_sound n A H).
+  - exact (FOis_S_sound n A H).
+  - exact (FOis_DN_sound n A H).
+  - exact (FOis_EqRefl_sound n A H).
+  - exact (FOis_EqSym_sound n A H).
+  - exact (FOis_EqTrans_sound n A H).
+  - exact (FOis_CongS_sound n A H).
+  - exact (FOis_CongPlus_sound n A H).
+  - exact (FOis_CongMult_sound n A H).
+  - exact (FOis_ExElim_sound n A H).
+  - exact (FOis_AllK_sound n A H).
+  - exact (FOis_AllExport_sound n A H).
+Qed.
+
+Lemma FOis_logical_axiom_of : forall A,
+  (FOis_K A = true) \/ (FOis_S A = true) \/ (FOis_DN A = true)
+  \/ (FOis_EqRefl A = true) \/ (FOis_EqSym A = true)
+  \/ (FOis_EqTrans A = true) \/ (FOis_CongS A = true)
+  \/ (FOis_CongPlus A = true) \/ (FOis_CongMult A = true)
+  \/ (FOis_ExElim A = true) \/ (FOis_AllK A = true)
+  \/ (FOis_AllExport A = true) ->
+  FOis_logical_axiom A = true.
+Proof.
+  intros A H. unfold FOis_logical_axiom.
+  repeat destruct H as [H|H]; rewrite H;
+    repeat (rewrite Bool.orb_true_l || rewrite Bool.orb_true_r);
+    reflexivity.
 Qed.
 
 (** ** Propositional tautologies transfer into the T_n tower.
