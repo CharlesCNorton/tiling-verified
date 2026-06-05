@@ -11835,6 +11835,205 @@ Proof.
   injection Heq. intro Heq'. f_equal. exact (IH n' Heq').
 Qed.
 
+(** ** N-satisfaction for the first-order layer, and soundness of the
+    T_n tower.
+
+    [FOeval] and [FOsat] interpret [FOTerm]/[FOFormula] in the standard
+    model.  [FOProvesTn_sound] is soundness of [FOProvesTn] against
+    [FOsat]; [FOProvesTn_consistent] its consistency.  [FOsubst_num] is
+    numeral instantiation with its semantics. *)
+
+Definition FOenv := nat -> nat.
+
+Definition FOupdate (e : FOenv) (x v : nat) : FOenv :=
+  fun y => if Nat.eqb y x then v else e y.
+
+Fixpoint FOeval (e : FOenv) (t : FOTerm) : nat :=
+  match t with
+  | FOVar n => e n
+  | FOZero => 0
+  | FOSucc a => S (FOeval e a)
+  | FOPlus a b => FOeval e a + FOeval e b
+  | FOMult a b => FOeval e a * FOeval e b
+  end.
+
+Fixpoint FOsat (e : FOenv) (A : FOFormula) : Prop :=
+  match A with
+  | FOEq a b => FOeval e a = FOeval e b
+  | FOFalseF => False
+  | FOImplF A B => FOsat e A -> FOsat e B
+  | FOForall x A => forall v, FOsat (FOupdate e x v) A
+  | FOExists x A => exists v, FOsat (FOupdate e x v) A
+  end.
+
+Lemma FOeval_numeral : forall e k, FOeval e (FOnumeral k) = k.
+Proof.
+  intros e k. induction k as [|k IH]; cbn;
+    [reflexivity | rewrite IH; reflexivity].
+Qed.
+
+Lemma FOeval_ext : forall t e1 e2,
+  (forall n, e1 n = e2 n) -> FOeval e1 t = FOeval e2 t.
+Proof.
+  induction t; intros e1 e2 H; cbn.
+  - apply H.
+  - reflexivity.
+  - rewrite (IHt e1 e2 H); reflexivity.
+  - rewrite (IHt1 e1 e2 H), (IHt2 e1 e2 H); reflexivity.
+  - rewrite (IHt1 e1 e2 H), (IHt2 e1 e2 H); reflexivity.
+Qed.
+
+Lemma FOupdate_comm : forall e x y u w n,
+  x <> y ->
+  FOupdate (FOupdate e x u) y w n = FOupdate (FOupdate e y w) x u n.
+Proof.
+  intros e x y u w n Hxy. unfold FOupdate.
+  destruct (Nat.eqb n y) eqn:Ey; destruct (Nat.eqb n x) eqn:Ex; try reflexivity.
+  apply Nat.eqb_eq in Ey, Ex. subst. contradiction.
+Qed.
+
+Lemma FOupdate_shadow : forall e x u w n,
+  FOupdate (FOupdate e x u) x w n = FOupdate e x w n.
+Proof.
+  intros e x u w n. unfold FOupdate. destruct (Nat.eqb n x); reflexivity.
+Qed.
+
+Lemma FOsat_ext : forall A e1 e2,
+  (forall n, e1 n = e2 n) -> (FOsat e1 A <-> FOsat e2 A).
+Proof.
+  induction A as [a b | | A IHA B IHB | x A IHA | x A IHA];
+    intros e1 e2 H; cbn.
+  - rewrite (FOeval_ext a e1 e2 H), (FOeval_ext b e1 e2 H). reflexivity.
+  - reflexivity.
+  - rewrite (IHA e1 e2 H), (IHB e1 e2 H). reflexivity.
+  - split; intros Hf v; specialize (Hf v).
+    + rewrite <- (IHA (FOupdate e1 x v) (FOupdate e2 x v)); [exact Hf|].
+      intro n. unfold FOupdate. destruct (Nat.eqb n x); [reflexivity | apply H].
+    + rewrite (IHA (FOupdate e1 x v) (FOupdate e2 x v)); [exact Hf|].
+      intro n. unfold FOupdate. destruct (Nat.eqb n x); [reflexivity | apply H].
+  - split; intros [v Hv]; exists v.
+    + rewrite <- (IHA (FOupdate e1 x v) (FOupdate e2 x v)); [exact Hv|].
+      intro n. unfold FOupdate. destruct (Nat.eqb n x); [reflexivity | apply H].
+    + rewrite (IHA (FOupdate e1 x v) (FOupdate e2 x v)); [exact Hv|].
+      intro n. unfold FOupdate. destruct (Nat.eqb n x); [reflexivity | apply H].
+Qed.
+
+Fixpoint FOsubst_tm (x k : nat) (t : FOTerm) : FOTerm :=
+  match t with
+  | FOVar y => if Nat.eqb y x then FOnumeral k else FOVar y
+  | FOZero => FOZero
+  | FOSucc a => FOSucc (FOsubst_tm x k a)
+  | FOPlus a b => FOPlus (FOsubst_tm x k a) (FOsubst_tm x k b)
+  | FOMult a b => FOMult (FOsubst_tm x k a) (FOsubst_tm x k b)
+  end.
+
+Fixpoint FOsubst_num (x k : nat) (A : FOFormula) : FOFormula :=
+  match A with
+  | FOEq a b => FOEq (FOsubst_tm x k a) (FOsubst_tm x k b)
+  | FOFalseF => FOFalseF
+  | FOImplF A B => FOImplF (FOsubst_num x k A) (FOsubst_num x k B)
+  | FOForall y A =>
+      if Nat.eqb y x then FOForall y A else FOForall y (FOsubst_num x k A)
+  | FOExists y A =>
+      if Nat.eqb y x then FOExists y A else FOExists y (FOsubst_num x k A)
+  end.
+
+Lemma FOeval_subst_tm : forall t x k e,
+  FOeval e (FOsubst_tm x k t) = FOeval (FOupdate e x k) t.
+Proof.
+  induction t; intros x k e; cbn.
+  - destruct (Nat.eqb n x) eqn:E.
+    + rewrite FOeval_numeral. unfold FOupdate. rewrite E. reflexivity.
+    + cbn. unfold FOupdate. rewrite E. reflexivity.
+  - reflexivity.
+  - rewrite IHt. reflexivity.
+  - rewrite IHt1, IHt2. reflexivity.
+  - rewrite IHt1, IHt2. reflexivity.
+Qed.
+
+Lemma FOsat_subst_num : forall A x k e,
+  FOsat e (FOsubst_num x k A) <-> FOsat (FOupdate e x k) A.
+Proof.
+  induction A as [a b | | A IHA B IHB | y A IHA | y A IHA];
+    intros x k e; cbn.
+  - rewrite (FOeval_subst_tm a), (FOeval_subst_tm b). reflexivity.
+  - reflexivity.
+  - rewrite IHA, IHB. reflexivity.
+  - destruct (Nat.eqb y x) eqn:E.
+    + apply Nat.eqb_eq in E. subst y. cbn.
+      split; intros Hf v; specialize (Hf v).
+      * rewrite (FOsat_ext A (FOupdate (FOupdate e x k) x v) (FOupdate e x v)
+                  (FOupdate_shadow e x k v)). exact Hf.
+      * rewrite <- (FOsat_ext A (FOupdate (FOupdate e x k) x v) (FOupdate e x v)
+                  (FOupdate_shadow e x k v)). exact Hf.
+    + apply Nat.eqb_neq in E. cbn.
+      split; intros Hf v; specialize (Hf v).
+      * rewrite (IHA x k (FOupdate e y v)) in Hf.
+        rewrite (FOsat_ext A (FOupdate (FOupdate e x k) y v)
+                  (FOupdate (FOupdate e y v) x k)
+                  (fun n => FOupdate_comm e x y k v n (fun H => E (eq_sym H)))).
+        exact Hf.
+      * rewrite (IHA x k (FOupdate e y v)).
+        rewrite (FOsat_ext A (FOupdate (FOupdate e y v) x k)
+                  (FOupdate (FOupdate e x k) y v)
+                  (fun n => FOupdate_comm e y x v k n E)). exact Hf.
+  - destruct (Nat.eqb y x) eqn:E.
+    + apply Nat.eqb_eq in E. subst y. cbn.
+      split; intros [v Hv]; exists v.
+      * rewrite (FOsat_ext A (FOupdate (FOupdate e x k) x v) (FOupdate e x v)
+                  (FOupdate_shadow e x k v)). exact Hv.
+      * rewrite <- (FOsat_ext A (FOupdate (FOupdate e x k) x v) (FOupdate e x v)
+                  (FOupdate_shadow e x k v)). exact Hv.
+    + apply Nat.eqb_neq in E. cbn.
+      split; intros [v Hv]; exists v.
+      * rewrite (IHA x k (FOupdate e y v)) in Hv.
+        rewrite (FOsat_ext A (FOupdate (FOupdate e x k) y v)
+                  (FOupdate (FOupdate e y v) x k)
+                  (fun n => FOupdate_comm e x y k v n (fun H => E (eq_sym H)))).
+        exact Hv.
+      * rewrite (IHA x k (FOupdate e y v)).
+        rewrite (FOsat_ext A (FOupdate (FOupdate e y v) x k)
+                  (FOupdate (FOupdate e x k) y v)
+                  (fun n => FOupdate_comm e y x v k n E)). exact Hv.
+Qed.
+
+Theorem FOProvesTn_sound : forall n A,
+  FOProvesTn n A -> forall e, FOsat e A.
+Proof.
+  intros n A H.
+  induction H as [phi Hax | phi psi | phi psi chi | phi
+                 | phi psi H1 IH1 H2 IH2 | x phi H IH]; intro e.
+  - destruct Hax as [n1 phi1 HQ | n1 k Hk].
+    + destruct HQ as [x y | x | x | x | x y | x | x y]; cbn.
+      * intro Hxy. lia.
+      * intro Hx. lia.
+      * intro Hne.
+        destruct (e x) as [|m] eqn:Ex.
+        { exfalso. apply Hne. reflexivity. }
+        { exists m.
+          assert (Exx : Nat.eqb x (S x) = false) by (apply Nat.eqb_neq; lia).
+          try unfold FOupdate.
+          rewrite Exx, Nat.eqb_refl. cbn. exact Ex. }
+      * lia.
+      * lia.
+      * lia.
+      * lia.
+    + cbn. reflexivity.
+  - cbn. intros Ha _. exact Ha.
+  - cbn. intros Hf Hg Ha. exact (Hf Ha (Hg Ha)).
+  - cbn. intro Hnn. apply NNPP. exact Hnn.
+  - exact (IH1 e (IH2 e)).
+  - cbn. intro v. exact (IH (FOupdate e x v)).
+Qed.
+
+Theorem FOProvesTn_consistent : forall n, ~ FOProvesTn n FOFalseF.
+Proof.
+  intros n H. exact (FOProvesTn_sound n FOFalseF H (fun _ => 0)).
+Qed.
+
+Lemma FOsat_ConSentence : forall e k, FOsat e (FOConSentence k).
+Proof. intros e k. cbn. reflexivity. Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
