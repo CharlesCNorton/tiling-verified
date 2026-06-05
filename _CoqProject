@@ -12,7 +12,6 @@ Tiling.v
 ModalSambin.v
 GLPDecidability.v
 SolovayFull.v
-Pi2Conservativity.v
 CarlsonSpeedup.v
 MagariFree.v
 StoneEquivalence.v

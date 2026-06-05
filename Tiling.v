@@ -13340,6 +13340,170 @@ Proof.
     unfold licenses in Hp. exact Hp.
 Qed.
 
+(** ** Level-0 conservativity of full GLP over GL, and the Pi_2 class.
+
+    [forget_levels] on [Provable_full_GLP]: every GLP axiom maps to a
+    GL-theorem and the translation is the identity on the level-0-only
+    fragment, giving [GLP_level_0_conservativity].  [is_Pi_2] is the
+    Form-language form of [forall n exists m, R(n,m)]: a level-0 Box
+    over a level-0-only Sigma_1-modal body. *)
+
+Lemma forget_Japaridze : forall n phi,
+  Provable_GL (forget_levels (Japaridze n phi)).
+Proof.
+  intros n phi. unfold Japaridze. cbn [forget_levels].
+  apply GL_imply_top.
+Qed.
+
+Lemma glp_forget_derivation : forall phi,
+  Provable_full_GLP phi -> Provable_GL (forget_levels phi).
+Proof.
+  intros phi H.
+  induction H as [phi psi | phi psi chi | phi | n phi psi | n phi | n phi
+                 | n phi | n phi | phi psi H1 IH1 H2 IH2 | n phi H IH].
+  - apply forget_AxK.
+  - apply forget_AxS.
+  - apply forget_AxDN.
+  - apply forget_AxBoxK.
+  - apply forget_AxLoeb.
+  - apply forget_AxBox4.
+  - apply forget_AxMon.
+  - apply forget_Japaridze.
+  - cbn [forget_levels] in IH1. exact (GL_MP _ _ IH1 IH2).
+  - cbn [forget_levels]. destruct n as [|n'].
+    + exact (GL_Nec _ IH).
+    + exact GL_top.
+Qed.
+
+Lemma GL_in_GLP : forall phi, Provable_GL phi -> Provable_full_GLP phi.
+Proof.
+  intros phi H.
+  induction H as [phi psi | phi psi chi | phi | phi psi | phi | phi
+                 | phi psi H1 IH1 H2 IH2 | phi H IH].
+  - apply GLP_Ax_K.
+  - apply GLP_Ax_S.
+  - apply GLP_Ax_DN.
+  - apply (GLP_Ax_BoxK 0).
+  - apply (GLP_Ax_Loeb 0).
+  - apply (GLP_Ax_Box4 0).
+  - exact (GLP_MP _ _ IH1 IH2).
+  - exact (GLP_Nec 0 _ IH).
+Qed.
+
+Theorem GLP_level_0_conservativity : forall phi,
+  level_0_only phi -> Provable_full_GLP phi -> Provable_GL phi.
+Proof.
+  intros phi Hl H.
+  pose proof (glp_forget_derivation phi H) as HGL.
+  rewrite (forget_levels_level_0_only phi Hl) in HGL.
+  exact HGL.
+Qed.
+
+Theorem GLP_level_0_conservativity_iff : forall phi,
+  level_0_only phi -> (Provable_full_GLP phi <-> Provable_GL phi).
+Proof.
+  intros phi Hl. split.
+  - exact (GLP_level_0_conservativity phi Hl).
+  - exact (GL_in_GLP phi).
+Qed.
+
+Definition is_Pi_2 (phi : Form) : Prop :=
+  exists psi,
+    Sigma1_modal psi /\ level_0_only psi /\ phi = Box 0 psi.
+
+Lemma box_free_level_0_only : forall phi,
+  box_free phi -> level_0_only phi.
+Proof.
+  induction phi as [p | | a IHa b IHb | n a IHa]; cbn; intro H.
+  - exact I.
+  - exact I.
+  - destruct H as [Ha Hb]. split; [exact (IHa Ha) | exact (IHb Hb)].
+  - destruct H.
+Qed.
+
+Lemma is_Pi_2_level_0_only : forall phi,
+  is_Pi_2 phi -> level_0_only phi.
+Proof.
+  intros phi [psi [Hs [Hl Heq]]]. subst phi.
+  cbn. split; [reflexivity | exact Hl].
+Qed.
+
+Theorem Pi_2_conservativity : forall phi,
+  is_Pi_2 phi -> Provable_full_GLP phi -> Provable_GL phi.
+Proof.
+  intros phi Hp2 H.
+  exact (GLP_level_0_conservativity phi (is_Pi_2_level_0_only phi Hp2) H).
+Qed.
+
+Definition extract_GL_derivation (phi : Form)
+  (H : Provable_full_GLP phi) (Hp2 : is_Pi_2 phi) : Provable_GL phi :=
+  Pi_2_conservativity phi Hp2 H.
+
+Theorem Pi_2_nonvacuous :
+  exists phi, is_Pi_2 phi /\ Provable_full_GLP phi.
+Proof.
+  exists (Box 0 Top). split.
+  - exists Top. split; [|split].
+    + apply S1_box_free. cbn. split; exact I.
+    + cbn. split; exact I.
+    + reflexivity.
+  - apply (GLP_Nec 0). exact Provable_full_GLP_Top_form.
+Qed.
+
+Theorem Pi_2_not_Bot_restriction :
+  exists phi, is_Pi_2 phi /\ phi <> Bot.
+Proof.
+  exists (Box 0 Top). split.
+  - exists Top. split; [|split].
+    + apply S1_box_free. cbn. split; exact I.
+    + cbn. split; exact I.
+    + reflexivity.
+  - discriminate.
+Qed.
+
+Theorem Pi_2_not_box_free_restriction :
+  exists phi, is_Pi_2 phi /\ ~ box_free phi.
+Proof.
+  exists (Box 0 Top). split.
+  - exists Top. split; [|split].
+    + apply S1_box_free. cbn. split; exact I.
+    + cbn. split; exact I.
+    + reflexivity.
+  - cbn. intro H. exact H.
+Qed.
+
+Theorem Pi_2_worked_instance :
+  is_Pi_2 (Box 0 (Box 0 Top)) /\
+  Provable_full_GLP (Box 0 (Box 0 Top)) /\
+  Provable_GL (Box 0 (Box 0 Top)).
+Proof.
+  assert (Hp2 : is_Pi_2 (Box 0 (Box 0 Top))).
+  { exists (Box 0 Top). split; [|split].
+    - apply S1_box.
+    - cbn. split; [reflexivity | split; exact I].
+    - reflexivity. }
+  assert (HGLP : Provable_full_GLP (Box 0 (Box 0 Top))).
+  { apply (GLP_Nec 0). apply (GLP_Nec 0). exact Provable_full_GLP_Top_form. }
+  split; [exact Hp2 | split; [exact HGLP|]].
+  exact (extract_GL_derivation _ HGLP Hp2).
+Qed.
+
+Theorem Pi_2_conservativity_summary :
+  (forall phi, is_Pi_2 phi -> Provable_full_GLP phi -> Provable_GL phi) /\
+  (forall phi, level_0_only phi ->
+     (Provable_full_GLP phi <-> Provable_GL phi)) /\
+  (exists phi, is_Pi_2 phi /\ Provable_full_GLP phi) /\
+  (exists phi, is_Pi_2 phi /\ phi <> Bot) /\
+  (exists phi, is_Pi_2 phi /\ ~ box_free phi).
+Proof.
+  split; [|split; [|split; [|split]]].
+  - exact Pi_2_conservativity.
+  - exact GLP_level_0_conservativity_iff.
+  - exact Pi_2_nonvacuous.
+  - exact Pi_2_not_Bot_restriction.
+  - exact Pi_2_not_box_free_restriction.
+Qed.
+
 Definition arith_interp_top_conjunction : Form -> Form := fun phi => And phi Top.
 
 Theorem arith_interp_top_conjunction_is_arithmetic :
