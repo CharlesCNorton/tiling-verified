@@ -12,7 +12,6 @@ Tiling.v
 ModalSambin.v
 GLPDecidability.v
 SolovayFull.v
-CarlsonSpeedup.v
 MagariFree.v
 StoneEquivalence.v
 JaparidzeTree.v
