@@ -19373,6 +19373,130 @@ Proof.
   reflexivity.
 Qed.
 
+Definition dispatch_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    (vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vj : nat) : Prop :=
+  exists tg, tg < S vct /\ exists a1, a1 < S vc1 /\
+  exists a2, a2 < S vc2 /\ exists a3, a3 < S vc3 /\
+  exists rr, rr < S vcr /\
+  beta vct vdt vj = tg /\ beta vc1 vd1 vj = a1 /\
+  beta vc2 vd2 vj = a2 /\ beta vc3 vd3 vj = a3 /\
+  beta vcr vdr vj = rr /\
+  ((tg = 0 /\ step0_sem L a1 a2 rr)
+   \/ (tg = 1 /\ step1_sem L a1 a2 rr)
+   \/ (tg = 2 /\ step2_sem L a1 a2 a3 rr)
+   \/ (tg = 3 /\ step3_sem L a1 a2 a3 rr)
+   \/ (tg = 4 /\ step4_sem L a1 a2 a3 rr)
+   \/ (tg = 5 /\ step5_sem L a1 rr)).
+
+Definition FOSTEPDISPATCH (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (j : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc ct)
+  (FOBexC (B+2) (FOSucc c1)
+  (FOBexC (B+4) (FOSucc c2)
+  (FOBexC (B+6) (FOSucc c3)
+  (FOBexC (B+8) (FOSucc cr)
+    (FOAnd (FObetaF (B+10) ct dt j (FOVar B))
+    (FOAnd (FObetaF (B+14) c1 d1 j (FOVar (B+2)))
+    (FOAnd (FObetaF (B+18) c2 d2 j (FOVar (B+4)))
+    (FOAnd (FObetaF (B+22) c3 d3 j (FOVar (B+6)))
+    (FOAnd (FObetaF (B+26) cr dr j (FOVar (B+8)))
+      (FOOr
+         (FOAnd (FOEq (FOVar B) FOZero)
+            (FOSTEP0 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+8))))
+      (FOOr
+         (FOAnd (FOEq (FOVar B) (FOnumeral 1))
+            (FOSTEP1 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+8))))
+      (FOOr
+         (FOAnd (FOEq (FOVar B) (FOnumeral 2))
+            (FOSTEP2 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+6))
+               (FOVar (B+8))))
+      (FOOr
+         (FOAnd (FOEq (FOVar B) (FOnumeral 3))
+            (FOSTEP3 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+6))
+               (FOVar (B+8))))
+      (FOOr
+         (FOAnd (FOEq (FOVar B) (FOnumeral 4))
+            (FOSTEP4 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+6))
+               (FOVar (B+8))))
+         (FOAnd (FOEq (FOVar B) (FOnumeral 5))
+            (FOSTEP5 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+8)))))))))))))))))).
+
+Lemma FOdelta0_FOSTEPDISPATCH : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len j,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm j < B ->
+  FOdelta0 (FOSTEPDISPATCH B ct dt c1 d1 c2 d2 c3 d3 cr dr len j).
+Proof.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len j Htb Hj.
+  pose proof Htb as Htb'.
+  destruct Htb' as [Hct [Hdt [Hc1 [Hd1 [Hc2 [Hd2 [Hc3 [Hd3
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  assert (Htb30 : tbl_below (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  unfold FOSTEPDISPATCH.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia | apply FOin_tm_above; cbn; lia |].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia | apply FOin_tm_above; cbn; lia |].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia | apply FOin_tm_above; cbn; lia |].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia | apply FOin_tm_above; cbn; lia |].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia | apply FOin_tm_above; cbn; lia |].
+  apply FOdelta0_and; [apply FOdelta0_FObetaF; cbn; lia|].
+  apply FOdelta0_and; [apply FOdelta0_FObetaF; cbn; lia|].
+  apply FOdelta0_and; [apply FOdelta0_FObetaF; cbn; lia|].
+  apply FOdelta0_and; [apply FOdelta0_FObetaF; cbn; lia|].
+  apply FOdelta0_and; [apply FOdelta0_FObetaF; cbn; lia|].
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOSTEP0; try assumption; cbn; lia. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOSTEP1; try assumption; cbn; lia. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOSTEP2; try assumption; cbn; lia. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOSTEP3; try assumption; cbn; lia. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOSTEP4; try assumption; cbn; lia. }
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOSTEP5; try assumption; cbn; lia. }
+Qed.
+
+Definition FOTBLVALID (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm) : FOFormula :=
+  FOBallC B len
+    (FOSTEPDISPATCH (B+2) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+       (FOVar B)).
+
+Lemma FOdelta0_FOTBLVALID : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOdelta0 (FOTBLVALID B ct dt c1 d1 c2 d2 c3 d3 cr dr len).
+Proof.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len Htb.
+  pose proof Htb as Htb'.
+  destruct Htb' as [Hct [Hdt [Hc1 [Hd1 [Hc2 [Hd2 [Hc3 [Hd3
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  assert (Htb2 : tbl_below (B+2) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  unfold FOTBLVALID.
+  apply FOdelta0_FOBallC;
+    [apply FOin_tm_above; lia | apply FOin_tm_above; lia |].
+  apply FOdelta0_FOSTEPDISPATCH; [exact Htb2 | cbn; lia].
+Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
