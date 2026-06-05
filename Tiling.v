@@ -17912,6 +17912,129 @@ Proof.
     rewrite FOeval_numeral, EvQ6, Er6. exact Hq2.
 Qed.
 
+Lemma FOsat_STEP_substzero_case : forall e tc r,
+  (FOsat e (FOAnd (FOcpairF (FOnumeral 1) FOZero tc) (FOEq r tc))
+   <-> (cpair 1 0 = FOeval e tc /\ FOeval e r = FOeval e tc)).
+Proof.
+  intros e tc r.
+  rewrite (FOsat_FOAnd e _ _).
+  rewrite (FOsat_FOcpairF e _ _ _).
+  change (FOsat e (FOEq r tc)) with (FOeval e r = FOeval e tc).
+  change (FOeval e FOZero) with 0.
+  rewrite FOeval_numeral.
+  tauto.
+Qed.
+
+Definition step2_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    (x sc tc r : nat) : Prop :=
+  (exists y, y < S tc /\ cpair 0 y = tc /\
+     ((y = x /\ r = sc) \/ (y <> x /\ r = tc)))
+  \/ (cpair 1 0 = tc /\ r = tc)
+  \/ (exists tc', tc' < S tc /\ cpair 2 tc' = tc /\
+      exists r', r' < r /\ L 2 x sc tc' r' /\ cpair 2 r' = r)
+  \/ (exists p, p < S tc /\ cpair 3 p = tc /\
+      exists ta, ta < S p /\ exists tb, tb < S p /\ cpair ta tb = p /\
+      exists ra, ra < r /\ exists rb, rb < r /\
+        L 2 x sc ta ra /\ L 2 x sc tb rb /\
+        exists q, q < S r /\ cpair ra rb = q /\ cpair 3 q = r)
+  \/ (exists p, p < S tc /\ cpair 4 p = tc /\
+      exists ta, ta < S p /\ exists tb, tb < S p /\ cpair ta tb = p /\
+      exists ra, ra < r /\ exists rb, rb < r /\
+        L 2 x sc ta ra /\ L 2 x sc tb rb /\
+        exists q, q < S r /\ cpair ra rb = q /\ cpair 4 q = r).
+
+Definition FOSTEP2 (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (x sc tc r : FOTerm) : FOFormula :=
+  FOOr
+    (FOBexC B (FOSucc tc)
+       (FOAnd (FOcpairF FOZero (FOVar B) tc)
+          (FOOr (FOAnd (FOEq (FOVar B) x) (FOEq r sc))
+                (FOAnd (FONeg (FOEq (FOVar B) x)) (FOEq r tc)))))
+  (FOOr
+    (FOAnd (FOcpairF (FOnumeral 1) FOZero tc) (FOEq r tc))
+  (FOOr
+    (FOBexC B (FOSucc tc)
+       (FOAnd (FOcpairF (FOnumeral 2) (FOVar B) tc)
+          (FOBexC (B+2) r
+             (FOAnd
+                (FOlookup (B+4) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                   (FOnumeral 2) x sc (FOVar B) (FOVar (B+2)))
+                (FOcpairF (FOnumeral 2) (FOVar (B+2)) r)))))
+  (FOOr
+    (FOSTEP_substbin B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc tc r
+       3 2 3)
+    (FOSTEP_substbin B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc tc r
+       4 2 4)))).
+
+Lemma FOdelta0_FOSTEP2 : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    x sc tc r,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm x < B -> FOmax_var_tm sc < B ->
+  FOmax_var_tm tc < B -> FOmax_var_tm r < B ->
+  FOdelta0 (FOSTEP2 B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc tc r).
+Proof.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc tc r Htb Hx Hsc Htc
+    Hr.
+  pose proof Htb as Htb'.
+  destruct Htb' as [Hct [Hdt [Hc1 [Hd1 [Hc2 [Hd2 [Hc3 [Hd3
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  assert (Htb4 : tbl_below (B+4) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  unfold FOSTEP2.
+  apply FOdelta0_or.
+  { apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia | apply FOin_tm_above; cbn; lia |].
+    apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+    apply FOdelta0_or; apply FOdelta0_and;
+      try apply FOd0_eq; apply FOdelta0_neg; apply FOd0_eq. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOdelta0_FOcpairF | apply FOd0_eq]. }
+  apply FOdelta0_or.
+  { apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia | apply FOin_tm_above; cbn; lia |].
+    apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; lia | apply FOin_tm_above; lia |].
+    apply FOdelta0_and; [|apply FOdelta0_FOcpairF].
+    apply FOdelta0_FOlookup; try assumption;
+      rewrite ?FOmax_var_numeral; cbn; lia. }
+  apply FOdelta0_or; apply FOdelta0_FOSTEP_substbin; assumption.
+Qed.
+
+Lemma FOsat_FOSTEP2 : forall e B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    x sc tc r,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm x < B -> FOmax_var_tm sc < B ->
+  FOmax_var_tm tc < B -> FOmax_var_tm r < B ->
+  (FOsat e (FOSTEP2 B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc tc r)
+   <-> step2_sem
+         (fun tg x1 x2 x3 rr => exists j, j < FOeval e len /\
+            beta (FOeval e ct) (FOeval e dt) j = tg /\
+            beta (FOeval e c1) (FOeval e d1) j = x1 /\
+            beta (FOeval e c2) (FOeval e d2) j = x2 /\
+            beta (FOeval e c3) (FOeval e d3) j = x3 /\
+            beta (FOeval e cr) (FOeval e dr) j = rr)
+         (FOeval e x) (FOeval e sc) (FOeval e tc) (FOeval e r)).
+Proof.
+  intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc tc r Htb Hx Hsc
+    Htc Hr.
+  unfold FOSTEP2, step2_sem.
+  rewrite (FOsat_FOOr e _ _).
+  rewrite (FOsat_FOOr e _ _).
+  rewrite (FOsat_FOOr e _ _).
+  rewrite (FOsat_FOOr e _ _).
+  rewrite (FOsat_STEP_substvar_case e B x sc tc r Hx Hsc Htc Hr).
+  rewrite (FOsat_STEP_substzero_case e tc r).
+  rewrite (FOsat_STEP_substun_case e B ct dt c1 d1 c2 d2 c3 d3 cr dr
+             len x sc tc r 2 2 2 Htb Hx Hsc Htc Hr).
+  rewrite (FOsat_FOSTEP_substbin e B ct dt c1 d1 c2 d2 c3 d3 cr dr
+             len x sc tc r 3 2 3 Htb Hx Hsc Htc Hr).
+  rewrite (FOsat_FOSTEP_substbin e B ct dt c1 d1 c2 d2 c3 d3 cr dr
+             len x sc tc r 4 2 4 Htb Hx Hsc Htc Hr).
+  reflexivity.
+Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
