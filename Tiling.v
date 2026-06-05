@@ -21807,6 +21807,117 @@ Proof.
       reflexivity.
 Qed.
 
+(** ** Realizing a justified entry list as a beta-coded table.
+
+    [beta_complete] codes the five projected tracks; membership in the
+    list and membership in the coded table coincide pointwise, so the
+    per-entry justifications transport across the step-semantics
+    extensionality lemmas, giving table validity at every position. *)
+
+Definition TEd0 : TEntry := mkTE 0 0 0 0 0.
+
+Theorem table_realize : forall L,
+  (forall e, In e L -> entry_ok L e) ->
+  exists vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr,
+    (forall tg a1 a2 a3 r,
+       listL L tg a1 a2 a3 r <->
+       tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr (length L)
+         tg a1 a2 a3 r) /\
+    (forall j, j < length L ->
+       dispatch_sem
+         (tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr (length L))
+         vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr j).
+Proof.
+  intros L Hok.
+  destruct (beta_complete (map te_tg L)) as [vct [vdt Hbt]].
+  destruct (beta_complete (map te_a1 L)) as [vc1 [vd1 Hb1]].
+  destruct (beta_complete (map te_a2 L)) as [vc2 [vd2 Hb2]].
+  destruct (beta_complete (map te_a3 L)) as [vc3 [vd3 Hb3]].
+  destruct (beta_complete (map te_r L)) as [vcr [vdr Hbr]].
+  assert (Qt : forall i, i < length L ->
+      beta vct vdt i = te_tg (nth i L TEd0)).
+  { intros i Hi. rewrite <- (map_nth te_tg L TEd0 i).
+    apply Hbt. rewrite length_map. exact Hi. }
+  assert (Q1 : forall i, i < length L ->
+      beta vc1 vd1 i = te_a1 (nth i L TEd0)).
+  { intros i Hi. rewrite <- (map_nth te_a1 L TEd0 i).
+    apply Hb1. rewrite length_map. exact Hi. }
+  assert (Q2 : forall i, i < length L ->
+      beta vc2 vd2 i = te_a2 (nth i L TEd0)).
+  { intros i Hi. rewrite <- (map_nth te_a2 L TEd0 i).
+    apply Hb2. rewrite length_map. exact Hi. }
+  assert (Q3 : forall i, i < length L ->
+      beta vc3 vd3 i = te_a3 (nth i L TEd0)).
+  { intros i Hi. rewrite <- (map_nth te_a3 L TEd0 i).
+    apply Hb3. rewrite length_map. exact Hi. }
+  assert (Qr : forall i, i < length L ->
+      beta vcr vdr i = te_r (nth i L TEd0)).
+  { intros i Hi. rewrite <- (map_nth te_r L TEd0 i).
+    apply Hbr. rewrite length_map. exact Hi. }
+  exists vct, vdt, vc1, vd1, vc2, vd2, vc3, vd3, vcr, vdr.
+  assert (HIFF : forall tg a1 a2 a3 r,
+      listL L tg a1 a2 a3 r <->
+      tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr (length L)
+        tg a1 a2 a3 r).
+  { intros tg a1 a2 a3 r. split.
+    - intro HIn. unfold listL in HIn.
+      destruct (In_nth L _ TEd0 HIn) as [j [Hj Hnth]].
+      exists j. split; [exact Hj|].
+      rewrite (Qt j Hj), (Q1 j Hj), (Q2 j Hj), (Q3 j Hj), (Qr j Hj).
+      rewrite Hnth. cbn [te_tg te_a1 te_a2 te_a3 te_r].
+      repeat split; reflexivity.
+    - intros [j [Hj [Et [E1 [E2 [E3 Er]]]]]].
+      unfold listL.
+      rewrite (Qt j Hj) in Et. rewrite (Q1 j Hj) in E1.
+      rewrite (Q2 j Hj) in E2. rewrite (Q3 j Hj) in E3.
+      rewrite (Qr j Hj) in Er.
+      assert (Hnth : nth j L TEd0 = mkTE tg a1 a2 a3 r).
+      { destruct (nth j L TEd0) as [g b1 b2 b3 br].
+        cbn [te_tg te_a1 te_a2 te_a3 te_r] in Et, E1, E2, E3, Er.
+        subst. reflexivity. }
+      rewrite <- Hnth. apply nth_In. exact Hj. }
+  split; [exact HIFF|].
+  intros j Hj.
+  pose proof (Hok (nth j L TEd0) (nth_In L TEd0 Hj)) as He.
+  unfold dispatch_sem.
+  exists (te_tg (nth j L TEd0)). split.
+  { rewrite <- (Qt j Hj). unfold beta.
+    pose proof (Nat.Div0.mod_le vct (vdt * S j + 1)). lia. }
+  exists (te_a1 (nth j L TEd0)). split.
+  { rewrite <- (Q1 j Hj). unfold beta.
+    pose proof (Nat.Div0.mod_le vc1 (vd1 * S j + 1)). lia. }
+  exists (te_a2 (nth j L TEd0)). split.
+  { rewrite <- (Q2 j Hj). unfold beta.
+    pose proof (Nat.Div0.mod_le vc2 (vd2 * S j + 1)). lia. }
+  exists (te_a3 (nth j L TEd0)). split.
+  { rewrite <- (Q3 j Hj). unfold beta.
+    pose proof (Nat.Div0.mod_le vc3 (vd3 * S j + 1)). lia. }
+  exists (te_r (nth j L TEd0)). split.
+  { rewrite <- (Qr j Hj). unfold beta.
+    pose proof (Nat.Div0.mod_le vcr (vdr * S j + 1)). lia. }
+  split. { exact (Qt j Hj). }
+  split. { exact (Q1 j Hj). }
+  split. { exact (Q2 j Hj). }
+  split. { exact (Q3 j Hj). }
+  split. { exact (Qr j Hj). }
+  destruct (nth j L TEd0) as [tg a1 a2 a3 r] eqn:Ee.
+  cbn [te_tg te_a1 te_a2 te_a3 te_r].
+  destruct tg as [|[|[|[|[|[|t7]]]]]].
+  - left. split. { reflexivity. }
+    exact (proj1 (step0_sem_ext (listL L) _ a1 a2 r HIFF) He).
+  - right; left. split. { reflexivity. }
+    exact (proj1 (step1_sem_ext (listL L) _ a1 a2 r HIFF) He).
+  - right; right; left. split. { reflexivity. }
+    exact (proj1 (step2_sem_ext (listL L) _ a1 a2 a3 r HIFF) He).
+  - right; right; right; left. split. { reflexivity. }
+    exact (proj1 (step3_sem_ext (listL L) _ a1 a2 a3 r HIFF) He).
+  - right; right; right; right; left. split. { reflexivity. }
+    exact (proj1 (step4_sem_ext (listL L) _ a1 a2 a3 r HIFF) He).
+  - right; right; right; right; right. split. { reflexivity. }
+    exact (proj1 (step5_sem_ext (listL L) _ a1 r HIFF) He).
+  - exfalso. exact He.
+Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
