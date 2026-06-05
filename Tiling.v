@@ -15934,6 +15934,214 @@ Proof.
     destruct (FOin_tm w i); destruct (FOin_tm w x); reflexivity.
 Qed.
 
+(** ** The master computation table.
+
+    The recursive code-level functions behind the derivation checker
+    (occurrence, free-occurrence, term and formula substitution, the
+    capture test, and numeral coding) are represented by one
+    course-of-values table.  A table is five beta-coded tracks
+    (tag, arg1, arg2, arg3, result) of a common length; an entry is
+    justified when its result relates to lookups of its structurally
+    smaller sub-calls by the defining case of its tag.  Soundness of a
+    valid table is by strong induction on the code argument;
+    completeness builds the trace of the actual recursion and codes it
+    with [beta_complete].
+
+    [FOlookup B ... tg a1 a2 a3 r] says some position of the table
+    carries the given five fields.  The block of variables
+    [B, ..., B+21] is bound here; every argument term must keep its
+    variables below [B]. *)
+
+Definition tbl_below (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm) : Prop :=
+  FOmax_var_tm ct < B /\ FOmax_var_tm dt < B /\
+  FOmax_var_tm c1 < B /\ FOmax_var_tm d1 < B /\
+  FOmax_var_tm c2 < B /\ FOmax_var_tm d2 < B /\
+  FOmax_var_tm c3 < B /\ FOmax_var_tm d3 < B /\
+  FOmax_var_tm cr < B /\ FOmax_var_tm dr < B /\
+  FOmax_var_tm len < B.
+
+Definition FOlookup (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (tg a1 a2 a3 r : FOTerm) : FOFormula :=
+  FOBexC B len
+    (FOAnd (FObetaF (B+2) ct dt (FOVar B) tg)
+    (FOAnd (FObetaF (B+6) c1 d1 (FOVar B) a1)
+    (FOAnd (FObetaF (B+10) c2 d2 (FOVar B) a2)
+    (FOAnd (FObetaF (B+14) c3 d3 (FOVar B) a3)
+           (FObetaF (B+18) cr dr (FOVar B) r))))).
+
+Lemma FOdelta0_FOlookup : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    tg a1 a2 a3 r,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm tg < B -> FOmax_var_tm a1 < B ->
+  FOmax_var_tm a2 < B -> FOmax_var_tm a3 < B ->
+  FOmax_var_tm r < B ->
+  FOdelta0 (FOlookup B ct dt c1 d1 c2 d2 c3 d3 cr dr len tg a1 a2 a3 r).
+Proof.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len tg a1 a2 a3 r Htb H1 H2 H3
+    H4 H5.
+  destruct Htb as [Hct [Hdt [Hc1 [Hd1 [Hc2 [Hd2 [Hc3 [Hd3
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  apply FOdelta0_FOBexC.
+  - apply FOin_tm_above. lia.
+  - apply FOin_tm_above. lia.
+  - apply FOdelta0_and;
+      [|apply FOdelta0_and;
+        [|apply FOdelta0_and;
+          [|apply FOdelta0_and]]];
+      apply FOdelta0_FObetaF; cbn; lia.
+Qed.
+
+Lemma FOsat_FOlookup : forall e B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    tg a1 a2 a3 r,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm tg < B -> FOmax_var_tm a1 < B ->
+  FOmax_var_tm a2 < B -> FOmax_var_tm a3 < B ->
+  FOmax_var_tm r < B ->
+  (FOsat e (FOlookup B ct dt c1 d1 c2 d2 c3 d3 cr dr len tg a1 a2 a3 r)
+   <-> exists j, j < FOeval e len /\
+       beta (FOeval e ct) (FOeval e dt) j = FOeval e tg /\
+       beta (FOeval e c1) (FOeval e d1) j = FOeval e a1 /\
+       beta (FOeval e c2) (FOeval e d2) j = FOeval e a2 /\
+       beta (FOeval e c3) (FOeval e d3) j = FOeval e a3 /\
+       beta (FOeval e cr) (FOeval e dr) j = FOeval e r).
+Proof.
+  intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len tg a1 a2 a3 r Htb H1 H2
+    H3 H4 H5.
+  destruct Htb as [Hct [Hdt [Hc1 [Hd1 [Hc2 [Hd2 [Hc3 [Hd3
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  unfold FOlookup.
+  rewrite (FOsat_FOBexC e B len _
+             (FOin_tm_above len B Hlen)
+             (FOin_tm_above len (S B) ltac:(lia))).
+  split.
+  - intros [j [Hj Hbody]].
+    set (e' := FOupdate e B j) in *.
+    exists j. split; [exact Hj|].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hbody.
+    destruct Hbody as [Hb1 Hbody].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hbody.
+    destruct Hbody as [Hb2 Hbody].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hbody.
+    destruct Hbody as [Hb3 Hbody].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hbody.
+    destruct Hbody as [Hb4 Hb5].
+    apply (proj1 (FOsat_FObetaF e' (B+2) ct dt (FOVar B) tg
+                    ltac:(lia) ltac:(lia) ltac:(cbn; lia) ltac:(lia)))
+      in Hb1.
+    apply (proj1 (FOsat_FObetaF e' (B+6) c1 d1 (FOVar B) a1
+                    ltac:(lia) ltac:(lia) ltac:(cbn; lia) ltac:(lia)))
+      in Hb2.
+    apply (proj1 (FOsat_FObetaF e' (B+10) c2 d2 (FOVar B) a2
+                    ltac:(lia) ltac:(lia) ltac:(cbn; lia) ltac:(lia)))
+      in Hb3.
+    apply (proj1 (FOsat_FObetaF e' (B+14) c3 d3 (FOVar B) a3
+                    ltac:(lia) ltac:(lia) ltac:(cbn; lia) ltac:(lia)))
+      in Hb4.
+    apply (proj1 (FOsat_FObetaF e' (B+18) cr dr (FOVar B) r
+                    ltac:(lia) ltac:(lia) ltac:(cbn; lia) ltac:(lia)))
+      in Hb5.
+    unfold e' in Hb1, Hb2, Hb3, Hb4, Hb5.
+    rewrite (FOeval_update_not_in ct _ B j
+               (FOin_tm_above ct B Hct)) in Hb1.
+    rewrite (FOeval_update_not_in dt _ B j
+               (FOin_tm_above dt B Hdt)) in Hb1.
+    rewrite (FOeval_update_not_in tg _ B j
+               (FOin_tm_above tg B H1)) in Hb1.
+    rewrite (FOeval_update_not_in c1 _ B j
+               (FOin_tm_above c1 B Hc1)) in Hb2.
+    rewrite (FOeval_update_not_in d1 _ B j
+               (FOin_tm_above d1 B Hd1)) in Hb2.
+    rewrite (FOeval_update_not_in a1 _ B j
+               (FOin_tm_above a1 B H2)) in Hb2.
+    rewrite (FOeval_update_not_in c2 _ B j
+               (FOin_tm_above c2 B Hc2)) in Hb3.
+    rewrite (FOeval_update_not_in d2 _ B j
+               (FOin_tm_above d2 B Hd2)) in Hb3.
+    rewrite (FOeval_update_not_in a2 _ B j
+               (FOin_tm_above a2 B H3)) in Hb3.
+    rewrite (FOeval_update_not_in c3 _ B j
+               (FOin_tm_above c3 B Hc3)) in Hb4.
+    rewrite (FOeval_update_not_in d3 _ B j
+               (FOin_tm_above d3 B Hd3)) in Hb4.
+    rewrite (FOeval_update_not_in a3 _ B j
+               (FOin_tm_above a3 B H4)) in Hb4.
+    rewrite (FOeval_update_not_in cr _ B j
+               (FOin_tm_above cr B Hcr)) in Hb5.
+    rewrite (FOeval_update_not_in dr _ B j
+               (FOin_tm_above dr B Hdr)) in Hb5.
+    rewrite (FOeval_update_not_in r _ B j
+               (FOin_tm_above r B H5)) in Hb5.
+    assert (EvB : FOeval (FOupdate e B j) (FOVar B) = j).
+    { cbn. unfold FOupdate. rewrite Nat.eqb_refl. reflexivity. }
+    rewrite EvB in Hb1, Hb2, Hb3, Hb4, Hb5.
+    repeat split; assumption.
+  - intros [j [Hj [Hb1 [Hb2 [Hb3 [Hb4 Hb5]]]]]].
+    exists j. split; [exact Hj|].
+    assert (EvB : FOeval (FOupdate e B j) (FOVar B) = j).
+    { cbn. unfold FOupdate. rewrite Nat.eqb_refl. reflexivity. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FObetaF (FOupdate e B j) (B+2) ct dt
+                      (FOVar B) tg
+                      ltac:(lia) ltac:(lia) ltac:(cbn; lia) ltac:(lia))).
+      rewrite EvB.
+      rewrite (FOeval_update_not_in ct _ B j
+                 (FOin_tm_above ct B Hct)).
+      rewrite (FOeval_update_not_in dt _ B j
+                 (FOin_tm_above dt B Hdt)).
+      rewrite (FOeval_update_not_in tg _ B j
+                 (FOin_tm_above tg B H1)).
+      exact Hb1. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FObetaF (FOupdate e B j) (B+6) c1 d1
+                      (FOVar B) a1
+                      ltac:(lia) ltac:(lia) ltac:(cbn; lia) ltac:(lia))).
+      rewrite EvB.
+      rewrite (FOeval_update_not_in c1 _ B j
+                 (FOin_tm_above c1 B Hc1)).
+      rewrite (FOeval_update_not_in d1 _ B j
+                 (FOin_tm_above d1 B Hd1)).
+      rewrite (FOeval_update_not_in a1 _ B j
+                 (FOin_tm_above a1 B H2)).
+      exact Hb2. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FObetaF (FOupdate e B j) (B+10) c2 d2
+                      (FOVar B) a2
+                      ltac:(lia) ltac:(lia) ltac:(cbn; lia) ltac:(lia))).
+      rewrite EvB.
+      rewrite (FOeval_update_not_in c2 _ B j
+                 (FOin_tm_above c2 B Hc2)).
+      rewrite (FOeval_update_not_in d2 _ B j
+                 (FOin_tm_above d2 B Hd2)).
+      rewrite (FOeval_update_not_in a2 _ B j
+                 (FOin_tm_above a2 B H3)).
+      exact Hb3. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FObetaF (FOupdate e B j) (B+14) c3 d3
+                      (FOVar B) a3
+                      ltac:(lia) ltac:(lia) ltac:(cbn; lia) ltac:(lia))).
+      rewrite EvB.
+      rewrite (FOeval_update_not_in c3 _ B j
+                 (FOin_tm_above c3 B Hc3)).
+      rewrite (FOeval_update_not_in d3 _ B j
+                 (FOin_tm_above d3 B Hd3)).
+      rewrite (FOeval_update_not_in a3 _ B j
+                 (FOin_tm_above a3 B H4)).
+      exact Hb4. }
+    apply (proj2 (FOsat_FObetaF (FOupdate e B j) (B+18) cr dr
+                    (FOVar B) r
+                    ltac:(lia) ltac:(lia) ltac:(cbn; lia) ltac:(lia))).
+    rewrite EvB.
+    rewrite (FOeval_update_not_in cr _ B j
+               (FOin_tm_above cr B Hcr)).
+    rewrite (FOeval_update_not_in dr _ B j
+               (FOin_tm_above dr B Hdr)).
+    rewrite (FOeval_update_not_in r _ B j
+               (FOin_tm_above r B H5)).
+    exact Hb5.
+Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
