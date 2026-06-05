@@ -13934,6 +13934,415 @@ Proof.
   exact (FOPr_compose n _ _ _ T2 Hneg).
 Qed.
 
+(** ** The Sigma_1 class and its completeness over the T_n tower.
+
+    [FOdelta0] is built from equations, falsity, implication, and the
+    canonical bounded universal quantifier with binder [v] and witness
+    variable [S v], neither occurring in the bound.  [FOsigma1] closes
+    it under existential quantification.  Every closed true Sigma_1
+    sentence is provable in every theory of the tower, and every closed
+    false Delta_0 sentence is refutable. *)
+
+Fixpoint FOfsize (A : FOFormula) : nat :=
+  match A with
+  | FOEq _ _ => 1
+  | FOFalseF => 1
+  | FOImplF B C => S (FOfsize B + FOfsize C)
+  | FOForall _ B => S (FOfsize B)
+  | FOExists _ B => S (FOfsize B)
+  end.
+
+Lemma FOfsize_subst_num : forall A x k,
+  FOfsize (FOsubst_num x k A) = FOfsize A.
+Proof.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB];
+    intros x k; cbn.
+  - reflexivity.
+  - reflexivity.
+  - rewrite IHB, IHC. reflexivity.
+  - destruct (Nat.eqb y x); cbn; [reflexivity | rewrite IHB; reflexivity].
+  - destruct (Nat.eqb y x); cbn; [reflexivity | rewrite IHB; reflexivity].
+Qed.
+
+Lemma FOin_tm_subst_num : forall t x k w,
+  FOin_tm w (FOsubst_tm x k t)
+  = if Nat.eqb w x then false else FOin_tm w t.
+Proof.
+  induction t as [y | | a IH | a IHa b IHb | a IHa b IHb];
+    intros x k w; cbn.
+  - destruct (Nat.eqb_spec y x) as [->|Eyx].
+    + rewrite FOin_tm_numeral.
+      destruct (Nat.eqb_spec w x) as [->|Ewx].
+      * reflexivity.
+      * destruct (Nat.eqb_spec x w) as [e|e];
+          [exfalso; apply Ewx; symmetry; exact e | reflexivity].
+    + cbn. destruct (Nat.eqb_spec w x) as [->|Ewx]; [|reflexivity].
+      destruct (Nat.eqb_spec y x) as [e|e];
+        [exfalso; exact (Eyx e) | reflexivity].
+  - destruct (Nat.eqb w x); reflexivity.
+  - exact (IH x k w).
+  - rewrite IHa, IHb. destruct (Nat.eqb w x); cbn; reflexivity.
+  - rewrite IHa, IHb. destruct (Nat.eqb w x); cbn; reflexivity.
+Qed.
+
+Lemma FOfree_in_subst_num : forall A x k w,
+  FOfree_in w (FOsubst_num x k A)
+  = if Nat.eqb w x then false else FOfree_in w A.
+Proof.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB];
+    intros x k w; cbn.
+  - rewrite !FOin_tm_subst_num.
+    destruct (Nat.eqb w x); cbn; reflexivity.
+  - destruct (Nat.eqb w x); reflexivity.
+  - rewrite IHB, IHC. destruct (Nat.eqb w x); cbn; reflexivity.
+  - destruct (Nat.eqb_spec y x) as [->|Eyx]; cbn.
+    + destruct (Nat.eqb_spec x w) as [->|Exw].
+      * rewrite Nat.eqb_refl. reflexivity.
+      * destruct (Nat.eqb_spec w x) as [e|e];
+          [exfalso; apply Exw; symmetry; exact e | reflexivity].
+    + rewrite IHB.
+      destruct (Nat.eqb_spec y w) as [->|Eyw].
+      * destruct (Nat.eqb_spec w x) as [e|e];
+          [exfalso; exact (Eyx e) | reflexivity].
+      * reflexivity.
+  - destruct (Nat.eqb_spec y x) as [->|Eyx]; cbn.
+    + destruct (Nat.eqb_spec x w) as [->|Exw].
+      * rewrite Nat.eqb_refl. reflexivity.
+      * destruct (Nat.eqb_spec w x) as [e|e];
+          [exfalso; apply Exw; symmetry; exact e | reflexivity].
+    + rewrite IHB.
+      destruct (Nat.eqb_spec y w) as [->|Eyw].
+      * destruct (Nat.eqb_spec w x) as [e|e];
+          [exfalso; exact (Eyx e) | reflexivity].
+      * reflexivity.
+Qed.
+
+Lemma FOclosed_in_false : forall t w,
+  FOclosed_tm t -> FOin_tm w t = false.
+Proof.
+  induction t; cbn; intros w Hc.
+  - contradiction.
+  - reflexivity.
+  - exact (IHt w Hc).
+  - rewrite (IHt1 w (proj1 Hc)), (IHt2 w (proj2 Hc)). reflexivity.
+  - rewrite (IHt1 w (proj1 Hc)), (IHt2 w (proj2 Hc)). reflexivity.
+Qed.
+
+Lemma FOin_all_false_closed : forall t,
+  (forall w, FOin_tm w t = false) -> FOclosed_tm t.
+Proof.
+  induction t; cbn; intro H.
+  - specialize (H n). rewrite Nat.eqb_refl in H. discriminate.
+  - exact I.
+  - apply IHt. intro w. exact (H w).
+  - split.
+    + apply IHt1. intro w.
+      exact (proj1 (proj1 (Bool.orb_false_iff _ _) (H w))).
+    + apply IHt2. intro w.
+      exact (proj2 (proj1 (Bool.orb_false_iff _ _) (H w))).
+  - split.
+    + apply IHt1. intro w.
+      exact (proj1 (proj1 (Bool.orb_false_iff _ _) (H w))).
+    + apply IHt2. intro w.
+      exact (proj2 (proj1 (Bool.orb_false_iff _ _) (H w))).
+Qed.
+
+Lemma FOsubst_tm_closed : forall t x k,
+  FOclosed_tm t -> FOsubst_tm x k t = t.
+Proof.
+  intros t x k Hc. rewrite <- (FOsubst_t_num t x k).
+  apply FOsubst_t_not_in. apply FOclosed_in_false. exact Hc.
+Qed.
+
+Inductive FOdelta0 : FOFormula -> Prop :=
+  | FOd0_eq : forall a b, FOdelta0 (FOEq a b)
+  | FOd0_false : FOdelta0 FOFalseF
+  | FOd0_impl : forall B C,
+      FOdelta0 B -> FOdelta0 C -> FOdelta0 (FOImplF B C)
+  | FOd0_ball : forall v t A,
+      FOin_tm v t = false -> FOin_tm (S v) t = false ->
+      FOdelta0 A ->
+      FOdelta0 (FOForall v
+        (FOImplF
+           (FOExists (S v)
+              (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t))
+           A)).
+
+Inductive FOsigma1 : FOFormula -> Prop :=
+  | FOs1_d0 : forall A, FOdelta0 A -> FOsigma1 A
+  | FOs1_ex : forall x A, FOsigma1 A -> FOsigma1 (FOExists x A).
+
+Lemma FOdelta0_subst_num : forall A x k,
+  FOdelta0 A -> FOdelta0 (FOsubst_num x k A).
+Proof.
+  intros A x k HD.
+  induction HD as [a b | | B C HB IHB HC IHC | v t A' Hvt HSvt HA' IHA'].
+  - cbn. apply FOd0_eq.
+  - cbn. apply FOd0_false.
+  - cbn. apply FOd0_impl; assumption.
+  - cbn -[Nat.eqb]. destruct (Nat.eqb v x) eqn:Evx.
+    + apply FOd0_ball; assumption.
+    + destruct (Nat.eqb (S v) x) eqn:ESvx.
+      * apply FOd0_ball; assumption.
+      * apply FOd0_ball.
+        -- rewrite FOin_tm_subst_num.
+           destruct (Nat.eqb v x); [reflexivity | exact Hvt].
+        -- rewrite FOin_tm_subst_num.
+           destruct (Nat.eqb (S v) x); [reflexivity | exact HSvt].
+        -- exact IHA'.
+Qed.
+
+Lemma FOsigma1_subst_num : forall A x k,
+  FOsigma1 A -> FOsigma1 (FOsubst_num x k A).
+Proof.
+  intros A x k HS. induction HS as [A' HD | y A' HS IH].
+  - apply FOs1_d0. apply FOdelta0_subst_num. exact HD.
+  - cbn -[Nat.eqb]. destruct (Nat.eqb y x).
+    + apply FOs1_ex. exact HS.
+    + apply FOs1_ex. exact IH.
+Qed.
+
+Lemma FOdelta0_decided : forall s A,
+  FOfsize A <= s -> FOdelta0 A ->
+  (forall v, FOfree_in v A = false) ->
+  forall n,
+  (FOsat (fun _ => 0) A -> FOProvesTn n A) /\
+  (~ FOsat (fun _ => 0) A -> FOProvesTn n (FONeg A)).
+Proof.
+  induction s as [|s IHs]; intros A Hsz HD Hcl n.
+  - destruct A; cbn in Hsz; lia.
+  - destruct HD as [a b | | B C HB HC | v t A' Hvt HSvt HA'].
+    + assert (Hca : FOclosed_tm a).
+      { apply FOin_all_false_closed. intro w.
+        specialize (Hcl w). cbn in Hcl.
+        exact (proj1 (proj1 (Bool.orb_false_iff _ _) Hcl)). }
+      assert (Hcb : FOclosed_tm b).
+      { apply FOin_all_false_closed. intro w.
+        specialize (Hcl w). cbn in Hcl.
+        exact (proj2 (proj1 (Bool.orb_false_iff _ _) Hcl)). }
+      split.
+      * intro Hsat. cbn in Hsat.
+        exact (FOPr_closed_eq_true n a b Hca Hcb Hsat).
+      * intro Hns. apply (FOPr_closed_eq_false n a b Hca Hcb).
+        intro Heq. apply Hns. cbn. exact Heq.
+    + split.
+      * intro Hsat. cbn in Hsat. contradiction.
+      * intro. exact (FOPr_idf n FOFalseF).
+    + cbn in Hsz.
+      assert (HclB : forall w, FOfree_in w B = false).
+      { intro w. specialize (Hcl w). cbn in Hcl.
+        exact (proj1 (proj1 (Bool.orb_false_iff _ _) Hcl)). }
+      assert (HclC : forall w, FOfree_in w C = false).
+      { intro w. specialize (Hcl w). cbn in Hcl.
+        exact (proj2 (proj1 (Bool.orb_false_iff _ _) Hcl)). }
+      assert (HszB : FOfsize B <= s) by lia.
+      assert (HszC : FOfsize C <= s) by lia.
+      pose proof (IHs B HszB HB HclB n) as [IHBt IHBf].
+      pose proof (IHs C HszC HC HclC n) as [IHCt IHCf].
+      split.
+      * intro Hsat.
+        destruct (classic (FOsat (fun _ => 0) C)) as [HC1|HC0].
+        -- exact (FOPr_weaken n C B (IHCt HC1)).
+        -- assert (HB0 : ~ FOsat (fun _ => 0) B).
+           { intro HB1. apply HC0. cbn in Hsat. exact (Hsat HB1). }
+           exact (FOPr_compose n B FOFalseF C (IHBf HB0) (FOPr_efq n C)).
+      * intro Hns.
+        assert (HB1 : FOsat (fun _ => 0) B).
+        { destruct (classic (FOsat (fun _ => 0) B)) as [|HB0]; [assumption|].
+          exfalso. apply Hns. cbn. intro HBx. exfalso. exact (HB0 HBx). }
+        assert (HC0 : ~ FOsat (fun _ => 0) C).
+        { intro HC1. apply Hns. cbn. intro. exact HC1. }
+        assert (HT : FOProvesTn n (FOImplF B (FOImplF (FONeg C)
+                       (FONeg (FOImplF B C))))).
+        { apply (FOPr_taut n (FOm2 B C)
+            (Impl (Var 0) (Impl (Neg (Var 1)) (Neg (Impl (Var 0) (Var 1))))));
+            [cbn; tauto | reflexivity]. }
+        exact (FOPr_mp2 n _ _ _ HT (IHBt HB1) (IHCf HC0)).
+    + cbn in Hsz.
+      assert (EvSv : Nat.eqb v (S v) = false) by (apply Nat.eqb_neq; lia).
+      assert (HtA : forall w, w <> v -> w <> S v ->
+          FOin_tm w t = false /\ FOfree_in w A' = false).
+      { intros w Ewv EwSv.
+        specialize (Hcl w). cbn -[Nat.eqb] in Hcl.
+        assert (Evw : Nat.eqb v w = false)
+          by (apply Nat.eqb_neq; intro e; apply Ewv; symmetry; exact e).
+        assert (ESvw : Nat.eqb (S v) w = false)
+          by (apply Nat.eqb_neq; intro e; apply EwSv; symmetry; exact e).
+        rewrite Evw, ESvw in Hcl. cbn in Hcl.
+        exact (proj1 (Bool.orb_false_iff _ _) Hcl). }
+      assert (Hct : FOclosed_tm t).
+      { apply FOin_all_false_closed. intro w.
+        destruct (Nat.eqb_spec w v) as [->|Ewv]; [exact Hvt|].
+        destruct (Nat.eqb_spec w (S v)) as [->|EwSv]; [exact HSvt|].
+        exact (proj1 (HtA w Ewv EwSv)). }
+      assert (HclA : forall w, w <> v -> FOfree_in w A' = false).
+      { intros w Ewv.
+        destruct (Nat.eqb_spec w (S v)) as [->|EwSv].
+        - specialize (Hcl (S v)). cbn -[Nat.eqb] in Hcl.
+          rewrite EvSv, !Nat.eqb_refl in Hcl. cbn in Hcl.
+          exact Hcl.
+        - exact (proj2 (HtA w Ewv EwSv)). }
+      assert (HclI : forall i w,
+          FOfree_in w (FOsubst_num v i A') = false).
+      { intros i w. rewrite FOfree_in_subst_num.
+        destruct (Nat.eqb_spec w v) as [->|Ew]; [reflexivity|].
+        exact (HclA w Ew). }
+      assert (HszI : forall i, FOfsize (FOsubst_num v i A') <= s).
+      { intro i. rewrite FOfsize_subst_num. lia. }
+      split.
+      * intro Hsat.
+        assert (Hinst : forall i, i < FOeval (fun _ => 0) t ->
+            FOProvesTn n (FOsubst_num v i A')).
+        { intros i Hik.
+          assert (HsatI : FOsat (fun _ => 0) (FOsubst_num v i A')).
+          { apply (proj2 (FOsat_subst_num A' v i (fun _ => 0))).
+            cbn -[Nat.eqb FOupdate] in Hsat.
+            specialize (Hsat i). apply Hsat.
+            cbn -[Nat.eqb FOupdate].
+            exists (FOeval (fun _ => 0) t - i - 1).
+            rewrite (FOeval_update_not_in t _ (S v)
+                       (FOeval (fun _ => 0) t - i - 1)
+                       (FOclosed_in_false t (S v) Hct)).
+            rewrite (FOeval_update_not_in t _ v i
+                       (FOclosed_in_false t v Hct)).
+            unfold FOupdate.
+            rewrite EvSv, !Nat.eqb_refl.
+            cbn. lia. }
+          exact (proj1 (IHs (FOsubst_num v i A') (HszI i)
+                          (FOdelta0_subst_num A' v i HA') (HclI i) n)
+                   HsatI). }
+        pose proof (FOPr_closed_term_eval n t Hct) as Hkt.
+        pose proof (FOProvesTn_Gen n (S v) _
+                      (FOPr_swap_mp n _ _ _
+                         (FOProvesTn_EqTrans n
+                            (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t
+                            (FOnumeral (FOeval (fun _ => 0) t))) Hkt)) as GPT.
+        pose proof (FOPr_ex_mono n (S v)
+                      (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t)
+                      (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                            (FOnumeral (FOeval (fun _ => 0) t))) GPT)
+          as CONV.
+        pose proof (FOPr_ball_intro_num n v (FOeval (fun _ => 0) t) A'
+                      Hinst) as BI.
+        unfold FOBall in BI.
+        rewrite FOLtF_var_num in BI.
+        pose proof (FOProvesTn_AllElimT n v (FOVar v)
+                      (FOImplF
+                         (FOExists (S v)
+                            (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                                  (FOnumeral (FOeval (fun _ => 0) t))))
+                         A')
+                      (FOsubst_ok_var_self _ v)) as AE.
+        rewrite (FOsubst_f_id _ v) in AE.
+        pose proof (FOProvesTn_MP n _ _ AE BI) as OPEN.
+        apply FOProvesTn_Gen.
+        exact (FOPr_compose n _ _ _ CONV OPEN).
+      * intro Hnsat.
+        assert (Hex : exists w0,
+            FOsat (FOupdate (fun _ => 0) v w0)
+              (FOExists (S v)
+                 (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t))
+            /\ ~ FOsat (FOupdate (fun _ => 0) v w0) A').
+        { apply NNPP. intro Hno. apply Hnsat. cbn. intros w0 HsatLT.
+          destruct (classic (FOsat (FOupdate (fun _ => 0) v w0) A'))
+            as [|Hna]; [assumption|].
+          exfalso. apply Hno. exists w0. split; [exact HsatLT | exact Hna]. }
+        destruct Hex as [w0 [HsatLT HnsatA]].
+        assert (Hwk : w0 < FOeval (fun _ => 0) t).
+        { cbn -[Nat.eqb FOupdate] in HsatLT. destruct HsatLT as [z Hz].
+          rewrite (FOeval_update_not_in t _ (S v) z
+                     (FOclosed_in_false t (S v) Hct)) in Hz.
+          rewrite (FOeval_update_not_in t _ v w0
+                     (FOclosed_in_false t v Hct)) in Hz.
+          unfold FOupdate in Hz.
+          rewrite EvSv, !Nat.eqb_refl in Hz.
+          cbn in Hz. lia. }
+        assert (HnsI : ~ FOsat (fun _ => 0) (FOsubst_num v w0 A')).
+        { intro Hx. apply HnsatA.
+          exact (proj1 (FOsat_subst_num A' v w0 (fun _ => 0)) Hx). }
+        pose proof (proj2 (IHs (FOsubst_num v w0 A') (HszI w0)
+                             (FOdelta0_subst_num A' v w0 HA')
+                             (HclI w0) n) HnsI) as HnegI.
+        assert (ESvv : Nat.eqb (S v) v = false) by (apply Nat.eqb_neq; lia).
+        pose proof (FOProvesTn_AllElimNum n v w0
+                      (FOImplF
+                         (FOExists (S v)
+                            (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                                  t))
+                         A')) as AE.
+        assert (HsltI : FOsubst_num v w0
+            (FOImplF
+               (FOExists (S v)
+                  (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t))
+               A')
+          = FOImplF
+              (FOExists (S v)
+                 (FOEq (FOPlus (FOnumeral w0) (FOSucc (FOVar (S v)))) t))
+              (FOsubst_num v w0 A')).
+        { cbn -[Nat.eqb]. rewrite ESvv, Nat.eqb_refl,
+            (FOsubst_tm_closed t v w0 Hct). reflexivity. }
+        rewrite HsltI in AE.
+        assert (Hse : FOsubst_num (S v)
+            (FOeval (fun _ => 0) t - w0 - 1)
+            (FOEq (FOPlus (FOnumeral w0) (FOSucc (FOVar (S v)))) t)
+          = FOEq (FOPlus (FOnumeral w0)
+                   (FOSucc (FOnumeral (FOeval (fun _ => 0) t - w0 - 1))))
+              t).
+        { cbn -[Nat.eqb]. rewrite Nat.eqb_refl, FOsubst_tm_numeral,
+            (FOsubst_tm_closed t (S v) _ Hct). reflexivity. }
+        pose proof (FOProvesTn_ExIntroNum n (S v)
+                      (FOeval (fun _ => 0) t - w0 - 1)
+                      (FOEq (FOPlus (FOnumeral w0) (FOSucc (FOVar (S v))))
+                            t)) as EXI.
+        rewrite Hse in EXI.
+        assert (Heqt : FOProvesTn n
+            (FOEq (FOPlus (FOnumeral w0)
+                     (FOSucc (FOnumeral (FOeval (fun _ => 0) t - w0 - 1))))
+                  t)).
+        { apply FOPr_closed_eq_true.
+          - cbn. split; [apply FOclosed_numeral | apply FOclosed_numeral].
+          - exact Hct.
+          - change (FOeval (fun _ => 0) (FOnumeral w0)
+                      + S (FOeval (fun _ => 0)
+                             (FOnumeral (FOeval (fun _ => 0) t - w0 - 1)))
+                    = FOeval (fun _ => 0) t).
+            rewrite !FOeval_numeral. lia. }
+        pose proof (FOProvesTn_MP n _ _ EXI Heqt) as HLT.
+        pose proof (FOPr_swap_mp n _ _ _ AE HLT) as T2.
+        exact (FOPr_compose n _ _ _ T2 HnegI).
+Qed.
+
+Theorem FOsigma1_completeness : forall s A,
+  FOfsize A <= s ->
+  FOsigma1 A -> (forall v, FOfree_in v A = false) ->
+  FOsat (fun _ => 0) A -> forall n, FOProvesTn n A.
+Proof.
+  induction s as [|s IHs]; intros A Hsz HS Hcl Hsat n.
+  - destruct A; cbn in Hsz; lia.
+  - destruct HS as [A HD | x A HS'].
+    + exact (proj1 (FOdelta0_decided (S s) A Hsz HD Hcl n) Hsat).
+    + cbn in Hsat. destruct Hsat as [w Hw].
+      apply (FOProvesTn_MP n _ _ (FOProvesTn_ExIntroNum n x w A)).
+      apply (IHs (FOsubst_num x w A)).
+      * rewrite FOfsize_subst_num. cbn in Hsz. lia.
+      * apply FOsigma1_subst_num. exact HS'.
+      * intro v0. rewrite FOfree_in_subst_num.
+        destruct (Nat.eqb_spec v0 x) as [->|Ev]; [reflexivity|].
+        specialize (Hcl v0). cbn -[Nat.eqb] in Hcl.
+        assert (Exv : Nat.eqb x v0 = false)
+          by (apply Nat.eqb_neq; intro e; apply Ev; symmetry; exact e).
+        rewrite Exv in Hcl. exact Hcl.
+      * exact (proj2 (FOsat_subst_num A x w (fun _ => 0)) Hw).
+Qed.
+
+Theorem FOsigma1_completeness_closed : forall A,
+  FOsigma1 A -> (forall v, FOfree_in v A = false) ->
+  FOsat (fun _ => 0) A -> forall n, FOProvesTn n A.
+Proof.
+  intros A HS Hcl Hsat n.
+  exact (FOsigma1_completeness (FOfsize A) A (Nat.le_refl _) HS Hcl Hsat n).
+Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
