@@ -13692,6 +13692,248 @@ Proof.
     rewrite !FOeval_numeral. lia.
 Qed.
 
+Lemma FOsubst_t_numeral : forall x s m,
+  FOsubst_t x s (FOnumeral m) = FOnumeral m.
+Proof.
+  intros x s m. induction m as [|m IH]; cbn;
+    [reflexivity | rewrite IH; reflexivity].
+Qed.
+
+(** The case split below a successor numeral bound: anything below
+    [S k] is below [k] or equal to [k], provably. *)
+
+Lemma FOPr_lt_succ_cases : forall n v k,
+  FOProvesTn n (FOImplF (FOLtF (FOVar v) (FOnumeral (S k)))
+                  (FOOr (FOLtF (FOVar v) (FOnumeral k))
+                        (FOEq (FOVar v) (FOnumeral k)))).
+Proof.
+  intros n v k.
+  rewrite !FOLtF_var_num.
+  assert (E1 : Nat.eqb v (S v) = false) by (apply Nat.eqb_neq; lia).
+  assert (E2 : Nat.eqb v (S (S v)) = false) by (apply Nat.eqb_neq; lia).
+  assert (E3 : Nat.eqb (S v) (S (S v)) = false) by (apply Nat.eqb_neq; lia).
+  assert (Hside1 : FOfree_in (S v)
+      (FOOr (FOExists (S v)
+               (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) (FOnumeral k)))
+            (FOEq (FOVar v) (FOnumeral k))) = false).
+  { cbn -[Nat.eqb]. rewrite Nat.eqb_refl, E1, !FOin_tm_numeral. reflexivity. }
+  apply (FOProvesTn_MP n _ _
+          (FOProvesTn_ExElim n (S v)
+             (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) (FOnumeral (S k)))
+             (FOOr (FOExists (S v)
+                      (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                            (FOnumeral k)))
+                   (FOEq (FOVar v) (FOnumeral k))) Hside1)).
+  apply FOProvesTn_Gen.
+  pose proof (FOPr_q_plus_succ n (FOVar v) (FOVar (S v))) as P1.
+  pose proof (FOProvesTn_MP n _ _
+                (FOProvesTn_EqSym n
+                   (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                   (FOSucc (FOPlus (FOVar v) (FOVar (S v))))) P1) as P1'.
+  pose proof (FOProvesTn_MP n _ _
+                (FOProvesTn_EqTrans n
+                   (FOSucc (FOPlus (FOVar v) (FOVar (S v))))
+                   (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                   (FOnumeral (S k))) P1') as U1.
+  pose proof (FOPr_compose n _ _ _ U1
+                (FOPr_q_succ_inj n (FOPlus (FOVar v) (FOVar (S v)))
+                   (FOnumeral k))) as U2.
+  pose proof (FOProvesTn_MP n _ _
+                (FOProvesTn_CongPlus n (FOVar v) (FOVar v) (FOVar (S v))
+                   FOZero)
+                (FOProvesTn_EqRefl n (FOVar v))) as Z1.
+  pose proof (FOPr_swap_mp n _ _ _
+                (FOProvesTn_EqTrans n
+                   (FOPlus (FOVar v) (FOVar (S v)))
+                   (FOPlus (FOVar v) FOZero) (FOVar v))
+                (FOPr_q_plus_zero n (FOVar v))) as Z2.
+  pose proof (FOPr_compose n _ _ _ Z1 Z2) as Z3.
+  pose proof (FOPr_compose n _ _ _ Z3
+                (FOProvesTn_EqSym n (FOPlus (FOVar v) (FOVar (S v)))
+                   (FOVar v))) as Z4.
+  pose proof (FOPr_compose n _ _ _ Z4
+                (FOProvesTn_EqTrans n (FOVar v)
+                   (FOPlus (FOVar v) (FOVar (S v))) (FOnumeral k))) as Z5.
+  pose proof (FOPr_mp2 n _ _ _
+                (FOPr_absorb2 n (FOEq (FOVar (S v)) FOZero)
+                   (FOEq (FOPlus (FOVar v) (FOVar (S v))) (FOnumeral k))
+                   (FOEq (FOVar v) (FOnumeral k))
+                   (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                         (FOnumeral (S k))))
+                Z5 U2) as Z6.
+  pose proof (FOPr_mp2 n _ _ _
+                (FOPr_compose2 n (FOEq (FOVar (S v)) FOZero)
+                   (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                         (FOnumeral (S k)))
+                   (FOEq (FOVar v) (FOnumeral k))
+                   (FOOr (FOExists (S v)
+                            (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                                  (FOnumeral k)))
+                         (FOEq (FOVar v) (FOnumeral k))))
+                Z6
+                (FOPr_or_intro_r n
+                   (FOExists (S v)
+                      (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                            (FOnumeral k)))
+                   (FOEq (FOVar v) (FOnumeral k)))) as BZ.
+  assert (Hsub : FOsubst_f (S v) (FOVar (S (S v)))
+      (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) (FOnumeral k))
+    = FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S (S v))))) (FOnumeral k)).
+  { cbn -[Nat.eqb]. rewrite E1, Nat.eqb_refl, FOsubst_t_numeral.
+    reflexivity. }
+  pose proof (FOProvesTn_ExIntroT n (S v) (FOVar (S (S v)))
+                (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                      (FOnumeral k)) eq_refl) as EXI.
+  rewrite Hsub in EXI.
+  pose proof (FOPr_compose n _ _ _ EXI
+                (FOPr_or_intro_l n
+                   (FOExists (S v)
+                      (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                            (FOnumeral k)))
+                   (FOEq (FOVar v) (FOnumeral k)))) as LF.
+  pose proof (FOProvesTn_MP n _ _
+                (FOProvesTn_CongPlus n (FOVar v) (FOVar v) (FOVar (S v))
+                   (FOSucc (FOVar (S (S v)))))
+                (FOProvesTn_EqRefl n (FOVar v))) as S1.
+  pose proof (FOPr_swap_mp n _ _ _
+                (FOProvesTn_EqTrans n
+                   (FOPlus (FOVar v) (FOVar (S v)))
+                   (FOPlus (FOVar v) (FOSucc (FOVar (S (S v)))))
+                   (FOSucc (FOPlus (FOVar v) (FOVar (S (S v))))))
+                (FOPr_q_plus_succ n (FOVar v) (FOVar (S (S v))))) as S2.
+  pose proof (FOPr_compose n _ _ _ S1 S2) as S3.
+  pose proof (FOPr_compose n _ _ _ S3
+                (FOProvesTn_EqSym n (FOPlus (FOVar v) (FOVar (S v)))
+                   (FOSucc (FOPlus (FOVar v) (FOVar (S (S v))))))) as S4.
+  pose proof (FOPr_compose n _ _ _ S4
+                (FOProvesTn_EqTrans n
+                   (FOSucc (FOPlus (FOVar v) (FOVar (S (S v)))))
+                   (FOPlus (FOVar v) (FOVar (S v)))
+                   (FOnumeral k))) as S5.
+  pose proof (FOPr_mp2 n _ _ _
+                (FOPr_absorb2 n
+                   (FOEq (FOVar (S v)) (FOSucc (FOVar (S (S v)))))
+                   (FOEq (FOPlus (FOVar v) (FOVar (S v))) (FOnumeral k))
+                   (FOEq (FOSucc (FOPlus (FOVar v) (FOVar (S (S v)))))
+                         (FOnumeral k))
+                   (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                         (FOnumeral (S k))))
+                S5 U2) as S6.
+  pose proof (FOProvesTn_MP n _ _
+                (FOProvesTn_EqTrans n
+                   (FOPlus (FOVar v) (FOSucc (FOVar (S (S v)))))
+                   (FOSucc (FOPlus (FOVar v) (FOVar (S (S v)))))
+                   (FOnumeral k))
+                (FOPr_q_plus_succ n (FOVar v) (FOVar (S (S v))))) as CONV.
+  pose proof (FOPr_mp2 n _ _ _
+                (FOPr_compose2 n
+                   (FOEq (FOVar (S v)) (FOSucc (FOVar (S (S v)))))
+                   (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                         (FOnumeral (S k)))
+                   (FOEq (FOSucc (FOPlus (FOVar v) (FOVar (S (S v)))))
+                         (FOnumeral k))
+                   (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S (S v)))))
+                         (FOnumeral k)))
+                S6 CONV) as S7.
+  pose proof (FOPr_mp2 n _ _ _
+                (FOPr_compose2 n
+                   (FOEq (FOVar (S v)) (FOSucc (FOVar (S (S v)))))
+                   (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                         (FOnumeral (S k)))
+                   (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S (S v)))))
+                         (FOnumeral k))
+                   (FOOr (FOExists (S v)
+                            (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                                  (FOnumeral k)))
+                         (FOEq (FOVar v) (FOnumeral k))))
+                S7 LF) as CORE2.
+  pose proof (FOProvesTn_Gen n (S (S v)) _ CORE2) as G2.
+  assert (Hside2 : FOfree_in (S (S v))
+      (FOImplF (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                     (FOnumeral (S k)))
+               (FOOr (FOExists (S v)
+                        (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                              (FOnumeral k)))
+                     (FOEq (FOVar v) (FOnumeral k)))) = false).
+  { cbn -[Nat.eqb]. rewrite E2, E3, !FOin_tm_numeral. reflexivity. }
+  pose proof (FOProvesTn_MP n _ _
+                (FOProvesTn_ExElim n (S (S v))
+                   (FOEq (FOVar (S v)) (FOSucc (FOVar (S (S v)))))
+                   (FOImplF (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                                  (FOnumeral (S k)))
+                            (FOOr (FOExists (S v)
+                                     (FOEq (FOPlus (FOVar v)
+                                              (FOSucc (FOVar (S v))))
+                                           (FOnumeral k)))
+                                  (FOEq (FOVar v) (FOnumeral k)))) Hside2)
+                G2) as BS.
+  pose proof (FOProvesTn_ax n _
+                (FOAx_RQ n _ (RQ_zero_or_succ (FOVar (S v))))) as ORAX.
+  exact (FOPr_case n (FOEq (FOVar (S v)) FOZero)
+           (FOExists (S (S v))
+              (FOEq (FOVar (S v)) (FOSucc (FOVar (S (S v))))))
+           (FOImplF (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                          (FOnumeral (S k)))
+                    (FOOr (FOExists (S v)
+                             (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v))))
+                                   (FOnumeral k)))
+                          (FOEq (FOVar v) (FOnumeral k))))
+           ORAX BZ BS).
+Qed.
+
+(** The bounded universal quantifier, with introduction from its
+    finitely many numeral instances and refutation from one failing
+    instance. *)
+
+Definition FOBall (v : nat) (t : FOTerm) (A : FOFormula) : FOFormula :=
+  FOForall v (FOImplF (FOLtF (FOVar v) t) A).
+
+Lemma FOPr_ball_intro_num : forall n v k A,
+  (forall i, i < k -> FOProvesTn n (FOsubst_num v i A)) ->
+  FOProvesTn n (FOBall v (FOnumeral k) A).
+Proof.
+  intros n v k A. induction k as [|k IH]; intros Hinst.
+  - unfold FOBall. apply FOProvesTn_Gen.
+    exact (FOPr_compose n _ _ _ (FOPr_not_lt_zero n (FOVar v))
+             (FOPr_efq n A)).
+  - unfold FOBall. apply FOProvesTn_Gen.
+    pose proof (IH (fun i Hi => Hinst i (Nat.lt_lt_succ_r i k Hi))) as IHb.
+    pose proof (FOProvesTn_AllElimT n v (FOVar v)
+                  (FOImplF (FOLtF (FOVar v) (FOnumeral k)) A)
+                  (FOsubst_ok_var_self
+                     (FOImplF (FOLtF (FOVar v) (FOnumeral k)) A) v)) as AE.
+    rewrite (FOsubst_f_id (FOImplF (FOLtF (FOVar v) (FOnumeral k)) A) v)
+      in AE.
+    pose proof (FOProvesTn_MP n _ _ AE IHb) as Blt.
+    pose proof (Hinst k (Nat.lt_succ_diag_r k)) as Hk.
+    pose proof (FOPr_f_leibniz A n v (FOnumeral k) (FOVar v)
+                  (FOsubst_ok_numeral A v k) (FOsubst_ok_var_self A v)) as LB.
+    rewrite (FOsubst_f_id A v) in LB.
+    rewrite (FOsubst_f_num A v k) in LB.
+    pose proof (FOPr_compose n _ _ _
+                  (FOProvesTn_EqSym n (FOVar v) (FOnumeral k)) LB) as LB'.
+    pose proof (FOPr_swap_mp n _ _ _ LB' Hk) as Beq.
+    pose proof (FOPr_lt_succ_cases n v k) as CS.
+    pose proof (FOPr_or_elim n (FOLtF (FOVar v) (FOnumeral k))
+                  (FOEq (FOVar v) (FOnumeral k)) A) as OE.
+    exact (FOPr_compose n _ _ _ CS
+            (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ OE Blt) Beq)).
+Qed.
+
+Lemma FOPr_ball_refute_num : forall n v k A i,
+  i < k ->
+  FOProvesTn n (FONeg (FOsubst_num v i A)) ->
+  FOProvesTn n (FONeg (FOBall v (FOnumeral k) A)).
+Proof.
+  intros n v k A i Hik Hneg.
+  pose proof (FOProvesTn_AllElimNum n v i
+                (FOImplF (FOLtF (FOVar v) (FOnumeral k)) A)) as AE.
+  cbn [FOsubst_num] in AE.
+  pose proof (FOPr_lt_subst_inst n v i k Hik) as Hlt.
+  pose proof (FOPr_swap_mp n _ _ _ AE Hlt) as T2.
+  exact (FOPr_compose n _ _ _ T2 Hneg).
+Qed.
+
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
   FOAxiomTn m (FOConSentence n) -> n < m.
 Proof.
