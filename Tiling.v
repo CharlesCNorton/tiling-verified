@@ -20085,6 +20085,48 @@ Definition FOTBLVALID (B : nat)
     (FOSTEPDISPATCH (B+2) ct dt c1 d1 c2 d2 c3 d3 cr dr len
        (FOVar B)).
 
+Lemma dispatch_sem_ext : forall L L' vct vdt vc1 vd1 vc2 vd2 vc3 vd3
+    vcr vdr vj,
+  (forall a b c d f, L a b c d f <-> L' a b c d f) ->
+  (dispatch_sem L vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vj
+   <-> dispatch_sem L' vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vj).
+Proof.
+  intros L L' vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vj HL.
+  unfold dispatch_sem.
+  apply Morphisms_Prop.ex_iff_morphism. intro tg.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  apply Morphisms_Prop.ex_iff_morphism. intro a1.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  apply Morphisms_Prop.ex_iff_morphism. intro a2.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  apply Morphisms_Prop.ex_iff_morphism. intro a3.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  apply Morphisms_Prop.ex_iff_morphism. intro rr.
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  apply Morphisms_Prop.and_iff_morphism; [tauto|].
+  apply Morphisms_Prop.or_iff_morphism.
+  { apply Morphisms_Prop.and_iff_morphism; [tauto|].
+    apply step0_sem_ext. exact HL. }
+  apply Morphisms_Prop.or_iff_morphism.
+  { apply Morphisms_Prop.and_iff_morphism; [tauto|].
+    apply step1_sem_ext. exact HL. }
+  apply Morphisms_Prop.or_iff_morphism.
+  { apply Morphisms_Prop.and_iff_morphism; [tauto|].
+    apply step2_sem_ext. exact HL. }
+  apply Morphisms_Prop.or_iff_morphism.
+  { apply Morphisms_Prop.and_iff_morphism; [tauto|].
+    apply step3_sem_ext. exact HL. }
+  apply Morphisms_Prop.or_iff_morphism.
+  { apply Morphisms_Prop.and_iff_morphism; [tauto|].
+    apply step4_sem_ext. exact HL. }
+  { apply Morphisms_Prop.and_iff_morphism; [tauto|].
+    apply step5_sem_ext. exact HL. }
+Qed.
+
 Lemma FOdelta0_FOTBLVALID : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len,
   tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
   FOdelta0 (FOTBLVALID B ct dt c1 d1 c2 d2 c3 d3 cr dr len).
@@ -20099,6 +20141,51 @@ Proof.
   apply FOdelta0_FOBallC;
     [apply FOin_tm_above; lia | apply FOin_tm_above; lia |].
   apply FOdelta0_FOSTEPDISPATCH; [exact Htb2 | cbn; lia].
+Qed.
+
+Lemma FOsat_FOTBLVALID : forall e B ct dt c1 d1 c2 d2 c3 d3 cr dr len,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  (FOsat e (FOTBLVALID B ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+   <-> forall vj, vj < FOeval e len ->
+       dispatch_sem
+         (fun tg x1 x2 x3 rr => exists j', j' < FOeval e len /\
+            beta (FOeval e ct) (FOeval e dt) j' = tg /\
+            beta (FOeval e c1) (FOeval e d1) j' = x1 /\
+            beta (FOeval e c2) (FOeval e d2) j' = x2 /\
+            beta (FOeval e c3) (FOeval e d3) j' = x3 /\
+            beta (FOeval e cr) (FOeval e dr) j' = rr)
+         (FOeval e ct) (FOeval e dt) (FOeval e c1) (FOeval e d1)
+         (FOeval e c2) (FOeval e d2) (FOeval e c3) (FOeval e d3)
+         (FOeval e cr) (FOeval e dr) vj).
+Proof.
+  intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len Htb.
+  pose proof Htb as Htb'.
+  destruct Htb' as [Hct [Hdt [Hc1 [Hd1 [Hc2 [Hd2 [Hc3 [Hd3
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  assert (Htb2 : tbl_below (B+2) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  unfold FOTBLVALID.
+  rewrite (FOsat_FOBallC e B len _
+             (FOin_tm_above len B ltac:(lia))
+             (FOin_tm_above len (S B) ltac:(lia))).
+  apply Morphisms_Prop.all_iff_morphism. intro vj.
+  apply Morphisms_Prop.iff_iff_iff_impl_morphism; [tauto|].
+  set (e1 := FOupdate e B vj).
+  assert (Eu1 : forall t0, FOmax_var_tm t0 < B ->
+      FOeval e1 t0 = FOeval e t0).
+  { intros t0 Ht0. unfold e1. exact (FOeval_upd_above t0 e B vj Ht0). }
+  assert (EvB : FOeval e1 (FOVar B) = vj).
+  { unfold e1. cbn. unfold FOupdate.
+    rewrite Nat.eqb_refl. reflexivity. }
+  rewrite (FOsat_FOSTEPDISPATCH e1 (B+2) ct dt c1 d1 c2 d2 c3 d3 cr dr
+             len (FOVar B) Htb2 ltac:(cbn; lia)).
+  rewrite (Eu1 ct Hct), (Eu1 dt Hdt), (Eu1 c1 Hc1), (Eu1 d1 Hd1),
+    (Eu1 c2 Hc2), (Eu1 d2 Hd2), (Eu1 c3 Hc3), (Eu1 d3 Hd3),
+    (Eu1 cr Hcr), (Eu1 dr Hdr), EvB.
+  apply dispatch_sem_ext.
+  intros a b c d f.
+  setoid_rewrite (Eu1 len Hlen).
+  reflexivity.
 Qed.
 
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
