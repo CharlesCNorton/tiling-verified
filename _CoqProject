@@ -11,7 +11,6 @@ Agents.v
 Tiling.v
 ModalSambin.v
 GLPDecidability.v
-JaparidzeTree.v
 LambdaBox.v
 CraigPolymodal.v
 ReverseMath.v
