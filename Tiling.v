@@ -12119,10 +12119,10 @@ Inductive FORobinsonQ : FOFormula -> Prop :=
       FORobinsonQ (FOImplF (FOEq (FOSucc a) (FOSucc b)) (FOEq a b))
   | RQ_S_nonzero : forall a,
       FORobinsonQ (FONeg (FOEq (FOSucc a) FOZero))
-  | RQ_zero_or_succ : forall a,
-      FORobinsonQ (FOImplF (FONeg (FOEq a FOZero))
-                            (FOExists (S (FOmax_var_tm a))
-                               (FOEq a (FOSucc (FOVar (S (FOmax_var_tm a)))))))
+  | RQ_zero_or_succ : forall x,
+      FORobinsonQ (FOImplF (FONeg (FOEq (FOVar x) FOZero))
+                            (FOExists (S x)
+                               (FOEq (FOVar x) (FOSucc (FOVar (S x))))))
   | RQ_plus_zero : forall a,
       FORobinsonQ (FOEq (FOPlus a FOZero) a)
   | RQ_plus_succ : forall a b,
@@ -12525,10 +12525,9 @@ Definition FOis_RQ (A : FOFormula) : bool :=
   | FOImplF (FOEq (FOSucc a) (FOSucc b)) (FOEq a' b') =>
       FOterm_eqb a a' && FOterm_eqb b b'
   | FOImplF (FOEq (FOSucc a) FOZero) FOFalseF => true
-  | FOImplF (FOImplF (FOEq a FOZero) FOFalseF)
-            (FOExists w (FOEq a' (FOSucc (FOVar w')))) =>
-      FOterm_eqb a a' && Nat.eqb w (S (FOmax_var_tm a))
-        && Nat.eqb w' (S (FOmax_var_tm a))
+  | FOImplF (FOImplF (FOEq (FOVar x) FOZero) FOFalseF)
+            (FOExists w (FOEq (FOVar x') (FOSucc (FOVar w')))) =>
+      Nat.eqb x x' && Nat.eqb w (S x) && Nat.eqb w' (S x)
   | FOEq (FOPlus a FOZero) a' => FOterm_eqb a a'
   | FOEq (FOPlus a (FOSucc b)) (FOSucc (FOPlus a' b')) =>
       FOterm_eqb a a' && FOterm_eqb b b'
@@ -12904,10 +12903,10 @@ Proof. intro A. apply FOform_eqb_eq. reflexivity. Qed.
 
 Lemma FOis_RQ_complete : forall A, FORobinsonQ A -> FOis_RQ A = true.
 Proof.
-  intros A H. destruct H as [a b | a | a | a | a b | a | a b]; cbn.
+  intros A H. destruct H as [a b | a | x | a | a b | a | a b]; cbn.
   - rewrite !FOterm_eqb_refl. reflexivity.
   - reflexivity.
-  - rewrite FOterm_eqb_refl, !Nat.eqb_refl. reflexivity.
+  - rewrite !Nat.eqb_refl. reflexivity.
   - rewrite FOterm_eqb_refl. reflexivity.
   - rewrite !FOterm_eqb_refl. reflexivity.
   - reflexivity.
@@ -12949,18 +12948,20 @@ Proof.
         apply FOterm_eqb_eq in H1, H2. subst a' b'.
         apply RQ_S_inj.
     + destruct L1 as [a z | | M1 M2 | y B | y B]; try discriminate.
+      destruct a as [x | | s | u1 u2 | u1 u2]; try discriminate.
       destruct z as [y | | s | u1 u2 | u1 u2]; try discriminate.
       destruct L2 as [u1 u2 | | M1 M2 | y B | y B]; try discriminate.
       destruct R as [u1 u2 | | R1 R2 | y B | w RB]; try discriminate.
       destruct RB as [a' su | | R1 R2 | y B | y B]; try discriminate.
+      destruct a' as [x' | | s | u1 u2 | u1 u2]; try discriminate.
       destruct su as [y | | sv | u1 u2 | u1 u2]; try discriminate.
       destruct sv as [w' | | s | u1 u2 | u1 u2]; try discriminate.
       cbn in H.
       apply Bool.andb_true_iff in H. destruct H as [H Hw'].
-      apply Bool.andb_true_iff in H. destruct H as [Ha Hw].
-      apply FOterm_eqb_eq in Ha. apply Nat.eqb_eq in Hw, Hw'.
-      subst a' w w'.
-      exact (RQ_zero_or_succ a).
+      apply Bool.andb_true_iff in H. destruct H as [Hx Hw].
+      apply Nat.eqb_eq in Hx, Hw, Hw'.
+      subst x' w w'.
+      exact (RQ_zero_or_succ x).
 Qed.
 
 Lemma FOis_K_sound : forall n A, FOis_K A = true -> FOProvesTn n A.
@@ -13942,15 +13943,16 @@ Proof.
                  | x t phi Hok | x t phi Hok | x phi psi Hnf
                  | y P Q | y Hf R Hnf2]; intro e.
   - destruct Hax as [n1 phi1 HQ | n1 k Hk].
-    + destruct HQ as [a b | a | a | a | a b | a | a b]; cbn.
+    + destruct HQ as [a b | a | x | a | a b | a | a b]; cbn.
       * intro Hab. lia.
       * intro Ha. lia.
       * intro Hne.
-        destruct (FOeval e a) as [|m] eqn:Ea.
+        destruct (e x) as [|m] eqn:Ex.
         { exfalso. apply Hne. reflexivity. }
         { exists m.
-          rewrite (FOeval_update_above a); [|lia].
-          try unfold FOupdate. rewrite Nat.eqb_refl. cbn. exact Ea. }
+          assert (Exx : Nat.eqb x (S x) = false) by (apply Nat.eqb_neq; lia).
+          try unfold FOupdate.
+          rewrite Exx, Nat.eqb_refl. cbn. exact Ex. }
       * lia.
       * lia.
       * lia.
@@ -14737,7 +14739,7 @@ Proof.
                                   (FOEq (FOVar v) (FOnumeral k)))) Hside2)
                 G2) as BS.
   pose proof (FOProvesTn_ax n _
-                (FOAx_RQ n _ (RQ_zero_or_succ (FOVar (S v))))) as ORAX.
+                (FOAx_RQ n _ (RQ_zero_or_succ (S v)))) as ORAX.
   exact (FOPr_case n (FOEq (FOVar (S v)) FOZero)
            (FOExists (S (S v))
               (FOEq (FOVar (S v)) (FOSucc (FOVar (S (S v))))))
