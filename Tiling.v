@@ -14534,6 +14534,142 @@ Proof.
   - intros q _. exact (non_trivial_action_changes_form q).
 Qed.
 
+(** ** Self-modification chain under arithmetic interpretation.
+
+    [selfmod_chain A n] iterates "keep the current decision, or adopt
+    its Box-licensed form" n times from [agent_decision A (Var 0)].  The
+    decision entails every stage, and an arithmetic interpretation
+    transports that entailment to the goal. *)
+
+Fixpoint selfmod_chain (A : AgentRecord) (n : nat) : Form :=
+  match n with
+  | 0 => agent_decision A (Var 0)
+  | S k => Or (selfmod_chain A k) (Box_licenses_via_agent A (selfmod_chain A k))
+  end.
+
+Theorem selfmod_chain_zero : forall A,
+  selfmod_chain A 0 = agent_decision A (Var 0).
+Proof. reflexivity. Qed.
+
+Theorem selfmod_chain_succ : forall A k,
+  selfmod_chain A (S k) =
+  Or (selfmod_chain A k)
+     (Box (agent_level A) (agent_licenses A (selfmod_chain A k))).
+Proof. reflexivity. Qed.
+
+Theorem selfmod_chain_not_constant_goal :
+  exists A n, selfmod_chain A n <> agent_goal A.
+Proof. exists (canonical_box_n_agent 0 Top), 0. cbn. discriminate. Qed.
+
+Theorem selfmod_chain_zero_not_Bot :
+  exists A, selfmod_chain A 0 <> Bot.
+Proof. exists (canonical_box_n_agent 0 Top). cbn. discriminate. Qed.
+
+Theorem selfmod_chain_stages_distinct :
+  exists A n, selfmod_chain A n <> selfmod_chain A (S n).
+Proof. exists (canonical_box_n_agent 0 Top), 0. cbn. discriminate. Qed.
+
+Lemma selfmod_chain_step : forall A k,
+  |- Impl (selfmod_chain A k) (selfmod_chain A (S k)).
+Proof. intros A k. cbn [selfmod_chain]. apply prov_or_intro_l. Qed.
+
+Lemma decision_to_chain : forall A n,
+  |- Impl (agent_decision A (Var 0)) (selfmod_chain A n).
+Proof.
+  intros A n. induction n as [|k IH].
+  - cbn. apply prov_id.
+  - exact (prov_compose _ _ _ IH (selfmod_chain_step A k)).
+Qed.
+
+Lemma arith_interp_pushes_provable_impl : forall I,
+  is_arithmetic_interpretation I ->
+  forall a b, |- Impl a b -> |- Impl (I a) (I b).
+Proof.
+  intros I [Hpres Hdist] a b H. apply Hdist. apply Hpres. exact H.
+Qed.
+
+Theorem tiling_succeeds_under_arithmetic_interpretation :
+  forall (A : AgentRecord) (G : Form),
+  agent_goal A = G ->
+  (forall I, is_arithmetic_interpretation I ->
+     (forall n, |- Impl (I (selfmod_chain A n)) (I G))) ->
+  forall I, is_arithmetic_interpretation I ->
+  forall n : nat, |- Impl (I (agent_decision A (Var 0))) (I G).
+Proof.
+  intros A G HG Hstages I HI n.
+  pose proof (arith_interp_pushes_provable_impl I HI _ _
+                (decision_to_chain A n)) as Hpush.
+  exact (prov_compose _ _ _ Hpush (Hstages I HI n)).
+Qed.
+
+Theorem tiling_succeeds_strong :
+  forall (A : AgentRecord) (G : Form),
+  agent_goal A = G ->
+  (forall I, is_arithmetic_interpretation I ->
+     forall n, 1 <= n -> |- Impl (I (selfmod_chain A n)) (I G)) ->
+  forall I, is_arithmetic_interpretation I ->
+  |- Impl (I (agent_decision A (Var 0))) (I G).
+Proof.
+  intros A G HG Hstages I HI.
+  pose proof (arith_interp_pushes_provable_impl I HI _ _
+                (decision_to_chain A 1)) as Hpush.
+  exact (prov_compose _ _ _ Hpush (Hstages I HI 1 (Nat.le_refl 1))).
+Qed.
+
+Theorem tiling_hypothesis_nonvacuous :
+  exists (A : AgentRecord) (G : Form),
+    agent_goal A = G /\
+    (forall I, is_arithmetic_interpretation I ->
+       forall n, |- Impl (I (selfmod_chain A n)) (I G)).
+Proof.
+  exists (canonical_box_n_agent 0 Top), Top.
+  split.
+  - reflexivity.
+  - intros I HI n. destruct HI as [Hpres Hdist].
+    apply prov_weaken. apply Hpres. unfold Top. apply prov_id.
+Qed.
+
+Theorem tiling_worked_instance :
+  forall I, is_arithmetic_interpretation I ->
+  |- Impl (I (agent_decision (canonical_box_n_agent 0 Top) (Var 0))) (I Top).
+Proof.
+  intros I HI.
+  destruct (tiling_hypothesis_nonvacuous) as [A [G [HG Hstages]]].
+  exact (tiling_succeeds_under_arithmetic_interpretation
+           (canonical_box_n_agent 0 Top) Top eq_refl
+           (fun I' HI' n =>
+              match HI' with
+              | conj Hpres Hdist =>
+                  prov_weaken _ _ (Hpres _ (prov_id Bot))
+              end)
+           I HI 0).
+Qed.
+
+Theorem selfmod_chain_summary :
+  (forall A, selfmod_chain A 0 = agent_decision A (Var 0)) /\
+  (exists A n, selfmod_chain A n <> agent_goal A) /\
+  (exists A, selfmod_chain A 0 <> Bot) /\
+  (forall A n, |- Impl (agent_decision A (Var 0)) (selfmod_chain A n)) /\
+  (forall (A : AgentRecord) (G : Form),
+     agent_goal A = G ->
+     (forall I, is_arithmetic_interpretation I ->
+        (forall n, |- Impl (I (selfmod_chain A n)) (I G))) ->
+     forall I, is_arithmetic_interpretation I ->
+     forall n : nat, |- Impl (I (agent_decision A (Var 0))) (I G)) /\
+  (exists (A : AgentRecord) (G : Form),
+     agent_goal A = G /\
+     (forall I, is_arithmetic_interpretation I ->
+        forall n, |- Impl (I (selfmod_chain A n)) (I G))).
+Proof.
+  split; [|split; [|split; [|split; [|split]]]].
+  - exact selfmod_chain_zero.
+  - exact selfmod_chain_not_constant_goal.
+  - exact selfmod_chain_zero_not_Bot.
+  - exact decision_to_chain.
+  - exact tiling_succeeds_under_arithmetic_interpretation.
+  - exact tiling_hypothesis_nonvacuous.
+Qed.
+
 Definition Vingean_reflection_at (n : nat) (phi : Form) : Form :=
   Box (S n) phi.
 
