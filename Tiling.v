@@ -12255,7 +12255,14 @@ Inductive FOProvesTn (n : nat) : FOFormula -> Prop :=
   | FOProvesTn_ExElim : forall x phi psi,
       FOfree_in x psi = false ->
       FOProvesTn n (FOImplF (FOForall x (FOImplF phi psi))
-                            (FOImplF (FOExists x phi) psi)).
+                            (FOImplF (FOExists x phi) psi))
+  | FOProvesTn_AllK : forall y P Q,
+      FOProvesTn n (FOImplF (FOForall y (FOImplF P Q))
+                            (FOImplF (FOForall y P) (FOForall y Q)))
+  | FOProvesTn_AllExport : forall y H R,
+      FOfree_in y H = false ->
+      FOProvesTn n (FOImplF (FOForall y (FOImplF H R))
+                            (FOImplF H (FOForall y R))).
 
 Theorem FOAxiomTn_cumulative : forall n phi,
   FOAxiomTn n phi -> FOAxiomTn (S n) phi.
@@ -12281,7 +12288,8 @@ Proof.
   induction H as [phi Hax | phi psi | phi psi chi | phi |
                    phi psi _ IH1 _ IH2 | x phi _ IH
                    | t | a b | a b c | a b | a b c d | a b c d
-                   | x t phi Hok | x t phi Hok | x phi psi Hnf].
+                   | x t phi Hok | x t phi Hok | x phi psi Hnf
+                   | y P Q | y Hf R Hnf2].
   - apply FOProvesTn_ax. exact (FOAxiomTn_cumulative n phi Hax).
   - exact (FOProvesTn_K (S n) phi psi).
   - exact (FOProvesTn_S (S n) phi psi chi).
@@ -12297,6 +12305,8 @@ Proof.
   - exact (FOProvesTn_AllElimT (S n) x t phi Hok).
   - exact (FOProvesTn_ExIntroT (S n) x t phi Hok).
   - exact (FOProvesTn_ExElim (S n) x phi psi Hnf).
+  - exact (FOProvesTn_AllK (S n) y P Q).
+  - exact (FOProvesTn_AllExport (S n) y Hf R Hnf2).
 Qed.
 
 (** Numerals are variable-free, so numeral substitution is always
@@ -12344,6 +12354,44 @@ Proof.
   - rewrite IHB, IHC. reflexivity.
   - destruct (Nat.eqb y x); [reflexivity | rewrite IHB; reflexivity].
   - destruct (Nat.eqb y x); [reflexivity | rewrite IHB; reflexivity].
+Qed.
+
+Lemma FOsubst_t_id : forall t x, FOsubst_t x (FOVar x) t = t.
+Proof.
+  induction t; intros x; cbn.
+  - destruct (Nat.eqb_spec n x) as [E|E]; [subst n; reflexivity | reflexivity].
+  - reflexivity.
+  - rewrite IHt. reflexivity.
+  - rewrite IHt1, IHt2. reflexivity.
+  - rewrite IHt1, IHt2. reflexivity.
+Qed.
+
+Lemma FOsubst_f_id : forall A x, FOsubst_f x (FOVar x) A = A.
+Proof.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB]; intros x; cbn.
+  - rewrite !FOsubst_t_id. reflexivity.
+  - reflexivity.
+  - rewrite IHB, IHC. reflexivity.
+  - destruct (Nat.eqb y x); [reflexivity | rewrite IHB; reflexivity].
+  - destruct (Nat.eqb y x); [reflexivity | rewrite IHB; reflexivity].
+Qed.
+
+Lemma FOsubst_ok_var_self : forall A x, FOsubst_ok x (FOVar x) A = true.
+Proof.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB]; intros x; cbn.
+  - reflexivity.
+  - reflexivity.
+  - rewrite IHB, IHC. reflexivity.
+  - destruct (Nat.eqb_spec y x) as [E|E]; [reflexivity|].
+    destruct (FOfree_in x B); [|reflexivity].
+    cbn. destruct (Nat.eqb_spec x y) as [E2|E2].
+    + exfalso. apply E. symmetry. exact E2.
+    + cbn. exact (IHB x).
+  - destruct (Nat.eqb_spec y x) as [E|E]; [reflexivity|].
+    destruct (FOfree_in x B); [|reflexivity].
+    cbn. destruct (Nat.eqb_spec x y) as [E2|E2].
+    + exfalso. apply E. symmetry. exact E2.
+    + cbn. exact (IHB x).
 Qed.
 
 Lemma FOProvesTn_AllElimNum : forall n x k phi,
@@ -12546,6 +12594,23 @@ Proof.
   exact (FOProvesTn_MP n _ _
           (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ (FOPr_or_elim n A B C) HA)
              HB) Hor).
+Qed.
+
+Lemma FOPr_idf : forall n A, FOProvesTn n (FOImplF A A).
+Proof.
+  intros n A.
+  apply (FOPr_taut n (FOm1 A) (Impl (Var 0) (Var 0)));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOPr_under_mp : forall n H A B,
+  FOProvesTn n (FOImplF H (FOImplF A B)) ->
+  FOProvesTn n (FOImplF H A) ->
+  FOProvesTn n (FOImplF H B).
+Proof.
+  intros n H0 A B H1 H2.
+  exact (FOProvesTn_MP n _ _
+           (FOProvesTn_MP n _ _ (FOProvesTn_S n H0 A B) H1) H2).
 Qed.
 
 Theorem FOProvesTn_cumulative_chain : forall n m phi,
@@ -13005,7 +13070,8 @@ Proof.
   induction H as [phi Hax | phi psi | phi psi chi | phi
                  | phi psi H1 IH1 H2 IH2 | x phi H IH
                  | t | a b | a b c | a b | a b c d | a b c d
-                 | x t phi Hok | x t phi Hok | x phi psi Hnf]; intro e.
+                 | x t phi Hok | x t phi Hok | x phi psi Hnf
+                 | y P Q | y Hf R Hnf2]; intro e.
   - destruct Hax as [n1 phi1 HQ | n1 k Hk].
     + destruct HQ as [a b | a | a | a | a b | a | a b]; cbn.
       * intro Hab. lia.
@@ -13038,6 +13104,10 @@ Proof.
     exists (FOeval e t). exact (proj1 (FOsat_subst_f phi x t e Hok) Hs).
   - cbn. intros Hall [v Hv].
     exact (proj1 (FOsat_update_not_free psi e x v Hnf) (Hall v Hv)).
+  - cbn. intros Hall HP v. exact (Hall v (HP v)).
+  - cbn. intros Hall Hh v.
+    apply (Hall v).
+    exact (proj2 (FOsat_update_not_free Hf e y v Hnf2) Hh).
 Qed.
 
 Theorem FOProvesTn_consistent : forall n, ~ FOProvesTn n FOFalseF.
@@ -13319,6 +13389,111 @@ Proof.
   pose proof (FOPr_compose n _ _ _ S1 S2) as S3.
   pose proof (FOPr_num_neq n _ _ Hne) as Hnn.
   exact (FOPr_compose n _ _ _ S3 Hnn).
+Qed.
+
+(** ** Leibniz substitution of provable equals. *)
+
+Lemma FOPr_tm_leibniz : forall n x s t a,
+  FOProvesTn n (FOImplF (FOEq s t)
+                        (FOEq (FOsubst_t x s a) (FOsubst_t x t a))).
+Proof.
+  intros n x s t a.
+  induction a as [y | | a IH | a IHa b IHb | a IHa b IHb]; cbn.
+  - destruct (Nat.eqb y x).
+    + exact (FOPr_idf n (FOEq s t)).
+    + exact (FOPr_weaken n _ _ (FOProvesTn_EqRefl n (FOVar y))).
+  - exact (FOPr_weaken n _ _ (FOProvesTn_EqRefl n FOZero)).
+  - exact (FOPr_compose n _ _ _ IH (FOProvesTn_CongS n _ _)).
+  - exact (FOPr_under_mp n _ _ _
+            (FOPr_compose n _ _ _ IHa (FOProvesTn_CongPlus n _ _ _ _)) IHb).
+  - exact (FOPr_under_mp n _ _ _
+            (FOPr_compose n _ _ _ IHa (FOProvesTn_CongMult n _ _ _ _)) IHb).
+Qed.
+
+Lemma FOPr_f_leibniz : forall A n x s t,
+  FOsubst_ok x s A = true -> FOsubst_ok x t A = true ->
+  FOProvesTn n (FOImplF (FOEq s t)
+                  (FOImplF (FOsubst_f x s A) (FOsubst_f x t A))).
+Proof.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB];
+    intros n x s t Hoks Hokt; cbn.
+  - pose proof (FOPr_tm_leibniz n x s t a) as La.
+    pose proof (FOPr_tm_leibniz n x s t b) as Lb.
+    pose proof (FOPr_compose n _ _ _ La
+                  (FOProvesTn_EqSym n (FOsubst_t x s a) (FOsubst_t x t a)))
+      as U1.
+    pose proof (FOPr_compose n _ _ _ U1
+                  (FOProvesTn_EqTrans n (FOsubst_t x t a) (FOsubst_t x s a)
+                     (FOsubst_t x s b))) as U2.
+    pose proof (FOProvesTn_MP n _ _
+                  (FOPr_imp_swap n _ _ _)
+                  (FOProvesTn_EqTrans n (FOsubst_t x t a) (FOsubst_t x s b)
+                     (FOsubst_t x t b))) as SW.
+    pose proof (FOPr_compose n _ _ _ Lb SW) as U3.
+    pose proof (FOPr_compose n _ _ _ U2
+                  (FOPr_syl n (FOEq (FOsubst_t x s a) (FOsubst_t x s b))
+                     (FOEq (FOsubst_t x t a) (FOsubst_t x s b))
+                     (FOEq (FOsubst_t x t a) (FOsubst_t x t b)))) as U4.
+    exact (FOPr_under_mp n _ _ _ U4 U3).
+  - exact (FOPr_weaken n _ _ (FOPr_idf n FOFalseF)).
+  - cbn in Hoks, Hokt.
+    apply Bool.andb_true_iff in Hoks. destruct Hoks as [HsB HsC].
+    apply Bool.andb_true_iff in Hokt. destruct Hokt as [HtB HtC].
+    pose proof (FOPr_compose n _ _ _ (FOProvesTn_EqSym n s t)
+                  (IHB n x t s HtB HsB)) as VB.
+    pose proof (IHC n x s t HsC HtC) as VC.
+    pose proof (FOPr_compose n _ _ _ VB
+                  (FOPr_horizontal n (FOsubst_f x t B) (FOsubst_f x s B)
+                     (FOsubst_f x s C) (FOsubst_f x t C))) as W1.
+    exact (FOPr_under_mp n _ _ _ W1 VC).
+  - cbn in Hoks, Hokt.
+    destruct (Nat.eqb y x) eqn:E.
+    + exact (FOPr_weaken n _ _ (FOPr_idf n (FOForall y B))).
+    + destruct (FOfree_in x B) eqn:EF.
+      * apply Bool.andb_true_iff in Hoks. destruct Hoks as [Hys HokBs].
+        apply Bool.andb_true_iff in Hokt. destruct Hokt as [Hyt HokBt].
+        apply Bool.negb_true_iff in Hys. apply Bool.negb_true_iff in Hyt.
+        pose proof (FOProvesTn_Gen n y _ (IHB n x s t HokBs HokBt)) as G.
+        assert (Hfree : FOfree_in y (FOEq s t) = false).
+        { cbn. rewrite Hys, Hyt. reflexivity. }
+        pose proof (FOProvesTn_MP n _ _
+                      (FOProvesTn_AllExport n y (FOEq s t)
+                         (FOImplF (FOsubst_f x s B) (FOsubst_f x t B)) Hfree)
+                      G) as E1.
+        exact (FOPr_compose n _ _ _ E1
+                 (FOProvesTn_AllK n y (FOsubst_f x s B) (FOsubst_f x t B))).
+      * rewrite (FOsubst_f_not_free B x s EF), (FOsubst_f_not_free B x t EF).
+        exact (FOPr_weaken n _ _ (FOPr_idf n (FOForall y B))).
+  - cbn in Hoks, Hokt.
+    destruct (Nat.eqb y x) eqn:E.
+    + exact (FOPr_weaken n _ _ (FOPr_idf n (FOExists y B))).
+    + destruct (FOfree_in x B) eqn:EF.
+      * apply Bool.andb_true_iff in Hoks. destruct Hoks as [Hys HokBs].
+        apply Bool.andb_true_iff in Hokt. destruct Hokt as [Hyt HokBt].
+        apply Bool.negb_true_iff in Hys. apply Bool.negb_true_iff in Hyt.
+        pose proof (IHB n x s t HokBs HokBt) as IH1.
+        pose proof (FOProvesTn_ExIntroT n y (FOVar y) (FOsubst_f x t B)
+                      (FOsubst_ok_var_self (FOsubst_f x t B) y)) as EX0.
+        rewrite (FOsubst_f_id (FOsubst_f x t B) y) in EX0.
+        pose proof (FOPr_compose n _ _ _ IH1
+                      (FOPr_syl n (FOsubst_f x s B) (FOsubst_f x t B)
+                         (FOExists y (FOsubst_f x t B)))) as U1.
+        pose proof (FOPr_under_mp n _ _ _ U1
+                      (FOPr_weaken n _ _ EX0)) as P.
+        pose proof (FOProvesTn_Gen n y _ P) as G.
+        assert (Hfree : FOfree_in y (FOEq s t) = false).
+        { cbn. rewrite Hys, Hyt. reflexivity. }
+        pose proof (FOProvesTn_MP n _ _
+                      (FOProvesTn_AllExport n y (FOEq s t)
+                         (FOImplF (FOsubst_f x s B)
+                            (FOExists y (FOsubst_f x t B))) Hfree) G) as E1.
+        assert (Hfree2 : FOfree_in y (FOExists y (FOsubst_f x t B)) = false).
+        { cbn. rewrite Nat.eqb_refl. reflexivity. }
+        exact (FOPr_compose n _ _ _ E1
+                 (FOProvesTn_ExElim n y (FOsubst_f x s B)
+                    (FOExists y (FOsubst_f x t B)) Hfree2)).
+      * rewrite (FOsubst_f_not_free B x s EF), (FOsubst_f_not_free B x t EF).
+        exact (FOPr_weaken n _ _ (FOPr_idf n (FOExists y B))).
 Qed.
 
 Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
