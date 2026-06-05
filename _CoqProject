@@ -12,7 +12,6 @@ Tiling.v
 ModalSambin.v
 GLPDecidability.v
 SolovayFull.v
-StoneEquivalence.v
 JaparidzeTree.v
 LambdaBox.v
 CraigPolymodal.v
