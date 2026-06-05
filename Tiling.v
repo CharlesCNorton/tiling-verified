@@ -12221,6 +12221,270 @@ Fixpoint FOsubst_ok (x : nat) (s : FOTerm) (A : FOFormula) : bool :=
            else true
   end.
 
+(** ** Boolean equality and Goedel codes for the first-order syntax. *)
+
+Fixpoint FOterm_eqb (a b : FOTerm) : bool :=
+  match a, b with
+  | FOVar x, FOVar y => Nat.eqb x y
+  | FOZero, FOZero => true
+  | FOSucc a', FOSucc b' => FOterm_eqb a' b'
+  | FOPlus a1 a2, FOPlus b1 b2 => FOterm_eqb a1 b1 && FOterm_eqb a2 b2
+  | FOMult a1 a2, FOMult b1 b2 => FOterm_eqb a1 b1 && FOterm_eqb a2 b2
+  | _, _ => false
+  end.
+
+Lemma FOterm_eqb_eq : forall a b, FOterm_eqb a b = true <-> a = b.
+Proof.
+  induction a as [x | | a IH | a1 IH1 a2 IH2 | a1 IH1 a2 IH2];
+    destruct b as [y | | b' | b1 b2 | b1 b2]; cbn;
+    try (split; intro HH; discriminate HH).
+  - rewrite Nat.eqb_eq. split.
+    + intro e. rewrite e. reflexivity.
+    + intro e. injection e. intro e'. exact e'.
+  - split; intro; reflexivity.
+  - rewrite IH. split.
+    + intro e. rewrite e. reflexivity.
+    + intro e. injection e. intro e'. exact e'.
+  - rewrite Bool.andb_true_iff, IH1, IH2. split.
+    + intros [e1 e2]. rewrite e1, e2. reflexivity.
+    + intro e. injection e. intros e2 e1. split; assumption.
+  - rewrite Bool.andb_true_iff, IH1, IH2. split.
+    + intros [e1 e2]. rewrite e1, e2. reflexivity.
+    + intro e. injection e. intros e2 e1. split; assumption.
+Qed.
+
+Fixpoint FOform_eqb (A B : FOFormula) : bool :=
+  match A, B with
+  | FOEq a1 a2, FOEq b1 b2 => FOterm_eqb a1 b1 && FOterm_eqb a2 b2
+  | FOFalseF, FOFalseF => true
+  | FOImplF A1 A2, FOImplF B1 B2 => FOform_eqb A1 B1 && FOform_eqb A2 B2
+  | FOForall x A', FOForall y B' => Nat.eqb x y && FOform_eqb A' B'
+  | FOExists x A', FOExists y B' => Nat.eqb x y && FOform_eqb A' B'
+  | _, _ => false
+  end.
+
+Lemma FOform_eqb_eq : forall A B, FOform_eqb A B = true <-> A = B.
+Proof.
+  induction A as [a1 a2 | | A1 IH1 A2 IH2 | x A' IH | x A' IH];
+    destruct B as [b1 b2 | | B1 B2 | y B' | y B']; cbn;
+    try (split; intro HH; discriminate HH).
+  - rewrite Bool.andb_true_iff, !FOterm_eqb_eq. split.
+    + intros [e1 e2]. rewrite e1, e2. reflexivity.
+    + intro e. injection e. intros e2 e1. split; assumption.
+  - split; intro; reflexivity.
+  - rewrite Bool.andb_true_iff, IH1, IH2. split.
+    + intros [e1 e2]. rewrite e1, e2. reflexivity.
+    + intro e. injection e. intros e2 e1. split; assumption.
+  - rewrite Bool.andb_true_iff, Nat.eqb_eq, IH. split.
+    + intros [e1 e2]. rewrite e1, e2. reflexivity.
+    + intro e. injection e. intros e2 e1. split; assumption.
+  - rewrite Bool.andb_true_iff, Nat.eqb_eq, IH. split.
+    + intros [e1 e2]. rewrite e1, e2. reflexivity.
+    + intro e. injection e. intros e2 e1. split; assumption.
+Qed.
+
+Fixpoint FOcode_tm (t : FOTerm) : nat :=
+  match t with
+  | FOVar x => cpair 0 x
+  | FOZero => cpair 1 0
+  | FOSucc a => cpair 2 (FOcode_tm a)
+  | FOPlus a b => cpair 3 (cpair (FOcode_tm a) (FOcode_tm b))
+  | FOMult a b => cpair 4 (cpair (FOcode_tm a) (FOcode_tm b))
+  end.
+
+Fixpoint FOdecode_tm_b (depth n : nat) : FOTerm :=
+  match depth with
+  | 0 => FOZero
+  | S d =>
+    match fst (cunpair n) with
+    | 0 => FOVar (snd (cunpair n))
+    | 1 => FOZero
+    | 2 => FOSucc (FOdecode_tm_b d (snd (cunpair n)))
+    | 3 => FOPlus (FOdecode_tm_b d (fst (cunpair (snd (cunpair n)))))
+                  (FOdecode_tm_b d (snd (cunpair (snd (cunpair n)))))
+    | 4 => FOMult (FOdecode_tm_b d (fst (cunpair (snd (cunpair n)))))
+                  (FOdecode_tm_b d (snd (cunpair (snd (cunpair n)))))
+    | _ => FOZero
+    end
+  end.
+
+Definition FOdecode_tm (n : nat) : FOTerm := FOdecode_tm_b (S n) n.
+
+Lemma FOcode_tm_succ_lt : forall a, FOcode_tm a < FOcode_tm (FOSucc a).
+Proof.
+  intro a. cbn [FOcode_tm].
+  pose proof (cpair_bound 2 (FOcode_tm a)). lia.
+Qed.
+
+Lemma FOcode_tm_plus_lt_l : forall a b,
+  FOcode_tm a < FOcode_tm (FOPlus a b).
+Proof.
+  intros a b. cbn [FOcode_tm].
+  pose proof (cpair_bound 3 (cpair (FOcode_tm a) (FOcode_tm b))).
+  pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia.
+Qed.
+
+Lemma FOcode_tm_plus_lt_r : forall a b,
+  FOcode_tm b < FOcode_tm (FOPlus a b).
+Proof.
+  intros a b. cbn [FOcode_tm].
+  pose proof (cpair_bound 3 (cpair (FOcode_tm a) (FOcode_tm b))).
+  pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia.
+Qed.
+
+Lemma FOcode_tm_mult_lt_l : forall a b,
+  FOcode_tm a < FOcode_tm (FOMult a b).
+Proof.
+  intros a b. cbn [FOcode_tm].
+  pose proof (cpair_bound 4 (cpair (FOcode_tm a) (FOcode_tm b))).
+  pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia.
+Qed.
+
+Lemma FOcode_tm_mult_lt_r : forall a b,
+  FOcode_tm b < FOcode_tm (FOMult a b).
+Proof.
+  intros a b. cbn [FOcode_tm].
+  pose proof (cpair_bound 4 (cpair (FOcode_tm a) (FOcode_tm b))).
+  pose proof (cpair_bound (FOcode_tm a) (FOcode_tm b)). lia.
+Qed.
+
+Lemma FOdecode_tm_b_code : forall t d,
+  FOcode_tm t < d -> FOdecode_tm_b d (FOcode_tm t) = t.
+Proof.
+  induction t as [x | | a IH | a IHa b IHb | a IHa b IHb];
+    intros d Hd; destruct d as [|d]; try lia; cbn [FOdecode_tm_b].
+  - cbn [FOcode_tm]. rewrite cunpair_cpair. reflexivity.
+  - cbn [FOcode_tm]. rewrite cunpair_cpair. reflexivity.
+  - pose proof (FOcode_tm_succ_lt a) as Hlt.
+    cbn [FOcode_tm] in Hlt, Hd.
+    cbn [FOcode_tm]. rewrite cunpair_cpair. cbn [fst snd].
+    rewrite IH; [reflexivity | lia].
+  - pose proof (FOcode_tm_plus_lt_l a b) as Hla.
+    pose proof (FOcode_tm_plus_lt_r a b) as Hlb.
+    cbn [FOcode_tm] in Hla, Hlb, Hd.
+    cbn [FOcode_tm]. rewrite cunpair_cpair. cbn [fst snd].
+    rewrite cunpair_cpair. cbn [fst snd].
+    rewrite IHa; [rewrite IHb; [reflexivity|]|]; lia.
+  - pose proof (FOcode_tm_mult_lt_l a b) as Hla.
+    pose proof (FOcode_tm_mult_lt_r a b) as Hlb.
+    cbn [FOcode_tm] in Hla, Hlb, Hd.
+    cbn [FOcode_tm]. rewrite cunpair_cpair. cbn [fst snd].
+    rewrite cunpair_cpair. cbn [fst snd].
+    rewrite IHa; [rewrite IHb; [reflexivity|]|]; lia.
+Qed.
+
+Lemma FOdecode_code_tm : forall t, FOdecode_tm (FOcode_tm t) = t.
+Proof.
+  intro t. unfold FOdecode_tm. apply FOdecode_tm_b_code. lia.
+Qed.
+
+Lemma FOcode_tm_inj : forall a b, FOcode_tm a = FOcode_tm b -> a = b.
+Proof.
+  intros a b H.
+  rewrite <- (FOdecode_code_tm a), <- (FOdecode_code_tm b), H.
+  reflexivity.
+Qed.
+
+Fixpoint FOcode_f (A : FOFormula) : nat :=
+  match A with
+  | FOEq a b => cpair 0 (cpair (FOcode_tm a) (FOcode_tm b))
+  | FOFalseF => cpair 1 0
+  | FOImplF B C => cpair 2 (cpair (FOcode_f B) (FOcode_f C))
+  | FOForall x B => cpair 3 (cpair x (FOcode_f B))
+  | FOExists x B => cpair 4 (cpair x (FOcode_f B))
+  end.
+
+Fixpoint FOdecode_f_b (depth n : nat) : FOFormula :=
+  match depth with
+  | 0 => FOFalseF
+  | S d =>
+    match fst (cunpair n) with
+    | 0 => FOEq (FOdecode_tm (fst (cunpair (snd (cunpair n)))))
+                (FOdecode_tm (snd (cunpair (snd (cunpair n)))))
+    | 1 => FOFalseF
+    | 2 => FOImplF (FOdecode_f_b d (fst (cunpair (snd (cunpair n)))))
+                   (FOdecode_f_b d (snd (cunpair (snd (cunpair n)))))
+    | 3 => FOForall (fst (cunpair (snd (cunpair n))))
+                    (FOdecode_f_b d (snd (cunpair (snd (cunpair n)))))
+    | 4 => FOExists (fst (cunpair (snd (cunpair n))))
+                    (FOdecode_f_b d (snd (cunpair (snd (cunpair n)))))
+    | _ => FOFalseF
+    end
+  end.
+
+Definition FOdecode_f (n : nat) : FOFormula := FOdecode_f_b (S n) n.
+
+Lemma FOcode_f_impl_lt_l : forall B C,
+  FOcode_f B < FOcode_f (FOImplF B C).
+Proof.
+  intros B C. cbn [FOcode_f].
+  pose proof (cpair_bound 2 (cpair (FOcode_f B) (FOcode_f C))).
+  pose proof (cpair_bound (FOcode_f B) (FOcode_f C)). lia.
+Qed.
+
+Lemma FOcode_f_impl_lt_r : forall B C,
+  FOcode_f C < FOcode_f (FOImplF B C).
+Proof.
+  intros B C. cbn [FOcode_f].
+  pose proof (cpair_bound 2 (cpair (FOcode_f B) (FOcode_f C))).
+  pose proof (cpair_bound (FOcode_f B) (FOcode_f C)). lia.
+Qed.
+
+Lemma FOcode_f_forall_lt : forall x B,
+  FOcode_f B < FOcode_f (FOForall x B).
+Proof.
+  intros x B. cbn [FOcode_f].
+  pose proof (cpair_bound 3 (cpair x (FOcode_f B))).
+  pose proof (cpair_bound x (FOcode_f B)). lia.
+Qed.
+
+Lemma FOcode_f_exists_lt : forall x B,
+  FOcode_f B < FOcode_f (FOExists x B).
+Proof.
+  intros x B. cbn [FOcode_f].
+  pose proof (cpair_bound 4 (cpair x (FOcode_f B))).
+  pose proof (cpair_bound x (FOcode_f B)). lia.
+Qed.
+
+Lemma FOdecode_f_b_code : forall A d,
+  FOcode_f A < d -> FOdecode_f_b d (FOcode_f A) = A.
+Proof.
+  induction A as [a b | | B IHB C IHC | x B IHB | x B IHB];
+    intros d Hd; destruct d as [|d]; try lia; cbn [FOdecode_f_b].
+  - cbn [FOcode_f]. rewrite cunpair_cpair. cbn [fst snd].
+    rewrite cunpair_cpair. cbn [fst snd].
+    rewrite !FOdecode_code_tm. reflexivity.
+  - cbn [FOcode_f]. rewrite cunpair_cpair. reflexivity.
+  - pose proof (FOcode_f_impl_lt_l B C) as HlB.
+    pose proof (FOcode_f_impl_lt_r B C) as HlC.
+    cbn [FOcode_f] in HlB, HlC, Hd.
+    cbn [FOcode_f]. rewrite cunpair_cpair. cbn [fst snd].
+    rewrite cunpair_cpair. cbn [fst snd].
+    rewrite IHB; [rewrite IHC; [reflexivity|]|]; lia.
+  - pose proof (FOcode_f_forall_lt x B) as HlB.
+    cbn [FOcode_f] in HlB, Hd.
+    cbn [FOcode_f]. rewrite cunpair_cpair. cbn [fst snd].
+    rewrite cunpair_cpair. cbn [fst snd].
+    rewrite IHB; [reflexivity | lia].
+  - pose proof (FOcode_f_exists_lt x B) as HlB.
+    cbn [FOcode_f] in HlB, Hd.
+    cbn [FOcode_f]. rewrite cunpair_cpair. cbn [fst snd].
+    rewrite cunpair_cpair. cbn [fst snd].
+    rewrite IHB; [reflexivity | lia].
+Qed.
+
+Lemma FOdecode_code_f : forall A, FOdecode_f (FOcode_f A) = A.
+Proof.
+  intro A. unfold FOdecode_f. apply FOdecode_f_b_code. lia.
+Qed.
+
+Lemma FOcode_f_inj : forall A B, FOcode_f A = FOcode_f B -> A = B.
+Proof.
+  intros A B H.
+  rewrite <- (FOdecode_code_f A), <- (FOdecode_code_f B), H.
+  reflexivity.
+Qed.
+
 Inductive FOProvesTn (n : nat) : FOFormula -> Prop :=
   | FOProvesTn_ax : forall phi, FOAxiomTn n phi -> FOProvesTn n phi
   | FOProvesTn_K : forall phi psi, FOProvesTn n (FOImplF phi (FOImplF psi phi))
