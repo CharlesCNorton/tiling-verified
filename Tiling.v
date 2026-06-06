@@ -12543,14 +12543,6 @@ Definition FOTBLVALID (B : nat)
     (FOSTEPDISPATCH (B+2) ct dt c1 d1 c2 d2 c3 d3 cr dr len
        (FOVar B)).
 
-Definition FOConSentence (n : nat) : FOFormula :=
-  FOEq (FOnumeral n) (FOnumeral n).
-
-Inductive FOAxiomTn : nat -> FOFormula -> Prop :=
-  | FOAx_RQ : forall n phi, FORobinsonQ phi -> FOAxiomTn n phi
-  | FOAx_ConPrev : forall n k, k < n ->
-      FOAxiomTn n (FOConSentence k).
-
 Fixpoint FOsubst_tm (x k : nat) (t : FOTerm) : FOTerm :=
   match t with
   | FOVar y => if Nat.eqb y x then FOnumeral k else FOVar y
@@ -12570,6 +12562,496 @@ Fixpoint FOsubst_num (x k : nat) (A : FOFormula) : FOFormula :=
   | FOExists y A =>
       if Nat.eqb y x then FOExists y A else FOExists y (FOsubst_num x k A)
   end.
+
+(** ** Code patterns.
+
+    A [CPat] is a cpair tree with literal leaves, slot leaves indexing
+    an environment of terms, and a successor node.  [FOPATF] renders a
+    pattern as a Delta_0 formula matching a code term against the tree,
+    one bounded witness pair per internal node.  [cpat_sem] is its
+    numeric semantics.  Every code-shape recognizer below — Robinson
+    axioms, logical axioms, rule shapes — is one pattern instance. *)
+
+Inductive CPat : Type :=
+  | CLit : nat -> CPat
+  | CVarP : nat -> CPat
+  | CSuccP : CPat -> CPat
+  | CPair : CPat -> CPat -> CPat.
+
+Fixpoint cpat_sem (sigma : nat -> nat) (p : CPat) : nat :=
+  match p with
+  | CLit k => k
+  | CVarP s => sigma s
+  | CSuccP q => S (cpat_sem sigma q)
+  | CPair a b => cpair (cpat_sem sigma a) (cpat_sem sigma b)
+  end.
+
+Fixpoint cpat_pairs (p : CPat) : nat :=
+  match p with
+  | CLit _ => 0
+  | CVarP _ => 0
+  | CSuccP q => 1 + cpat_pairs q
+  | CPair a b => 1 + cpat_pairs a + cpat_pairs b
+  end.
+
+Fixpoint cpat_occurs (s : nat) (p : CPat) : bool :=
+  match p with
+  | CLit _ => false
+  | CVarP s' => Nat.eqb s' s
+  | CSuccP q => cpat_occurs s q
+  | CPair a b => cpat_occurs s a || cpat_occurs s b
+  end.
+
+Fixpoint FOPATF (B : nat) (env : list FOTerm) (p : CPat)
+    (d : FOTerm) : FOFormula :=
+  match p with
+  | CLit k => FOEq d (FOnumeral k)
+  | CVarP s => FOEq d (nth s env FOZero)
+  | CSuccP q =>
+      FOBexC B d
+        (FOAnd (FOEq d (FOSucc (FOVar B)))
+               (FOPATF (B+2) env q (FOVar B)))
+  | CPair a b =>
+      FOBexC B (FOSucc d)
+        (FOBexC (B+2) (FOSucc d)
+           (FOAnd (FOcpairF (FOVar B) (FOVar (B+2)) d)
+           (FOAnd (FOPATF (B+4) env a (FOVar B))
+                  (FOPATF (B+4+4*cpat_pairs a) env b (FOVar (B+2))))))
+  end.
+
+(** Pattern shorthands mirroring [FOcode_f] and [FOcode_tm]. *)
+
+Definition pEqP (a b : CPat) : CPat := CPair (CLit 0) (CPair a b).
+Definition pFlsP : CPat := CPair (CLit 1) (CLit 0).
+Definition pImpP (a b : CPat) : CPat := CPair (CLit 2) (CPair a b).
+Definition pAllP (x a : CPat) : CPat := CPair (CLit 3) (CPair x a).
+Definition pExP (x a : CPat) : CPat := CPair (CLit 4) (CPair x a).
+Definition tVarP (x : CPat) : CPat := CPair (CLit 0) x.
+Definition tZeroP : CPat := CPair (CLit 1) (CLit 0).
+Definition tSuccP (a : CPat) : CPat := CPair (CLit 2) a.
+Definition tPlusP (a b : CPat) : CPat := CPair (CLit 3) (CPair a b).
+Definition tMultP (a b : CPat) : CPat := CPair (CLit 4) (CPair a b).
+
+(** The seven Robinson axiom-scheme patterns. *)
+
+Definition cpatQ1 : CPat :=
+  pImpP (pEqP (tSuccP (CVarP 0)) (tSuccP (CVarP 1)))
+        (pEqP (CVarP 0) (CVarP 1)).
+Definition cpatQ2 : CPat :=
+  pImpP (pEqP (tSuccP (CVarP 0)) tZeroP) pFlsP.
+Definition cpatQ3 : CPat :=
+  pImpP (pImpP (pEqP (tVarP (CVarP 0)) tZeroP) pFlsP)
+        (pExP (CSuccP (CVarP 0))
+              (pEqP (tVarP (CVarP 0))
+                    (tSuccP (tVarP (CSuccP (CVarP 0)))))).
+Definition cpatQ4 : CPat :=
+  pEqP (tPlusP (CVarP 0) tZeroP) (CVarP 0).
+Definition cpatQ5 : CPat :=
+  pEqP (tPlusP (CVarP 0) (tSuccP (CVarP 1)))
+       (tSuccP (tPlusP (CVarP 0) (CVarP 1))).
+Definition cpatQ6 : CPat :=
+  pEqP (tMultP (CVarP 0) tZeroP) tZeroP.
+Definition cpatQ7 : CPat :=
+  pEqP (tMultP (CVarP 0) (tSuccP (CVarP 1)))
+       (tPlusP (tMultP (CVarP 0) (CVarP 1)) (CVarP 0)).
+
+(** The twelve logical axiom-scheme patterns. *)
+
+Definition cpatLK : CPat :=
+  pImpP (CVarP 0) (pImpP (CVarP 1) (CVarP 0)).
+Definition cpatLS : CPat :=
+  pImpP (pImpP (CVarP 0) (pImpP (CVarP 1) (CVarP 2)))
+        (pImpP (pImpP (CVarP 0) (CVarP 1)) (pImpP (CVarP 0) (CVarP 2))).
+Definition cpatLDN : CPat :=
+  pImpP (pImpP (pImpP (CVarP 0) pFlsP) pFlsP) (CVarP 0).
+Definition cpatLEqRefl : CPat := pEqP (CVarP 0) (CVarP 0).
+Definition cpatLEqSym : CPat :=
+  pImpP (pEqP (CVarP 0) (CVarP 1)) (pEqP (CVarP 1) (CVarP 0)).
+Definition cpatLEqTrans : CPat :=
+  pImpP (pEqP (CVarP 0) (CVarP 1))
+        (pImpP (pEqP (CVarP 1) (CVarP 2)) (pEqP (CVarP 0) (CVarP 2))).
+Definition cpatLCongS : CPat :=
+  pImpP (pEqP (CVarP 0) (CVarP 1))
+        (pEqP (tSuccP (CVarP 0)) (tSuccP (CVarP 1))).
+Definition cpatLCongPlus : CPat :=
+  pImpP (pEqP (CVarP 0) (CVarP 1))
+        (pImpP (pEqP (CVarP 2) (CVarP 3))
+               (pEqP (tPlusP (CVarP 0) (CVarP 2))
+                     (tPlusP (CVarP 1) (CVarP 3)))).
+Definition cpatLCongMult : CPat :=
+  pImpP (pEqP (CVarP 0) (CVarP 1))
+        (pImpP (pEqP (CVarP 2) (CVarP 3))
+               (pEqP (tMultP (CVarP 0) (CVarP 2))
+                     (tMultP (CVarP 1) (CVarP 3)))).
+Definition cpatLExElim : CPat :=
+  pImpP (pAllP (CVarP 0) (pImpP (CVarP 1) (CVarP 2)))
+        (pImpP (pExP (CVarP 0) (CVarP 1)) (CVarP 2)).
+Definition cpatLAllK : CPat :=
+  pImpP (pAllP (CVarP 0) (pImpP (CVarP 1) (CVarP 2)))
+        (pImpP (pAllP (CVarP 0) (CVarP 1)) (pAllP (CVarP 0) (CVarP 2))).
+Definition cpatLAllExport : CPat :=
+  pImpP (pAllP (CVarP 0) (pImpP (CVarP 1) (CVarP 2)))
+        (pImpP (CVarP 1) (pAllP (CVarP 0) (CVarP 2))).
+
+(** Rule-shape patterns used by the justification checker. *)
+
+Definition cpatImpl01 : CPat := pImpP (CVarP 0) (CVarP 1).
+Definition cpatAll01 : CPat := pAllP (CVarP 0) (CVarP 1).
+Definition cpatAllElim : CPat :=
+  pImpP (pAllP (CVarP 0) (CVarP 1)) (CVarP 2).
+Definition cpatExIntro : CPat :=
+  pImpP (CVarP 2) (pExP (CVarP 0) (CVarP 1)).
+
+(** Code-level recognizers.  [FOAXQc] holds of [d] exactly when [d]
+    codes an instance of one of the seven Robinson schemes; the slot
+    witnesses are the component codes, each bounded by the code. *)
+
+Definition FOAXQ1c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOPATF (B+4) [FOVar B; FOVar (B+2)] cpatQ1 d)).
+Definition FOAXQ2c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOPATF (B+2) [FOVar B] cpatQ2 d).
+Definition FOAXQ3c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOPATF (B+2) [FOVar B] cpatQ3 d).
+Definition FOAXQ4c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOPATF (B+2) [FOVar B] cpatQ4 d).
+Definition FOAXQ5c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOPATF (B+4) [FOVar B; FOVar (B+2)] cpatQ5 d)).
+Definition FOAXQ6c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOPATF (B+2) [FOVar B] cpatQ6 d).
+Definition FOAXQ7c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOPATF (B+4) [FOVar B; FOVar (B+2)] cpatQ7 d)).
+
+Definition FOAXQc (B : nat) (d : FOTerm) : FOFormula :=
+  FOOr (FOAXQ1c B d)
+  (FOOr (FOAXQ2c B d)
+  (FOOr (FOAXQ3c B d)
+  (FOOr (FOAXQ4c B d)
+  (FOOr (FOAXQ5c B d)
+  (FOOr (FOAXQ6c B d)
+        (FOAXQ7c B d)))))).
+
+(** Logical-axiom recognizers.  Two of them carry the freshness side
+    condition as a tag-1 master-table lookup. *)
+
+Definition FOLOG1c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOPATF (B+4) [FOVar B; FOVar (B+2)] cpatLK d)).
+Definition FOLOG2c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOBexC (B+4) (FOSucc d)
+          (FOPATF (B+6) [FOVar B; FOVar (B+2); FOVar (B+4)] cpatLS d))).
+Definition FOLOG3c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOPATF (B+2) [FOVar B] cpatLDN d).
+Definition FOLOG4c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOPATF (B+2) [FOVar B] cpatLEqRefl d).
+Definition FOLOG5c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOPATF (B+4) [FOVar B; FOVar (B+2)] cpatLEqSym d)).
+Definition FOLOG6c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOBexC (B+4) (FOSucc d)
+          (FOPATF (B+6) [FOVar B; FOVar (B+2); FOVar (B+4)]
+             cpatLEqTrans d))).
+Definition FOLOG7c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOPATF (B+4) [FOVar B; FOVar (B+2)] cpatLCongS d)).
+Definition FOLOG8c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOBexC (B+4) (FOSucc d)
+          (FOBexC (B+6) (FOSucc d)
+             (FOPATF (B+8)
+                [FOVar B; FOVar (B+2); FOVar (B+4); FOVar (B+6)]
+                cpatLCongPlus d)))).
+Definition FOLOG9c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOBexC (B+4) (FOSucc d)
+          (FOBexC (B+6) (FOSucc d)
+             (FOPATF (B+8)
+                [FOVar B; FOVar (B+2); FOVar (B+4); FOVar (B+6)]
+                cpatLCongMult d)))).
+Definition FOLOG10c (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOBexC (B+4) (FOSucc d)
+          (FOAnd
+             (FOPATF (B+6) [FOVar B; FOVar (B+2); FOVar (B+4)]
+                cpatLExElim d)
+             (FOlookup (B+60) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                (FOnumeral 1) (FOVar B) (FOVar (B+4)) FOZero FOZero)))).
+Definition FOLOG11c (B : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOBexC (B+4) (FOSucc d)
+          (FOPATF (B+6) [FOVar B; FOVar (B+2); FOVar (B+4)]
+             cpatLAllK d))).
+Definition FOLOG12c (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc d)
+       (FOBexC (B+4) (FOSucc d)
+          (FOAnd
+             (FOPATF (B+6) [FOVar B; FOVar (B+2); FOVar (B+4)]
+                cpatLAllExport d)
+             (FOlookup (B+60) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                (FOnumeral 1) (FOVar B) (FOVar (B+2)) FOZero FOZero)))).
+
+Definition FOLOGc (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (d : FOTerm) : FOFormula :=
+  FOOr (FOLOG1c B d)
+  (FOOr (FOLOG2c B d)
+  (FOOr (FOLOG3c B d)
+  (FOOr (FOLOG4c B d)
+  (FOOr (FOLOG5c B d)
+  (FOOr (FOLOG6c B d)
+  (FOOr (FOLOG7c B d)
+  (FOOr (FOLOG8c B d)
+  (FOOr (FOLOG9c B d)
+  (FOOr (FOLOG10c B ct dt c1 d1 c2 d2 c3 d3 cr dr len d)
+  (FOOr (FOLOG11c B d)
+        (FOLOG12c B ct dt c1 d1 c2 d2 c3 d3 cr dr len d))))))))))).
+
+(** Reflection-instance recognizer for one lower template core code
+    [c]: [d] codes [Impl (core c applied to numeral a) A] where [a] is
+    the code of [A].  The application is computed through the table:
+    tag 5 turns [a] into its numeral code, tag 3 substitutes it at
+    variable 1 inside [c]. *)
+
+Definition FOAXREFLc (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (c : nat) (d : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc d)
+    (FOBexC (B+2) (FOSucc cr)
+       (FOBexC (B+4) (FOSucc cr)
+          (FOAnd
+             (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                (FOnumeral 5) (FOVar B) FOZero FOZero (FOVar (B+2)))
+          (FOAnd
+             (FOlookup (B+28) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                (FOnumeral 3) (FOnumeral 1) (FOVar (B+2))
+                (FOnumeral c) (FOVar (B+4)))
+             (FOPATF (B+50) [FOVar (B+4); FOVar B] cpatImpl01 d))))).
+
+Fixpoint FOREFLSc (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (cores : list nat) (d : FOTerm) : FOFormula :=
+  match cores with
+  | [] => FOFalseF
+  | c :: rest =>
+      FOOr (FOAXREFLc B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d)
+           (FOREFLSc B ct dt c1 d1 c2 d2 c3 d3 cr dr len rest d)
+  end.
+
+Definition FOTHAXc (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (cores : list nat) (d : FOTerm) : FOFormula :=
+  FOOr (FOAXQc B d)
+       (FOREFLSc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d).
+
+(** The justification checker at one derivation position [i].  The
+    formula code at [i] and the justification code at [i] come off the
+    two derivation tracks; the justification splits as
+    [cpair jtag payload] and dispatches on [jtag]:
+    0 theory axiom, 1 logical axiom, 2 forall-elimination,
+    3 exists-introduction, 4 modus ponens, 5 generalization,
+    6 the Loeb rule against the self template [u] (variable 0). *)
+
+Definition FOJUSTCK (B : nat) (cores : list nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (cs ds cj dj : FOTerm) (i : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc cs)
+  (FOBexC (B+2) (FOSucc cj)
+    (FOAnd (FObetaF (B+4) cs ds i (FOVar B))
+    (FOAnd (FObetaF (B+8) cj dj i (FOVar (B+2)))
+    (FOBexC (B+12) (FOSucc (FOVar (B+2)))
+    (FOBexC (B+14) (FOSucc (FOVar (B+2)))
+      (FOAnd (FOcpairF (FOVar (B+12)) (FOVar (B+14)) (FOVar (B+2)))
+        (FOOr
+           (FOAnd (FOEq (FOVar (B+12)) FOZero)
+              (FOTHAXc (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                 cores (FOVar B)))
+        (FOOr
+           (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 1))
+              (FOLOGc (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                 (FOVar B)))
+        (FOOr
+           (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 2))
+              (FOBexC (B+16) (FOSucc (FOVar (B+14)))
+                 (FOBexC (B+18) (FOSucc (FOVar (B+14)))
+                    (FOAnd (FOcpairF (FOVar (B+16)) (FOVar (B+18))
+                              (FOVar (B+14)))
+                    (FOBexC (B+20) (FOSucc (FOVar B))
+                    (FOBexC (B+22) (FOSucc (FOVar B))
+                       (FOAnd
+                          (FOPATF (B+24)
+                             [FOVar (B+16); FOVar (B+20); FOVar (B+22)]
+                             cpatAllElim (FOVar B))
+                       (FOAnd
+                          (FOlookup (B+46) ct dt c1 d1 c2 d2 c3 d3 cr
+                             dr len (FOnumeral 4) (FOVar (B+16))
+                             (FOVar (B+18)) (FOVar (B+20))
+                             (FOnumeral 1))
+                          (FOlookup (B+68) ct dt c1 d1 c2 d2 c3 d3 cr
+                             dr len (FOnumeral 3) (FOVar (B+16))
+                             (FOVar (B+18)) (FOVar (B+20))
+                             (FOVar (B+22)))))))))))
+        (FOOr
+           (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 3))
+              (FOBexC (B+16) (FOSucc (FOVar (B+14)))
+                 (FOBexC (B+18) (FOSucc (FOVar (B+14)))
+                    (FOAnd (FOcpairF (FOVar (B+16)) (FOVar (B+18))
+                              (FOVar (B+14)))
+                    (FOBexC (B+20) (FOSucc (FOVar B))
+                    (FOBexC (B+22) (FOSucc (FOVar B))
+                       (FOAnd
+                          (FOPATF (B+24)
+                             [FOVar (B+16); FOVar (B+20); FOVar (B+22)]
+                             cpatExIntro (FOVar B))
+                       (FOAnd
+                          (FOlookup (B+46) ct dt c1 d1 c2 d2 c3 d3 cr
+                             dr len (FOnumeral 4) (FOVar (B+16))
+                             (FOVar (B+18)) (FOVar (B+20))
+                             (FOnumeral 1))
+                          (FOlookup (B+68) ct dt c1 d1 c2 d2 c3 d3 cr
+                             dr len (FOnumeral 3) (FOVar (B+16))
+                             (FOVar (B+18)) (FOVar (B+20))
+                             (FOVar (B+22)))))))))))
+        (FOOr
+           (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 4))
+              (FOBexC (B+16) i
+                 (FOBexC (B+18) i
+                    (FOAnd (FOcpairF (FOVar (B+16)) (FOVar (B+18))
+                              (FOVar (B+14)))
+                    (FOBexC (B+20) (FOSucc cs)
+                    (FOBexC (B+22) (FOSucc cs)
+                       (FOAnd (FObetaF (B+24) cs ds (FOVar (B+16))
+                                 (FOVar (B+20)))
+                       (FOAnd (FObetaF (B+28) cs ds (FOVar (B+18))
+                                 (FOVar (B+22)))
+                          (FOPATF (B+32)
+                             [FOVar (B+22); FOVar B]
+                             cpatImpl01 (FOVar (B+20)))))))))))
+        (FOOr
+           (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 5))
+              (FOBexC (B+16) i
+                 (FOAnd (FOEq (FOVar (B+16)) (FOVar (B+14)))
+                 (FOBexC (B+18) (FOSucc cs)
+                    (FOAnd (FObetaF (B+20) cs ds (FOVar (B+16))
+                              (FOVar (B+18)))
+                    (FOBexC (B+24) (FOSucc (FOVar B))
+                       (FOPATF (B+26)
+                          [FOVar (B+24); FOVar (B+18)]
+                          cpatAll01 (FOVar B))))))))
+           (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 6))
+              (FOBexC (B+16) i
+                 (FOAnd (FOEq (FOVar (B+16)) (FOVar (B+14)))
+                 (FOBexC (B+18) (FOSucc cs)
+                    (FOAnd (FObetaF (B+20) cs ds (FOVar (B+16))
+                              (FOVar (B+18)))
+                    (FOBexC (B+24) (FOSucc cr)
+                    (FOBexC (B+26) (FOSucc cr)
+                    (FOBexC (B+28) (FOSucc cr)
+                    (FOBexC (B+30) (FOSucc cr)
+                       (FOAnd
+                          (FOlookup (B+32) ct dt c1 d1 c2 d2 c3 d3 cr
+                             dr len (FOnumeral 5) (FOVar 0) FOZero
+                             FOZero (FOVar (B+24)))
+                       (FOAnd
+                          (FOlookup (B+54) ct dt c1 d1 c2 d2 c3 d3 cr
+                             dr len (FOnumeral 3) FOZero (FOVar (B+24))
+                             (FOVar 0) (FOVar (B+26)))
+                       (FOAnd
+                          (FOlookup (B+76) ct dt c1 d1 c2 d2 c3 d3 cr
+                             dr len (FOnumeral 5) (FOVar B) FOZero
+                             FOZero (FOVar (B+28)))
+                       (FOAnd
+                          (FOlookup (B+98) ct dt c1 d1 c2 d2 c3 d3 cr
+                             dr len (FOnumeral 3) (FOnumeral 1)
+                             (FOVar (B+28)) (FOVar (B+26))
+                             (FOVar (B+30)))
+                          (FOPATF (B+120)
+                             [FOVar (B+30); FOVar B]
+                             cpatImpl01 (FOVar (B+18)))))))))))))))))))))))))))).
+
+(** The Delta_0 derivation checker: a valid master table, a final
+    track entry equal to the target code [f] (variable 1), and a
+    justified entry at every position.  Free variables: 0 the template
+    code [u], 1 the target [f]; variables 2 through 17 are the table
+    codes, the two derivation tracks, and the length, bound by the
+    Sigma_1 prefix in [FOPRMAT]. *)
+
+Definition FOPRDER (cores : list nat) : FOFormula :=
+  FOAnd
+    (FOTBLVALID 18 (FOVar 2) (FOVar 3) (FOVar 4) (FOVar 5) (FOVar 6)
+       (FOVar 7) (FOVar 8) (FOVar 9) (FOVar 10) (FOVar 11) (FOVar 12))
+  (FOAnd
+    (FOBexC 18 (FOVar 17)
+       (FOAnd (FOEq (FOVar 17) (FOSucc (FOVar 18)))
+              (FObetaF 20 (FOVar 13) (FOVar 14) (FOVar 18) (FOVar 1))))
+    (FOBallC 18 (FOVar 17)
+       (FOJUSTCK 20 cores
+          (FOVar 2) (FOVar 3) (FOVar 4) (FOVar 5) (FOVar 6) (FOVar 7)
+          (FOVar 8) (FOVar 9) (FOVar 10) (FOVar 11) (FOVar 12)
+          (FOVar 13) (FOVar 14) (FOVar 15) (FOVar 16) (FOVar 18)))).
+
+Definition FOPRMAT (cores : list nat) : FOFormula :=
+  FOExists 2 (FOExists 3 (FOExists 4 (FOExists 5 (FOExists 6
+  (FOExists 7 (FOExists 8 (FOExists 9 (FOExists 10 (FOExists 11
+  (FOExists 12 (FOExists 13 (FOExists 14 (FOExists 15 (FOExists 16
+  (FOExists 17 (FOPRDER cores)))))))))))))))).
+
+(** The level tower of provability templates.  [FOPrCores n] lists,
+    for each [k < n], the code of the level-[k] template with its own
+    code already substituted for variable 0 — the self-applied core
+    whose remaining free variable 1 receives a target formula code.
+    The level-[n] provability sentence substitutes the level-[n]
+    template code at variable 0 and the target code at variable 1. *)
+
+Fixpoint FOPrCores (n : nat) : list nat :=
+  match n with
+  | 0 => []
+  | S k =>
+      FOPrCores k ++
+      [FOcode_f (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores k)))
+                   (FOPRMAT (FOPrCores k)))]
+  end.
+
+Definition FOProvSentence (n : nat) (A : FOFormula) : FOFormula :=
+  FOsubst_num 1 (FOcode_f A)
+    (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores n)))
+       (FOPRMAT (FOPrCores n))).
+
+Definition FOTopFm : FOFormula := FOImplF FOFalseF FOFalseF.
+
+Definition FOConSentence (n : nat) : FOFormula :=
+  FOEq (FOnumeral n) (FOnumeral n).
+
+Inductive FOAxiomTn : nat -> FOFormula -> Prop :=
+  | FOAx_RQ : forall n phi, FORobinsonQ phi -> FOAxiomTn n phi
+  | FOAx_ConPrev : forall n k, k < n ->
+      FOAxiomTn n (FOConSentence k).
 
 (** Term-level substitution with its capture test.  [FOin_tm v t]:
     [v] occurs in [t].  [FOfree_in v A]: [v] occurs free in [A].
