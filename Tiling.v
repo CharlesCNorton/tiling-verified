@@ -18618,6 +18618,212 @@ Proof.
     destruct (FOin_tm w i); destruct (FOin_tm w x); reflexivity.
 Qed.
 
+(** ** Free variables of the arithmetization builders.
+
+    Every free variable of a builder application comes from one of
+    its argument terms or is one of the two designated low variables;
+    the block binders are internal.  The walker descends the
+    skeleton, converting block-variable leaks into equations that the
+    binder inequalities refute. *)
+
+Lemma FOfree_in_FOExists_neq : forall w y B,
+  y <> w -> FOfree_in w (FOExists y B) = FOfree_in w B.
+Proof.
+  intros w y B Hne. cbn -[Nat.eqb].
+  rewrite (proj2 (Nat.eqb_neq y w) Hne). reflexivity.
+Qed.
+
+Lemma FOfree_in_FOBexC_args : forall w v t A,
+  FOfree_in w (FOBexC v t A) = true ->
+  w <> v /\ (FOin_tm w t = true \/ FOfree_in w A = true).
+Proof.
+  intros w v t A H.
+  destruct (Nat.eqb_spec w v) as [->|Hne].
+  - rewrite FOfree_in_FOBexC_self in H. discriminate.
+  - split; [exact Hne|].
+    destruct (Nat.eqb_spec w (S v)) as [->|Hne2].
+    + rewrite FOfree_in_FOBexC_succ in H. right. exact H.
+    + rewrite (FOfree_in_FOBexC w v t A Hne Hne2) in H.
+      apply Bool.orb_true_iff in H. exact H.
+Qed.
+
+Lemma FOfree_in_FOBallC_args : forall w v t A,
+  FOfree_in w (FOBallC v t A) = true ->
+  w <> v /\ (FOin_tm w t = true \/ FOfree_in w A = true).
+Proof.
+  intros w v t A H.
+  destruct (Nat.eqb_spec w v) as [->|Hne].
+  - rewrite FOfree_in_FOBallC_self in H. discriminate.
+  - split; [exact Hne|].
+    destruct (Nat.eqb_spec w (S v)) as [->|Hne2].
+    + rewrite FOfree_in_FOBallC_succ in H. right. exact H.
+    + rewrite (FOfree_in_FOBallC w v t A Hne Hne2) in H.
+      apply Bool.orb_true_iff in H. exact H.
+Qed.
+
+Ltac ffree_leaf :=
+  match goal with
+  | H : FOfree_in _ (FOAnd _ _) = true |- _ =>
+      rewrite FOfree_in_FOAnd in H;
+      apply Bool.orb_true_iff in H; destruct H as [H|H]
+  | H : FOfree_in _ (FOOr _ _) = true |- _ =>
+      rewrite FOfree_in_FOOr in H;
+      apply Bool.orb_true_iff in H; destruct H as [H|H]
+  | H : FOfree_in _ (FONeg _) = true |- _ =>
+      rewrite FOfree_in_FONeg in H
+  | H : FOfree_in _ (FOcpairF _ _ _) = true |- _ =>
+      rewrite FOfree_in_FOcpairF in H;
+      apply Bool.orb_true_iff in H; destruct H as [H|H];
+      [apply Bool.orb_true_iff in H; destruct H as [H|H]|]
+  | H : FOfree_in _ (FOBexC _ _ _) = true |- _ =>
+      apply FOfree_in_FOBexC_args in H;
+      let Hne := fresh "Hne" in destruct H as [Hne [H|H]]
+  | H : FOfree_in _ (FOBallC _ _ _) = true |- _ =>
+      apply FOfree_in_FOBallC_args in H;
+      let Hne := fresh "Hne" in destruct H as [Hne [H|H]]
+  | H : FOfree_in _ (FOEq _ _) = true |- _ =>
+      cbn [FOfree_in] in H;
+      apply Bool.orb_true_iff in H; destruct H as [H|H]
+  | H : FOfree_in _ (FOImplF _ _) = true |- _ =>
+      cbn [FOfree_in] in H;
+      apply Bool.orb_true_iff in H; destruct H as [H|H]
+  | H : FOfree_in _ FOFalseF = true |- _ => discriminate H
+  | H : FOin_tm _ (FOSucc _) = true |- _ => cbn [FOin_tm] in H
+  | H : FOin_tm _ (FOPlus _ _) = true |- _ =>
+      cbn [FOin_tm] in H;
+      apply Bool.orb_true_iff in H; destruct H as [H|H]
+  | H : FOin_tm _ (FOMult _ _) = true |- _ =>
+      cbn [FOin_tm] in H;
+      apply Bool.orb_true_iff in H; destruct H as [H|H]
+  | H : FOin_tm _ (FOnumeral _) = true |- _ =>
+      rewrite FOin_tm_numeral in H; discriminate H
+  | H : FOin_tm _ FOZero = true |- _ =>
+      cbn [FOin_tm] in H; discriminate H
+  | H : FOin_tm _ (FOVar _) = true |- _ => cbn [FOin_tm] in H
+  | H : existsb _ (_ :: _) = true |- _ => cbn [existsb] in H
+  | H : existsb _ nil = true |- _ => discriminate H
+  | H : Nat.eqb _ _ = true |- _ => apply Nat.eqb_eq in H
+  | H : (_ || _)%bool = true |- _ =>
+      apply Bool.orb_true_iff in H; destruct H as [H|H]
+  | H : false = true |- _ => discriminate H
+  end.
+
+Ltac ffin :=
+  solve [ subst; repeat first
+        [ assumption | lia
+        | (left; solve [assumption | lia])
+        | right ] ].
+
+Lemma FObetaF_free : forall w v c d i x,
+  FOfree_in w (FObetaF v c d i x) = true ->
+  FOin_tm w c = true \/ FOin_tm w d = true \/ FOin_tm w i = true
+  \/ FOin_tm w x = true \/ w < 2.
+Proof.
+  intros w v c d i x H. unfold FObetaF in H.
+  repeat ffree_leaf; ffin.
+Qed.
+
+Lemma FOPATF_free : forall p w B env d,
+  FOfree_in w (FOPATF B env p d) = true ->
+  existsb (FOin_tm w) env = true \/ FOin_tm w d = true \/ w < 2.
+Proof.
+  induction p as [k|s|q IH|a IHa b IHb]; intros w B env d H;
+    cbn [FOPATF] in H.
+  - repeat ffree_leaf; ffin.
+  - cbn [FOfree_in] in H. apply Bool.orb_true_iff in H.
+    destruct H as [H|H].
+    + right; left; exact H.
+    + destruct (Nat.lt_ge_cases s (length env)) as [Hs|Hs].
+      * left. apply existsb_exists.
+        exists (nth s env FOZero).
+        split; [apply nth_In; exact Hs|exact H].
+      * rewrite nth_overflow in H by exact Hs.
+        cbn [FOin_tm] in H. discriminate H.
+  - apply FOfree_in_FOBexC_args in H. destruct H as [Hne [H|H]].
+    + right; left; exact H.
+    + rewrite FOfree_in_FOAnd in H. apply Bool.orb_true_iff in H.
+      destruct H as [H|H].
+      * repeat ffree_leaf; ffin.
+      * apply IH in H. destruct H as [H|[H|H]].
+        -- left; exact H.
+        -- cbn [FOin_tm] in H. apply Nat.eqb_eq in H. lia.
+        -- right; right; exact H.
+  - apply FOfree_in_FOBexC_args in H. destruct H as [Hne [H|H]].
+    + cbn [FOin_tm] in H. right; left; exact H.
+    + apply FOfree_in_FOBexC_args in H. destruct H as [Hne2 [H|H]].
+      * cbn [FOin_tm] in H. right; left; exact H.
+      * rewrite FOfree_in_FOAnd in H. apply Bool.orb_true_iff in H.
+        destruct H as [H|H].
+        { rewrite FOfree_in_FOcpairF in H.
+          apply Bool.orb_true_iff in H. destruct H as [H|H];
+            [apply Bool.orb_true_iff in H; destruct H as [H|H]|].
+          - cbn [FOin_tm] in H. apply Nat.eqb_eq in H. lia.
+          - cbn [FOin_tm] in H. apply Nat.eqb_eq in H. lia.
+          - right; left; exact H. }
+        rewrite FOfree_in_FOAnd in H. apply Bool.orb_true_iff in H.
+        destruct H as [H|H].
+        { apply IHa in H. destruct H as [H|[H|H]].
+          - left; exact H.
+          - cbn [FOin_tm] in H. apply Nat.eqb_eq in H. lia.
+          - right; right; exact H. }
+        { apply IHb in H. destruct H as [H|[H|H]].
+          - left; exact H.
+          - cbn [FOin_tm] in H. apply Nat.eqb_eq in H. lia.
+          - right; right; exact H. }
+Qed.
+
+Ltac arm_betaF :=
+  match goal with
+  | H : FOfree_in _ (FObetaF _ _ _ _ _) = true |- _ =>
+      apply FObetaF_free in H;
+      destruct H as [H|[H|[H|[H|H]]]]
+  end.
+
+Ltac arm_patf :=
+  match goal with
+  | H : FOfree_in _ (FOPATF _ _ _ _) = true |- _ =>
+      apply FOPATF_free in H; destruct H as [H|[H|H]]
+  end.
+
+Lemma FOlookup_free : forall w B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    tg a1 a2 a3 r,
+  FOfree_in w
+    (FOlookup B ct dt c1 d1 c2 d2 c3 d3 cr dr len tg a1 a2 a3 r)
+  = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true \/ FOin_tm w tg = true
+  \/ FOin_tm w a1 = true \/ FOin_tm w a2 = true \/ FOin_tm w a3 = true
+  \/ FOin_tm w r = true \/ w < 2.
+Proof.
+  intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len tg a1 a2 a3 r H.
+  unfold FOlookup in H.
+  repeat first [arm_betaF | ffree_leaf]; ffin.
+Qed.
+
+Ltac arm_lookup :=
+  match goal with
+  | H : FOfree_in _
+          (FOlookup _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) = true |- _ =>
+      apply FOlookup_free in H;
+      destruct H as
+        [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]]]]]]]]
+  end.
+
+Ltac ffree_walk :=
+  repeat first [arm_lookup | arm_betaF | arm_patf | ffree_leaf].
+
+Lemma FOAXQc_free : forall w B d,
+  FOfree_in w (FOAXQc B d) = true ->
+  FOin_tm w d = true \/ w < 2.
+Proof.
+  intros w B d H.
+  unfold FOAXQc, FOAXQ1c, FOAXQ2c, FOAXQ3c, FOAXQ4c, FOAXQ5c,
+    FOAXQ6c, FOAXQ7c in H.
+  ffree_walk; ffin.
+Qed.
+
 (** ** The master computation table.
 
     The recursive code-level functions behind the derivation checker
