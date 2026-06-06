@@ -14446,6 +14446,350 @@ Proof.
   intros B HB. destruct HB.
 Qed.
 
+(** ** Sequence-checker completeness.
+
+    Every [FOProvesTn] derivation linearizes into an accepted
+    [FOseq_check] sequence ending in its conclusion.  Justification
+    indices are absolute positions in the checked prefix, so
+    concatenating two sequences shifts the second sequence's indices
+    by the length of the first. *)
+
+Definition FOjshift (k : nat) (j : FOjust) : FOjust :=
+  match j with
+  | J_MP i j' => J_MP (k + i) (k + j')
+  | J_Gen i => J_Gen (k + i)
+  | J_Loeb i => J_Loeb (k + i)
+  | _ => j
+  end.
+
+Fixpoint FOshift_items (k : nat)
+    (items : list (FOFormula * FOjust)) : list (FOFormula * FOjust) :=
+  match items with
+  | [] => []
+  | (A, j) :: rest => (A, FOjshift k j) :: FOshift_items k rest
+  end.
+
+Lemma FOshift_items_fst : forall k items,
+  map fst (FOshift_items k items) = map fst items.
+Proof.
+  intros k items.
+  induction items as [|[A j] rest IH]; cbn; [reflexivity|].
+  rewrite IH. reflexivity.
+Qed.
+
+Lemma nth_error_app_shift : forall (front prev : list FOFormula) i,
+  nth_error (front ++ prev) (length front + i) = nth_error prev i.
+Proof.
+  intros front prev i.
+  rewrite nth_error_app2 by lia.
+  f_equal. lia.
+Qed.
+
+Lemma nth_error_last : forall (pre : list FOFormula) A,
+  nth_error (pre ++ [A]) (length pre) = Some A.
+Proof.
+  intros pre A.
+  rewrite nth_error_app2 by lia.
+  rewrite Nat.sub_diag. reflexivity.
+Qed.
+
+Lemma FOentry_check_shift : forall axb PrF front prev A j,
+  FOentry_check axb PrF prev A j = true ->
+  FOentry_check axb PrF (front ++ prev) A
+    (FOjshift (length front) j) = true.
+Proof.
+  intros axb PrF front prev A j H.
+  destruct j as [| | x t | x t | i j' | i | i];
+    cbn [FOjshift FOentry_check] in H |- *.
+  - exact H.
+  - exact H.
+  - exact H.
+  - exact H.
+  - destruct (nth_error prev i) as [AB|] eqn:E1; [|discriminate].
+    destruct (nth_error prev j') as [B|] eqn:E2; [|discriminate].
+    rewrite nth_error_app_shift, E1.
+    rewrite nth_error_app_shift, E2.
+    exact H.
+  - destruct A as [a b | | P C | y A' | y A']; try discriminate.
+    destruct (nth_error prev i) as [B'|] eqn:E1; [|discriminate].
+    rewrite nth_error_app_shift, E1.
+    exact H.
+  - destruct (nth_error prev i) as [P|] eqn:E1; [|discriminate].
+    rewrite nth_error_app_shift, E1.
+    exact H.
+Qed.
+
+Lemma FOseq_check_app : forall axb PrF items1 items2 done,
+  FOseq_check axb PrF done (items1 ++ items2)
+  = (FOseq_check axb PrF done items1
+     && FOseq_check axb PrF (done ++ map fst items1) items2)%bool.
+Proof.
+  intros axb PrF items1.
+  induction items1 as [|[A j] rest IH]; intros items2 done.
+  - cbn [FOseq_check app map]. rewrite app_nil_r. reflexivity.
+  - cbn [FOseq_check app map fst].
+    rewrite IH.
+    rewrite Bool.andb_assoc.
+    rewrite <- app_assoc.
+    reflexivity.
+Qed.
+
+Lemma FOseq_check_shift : forall axb PrF items front done,
+  FOseq_check axb PrF done items = true ->
+  FOseq_check axb PrF (front ++ done)
+    (FOshift_items (length front) items) = true.
+Proof.
+  intros axb PrF items.
+  induction items as [|[A j] rest IH]; intros front done Hck.
+  - reflexivity.
+  - cbn [FOseq_check FOshift_items] in Hck |- *.
+    apply Bool.andb_true_iff in Hck. destruct Hck as [H1 H2].
+    apply Bool.andb_true_iff. split.
+    + exact (FOentry_check_shift axb PrF front done A j H1).
+    + rewrite <- app_assoc.
+      exact (IH front (done ++ [A]) H2).
+Qed.
+
+Lemma FOseq_check_single_log : forall axb PrF done A,
+  FOis_logical_axiom A = true ->
+  FOseq_check axb PrF done [(A, J_log)] = true.
+Proof.
+  intros axb PrF done A H.
+  cbn [FOseq_check FOentry_check]. rewrite H. reflexivity.
+Qed.
+
+Lemma FOseq_check_single_MP : forall axb PrF done i1 i2 phi psi,
+  nth_error done i1 = Some (FOImplF phi psi) ->
+  nth_error done i2 = Some phi ->
+  FOseq_check axb PrF done [(psi, J_MP i1 i2)] = true.
+Proof.
+  intros axb PrF done i1 i2 phi psi H1 H2.
+  cbn [FOseq_check FOentry_check].
+  rewrite H1, H2.
+  change ((FOform_eqb (FOImplF phi psi) (FOImplF phi psi)
+           && true)%bool = true).
+  rewrite FOform_eqb_refl. reflexivity.
+Qed.
+
+Lemma FOseq_check_single_Gen : forall axb PrF done i x phi,
+  nth_error done i = Some phi ->
+  FOseq_check axb PrF done [(FOForall x phi, J_Gen i)] = true.
+Proof.
+  intros axb PrF done i x phi H.
+  cbn [FOseq_check FOentry_check].
+  rewrite H.
+  change ((FOform_eqb phi phi && true)%bool = true).
+  rewrite FOform_eqb_refl. reflexivity.
+Qed.
+
+Lemma FOseq_check_single_Loeb : forall axb PrF done i phi,
+  nth_error done i = Some (FOImplF (PrF phi) phi) ->
+  FOseq_check axb PrF done [(phi, J_Loeb i)] = true.
+Proof.
+  intros axb PrF done i phi H.
+  cbn [FOseq_check FOentry_check].
+  rewrite H.
+  change ((FOform_eqb (FOImplF (PrF phi) phi) (FOImplF (PrF phi) phi)
+           && true)%bool = true).
+  rewrite FOform_eqb_refl. reflexivity.
+Qed.
+
+Theorem FOProvesTn_to_seq : forall n A,
+  FOProvesTn n A ->
+  exists items pre,
+    FOseq_check (FOaxb n) (FOProvSentence n) [] items = true
+    /\ map fst items = pre ++ [A].
+Proof.
+  intros n A H.
+  induction H as
+    [ phi Hax
+    | phi psi
+    | phi psi chi
+    | phi
+    | phi psi Hp1 IH1 Hp2 IH2
+    | x phi Hp IH
+    | t
+    | a b
+    | a b c
+    | a b
+    | a b c d
+    | a b c d
+    | x t phi Hok
+    | x t phi Hok
+    | x phi psi Hfree
+    | y P Q
+    | y Hh R Hfree
+    | phi Hp IH ].
+  - exists [(phi, J_thax)], [].
+    split; [|reflexivity].
+    cbn [FOseq_check FOentry_check].
+    rewrite (FOaxb_complete n phi Hax). reflexivity.
+  - exists [(FOImplF phi (FOImplF psi phi), J_log)], [].
+    split; [|reflexivity].
+    apply FOseq_check_single_log.
+    unfold FOis_logical_axiom.
+    rewrite (FOis_K_complete phi psi).
+    rewrite ?Bool.orb_true_r. reflexivity.
+  - exists [(FOImplF (FOImplF phi (FOImplF psi chi))
+              (FOImplF (FOImplF phi psi) (FOImplF phi chi)), J_log)], [].
+    split; [|reflexivity].
+    apply FOseq_check_single_log.
+    unfold FOis_logical_axiom.
+    rewrite (FOis_S_complete phi psi chi).
+    rewrite ?Bool.orb_true_r. reflexivity.
+  - exists [(FOImplF (FONeg (FONeg phi)) phi, J_log)], [].
+    split; [|reflexivity].
+    apply FOseq_check_single_log.
+    unfold FOis_logical_axiom.
+    rewrite (FOis_DN_complete phi).
+    rewrite ?Bool.orb_true_r. reflexivity.
+  - destruct IH1 as [items1 [pre1 [Hc1 Hm1]]].
+    destruct IH2 as [items2 [pre2 [Hc2 Hm2]]].
+    exists (items1
+            ++ FOshift_items (length (map fst items1)) items2
+            ++ [(psi, J_MP (length pre1)
+                           (length (map fst items1) + length pre2))]).
+    exists (map fst items1 ++ map fst items2).
+    assert (N1 : nth_error (map fst items1 ++ map fst items2)
+                   (length pre1) = Some (FOImplF phi psi)).
+    { rewrite Hm1, <- app_assoc.
+      rewrite nth_error_app2 by lia.
+      rewrite Nat.sub_diag. reflexivity. }
+    assert (N2 : nth_error (map fst items1 ++ map fst items2)
+                   (length (map fst items1) + length pre2) = Some phi).
+    { rewrite nth_error_app_shift, Hm2.
+      exact (nth_error_last pre2 phi). }
+    split.
+    + rewrite FOseq_check_app.
+      apply Bool.andb_true_iff. split; [exact Hc1|].
+      rewrite FOseq_check_app.
+      apply Bool.andb_true_iff. split.
+      * assert (Hsh := FOseq_check_shift (FOaxb n) (FOProvSentence n)
+                         items2 (map fst items1) [] Hc2).
+        rewrite app_nil_r in Hsh. exact Hsh.
+      * rewrite FOshift_items_fst.
+        apply (FOseq_check_single_MP (FOaxb n) (FOProvSentence n)
+                 _ _ _ phi psi); [exact N1 | exact N2].
+    + rewrite !map_app, FOshift_items_fst.
+      cbn [map fst].
+      rewrite app_assoc. reflexivity.
+  - destruct IH as [items1 [pre1 [Hc1 Hm1]]].
+    exists (items1 ++ [(FOForall x phi, J_Gen (length pre1))]).
+    exists (map fst items1).
+    assert (N1 : nth_error (map fst items1) (length pre1) = Some phi).
+    { rewrite Hm1. exact (nth_error_last pre1 phi). }
+    split.
+    + rewrite FOseq_check_app.
+      apply Bool.andb_true_iff. split; [exact Hc1|].
+      apply (FOseq_check_single_Gen (FOaxb n) (FOProvSentence n)
+               _ (length pre1) x phi).
+      exact N1.
+    + rewrite map_app. cbn [map fst]. reflexivity.
+  - exists [(FOEq t t, J_log)], [].
+    split; [|reflexivity].
+    apply FOseq_check_single_log.
+    unfold FOis_logical_axiom.
+    rewrite (FOis_EqRefl_complete t).
+    rewrite ?Bool.orb_true_r. reflexivity.
+  - exists [(FOImplF (FOEq a b) (FOEq b a), J_log)], [].
+    split; [|reflexivity].
+    apply FOseq_check_single_log.
+    unfold FOis_logical_axiom.
+    rewrite (FOis_EqSym_complete a b).
+    rewrite ?Bool.orb_true_r. reflexivity.
+  - exists [(FOImplF (FOEq a b) (FOImplF (FOEq b c) (FOEq a c)),
+             J_log)], [].
+    split; [|reflexivity].
+    apply FOseq_check_single_log.
+    unfold FOis_logical_axiom.
+    rewrite (FOis_EqTrans_complete a b c).
+    rewrite ?Bool.orb_true_r. reflexivity.
+  - exists [(FOImplF (FOEq a b) (FOEq (FOSucc a) (FOSucc b)),
+             J_log)], [].
+    split; [|reflexivity].
+    apply FOseq_check_single_log.
+    unfold FOis_logical_axiom.
+    rewrite (FOis_CongS_complete a b).
+    rewrite ?Bool.orb_true_r. reflexivity.
+  - exists [(FOImplF (FOEq a b)
+              (FOImplF (FOEq c d) (FOEq (FOPlus a c) (FOPlus b d))),
+             J_log)], [].
+    split; [|reflexivity].
+    apply FOseq_check_single_log.
+    unfold FOis_logical_axiom.
+    rewrite (FOis_CongPlus_complete a b c d).
+    rewrite ?Bool.orb_true_r. reflexivity.
+  - exists [(FOImplF (FOEq a b)
+              (FOImplF (FOEq c d) (FOEq (FOMult a c) (FOMult b d))),
+             J_log)], [].
+    split; [|reflexivity].
+    apply FOseq_check_single_log.
+    unfold FOis_logical_axiom.
+    rewrite (FOis_CongMult_complete a b c d).
+    rewrite ?Bool.orb_true_r. reflexivity.
+  - exists [(FOImplF (FOForall x phi) (FOsubst_f x t phi),
+             J_AllElim x t)], [].
+    split; [|reflexivity].
+    cbn [FOseq_check FOentry_check].
+    rewrite (FOis_AllElim_complete x t phi Hok). reflexivity.
+  - exists [(FOImplF (FOsubst_f x t phi) (FOExists x phi),
+             J_ExIntro x t)], [].
+    split; [|reflexivity].
+    cbn [FOseq_check FOentry_check].
+    rewrite (FOis_ExIntro_complete x t phi Hok). reflexivity.
+  - exists [(FOImplF (FOForall x (FOImplF phi psi))
+              (FOImplF (FOExists x phi) psi), J_log)], [].
+    split; [|reflexivity].
+    apply FOseq_check_single_log.
+    unfold FOis_logical_axiom.
+    rewrite (FOis_ExElim_complete x phi psi Hfree).
+    rewrite ?Bool.orb_true_r. reflexivity.
+  - exists [(FOImplF (FOForall y (FOImplF P Q))
+              (FOImplF (FOForall y P) (FOForall y Q)), J_log)], [].
+    split; [|reflexivity].
+    apply FOseq_check_single_log.
+    unfold FOis_logical_axiom.
+    rewrite (FOis_AllK_complete y P Q).
+    rewrite ?Bool.orb_true_r. reflexivity.
+  - exists [(FOImplF (FOForall y (FOImplF Hh R))
+              (FOImplF Hh (FOForall y R)), J_log)], [].
+    split; [|reflexivity].
+    apply FOseq_check_single_log.
+    unfold FOis_logical_axiom.
+    rewrite (FOis_AllExport_complete y Hh R Hfree).
+    rewrite ?Bool.orb_true_r. reflexivity.
+  - destruct IH as [items1 [pre1 [Hc1 Hm1]]].
+    exists (items1 ++ [(phi, J_Loeb (length pre1))]).
+    exists (map fst items1).
+    assert (N1 : nth_error (map fst items1) (length pre1)
+                 = Some (FOImplF (FOProvSentence n phi) phi)).
+    { rewrite Hm1.
+      exact (nth_error_last pre1
+               (FOImplF (FOProvSentence n phi) phi)). }
+    split.
+    + rewrite FOseq_check_app.
+      apply Bool.andb_true_iff. split; [exact Hc1|].
+      apply (FOseq_check_single_Loeb (FOaxb n) (FOProvSentence n)
+               _ (length pre1) phi).
+      exact N1.
+    + rewrite map_app. cbn [map fst]. reflexivity.
+Qed.
+
+Theorem FOProvesTn_iff_seq : forall n A,
+  FOProvesTn n A
+  <-> exists items,
+        FOseq_check (FOaxb n) (FOProvSentence n) [] items = true
+        /\ In A (map fst items).
+Proof.
+  intros n A. split.
+  - intros H.
+    destruct (FOProvesTn_to_seq n A H) as [items [pre [Hck Hm]]].
+    exists items. split; [exact Hck|].
+    rewrite Hm. apply in_or_app. right. left. reflexivity.
+  - intros [items [Hck HIn]].
+    exact (FOProvesTn_of_seq n items A Hck HIn).
+Qed.
+
 (** ** Propositional tautologies transfer into the T_n tower.
 
     [FOofForm m phi] reads a modal skeleton as an FO formula through an
