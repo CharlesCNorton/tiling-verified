@@ -29844,6 +29844,82 @@ Proof.
            (proj1 (FOProvSentence_sat_iff e n A) H)).
 Qed.
 
+(** ** Stratified soundness of the tower.
+
+    Robinson axioms hold in the standard model outright.  Soundness
+    of [T_n] is by strong induction on the level: a reflection axiom
+    at [k < n] discharges through the representability bridge into
+    the level-[k] soundness, and the Loeb rule's conclusion re-enters
+    as the truth of its own provability sentence. *)
+
+Lemma FORobinsonQ_sat : forall A e, FORobinsonQ A -> FOsat e A.
+Proof.
+  intros A e H.
+  destruct H as [a b|a|x|a|a b|a|a b]; cbn.
+  - lia.
+  - lia.
+  - intro H0. exists (Nat.pred (e x)).
+    unfold FOupdate.
+    rewrite Nat.eqb_refl.
+    assert (Ex : Nat.eqb x (S x) = false)
+      by (apply Nat.eqb_neq; lia).
+    rewrite Ex. cbn. lia.
+  - lia.
+  - lia.
+  - nia.
+  - nia.
+Qed.
+
+Theorem FOProvesTn_sound : forall n A,
+  FOProvesTn n A -> forall e, FOsat e A.
+Proof.
+  induction n as [n IHn] using lt_wf_ind.
+  intros A H. induction H; intro e.
+  - match goal with
+    | HA : FOAxiomTn _ _ |- _ => inversion HA; subst
+    end.
+    + apply FORobinsonQ_sat. assumption.
+    + cbn [FOsat]. intro Hp.
+      match goal with
+      | Hk : ?k < n, Hp2 : FOsat ?e0 (FOProvSentence ?k ?B0)
+        |- FOsat ?e0 ?B0 =>
+          exact (IHn k Hk B0
+                   (proj1 (FOProvSentence_sat_iff e0 k B0) Hp2) e0)
+      end.
+  - cbn. tauto.
+  - cbn. tauto.
+  - cbn. intro Hnn.
+    destruct (classic (FOsat e phi)) as [Hp|Hnp];
+      [exact Hp | exfalso; exact (Hnn Hnp)].
+  - exact (IHFOProvesTn1 e (IHFOProvesTn2 e)).
+  - cbn. intro v. exact (IHFOProvesTn (FOupdate e x v)).
+  - cbn. reflexivity.
+  - cbn. intro H1. symmetry. exact H1.
+  - cbn. intros H1 H2. lia.
+  - cbn. intro H1. rewrite H1. reflexivity.
+  - cbn. intros H1 H2. rewrite H1, H2. reflexivity.
+  - cbn. intros H1 H2. rewrite H1, H2. reflexivity.
+  - cbn [FOsat]. intro Hall.
+    apply (FOsat_subst_f phi x t e H).
+    exact (Hall (FOeval e t)).
+  - cbn [FOsat]. intro Hsub. exists (FOeval e t).
+    exact (proj1 (FOsat_subst_f phi x t e H) Hsub).
+  - cbn [FOsat]. intros Hall [v Hv].
+    exact (proj1 (FOsat_update_not_free psi e x v H) (Hall v Hv)).
+  - cbn [FOsat]. intros H1 H2 v. exact (H1 v (H2 v)).
+  - cbn [FOsat]. intros H1 H2 v.
+    apply (H1 v).
+    refine (proj2 (FOsat_update_not_free _ e y v _) _); assumption.
+  - exact (IHFOProvesTn e
+      (FOHBL1_sat e n phi (FOProvesTn_Loeb n phi H))).
+Qed.
+
+Theorem FOProvesTn_consistent : forall n, ~ FOProvesTn n FOFalseF.
+Proof.
+  intros n H.
+  exact (FOProvesTn_sound n FOFalseF H (fun _ => 0)).
+Qed.
+
 Definition FOInconsistent (n : nat) : Prop := FOProvesTn n FOFalseF.
 
 (** The tower summary — cumulativity of derivability, strict axiom
