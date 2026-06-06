@@ -26582,6 +26582,151 @@ Proof.
   - exfalso. exact He.
 Qed.
 
+(** ** Satisfaction of the provability sentence.
+
+    [provmat_sem cores u f]: some master table validates every
+    dispatch position, some derivation pair of tracks ends at the
+    target code [f], and every derivation position carries a
+    justification accepted against the table, the core list, and the
+    self template code [u].  The three lemmas walk the conjunction,
+    the sixteen-variable prefix, and the two numeral substitutions. *)
+
+Definition provmat_sem (cores : list nat) (u f : nat) : Prop :=
+  exists vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen vcs vds vcj vdj
+    vdlen,
+    (forall vj, vj < vlen ->
+       dispatch_sem
+         (tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen)
+         vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vj) /\
+    (exists m, vdlen = S m /\ beta vcs vds m = f) /\
+    (forall ii, ii < vdlen ->
+       justck_sem
+         (tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen)
+         cores u vcs vds vcj vdj ii).
+
+Lemma FOsat_FOPRDER : forall e cores,
+  (FOsat e (FOPRDER cores) <->
+   ((forall vj, vj < e 12 ->
+       dispatch_sem
+         (tblL (e 2) (e 3) (e 4) (e 5) (e 6) (e 7) (e 8) (e 9)
+            (e 10) (e 11) (e 12))
+         (e 2) (e 3) (e 4) (e 5) (e 6) (e 7) (e 8) (e 9) (e 10)
+         (e 11) vj) /\
+    (exists m, e 17 = S m /\ beta (e 13) (e 14) m = e 1) /\
+    (forall ii, ii < e 17 ->
+       justck_sem
+         (tblL (e 2) (e 3) (e 4) (e 5) (e 6) (e 7) (e 8) (e 9)
+            (e 10) (e 11) (e 12))
+         cores (e 0) (e 13) (e 14) (e 15) (e 16) ii))).
+Proof.
+  intros e cores.
+  assert (Htb18 : tbl_below 18 (FOVar 2) (FOVar 3) (FOVar 4)
+            (FOVar 5) (FOVar 6) (FOVar 7) (FOVar 8) (FOVar 9)
+            (FOVar 10) (FOVar 11) (FOVar 12))
+    by (unfold tbl_below; cbn; lia).
+  assert (Htb20 : tbl_below 20 (FOVar 2) (FOVar 3) (FOVar 4)
+            (FOVar 5) (FOVar 6) (FOVar 7) (FOVar 8) (FOVar 9)
+            (FOVar 10) (FOVar 11) (FOVar 12))
+    by (unfold tbl_below; cbn; lia).
+  assert (Hin18 : FOin_tm 18 (FOVar 17) = false) by reflexivity.
+  assert (HinS18 : FOin_tm 19 (FOVar 17) = false) by reflexivity.
+  unfold FOPRDER.
+  split.
+  - intro H.
+    apply (proj1 (FOsat_FOAnd _ _ _)) in H.
+    destruct H as [Htv H].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in H.
+    destruct H as [Hmid Hball].
+    split.
+    { exact (proj1 (FOsat_FOTBLVALID e 18 (FOVar 2) (FOVar 3)
+                      (FOVar 4) (FOVar 5) (FOVar 6) (FOVar 7)
+                      (FOVar 8) (FOVar 9) (FOVar 10) (FOVar 11)
+                      (FOVar 12) Htb18) Htv). }
+    split.
+    { rewrite (FOsat_FOBexC e 18 (FOVar 17) _ Hin18 HinS18) in Hmid.
+      destruct Hmid as [m [Hm Hbody]].
+      apply (proj1 (FOsat_FOAnd _ _ _)) in Hbody.
+      destruct Hbody as [HEq Hbeta].
+      apply (proj1 (FOsat_FObetaF _ 20 (FOVar 13) (FOVar 14)
+                      (FOVar 18) (FOVar 1) ltac:(cbn; lia)
+                      ltac:(cbn; lia) ltac:(cbn; lia)
+                      ltac:(cbn; lia))) in Hbeta.
+      exists m. split; [exact HEq | exact Hbeta]. }
+    intros ii Hii.
+    rewrite (FOsat_FOBallC e 18 (FOVar 17) _ Hin18 HinS18) in Hball.
+    pose proof (Hball ii Hii) as HJ.
+    apply (proj1 (FOsat_FOJUSTCK _ 20 cores (FOVar 2) (FOVar 3)
+                    (FOVar 4) (FOVar 5) (FOVar 6) (FOVar 7) (FOVar 8)
+                    (FOVar 9) (FOVar 10) (FOVar 11) (FOVar 12)
+                    (FOVar 13) (FOVar 14) (FOVar 15) (FOVar 16)
+                    (FOVar 18) Htb20 ltac:(cbn; lia) ltac:(cbn; lia)
+                    ltac:(cbn; lia) ltac:(cbn; lia)
+                    ltac:(cbn; lia))) in HJ.
+    exact HJ.
+  - intros [Htv [Hmid Hball]].
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { exact (proj2 (FOsat_FOTBLVALID e 18 (FOVar 2) (FOVar 3)
+                      (FOVar 4) (FOVar 5) (FOVar 6) (FOVar 7)
+                      (FOVar 8) (FOVar 9) (FOVar 10) (FOVar 11)
+                      (FOVar 12) Htb18) Htv). }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { rewrite (FOsat_FOBexC e 18 (FOVar 17) _ Hin18 HinS18).
+      destruct Hmid as [m [Hm Hbeta]].
+      exists m. split; [cbn; lia|].
+      apply (proj2 (FOsat_FOAnd _ _ _)). split.
+      { exact Hm. }
+      apply (proj2 (FOsat_FObetaF _ 20 (FOVar 13) (FOVar 14)
+                      (FOVar 18) (FOVar 1) ltac:(cbn; lia)
+                      ltac:(cbn; lia) ltac:(cbn; lia)
+                      ltac:(cbn; lia))).
+      exact Hbeta. }
+    rewrite (FOsat_FOBallC e 18 (FOVar 17) _ Hin18 HinS18).
+    intros w Hw.
+    apply (proj2 (FOsat_FOJUSTCK _ 20 cores (FOVar 2) (FOVar 3)
+                    (FOVar 4) (FOVar 5) (FOVar 6) (FOVar 7) (FOVar 8)
+                    (FOVar 9) (FOVar 10) (FOVar 11) (FOVar 12)
+                    (FOVar 13) (FOVar 14) (FOVar 15) (FOVar 16)
+                    (FOVar 18) Htb20 ltac:(cbn; lia) ltac:(cbn; lia)
+                    ltac:(cbn; lia) ltac:(cbn; lia)
+                    ltac:(cbn; lia))).
+    exact (Hball w Hw).
+Qed.
+
+Lemma FOsat_FOPRMAT : forall e cores,
+  (FOsat e (FOPRMAT cores) <-> provmat_sem cores (e 0) (e 1)).
+Proof.
+  intros e cores.
+  unfold FOPRMAT, provmat_sem.
+  cbn [FOsat].
+  split.
+  - intros [v2 [v3 [v4 [v5 [v6 [v7 [v8 [v9 [v10 [v11 [v12 [v13 [v14
+      [v15 [v16 [v17 H]]]]]]]]]]]]]]]].
+    apply (proj1 (FOsat_FOPRDER _ cores)) in H.
+    exists v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14,
+      v15, v16, v17.
+    exact H.
+  - intros [v2 [v3 [v4 [v5 [v6 [v7 [v8 [v9 [v10 [v11 [v12 [v13 [v14
+      [v15 [v16 [v17 H]]]]]]]]]]]]]]]].
+    exists v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14,
+      v15, v16, v17.
+    apply (proj2 (FOsat_FOPRDER _ cores)).
+    exact H.
+Qed.
+
+Lemma FOsat_FOProvSentence : forall e n A,
+  (FOsat e (FOProvSentence n A) <->
+   provmat_sem (FOPrCores n)
+     (FOcode_f (FOPRMAT (FOPrCores n))) (FOcode_f A)).
+Proof.
+  intros e n A.
+  unfold FOProvSentence.
+  rewrite (FOsat_subst_num _ 1 (FOcode_f A) e).
+  rewrite (FOsat_subst_num _ 0
+             (FOcode_f (FOPRMAT (FOPrCores n))) _).
+  rewrite (FOsat_FOPRMAT _ (FOPrCores n)).
+  reflexivity.
+Qed.
+
 Definition FOInconsistent (n : nat) : Prop := FOProvesTn n FOFalseF.
 
 (** The tower summary — cumulativity of derivability, strict axiom
