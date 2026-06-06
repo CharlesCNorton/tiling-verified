@@ -12878,6 +12878,73 @@ Definition FOTHAXc (B : nat)
     3 exists-introduction, 4 modus ponens, 5 generalization,
     6 the Loeb rule against the self template [u] (variable 0). *)
 
+Definition FOJSUBST (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (pat : CPat) (vd pl : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc pl)
+  (FOBexC (B+2) (FOSucc pl)
+    (FOAnd (FOcpairF (FOVar B) (FOVar (B+2)) pl)
+    (FOBexC (B+4) (FOSucc vd)
+    (FOBexC (B+6) (FOSucc vd)
+      (FOAnd
+         (FOPATF (B+8) [FOVar B; FOVar (B+4); FOVar (B+6)] pat vd)
+      (FOAnd
+         (FOlookup (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+            (FOnumeral 4) (FOVar B) (FOVar (B+2)) (FOVar (B+4))
+            (FOnumeral 1))
+         (FOlookup (B+52) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+            (FOnumeral 3) (FOVar B) (FOVar (B+2)) (FOVar (B+4))
+            (FOVar (B+6))))))))).
+
+Definition FOJMP (B : nat) (cs ds : FOTerm)
+    (vd pl ipos : FOTerm) : FOFormula :=
+  FOBexC B ipos
+  (FOBexC (B+2) ipos
+    (FOAnd (FOcpairF (FOVar B) (FOVar (B+2)) pl)
+    (FOBexC (B+4) (FOSucc cs)
+    (FOBexC (B+6) (FOSucc cs)
+      (FOAnd (FObetaF (B+8) cs ds (FOVar B) (FOVar (B+4)))
+      (FOAnd (FObetaF (B+12) cs ds (FOVar (B+2)) (FOVar (B+6)))
+         (FOPATF (B+16) [FOVar (B+6); vd] cpatImpl01
+            (FOVar (B+4))))))))).
+
+Definition FOJGEN (B : nat) (cs ds : FOTerm)
+    (vd pl ipos : FOTerm) : FOFormula :=
+  FOBexC B ipos
+  (FOAnd (FOEq (FOVar B) pl)
+  (FOBexC (B+2) (FOSucc cs)
+    (FOAnd (FObetaF (B+4) cs ds (FOVar B) (FOVar (B+2)))
+    (FOBexC (B+8) (FOSucc vd)
+      (FOPATF (B+10) [FOVar (B+8); FOVar (B+2)] cpatAll01 vd))))).
+
+Definition FOJLOEB (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (cs ds : FOTerm) (vd pl ipos : FOTerm) : FOFormula :=
+  FOBexC B ipos
+  (FOAnd (FOEq (FOVar B) pl)
+  (FOBexC (B+2) (FOSucc cs)
+    (FOAnd (FObetaF (B+4) cs ds (FOVar B) (FOVar (B+2)))
+    (FOBexC (B+8) (FOSucc cr)
+    (FOBexC (B+10) (FOSucc cr)
+    (FOBexC (B+12) (FOSucc cr)
+    (FOBexC (B+14) (FOSucc cr)
+      (FOAnd
+         (FOlookup (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+            (FOnumeral 5) (FOVar 0) FOZero FOZero (FOVar (B+8)))
+      (FOAnd
+         (FOlookup (B+38) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+            (FOnumeral 3) FOZero (FOVar (B+8)) (FOVar 0)
+            (FOVar (B+10)))
+      (FOAnd
+         (FOlookup (B+60) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+            (FOnumeral 5) vd FOZero FOZero (FOVar (B+12)))
+      (FOAnd
+         (FOlookup (B+82) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+            (FOnumeral 3) (FOnumeral 1) (FOVar (B+12))
+            (FOVar (B+10)) (FOVar (B+14)))
+         (FOPATF (B+104) [FOVar (B+14); vd] cpatImpl01
+            (FOVar (B+2)))))))))))))).
+
 Definition FOJUSTCK (B : nat) (cores : list nat)
     (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
     (cs ds cj dj : FOTerm) (i : FOTerm) : FOFormula :=
@@ -12898,102 +12965,21 @@ Definition FOJUSTCK (B : nat) (cores : list nat)
                  (FOVar B)))
         (FOOr
            (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 2))
-              (FOBexC (B+16) (FOSucc (FOVar (B+14)))
-                 (FOBexC (B+18) (FOSucc (FOVar (B+14)))
-                    (FOAnd (FOcpairF (FOVar (B+16)) (FOVar (B+18))
-                              (FOVar (B+14)))
-                    (FOBexC (B+20) (FOSucc (FOVar B))
-                    (FOBexC (B+22) (FOSucc (FOVar B))
-                       (FOAnd
-                          (FOPATF (B+24)
-                             [FOVar (B+16); FOVar (B+20); FOVar (B+22)]
-                             cpatAllElim (FOVar B))
-                       (FOAnd
-                          (FOlookup (B+46) ct dt c1 d1 c2 d2 c3 d3 cr
-                             dr len (FOnumeral 4) (FOVar (B+16))
-                             (FOVar (B+18)) (FOVar (B+20))
-                             (FOnumeral 1))
-                          (FOlookup (B+68) ct dt c1 d1 c2 d2 c3 d3 cr
-                             dr len (FOnumeral 3) (FOVar (B+16))
-                             (FOVar (B+18)) (FOVar (B+20))
-                             (FOVar (B+22)))))))))))
+              (FOJSUBST (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                 cpatAllElim (FOVar B) (FOVar (B+14))))
         (FOOr
            (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 3))
-              (FOBexC (B+16) (FOSucc (FOVar (B+14)))
-                 (FOBexC (B+18) (FOSucc (FOVar (B+14)))
-                    (FOAnd (FOcpairF (FOVar (B+16)) (FOVar (B+18))
-                              (FOVar (B+14)))
-                    (FOBexC (B+20) (FOSucc (FOVar B))
-                    (FOBexC (B+22) (FOSucc (FOVar B))
-                       (FOAnd
-                          (FOPATF (B+24)
-                             [FOVar (B+16); FOVar (B+20); FOVar (B+22)]
-                             cpatExIntro (FOVar B))
-                       (FOAnd
-                          (FOlookup (B+46) ct dt c1 d1 c2 d2 c3 d3 cr
-                             dr len (FOnumeral 4) (FOVar (B+16))
-                             (FOVar (B+18)) (FOVar (B+20))
-                             (FOnumeral 1))
-                          (FOlookup (B+68) ct dt c1 d1 c2 d2 c3 d3 cr
-                             dr len (FOnumeral 3) (FOVar (B+16))
-                             (FOVar (B+18)) (FOVar (B+20))
-                             (FOVar (B+22)))))))))))
+              (FOJSUBST (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                 cpatExIntro (FOVar B) (FOVar (B+14))))
         (FOOr
            (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 4))
-              (FOBexC (B+16) i
-                 (FOBexC (B+18) i
-                    (FOAnd (FOcpairF (FOVar (B+16)) (FOVar (B+18))
-                              (FOVar (B+14)))
-                    (FOBexC (B+20) (FOSucc cs)
-                    (FOBexC (B+22) (FOSucc cs)
-                       (FOAnd (FObetaF (B+24) cs ds (FOVar (B+16))
-                                 (FOVar (B+20)))
-                       (FOAnd (FObetaF (B+28) cs ds (FOVar (B+18))
-                                 (FOVar (B+22)))
-                          (FOPATF (B+32)
-                             [FOVar (B+22); FOVar B]
-                             cpatImpl01 (FOVar (B+20)))))))))))
+              (FOJMP (B+16) cs ds (FOVar B) (FOVar (B+14)) i))
         (FOOr
            (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 5))
-              (FOBexC (B+16) i
-                 (FOAnd (FOEq (FOVar (B+16)) (FOVar (B+14)))
-                 (FOBexC (B+18) (FOSucc cs)
-                    (FOAnd (FObetaF (B+20) cs ds (FOVar (B+16))
-                              (FOVar (B+18)))
-                    (FOBexC (B+24) (FOSucc (FOVar B))
-                       (FOPATF (B+26)
-                          [FOVar (B+24); FOVar (B+18)]
-                          cpatAll01 (FOVar B))))))))
+              (FOJGEN (B+16) cs ds (FOVar B) (FOVar (B+14)) i))
            (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 6))
-              (FOBexC (B+16) i
-                 (FOAnd (FOEq (FOVar (B+16)) (FOVar (B+14)))
-                 (FOBexC (B+18) (FOSucc cs)
-                    (FOAnd (FObetaF (B+20) cs ds (FOVar (B+16))
-                              (FOVar (B+18)))
-                    (FOBexC (B+24) (FOSucc cr)
-                    (FOBexC (B+26) (FOSucc cr)
-                    (FOBexC (B+28) (FOSucc cr)
-                    (FOBexC (B+30) (FOSucc cr)
-                       (FOAnd
-                          (FOlookup (B+32) ct dt c1 d1 c2 d2 c3 d3 cr
-                             dr len (FOnumeral 5) (FOVar 0) FOZero
-                             FOZero (FOVar (B+24)))
-                       (FOAnd
-                          (FOlookup (B+54) ct dt c1 d1 c2 d2 c3 d3 cr
-                             dr len (FOnumeral 3) FOZero (FOVar (B+24))
-                             (FOVar 0) (FOVar (B+26)))
-                       (FOAnd
-                          (FOlookup (B+76) ct dt c1 d1 c2 d2 c3 d3 cr
-                             dr len (FOnumeral 5) (FOVar B) FOZero
-                             FOZero (FOVar (B+28)))
-                       (FOAnd
-                          (FOlookup (B+98) ct dt c1 d1 c2 d2 c3 d3 cr
-                             dr len (FOnumeral 3) (FOnumeral 1)
-                             (FOVar (B+28)) (FOVar (B+26))
-                             (FOVar (B+30)))
-                          (FOPATF (B+120)
-                             [FOVar (B+30); FOVar B]
-                             cpatImpl01 (FOVar (B+18)))))))))))))))))))))))))))).
+              (FOJLOEB (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                 cs ds (FOVar B) (FOVar (B+14)) i)))))))))))))).
 
 (** The Delta_0 derivation checker: a valid master table, a final
     track entry equal to the target code [f] (variable 1), and a
@@ -19178,45 +19164,21 @@ Proof.
     exact Hsh.
 Qed.
 
-Lemma FOdelta0_FOJUSTCK : forall B cores ct dt c1 d1 c2 d2 c3 d3 cr dr
-    len cs ds cj dj i,
+Lemma FOdelta0_FOJSUBST : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    pat vd pl,
   tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
-  FOmax_var_tm cs < B -> FOmax_var_tm ds < B ->
-  FOmax_var_tm cj < B -> FOmax_var_tm dj < B ->
-  FOmax_var_tm i < B ->
-  FOdelta0 (FOJUSTCK B cores ct dt c1 d1 c2 d2 c3 d3 cr dr len
-              cs ds cj dj i).
+  FOmax_var_tm vd < B -> FOmax_var_tm pl < B ->
+  FOdelta0 (FOJSUBST B ct dt c1 d1 c2 d2 c3 d3 cr dr len pat vd pl).
 Proof.
-  intros B cores ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds cj dj i
-    Htb Hcs Hds Hcj Hdj Hi.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len pat vd pl Htb Hvd Hpl.
   pose proof Htb as Htb'.
   destruct Htb' as [Hct [Hdt [Hc1 [Hd1' [Hc2 [Hd2' [Hc3 [Hd3'
     [Hcr [Hdr Hlen]]]]]]]]]].
-  assert (Htb16 : tbl_below (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+  assert (Htb30 : tbl_below (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
     by (unfold tbl_below; lia).
-  assert (Htb46 : tbl_below (B+46) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+  assert (Htb52 : tbl_below (B+52) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
     by (unfold tbl_below; lia).
-  assert (Htb68 : tbl_below (B+68) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
-    by (unfold tbl_below; lia).
-  assert (Htb32 : tbl_below (B+32) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
-    by (unfold tbl_below; lia).
-  assert (Htb54 : tbl_below (B+54) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
-    by (unfold tbl_below; lia).
-  assert (Htb76 : tbl_below (B+76) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
-    by (unfold tbl_below; lia).
-  assert (Htb98 : tbl_below (B+98) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
-    by (unfold tbl_below; lia).
-  unfold FOJUSTCK.
-  apply FOdelta0_FOBexC;
-    [apply FOin_tm_above; cbn; lia
-    |apply FOin_tm_above; cbn; lia|].
-  apply FOdelta0_FOBexC;
-    [apply FOin_tm_above; cbn; lia
-    |apply FOin_tm_above; cbn; lia|].
-  apply FOdelta0_and.
-  { apply FOdelta0_FObetaF; cbn; lia. }
-  apply FOdelta0_and.
-  { apply FOdelta0_FObetaF; cbn; lia. }
+  unfold FOJSUBST.
   apply FOdelta0_FOBexC;
     [apply FOin_tm_above; cbn; lia
     |apply FOin_tm_above; cbn; lia|].
@@ -19224,106 +19186,105 @@ Proof.
     [apply FOin_tm_above; cbn; lia
     |apply FOin_tm_above; cbn; lia|].
   apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
-  apply FOdelta0_or.
-  { apply FOdelta0_and; [apply FOd0_eq|].
-    apply FOdelta0_FOTHAXc; [exact Htb16 | cbn; lia]. }
-  apply FOdelta0_or.
-  { apply FOdelta0_and; [apply FOd0_eq|].
-    apply FOdelta0_FOLOGc; [exact Htb16 | cbn; lia]. }
-  apply FOdelta0_or.
-  { apply FOdelta0_and; [apply FOd0_eq|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_and.
-    { apply FOdelta0_FOPATF.
-      - constructor; [cbn; lia |
-          constructor; [cbn; lia |
-          constructor; [cbn; lia | constructor]]].
-      - cbn. lia. }
-    apply FOdelta0_and.
-    { apply FOdelta0_FOlookup; try assumption;
-        rewrite ?FOmax_var_numeral; cbn; lia. }
-    apply FOdelta0_FOlookup; try assumption;
-      rewrite ?FOmax_var_numeral; cbn; lia. }
-  apply FOdelta0_or.
-  { apply FOdelta0_and; [apply FOd0_eq|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_and.
-    { apply FOdelta0_FOPATF.
-      - constructor; [cbn; lia |
-          constructor; [cbn; lia |
-          constructor; [cbn; lia | constructor]]].
-      - cbn. lia. }
-    apply FOdelta0_and.
-    { apply FOdelta0_FOlookup; try assumption;
-        rewrite ?FOmax_var_numeral; cbn; lia. }
-    apply FOdelta0_FOlookup; try assumption;
-      rewrite ?FOmax_var_numeral; cbn; lia. }
-  apply FOdelta0_or.
-  { apply FOdelta0_and; [apply FOd0_eq|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_and.
-    { apply FOdelta0_FObetaF; cbn; lia. }
-    apply FOdelta0_and.
-    { apply FOdelta0_FObetaF; cbn; lia. }
-    apply FOdelta0_FOPATF.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and.
+  { apply FOdelta0_FOPATF.
     - constructor; [cbn; lia |
-        constructor; [cbn; lia | constructor]].
-    - cbn. lia. }
-  apply FOdelta0_or.
-  { apply FOdelta0_and; [apply FOd0_eq|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_and; [apply FOd0_eq|].
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_and.
-    { apply FOdelta0_FObetaF; cbn; lia. }
-    apply FOdelta0_FOBexC;
-      [apply FOin_tm_above; cbn; lia
-      |apply FOin_tm_above; cbn; lia|].
-    apply FOdelta0_FOPATF.
-    - constructor; [cbn; lia |
-        constructor; [cbn; lia | constructor]].
-    - cbn. lia. }
+        constructor; [cbn; lia |
+        constructor; [cbn; lia | constructor]]].
+    - lia. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FOlookup; try assumption;
+      rewrite ?FOmax_var_numeral; cbn; lia. }
+  apply FOdelta0_FOlookup; try assumption;
+    rewrite ?FOmax_var_numeral; cbn; lia.
+Qed.
+
+Lemma FOdelta0_FOJMP : forall B cs ds vd pl ipos,
+  FOmax_var_tm cs < B -> FOmax_var_tm ds < B ->
+  FOmax_var_tm vd < B -> FOmax_var_tm pl < B ->
+  FOmax_var_tm ipos < B ->
+  FOdelta0 (FOJMP B cs ds vd pl ipos).
+Proof.
+  intros B cs ds vd pl ipos Hcs Hds Hvd Hpl Hi.
+  unfold FOJMP.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and.
+  { apply FOdelta0_FObetaF; cbn; lia. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FObetaF; cbn; lia. }
+  apply FOdelta0_FOPATF.
+  - constructor; [cbn; lia |
+      constructor; [lia | constructor]].
+  - cbn. lia.
+Qed.
+
+Lemma FOdelta0_FOJGEN : forall B cs ds vd pl ipos,
+  FOmax_var_tm cs < B -> FOmax_var_tm ds < B ->
+  FOmax_var_tm vd < B -> FOmax_var_tm pl < B ->
+  FOmax_var_tm ipos < B ->
+  FOdelta0 (FOJGEN B cs ds vd pl ipos).
+Proof.
+  intros B cs ds vd pl ipos Hcs Hds Hvd Hpl Hi.
+  unfold FOJGEN.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
   apply FOdelta0_and; [apply FOd0_eq|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and.
+  { apply FOdelta0_FObetaF; cbn; lia. }
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOPATF.
+  - constructor; [cbn; lia |
+      constructor; [cbn; lia | constructor]].
+  - lia.
+Qed.
+
+Lemma FOdelta0_FOJLOEB : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    cs ds vd pl ipos,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm cs < B -> FOmax_var_tm ds < B ->
+  FOmax_var_tm vd < B -> FOmax_var_tm pl < B ->
+  FOmax_var_tm ipos < B ->
+  FOdelta0 (FOJLOEB B ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds
+              vd pl ipos).
+Proof.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds vd pl ipos
+    Htb Hcs Hds Hvd Hpl Hi.
+  pose proof Htb as Htb'.
+  destruct Htb' as [Hct [Hdt [Hc1 [Hd1' [Hc2 [Hd2' [Hc3 [Hd3'
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  assert (Htb16 : tbl_below (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb38 : tbl_below (B+38) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb60 : tbl_below (B+60) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb82 : tbl_below (B+82) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  unfold FOJLOEB.
   apply FOdelta0_FOBexC;
     [apply FOin_tm_above; cbn; lia
     |apply FOin_tm_above; cbn; lia|].
@@ -19359,8 +19320,62 @@ Proof.
       rewrite ?FOmax_var_numeral; cbn; lia. }
   apply FOdelta0_FOPATF.
   - constructor; [cbn; lia |
-      constructor; [cbn; lia | constructor]].
+      constructor; [lia | constructor]].
   - cbn. lia.
+Qed.
+
+Lemma FOdelta0_FOJUSTCK : forall B cores ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len cs ds cj dj i,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm cs < B -> FOmax_var_tm ds < B ->
+  FOmax_var_tm cj < B -> FOmax_var_tm dj < B ->
+  FOmax_var_tm i < B ->
+  FOdelta0 (FOJUSTCK B cores ct dt c1 d1 c2 d2 c3 d3 cr dr len
+              cs ds cj dj i).
+Proof.
+  intros B cores ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds cj dj i
+    Htb Hcs Hds Hcj Hdj Hi.
+  assert (Htb16 : tbl_below (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (destruct Htb as [Hct [Hdt [Hc1 [Hd1' [Hc2 [Hd2' [Hc3 [Hd3'
+          [Hcr [Hdr Hlen]]]]]]]]]]; unfold tbl_below; lia).
+  unfold FOJUSTCK.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and.
+  { apply FOdelta0_FObetaF; cbn; lia. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FObetaF; cbn; lia. }
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOTHAXc; [exact Htb16 | cbn; lia]. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOLOGc; [exact Htb16 | cbn; lia]. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOJSUBST; [exact Htb16 | cbn; lia | cbn; lia]. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOJSUBST; [exact Htb16 | cbn; lia | cbn; lia]. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOJMP; cbn; lia. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOJGEN; cbn; lia. }
+  apply FOdelta0_and; [apply FOd0_eq|].
+  apply FOdelta0_FOJLOEB; try (exact Htb16); cbn; lia.
 Qed.
 
 Definition mfun (tag a1 a2 a3 : nat) : nat :=
