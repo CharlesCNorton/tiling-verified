@@ -12133,6 +12133,416 @@ Inductive FORobinsonQ : FOFormula -> Prop :=
   | RQ_mult_succ : forall a b,
       FORobinsonQ (FOEq (FOMult a (FOSucc b)) (FOPlus (FOMult a b) a)).
 
+(** ** The pure-syntax coding and table-formula layer.
+
+    Everything here is a plain definition over [FOTerm]/[FOFormula]
+    and [nat] — Goedel codes, the connective sugar, the bounded
+    quantifier builders, the beta-access formula, and the master
+    computation-table matrices.  They sit before the tower so the
+    consistency axioms and the Loeb rule can mention the provability
+    sentence.  Their satisfaction and Delta_0 lemmas stay with the
+    toolkit below. *)
+
+Fixpoint FOcode_tm (t : FOTerm) : nat :=
+  match t with
+  | FOVar x => cpair 0 x
+  | FOZero => cpair 1 0
+  | FOSucc a => cpair 2 (FOcode_tm a)
+  | FOPlus a b => cpair 3 (cpair (FOcode_tm a) (FOcode_tm b))
+  | FOMult a b => cpair 4 (cpair (FOcode_tm a) (FOcode_tm b))
+  end.
+
+Fixpoint FOcode_f (A : FOFormula) : nat :=
+  match A with
+  | FOEq a b => cpair 0 (cpair (FOcode_tm a) (FOcode_tm b))
+  | FOFalseF => cpair 1 0
+  | FOImplF B C => cpair 2 (cpair (FOcode_f B) (FOcode_f C))
+  | FOForall x B => cpair 3 (cpair x (FOcode_f B))
+  | FOExists x B => cpair 4 (cpair x (FOcode_f B))
+  end.
+
+Definition FOAnd (A B : FOFormula) : FOFormula :=
+  FONeg (FOImplF A (FONeg B)).
+Definition FOOr (A B : FOFormula) : FOFormula :=
+  FOImplF (FONeg A) B.
+
+Definition FOcpairF (a b c : FOTerm) : FOFormula :=
+  FOEq (FOPlus c c)
+       (FOPlus (FOMult (FOPlus a b) (FOSucc (FOPlus a b)))
+               (FOPlus b b)).
+
+Definition FOBexC (v : nat) (t : FOTerm) (A : FOFormula) : FOFormula :=
+  FOExists v
+    (FOAnd
+       (FOExists (S v)
+          (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t))
+       A).
+
+Definition FOBallC (v : nat) (t : FOTerm) (A : FOFormula) : FOFormula :=
+  FOForall v
+    (FOImplF
+       (FOExists (S v)
+          (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t))
+       A).
+
+Definition FObetaF (v : nat) (c d i x : FOTerm) : FOFormula :=
+  FOBexC v (FOSucc c)
+    (FOAnd
+       (FOEq c (FOPlus
+                  (FOMult (FOVar v) (FOSucc (FOMult d (FOSucc i))))
+                  x))
+       (FOBexC (S (S v)) (FOSucc (FOMult d (FOSucc i)))
+          (FOEq (FOPlus x (FOSucc (FOVar (S (S v)))))
+                (FOSucc (FOMult d (FOSucc i)))))).
+
+Definition tbl_below (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm) : Prop :=
+  FOmax_var_tm ct < B /\ FOmax_var_tm dt < B /\
+  FOmax_var_tm c1 < B /\ FOmax_var_tm d1 < B /\
+  FOmax_var_tm c2 < B /\ FOmax_var_tm d2 < B /\
+  FOmax_var_tm c3 < B /\ FOmax_var_tm d3 < B /\
+  FOmax_var_tm cr < B /\ FOmax_var_tm dr < B /\
+  FOmax_var_tm len < B.
+
+Definition FOlookup (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (tg a1 a2 a3 r : FOTerm) : FOFormula :=
+  FOBexC B len
+    (FOAnd (FObetaF (B+2) ct dt (FOVar B) tg)
+    (FOAnd (FObetaF (B+6) c1 d1 (FOVar B) a1)
+    (FOAnd (FObetaF (B+10) c2 d2 (FOVar B) a2)
+    (FOAnd (FObetaF (B+14) c3 d3 (FOVar B) a3)
+           (FObetaF (B+18) cr dr (FOVar B) r))))).
+
+Definition FOSTEP0 (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (w tc r : FOTerm) : FOFormula :=
+  FOOr
+    (FOBexC B (FOSucc tc)
+       (FOAnd (FOcpairF FOZero (FOVar B) tc)
+          (FOOr (FOAnd (FOEq (FOVar B) w) (FOEq r (FOnumeral 1)))
+                (FOAnd (FONeg (FOEq (FOVar B) w)) (FOEq r FOZero)))))
+  (FOOr
+    (FOAnd (FOcpairF (FOnumeral 1) FOZero tc) (FOEq r FOZero))
+  (FOOr
+    (FOBexC B (FOSucc tc)
+       (FOAnd (FOcpairF (FOnumeral 2) (FOVar B) tc)
+          (FOlookup (B+2) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+             (FOnumeral 0) w (FOVar B) FOZero r)))
+  (FOOr
+    (FOBexC B (FOSucc tc)
+       (FOAnd (FOcpairF (FOnumeral 3) (FOVar B) tc)
+          (FOBexC (B+2) (FOSucc (FOVar B))
+             (FOBexC (B+4) (FOSucc (FOVar B))
+                (FOAnd
+                   (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
+                   (FOOr
+                      (FOAnd
+                         (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                            len (FOnumeral 0) w (FOVar (B+2)) FOZero
+                            (FOnumeral 1))
+                         (FOEq r (FOnumeral 1)))
+                      (FOAnd
+                         (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                            len (FOnumeral 0) w (FOVar (B+2)) FOZero
+                            FOZero)
+                         (FOlookup (B+28) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                            len (FOnumeral 0) w (FOVar (B+4)) FOZero r))))))))
+    (FOBexC B (FOSucc tc)
+       (FOAnd (FOcpairF (FOnumeral 4) (FOVar B) tc)
+          (FOBexC (B+2) (FOSucc (FOVar B))
+             (FOBexC (B+4) (FOSucc (FOVar B))
+                (FOAnd
+                   (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
+                   (FOOr
+                      (FOAnd
+                         (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                            len (FOnumeral 0) w (FOVar (B+2)) FOZero
+                            (FOnumeral 1))
+                         (FOEq r (FOnumeral 1)))
+                      (FOAnd
+                         (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                            len (FOnumeral 0) w (FOVar (B+2)) FOZero
+                            FOZero)
+                         (FOlookup (B+28) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                            len (FOnumeral 0) w (FOVar (B+4)) FOZero r))))))))))).
+
+Definition FOSTEP_bin (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (w pc r : FOTerm) (k tg : nat) : FOFormula :=
+  FOBexC B (FOSucc pc)
+    (FOAnd (FOcpairF (FOnumeral k) (FOVar B) pc)
+       (FOBexC (B+2) (FOSucc (FOVar B))
+          (FOBexC (B+4) (FOSucc (FOVar B))
+             (FOAnd
+                (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
+                (FOOr
+                   (FOAnd
+                      (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                         len (FOnumeral tg) w (FOVar (B+2)) FOZero
+                         (FOnumeral 1))
+                      (FOEq r (FOnumeral 1)))
+                   (FOAnd
+                      (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                         len (FOnumeral tg) w (FOVar (B+2)) FOZero
+                         FOZero)
+                      (FOlookup (B+28) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                         len (FOnumeral tg) w (FOVar (B+4)) FOZero
+                         r))))))).
+
+Definition FOSTEP_quant0 (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (w pc r : FOTerm) (k tg : nat) : FOFormula :=
+  FOBexC B (FOSucc pc)
+    (FOAnd (FOcpairF (FOnumeral k) (FOVar B) pc)
+       (FOBexC (B+2) (FOSucc (FOVar B))
+          (FOBexC (B+4) (FOSucc (FOVar B))
+             (FOAnd
+                (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
+                (FOOr
+                   (FOAnd (FOEq (FOVar (B+2)) w) (FOEq r FOZero))
+                   (FOAnd (FONeg (FOEq (FOVar (B+2)) w))
+                      (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                         len (FOnumeral tg) w (FOVar (B+4)) FOZero
+                         r))))))).
+
+Definition FOSTEP1 (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (w pc r : FOTerm) : FOFormula :=
+  FOOr
+    (FOSTEP_bin B ct dt c1 d1 c2 d2 c3 d3 cr dr len w pc r 0 0)
+  (FOOr
+    (FOAnd (FOcpairF (FOnumeral 1) FOZero pc) (FOEq r FOZero))
+  (FOOr
+    (FOSTEP_bin B ct dt c1 d1 c2 d2 c3 d3 cr dr len w pc r 2 1)
+  (FOOr
+    (FOSTEP_quant0 B ct dt c1 d1 c2 d2 c3 d3 cr dr len w pc r 3 1)
+    (FOSTEP_quant0 B ct dt c1 d1 c2 d2 c3 d3 cr dr len w pc r 4 1)))).
+
+Definition FOSTEP5 (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (a1 r : FOTerm) : FOFormula :=
+  FOOr
+    (FOAnd (FOEq a1 FOZero) (FOcpairF (FOnumeral 1) FOZero r))
+    (FOBexC B a1
+       (FOAnd (FOEq a1 (FOSucc (FOVar B)))
+          (FOBexC (B+2) r
+             (FOAnd
+                (FOlookup (B+4) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                   (FOnumeral 5) (FOVar B) FOZero FOZero
+                   (FOVar (B+2)))
+                (FOcpairF (FOnumeral 2) (FOVar (B+2)) r))))).
+
+Definition FOSTEP_substbin (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (x sc tc r : FOTerm) (ktag lktag rtag : nat) : FOFormula :=
+  FOBexC B (FOSucc tc)
+    (FOAnd (FOcpairF (FOnumeral ktag) (FOVar B) tc)
+       (FOBexC (B+2) (FOSucc (FOVar B))
+          (FOBexC (B+4) (FOSucc (FOVar B))
+             (FOAnd
+                (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
+                (FOBexC (B+6) (FOSucc r)
+                   (FOBexC (B+8) (FOSucc r)
+                      (FOAnd
+                         (FOlookup (B+10) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                            len (FOnumeral lktag) x sc (FOVar (B+2))
+                            (FOVar (B+6)))
+                      (FOAnd
+                         (FOlookup (B+32) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                            len (FOnumeral lktag) x sc (FOVar (B+4))
+                            (FOVar (B+8)))
+                         (FOBexC (B+54) (FOSucc r)
+                            (FOAnd
+                               (FOcpairF (FOVar (B+6)) (FOVar (B+8))
+                                  (FOVar (B+54)))
+                               (FOcpairF (FOnumeral rtag)
+                                  (FOVar (B+54)) r))))))))))).
+
+Definition FOSTEP2 (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (x sc tc r : FOTerm) : FOFormula :=
+  FOOr
+    (FOBexC B (FOSucc tc)
+       (FOAnd (FOcpairF FOZero (FOVar B) tc)
+          (FOOr (FOAnd (FOEq (FOVar B) x) (FOEq r sc))
+                (FOAnd (FONeg (FOEq (FOVar B) x)) (FOEq r tc)))))
+  (FOOr
+    (FOAnd (FOcpairF (FOnumeral 1) FOZero tc) (FOEq r tc))
+  (FOOr
+    (FOBexC B (FOSucc tc)
+       (FOAnd (FOcpairF (FOnumeral 2) (FOVar B) tc)
+          (FOBexC (B+2) r
+             (FOAnd
+                (FOlookup (B+4) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                   (FOnumeral 2) x sc (FOVar B) (FOVar (B+2)))
+                (FOcpairF (FOnumeral 2) (FOVar (B+2)) r)))))
+  (FOOr
+    (FOSTEP_substbin B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc tc r
+       3 2 3)
+    (FOSTEP_substbin B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc tc r
+       4 2 4)))).
+
+Definition FOSTEP_substquant (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (x sc pc r : FOTerm) (ktag : nat) : FOFormula :=
+  FOBexC B (FOSucc pc)
+    (FOAnd (FOcpairF (FOnumeral ktag) (FOVar B) pc)
+       (FOBexC (B+2) (FOSucc (FOVar B))
+          (FOBexC (B+4) (FOSucc (FOVar B))
+             (FOAnd
+                (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
+                (FOOr
+                   (FOAnd (FOEq (FOVar (B+2)) x) (FOEq r pc))
+                   (FOAnd (FONeg (FOEq (FOVar (B+2)) x))
+                      (FOBexC (B+6) r
+                         (FOAnd
+                            (FOlookup (B+8) ct dt c1 d1 c2 d2 c3 d3 cr
+                               dr len (FOnumeral 3) x sc (FOVar (B+4))
+                               (FOVar (B+6)))
+                            (FOBexC (B+30) (FOSucc r)
+                               (FOAnd
+                                  (FOcpairF (FOVar (B+2))
+                                     (FOVar (B+6)) (FOVar (B+30)))
+                                  (FOcpairF (FOnumeral ktag)
+                                     (FOVar (B+30)) r))))))))))).
+
+Definition FOSTEP3 (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (x sc pc r : FOTerm) : FOFormula :=
+  FOOr
+    (FOSTEP_substbin B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r
+       0 2 0)
+  (FOOr
+    (FOAnd (FOcpairF (FOnumeral 1) FOZero pc) (FOEq r pc))
+  (FOOr
+    (FOSTEP_substbin B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r
+       2 3 2)
+  (FOOr
+    (FOSTEP_substquant B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r 3)
+    (FOSTEP_substquant B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r
+       4)))).
+
+Definition FOSTEP_subokbin (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (x sc pc r : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc pc)
+    (FOAnd (FOcpairF (FOnumeral 2) (FOVar B) pc)
+       (FOBexC (B+2) (FOSucc (FOVar B))
+          (FOBexC (B+4) (FOSucc (FOVar B))
+             (FOAnd
+                (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
+                (FOOr
+                   (FOAnd
+                      (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                         len (FOnumeral 4) x sc (FOVar (B+2)) FOZero)
+                      (FOEq r FOZero))
+                   (FOAnd
+                      (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                         len (FOnumeral 4) x sc (FOVar (B+2))
+                         (FOnumeral 1))
+                      (FOlookup (B+28) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                         len (FOnumeral 4) x sc (FOVar (B+4)) r))))))).
+
+Definition FOSTEP_subokquant (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (x sc pc r : FOTerm) (k : nat) : FOFormula :=
+  FOBexC B (FOSucc pc)
+    (FOAnd (FOcpairF (FOnumeral k) (FOVar B) pc)
+       (FOBexC (B+2) (FOSucc (FOVar B))
+          (FOBexC (B+4) (FOSucc (FOVar B))
+             (FOAnd
+                (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
+                (FOOr
+                   (FOAnd (FOEq (FOVar (B+2)) x) (FOEq r (FOnumeral 1)))
+                   (FOAnd (FONeg (FOEq (FOVar (B+2)) x))
+                      (FOOr
+                         (FOAnd
+                            (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr
+                               dr len (FOnumeral 1) x (FOVar (B+4))
+                               FOZero FOZero)
+                            (FOEq r (FOnumeral 1)))
+                         (FOAnd
+                            (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr
+                               dr len (FOnumeral 1) x (FOVar (B+4))
+                               FOZero (FOnumeral 1))
+                            (FOOr
+                               (FOAnd
+                                  (FOlookup (B+28) ct dt c1 d1 c2 d2 c3
+                                     d3 cr dr len (FOnumeral 0)
+                                     (FOVar (B+2)) sc FOZero
+                                     (FOnumeral 1))
+                                  (FOEq r FOZero))
+                               (FOAnd
+                                  (FOlookup (B+28) ct dt c1 d1 c2 d2 c3
+                                     d3 cr dr len (FOnumeral 0)
+                                     (FOVar (B+2)) sc FOZero FOZero)
+                                  (FOlookup (B+50) ct dt c1 d1 c2 d2 c3
+                                     d3 cr dr len (FOnumeral 4) x sc
+                                     (FOVar (B+4)) r))))))))))).
+
+Definition FOSTEP4 (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (x sc pc r : FOTerm) : FOFormula :=
+  FOOr
+    (FOBexC B (FOSucc pc)
+       (FOAnd (FOcpairF FOZero (FOVar B) pc)
+          (FOEq r (FOnumeral 1))))
+  (FOOr
+    (FOAnd (FOcpairF (FOnumeral 1) FOZero pc) (FOEq r (FOnumeral 1)))
+  (FOOr
+    (FOSTEP_subokbin B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r)
+  (FOOr
+    (FOSTEP_subokquant B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r 3)
+    (FOSTEP_subokquant B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r
+       4)))).
+
+Definition FOSTEPDISPATCH (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (j : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc ct)
+  (FOBexC (B+2) (FOSucc c1)
+  (FOBexC (B+4) (FOSucc c2)
+  (FOBexC (B+6) (FOSucc c3)
+  (FOBexC (B+8) (FOSucc cr)
+    (FOAnd (FObetaF (B+10) ct dt j (FOVar B))
+    (FOAnd (FObetaF (B+14) c1 d1 j (FOVar (B+2)))
+    (FOAnd (FObetaF (B+18) c2 d2 j (FOVar (B+4)))
+    (FOAnd (FObetaF (B+22) c3 d3 j (FOVar (B+6)))
+    (FOAnd (FObetaF (B+26) cr dr j (FOVar (B+8)))
+      (FOOr
+         (FOAnd (FOEq (FOVar B) FOZero)
+            (FOSTEP0 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+8))))
+      (FOOr
+         (FOAnd (FOEq (FOVar B) (FOnumeral 1))
+            (FOSTEP1 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+8))))
+      (FOOr
+         (FOAnd (FOEq (FOVar B) (FOnumeral 2))
+            (FOSTEP2 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+6))
+               (FOVar (B+8))))
+      (FOOr
+         (FOAnd (FOEq (FOVar B) (FOnumeral 3))
+            (FOSTEP3 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+6))
+               (FOVar (B+8))))
+      (FOOr
+         (FOAnd (FOEq (FOVar B) (FOnumeral 4))
+            (FOSTEP4 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+6))
+               (FOVar (B+8))))
+         (FOAnd (FOEq (FOVar B) (FOnumeral 5))
+            (FOSTEP5 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               (FOVar (B+2)) (FOVar (B+8)))))))))))))))))).
+
+Definition FOTBLVALID (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm) : FOFormula :=
+  FOBallC B len
+    (FOSTEPDISPATCH (B+2) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+       (FOVar B)).
+
 Definition FOConSentence (n : nat) : FOFormula :=
   FOEq (FOnumeral n) (FOnumeral n).
 
@@ -12284,15 +12694,6 @@ Proof.
     + intro e. injection e. intros e2 e1. split; assumption.
 Qed.
 
-Fixpoint FOcode_tm (t : FOTerm) : nat :=
-  match t with
-  | FOVar x => cpair 0 x
-  | FOZero => cpair 1 0
-  | FOSucc a => cpair 2 (FOcode_tm a)
-  | FOPlus a b => cpair 3 (cpair (FOcode_tm a) (FOcode_tm b))
-  | FOMult a b => cpair 4 (cpair (FOcode_tm a) (FOcode_tm b))
-  end.
-
 Fixpoint FOdecode_tm_b (depth n : nat) : FOTerm :=
   match depth with
   | 0 => FOZero
@@ -12385,15 +12786,6 @@ Proof.
   rewrite <- (FOdecode_code_tm a), <- (FOdecode_code_tm b), H.
   reflexivity.
 Qed.
-
-Fixpoint FOcode_f (A : FOFormula) : nat :=
-  match A with
-  | FOEq a b => cpair 0 (cpair (FOcode_tm a) (FOcode_tm b))
-  | FOFalseF => cpair 1 0
-  | FOImplF B C => cpair 2 (cpair (FOcode_f B) (FOcode_f C))
-  | FOForall x B => cpair 3 (cpair x (FOcode_f B))
-  | FOExists x B => cpair 4 (cpair x (FOcode_f B))
-  end.
 
 Fixpoint FOdecode_f_b (depth n : nat) : FOFormula :=
   match depth with
@@ -13498,10 +13890,6 @@ Qed.
     reading, so [prop_decide_correct] turns every boolean-checked
     tautology skeleton into an [FOProvesTn] theorem at any level. *)
 
-Definition FOAnd (A B : FOFormula) : FOFormula :=
-  FONeg (FOImplF A (FONeg B)).
-Definition FOOr (A B : FOFormula) : FOFormula :=
-  FOImplF (FONeg A) B.
 Definition FOIff (A B : FOFormula) : FOFormula :=
   FOAnd (FOImplF A B) (FOImplF B A).
 
@@ -15638,11 +16026,6 @@ Proof.
   induction s as [|s IH]; cbn [to_triangle]; nia.
 Qed.
 
-Definition FOcpairF (a b c : FOTerm) : FOFormula :=
-  FOEq (FOPlus c c)
-       (FOPlus (FOMult (FOPlus a b) (FOSucc (FOPlus a b)))
-               (FOPlus b b)).
-
 Lemma FOsat_FOcpairF : forall e a b c,
   FOsat e (FOcpairF a b c)
   <-> cpair (FOeval e a) (FOeval e b) = FOeval e c.
@@ -15666,20 +16049,6 @@ Qed.
 
 (** The canonical bounded quantifiers as builders with their
     satisfaction laws. *)
-
-Definition FOBexC (v : nat) (t : FOTerm) (A : FOFormula) : FOFormula :=
-  FOExists v
-    (FOAnd
-       (FOExists (S v)
-          (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t))
-       A).
-
-Definition FOBallC (v : nat) (t : FOTerm) (A : FOFormula) : FOFormula :=
-  FOForall v
-    (FOImplF
-       (FOExists (S v)
-          (FOEq (FOPlus (FOVar v) (FOSucc (FOVar (S v)))) t))
-       A).
 
 Lemma FOdelta0_FOBexC : forall v t A,
   FOin_tm v t = false -> FOin_tm (S v) t = false -> FOdelta0 A ->
@@ -15805,16 +16174,6 @@ Qed.
 
 (** Beta access as a Delta_0 formula: [x = beta c d i], using the
     block (v, S v, S (S v), S (S (S v))). *)
-
-Definition FObetaF (v : nat) (c d i x : FOTerm) : FOFormula :=
-  FOBexC v (FOSucc c)
-    (FOAnd
-       (FOEq c (FOPlus
-                  (FOMult (FOVar v) (FOSucc (FOMult d (FOSucc i))))
-                  x))
-       (FOBexC (S (S v)) (FOSucc (FOMult d (FOSucc i)))
-          (FOEq (FOPlus x (FOSucc (FOVar (S (S v)))))
-                (FOSucc (FOMult d (FOSucc i)))))).
 
 Lemma FOdelta0_FObetaF : forall v c d i x,
   FOmax_var_tm c < v -> FOmax_var_tm d < v ->
@@ -15951,25 +16310,6 @@ Qed.
     carries the given five fields.  The block of variables
     [B, ..., B+21] is bound here; every argument term must keep its
     variables below [B]. *)
-
-Definition tbl_below (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm) : Prop :=
-  FOmax_var_tm ct < B /\ FOmax_var_tm dt < B /\
-  FOmax_var_tm c1 < B /\ FOmax_var_tm d1 < B /\
-  FOmax_var_tm c2 < B /\ FOmax_var_tm d2 < B /\
-  FOmax_var_tm c3 < B /\ FOmax_var_tm d3 < B /\
-  FOmax_var_tm cr < B /\ FOmax_var_tm dr < B /\
-  FOmax_var_tm len < B.
-
-Definition FOlookup (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (tg a1 a2 a3 r : FOTerm) : FOFormula :=
-  FOBexC B len
-    (FOAnd (FObetaF (B+2) ct dt (FOVar B) tg)
-    (FOAnd (FObetaF (B+6) c1 d1 (FOVar B) a1)
-    (FOAnd (FObetaF (B+10) c2 d2 (FOVar B) a2)
-    (FOAnd (FObetaF (B+14) c3 d3 (FOVar B) a3)
-           (FObetaF (B+18) cr dr (FOVar B) r))))).
 
 Lemma FOdelta0_FOlookup : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
     tg a1 a2 a3 r,
@@ -16177,59 +16517,6 @@ Definition step0_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
       exists ta, ta < S p /\ exists tb, tb < S p /\
         cpair ta tb = p /\
         ((L 0 w ta 0 1 /\ r = 1) \/ (L 0 w ta 0 0 /\ L 0 w tb 0 r))).
-
-Definition FOSTEP0 (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (w tc r : FOTerm) : FOFormula :=
-  FOOr
-    (FOBexC B (FOSucc tc)
-       (FOAnd (FOcpairF FOZero (FOVar B) tc)
-          (FOOr (FOAnd (FOEq (FOVar B) w) (FOEq r (FOnumeral 1)))
-                (FOAnd (FONeg (FOEq (FOVar B) w)) (FOEq r FOZero)))))
-  (FOOr
-    (FOAnd (FOcpairF (FOnumeral 1) FOZero tc) (FOEq r FOZero))
-  (FOOr
-    (FOBexC B (FOSucc tc)
-       (FOAnd (FOcpairF (FOnumeral 2) (FOVar B) tc)
-          (FOlookup (B+2) ct dt c1 d1 c2 d2 c3 d3 cr dr len
-             (FOnumeral 0) w (FOVar B) FOZero r)))
-  (FOOr
-    (FOBexC B (FOSucc tc)
-       (FOAnd (FOcpairF (FOnumeral 3) (FOVar B) tc)
-          (FOBexC (B+2) (FOSucc (FOVar B))
-             (FOBexC (B+4) (FOSucc (FOVar B))
-                (FOAnd
-                   (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
-                   (FOOr
-                      (FOAnd
-                         (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                            len (FOnumeral 0) w (FOVar (B+2)) FOZero
-                            (FOnumeral 1))
-                         (FOEq r (FOnumeral 1)))
-                      (FOAnd
-                         (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                            len (FOnumeral 0) w (FOVar (B+2)) FOZero
-                            FOZero)
-                         (FOlookup (B+28) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                            len (FOnumeral 0) w (FOVar (B+4)) FOZero r))))))))
-    (FOBexC B (FOSucc tc)
-       (FOAnd (FOcpairF (FOnumeral 4) (FOVar B) tc)
-          (FOBexC (B+2) (FOSucc (FOVar B))
-             (FOBexC (B+4) (FOSucc (FOVar B))
-                (FOAnd
-                   (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
-                   (FOOr
-                      (FOAnd
-                         (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                            len (FOnumeral 0) w (FOVar (B+2)) FOZero
-                            (FOnumeral 1))
-                         (FOEq r (FOnumeral 1)))
-                      (FOAnd
-                         (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                            len (FOnumeral 0) w (FOVar (B+2)) FOZero
-                            FOZero)
-                         (FOlookup (B+28) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                            len (FOnumeral 0) w (FOVar (B+4)) FOZero r))))))))))).
 
 Lemma FOdelta0_FOSTEP0 : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
     w tc r,
@@ -16974,58 +17261,6 @@ Definition step1_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
         cpair y pb = p /\
         ((y = w /\ r = 0) \/ (y <> w /\ L 1 w pb 0 r))).
 
-Definition FOSTEP_bin (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (w pc r : FOTerm) (k tg : nat) : FOFormula :=
-  FOBexC B (FOSucc pc)
-    (FOAnd (FOcpairF (FOnumeral k) (FOVar B) pc)
-       (FOBexC (B+2) (FOSucc (FOVar B))
-          (FOBexC (B+4) (FOSucc (FOVar B))
-             (FOAnd
-                (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
-                (FOOr
-                   (FOAnd
-                      (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                         len (FOnumeral tg) w (FOVar (B+2)) FOZero
-                         (FOnumeral 1))
-                      (FOEq r (FOnumeral 1)))
-                   (FOAnd
-                      (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                         len (FOnumeral tg) w (FOVar (B+2)) FOZero
-                         FOZero)
-                      (FOlookup (B+28) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                         len (FOnumeral tg) w (FOVar (B+4)) FOZero
-                         r))))))).
-
-Definition FOSTEP_quant0 (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (w pc r : FOTerm) (k tg : nat) : FOFormula :=
-  FOBexC B (FOSucc pc)
-    (FOAnd (FOcpairF (FOnumeral k) (FOVar B) pc)
-       (FOBexC (B+2) (FOSucc (FOVar B))
-          (FOBexC (B+4) (FOSucc (FOVar B))
-             (FOAnd
-                (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
-                (FOOr
-                   (FOAnd (FOEq (FOVar (B+2)) w) (FOEq r FOZero))
-                   (FOAnd (FONeg (FOEq (FOVar (B+2)) w))
-                      (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                         len (FOnumeral tg) w (FOVar (B+4)) FOZero
-                         r))))))).
-
-Definition FOSTEP1 (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (w pc r : FOTerm) : FOFormula :=
-  FOOr
-    (FOSTEP_bin B ct dt c1 d1 c2 d2 c3 d3 cr dr len w pc r 0 0)
-  (FOOr
-    (FOAnd (FOcpairF (FOnumeral 1) FOZero pc) (FOEq r FOZero))
-  (FOOr
-    (FOSTEP_bin B ct dt c1 d1 c2 d2 c3 d3 cr dr len w pc r 2 1)
-  (FOOr
-    (FOSTEP_quant0 B ct dt c1 d1 c2 d2 c3 d3 cr dr len w pc r 3 1)
-    (FOSTEP_quant0 B ct dt c1 d1 c2 d2 c3 d3 cr dr len w pc r 4 1)))).
-
 Lemma FOdelta0_FOSTEP_bin : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
     w pc r k tg,
   tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
@@ -17141,20 +17376,6 @@ Definition step5_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
   (a1 = 0 /\ cpair 1 0 = r)
   \/ (exists k', k' < a1 /\ a1 = S k' /\
       exists r', r' < r /\ L 5 k' 0 0 r' /\ cpair 2 r' = r).
-
-Definition FOSTEP5 (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (a1 r : FOTerm) : FOFormula :=
-  FOOr
-    (FOAnd (FOEq a1 FOZero) (FOcpairF (FOnumeral 1) FOZero r))
-    (FOBexC B a1
-       (FOAnd (FOEq a1 (FOSucc (FOVar B)))
-          (FOBexC (B+2) r
-             (FOAnd
-                (FOlookup (B+4) ct dt c1 d1 c2 d2 c3 d3 cr dr len
-                   (FOnumeral 5) (FOVar B) FOZero FOZero
-                   (FOVar (B+2)))
-                (FOcpairF (FOnumeral 2) (FOVar (B+2)) r))))).
 
 Lemma FOdelta0_FOSTEP5 : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
     a1 r,
@@ -17510,32 +17731,6 @@ Proof.
     apply (proj2 (FOsat_FOcpairF _ _ _ _)).
     rewrite FOeval_numeral, EvB2, (Eu r Hr). exact Hcp2.
 Qed.
-
-Definition FOSTEP_substbin (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (x sc tc r : FOTerm) (ktag lktag rtag : nat) : FOFormula :=
-  FOBexC B (FOSucc tc)
-    (FOAnd (FOcpairF (FOnumeral ktag) (FOVar B) tc)
-       (FOBexC (B+2) (FOSucc (FOVar B))
-          (FOBexC (B+4) (FOSucc (FOVar B))
-             (FOAnd
-                (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
-                (FOBexC (B+6) (FOSucc r)
-                   (FOBexC (B+8) (FOSucc r)
-                      (FOAnd
-                         (FOlookup (B+10) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                            len (FOnumeral lktag) x sc (FOVar (B+2))
-                            (FOVar (B+6)))
-                      (FOAnd
-                         (FOlookup (B+32) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                            len (FOnumeral lktag) x sc (FOVar (B+4))
-                            (FOVar (B+8)))
-                         (FOBexC (B+54) (FOSucc r)
-                            (FOAnd
-                               (FOcpairF (FOVar (B+6)) (FOVar (B+8))
-                                  (FOVar (B+54)))
-                               (FOcpairF (FOnumeral rtag)
-                                  (FOVar (B+54)) r))))))))))).
 
 Lemma FOdelta0_FOSTEP_substbin : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr
     len x sc tc r ktag lktag rtag,
@@ -17956,30 +18151,6 @@ Definition step2_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
         L 2 x sc ta ra /\ L 2 x sc tb rb /\
         exists q, q < S r /\ cpair ra rb = q /\ cpair 4 q = r).
 
-Definition FOSTEP2 (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (x sc tc r : FOTerm) : FOFormula :=
-  FOOr
-    (FOBexC B (FOSucc tc)
-       (FOAnd (FOcpairF FOZero (FOVar B) tc)
-          (FOOr (FOAnd (FOEq (FOVar B) x) (FOEq r sc))
-                (FOAnd (FONeg (FOEq (FOVar B) x)) (FOEq r tc)))))
-  (FOOr
-    (FOAnd (FOcpairF (FOnumeral 1) FOZero tc) (FOEq r tc))
-  (FOOr
-    (FOBexC B (FOSucc tc)
-       (FOAnd (FOcpairF (FOnumeral 2) (FOVar B) tc)
-          (FOBexC (B+2) r
-             (FOAnd
-                (FOlookup (B+4) ct dt c1 d1 c2 d2 c3 d3 cr dr len
-                   (FOnumeral 2) x sc (FOVar B) (FOVar (B+2)))
-                (FOcpairF (FOnumeral 2) (FOVar (B+2)) r)))))
-  (FOOr
-    (FOSTEP_substbin B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc tc r
-       3 2 3)
-    (FOSTEP_substbin B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc tc r
-       4 2 4)))).
-
 Lemma FOdelta0_FOSTEP2 : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
     x sc tc r,
   tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
@@ -18047,30 +18218,6 @@ Proof.
              len x sc tc r 4 2 4 Htb Hx Hsc Htc Hr).
   reflexivity.
 Qed.
-
-Definition FOSTEP_substquant (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (x sc pc r : FOTerm) (ktag : nat) : FOFormula :=
-  FOBexC B (FOSucc pc)
-    (FOAnd (FOcpairF (FOnumeral ktag) (FOVar B) pc)
-       (FOBexC (B+2) (FOSucc (FOVar B))
-          (FOBexC (B+4) (FOSucc (FOVar B))
-             (FOAnd
-                (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
-                (FOOr
-                   (FOAnd (FOEq (FOVar (B+2)) x) (FOEq r pc))
-                   (FOAnd (FONeg (FOEq (FOVar (B+2)) x))
-                      (FOBexC (B+6) r
-                         (FOAnd
-                            (FOlookup (B+8) ct dt c1 d1 c2 d2 c3 d3 cr
-                               dr len (FOnumeral 3) x sc (FOVar (B+4))
-                               (FOVar (B+6)))
-                            (FOBexC (B+30) (FOSucc r)
-                               (FOAnd
-                                  (FOcpairF (FOVar (B+2))
-                                     (FOVar (B+6)) (FOVar (B+30)))
-                                  (FOcpairF (FOnumeral ktag)
-                                     (FOVar (B+30)) r))))))))))).
 
 Lemma FOdelta0_FOSTEP_substquant : forall B ct dt c1 d1 c2 d2 c3 d3 cr
     dr len x sc pc r ktag,
@@ -18422,22 +18569,6 @@ Definition step3_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
              exists rb, rb < r /\ L 3 x sc pb rb /\
                exists q, q < S r /\ cpair y rb = q /\ cpair 4 q = r))).
 
-Definition FOSTEP3 (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (x sc pc r : FOTerm) : FOFormula :=
-  FOOr
-    (FOSTEP_substbin B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r
-       0 2 0)
-  (FOOr
-    (FOAnd (FOcpairF (FOnumeral 1) FOZero pc) (FOEq r pc))
-  (FOOr
-    (FOSTEP_substbin B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r
-       2 3 2)
-  (FOOr
-    (FOSTEP_substquant B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r 3)
-    (FOSTEP_substquant B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r
-       4)))).
-
 Lemma FOdelta0_FOSTEP3 : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
     x sc pc r,
   tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
@@ -18488,27 +18619,6 @@ Proof.
              len x sc pc r 4 Htb Hx Hsc Hpc Hr).
   reflexivity.
 Qed.
-
-Definition FOSTEP_subokbin (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (x sc pc r : FOTerm) : FOFormula :=
-  FOBexC B (FOSucc pc)
-    (FOAnd (FOcpairF (FOnumeral 2) (FOVar B) pc)
-       (FOBexC (B+2) (FOSucc (FOVar B))
-          (FOBexC (B+4) (FOSucc (FOVar B))
-             (FOAnd
-                (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
-                (FOOr
-                   (FOAnd
-                      (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                         len (FOnumeral 4) x sc (FOVar (B+2)) FOZero)
-                      (FOEq r FOZero))
-                   (FOAnd
-                      (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                         len (FOnumeral 4) x sc (FOVar (B+2))
-                         (FOnumeral 1))
-                      (FOlookup (B+28) ct dt c1 d1 c2 d2 c3 d3 cr dr
-                         len (FOnumeral 4) x sc (FOVar (B+4)) r))))))).
 
 Lemma FOdelta0_FOSTEP_subokbin : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr
     len x sc pc r,
@@ -18787,43 +18897,6 @@ Proof.
           (Eu sc Hsc), (Eu r Hr), EvB4, FOeval_numeral.
         split; [exact Hj | exact Hf].
 Qed.
-
-Definition FOSTEP_subokquant (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (x sc pc r : FOTerm) (k : nat) : FOFormula :=
-  FOBexC B (FOSucc pc)
-    (FOAnd (FOcpairF (FOnumeral k) (FOVar B) pc)
-       (FOBexC (B+2) (FOSucc (FOVar B))
-          (FOBexC (B+4) (FOSucc (FOVar B))
-             (FOAnd
-                (FOcpairF (FOVar (B+2)) (FOVar (B+4)) (FOVar B))
-                (FOOr
-                   (FOAnd (FOEq (FOVar (B+2)) x) (FOEq r (FOnumeral 1)))
-                   (FOAnd (FONeg (FOEq (FOVar (B+2)) x))
-                      (FOOr
-                         (FOAnd
-                            (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr
-                               dr len (FOnumeral 1) x (FOVar (B+4))
-                               FOZero FOZero)
-                            (FOEq r (FOnumeral 1)))
-                         (FOAnd
-                            (FOlookup (B+6) ct dt c1 d1 c2 d2 c3 d3 cr
-                               dr len (FOnumeral 1) x (FOVar (B+4))
-                               FOZero (FOnumeral 1))
-                            (FOOr
-                               (FOAnd
-                                  (FOlookup (B+28) ct dt c1 d1 c2 d2 c3
-                                     d3 cr dr len (FOnumeral 0)
-                                     (FOVar (B+2)) sc FOZero
-                                     (FOnumeral 1))
-                                  (FOEq r FOZero))
-                               (FOAnd
-                                  (FOlookup (B+28) ct dt c1 d1 c2 d2 c3
-                                     d3 cr dr len (FOnumeral 0)
-                                     (FOVar (B+2)) sc FOZero FOZero)
-                                  (FOlookup (B+50) ct dt c1 d1 c2 d2 c3
-                                     d3 cr dr len (FOnumeral 4) x sc
-                                     (FOVar (B+4)) r))))))))))).
 
 Lemma FOdelta0_FOSTEP_subokquant : forall B ct dt c1 d1 c2 d2 c3 d3 cr
     dr len x sc pc r k,
@@ -19317,22 +19390,6 @@ Definition step4_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
                   ((L 0 y sc 0 1 /\ r = 0)
                    \/ (L 0 y sc 0 0 /\ L 4 x sc pb r))))))).
 
-Definition FOSTEP4 (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (x sc pc r : FOTerm) : FOFormula :=
-  FOOr
-    (FOBexC B (FOSucc pc)
-       (FOAnd (FOcpairF FOZero (FOVar B) pc)
-          (FOEq r (FOnumeral 1))))
-  (FOOr
-    (FOAnd (FOcpairF (FOnumeral 1) FOZero pc) (FOEq r (FOnumeral 1)))
-  (FOOr
-    (FOSTEP_subokbin B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r)
-  (FOOr
-    (FOSTEP_subokquant B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r 3)
-    (FOSTEP_subokquant B ct dt c1 d1 c2 d2 c3 d3 cr dr len x sc pc r
-       4)))).
-
 Lemma FOdelta0_FOSTEP4 : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
     x sc pc r,
   tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
@@ -19400,46 +19457,6 @@ Definition dispatch_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
    \/ (tg = 3 /\ step3_sem L a1 a2 a3 rr)
    \/ (tg = 4 /\ step4_sem L a1 a2 a3 rr)
    \/ (tg = 5 /\ step5_sem L a1 rr)).
-
-Definition FOSTEPDISPATCH (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
-    (j : FOTerm) : FOFormula :=
-  FOBexC B (FOSucc ct)
-  (FOBexC (B+2) (FOSucc c1)
-  (FOBexC (B+4) (FOSucc c2)
-  (FOBexC (B+6) (FOSucc c3)
-  (FOBexC (B+8) (FOSucc cr)
-    (FOAnd (FObetaF (B+10) ct dt j (FOVar B))
-    (FOAnd (FObetaF (B+14) c1 d1 j (FOVar (B+2)))
-    (FOAnd (FObetaF (B+18) c2 d2 j (FOVar (B+4)))
-    (FOAnd (FObetaF (B+22) c3 d3 j (FOVar (B+6)))
-    (FOAnd (FObetaF (B+26) cr dr j (FOVar (B+8)))
-      (FOOr
-         (FOAnd (FOEq (FOVar B) FOZero)
-            (FOSTEP0 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
-               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+8))))
-      (FOOr
-         (FOAnd (FOEq (FOVar B) (FOnumeral 1))
-            (FOSTEP1 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
-               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+8))))
-      (FOOr
-         (FOAnd (FOEq (FOVar B) (FOnumeral 2))
-            (FOSTEP2 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
-               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+6))
-               (FOVar (B+8))))
-      (FOOr
-         (FOAnd (FOEq (FOVar B) (FOnumeral 3))
-            (FOSTEP3 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
-               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+6))
-               (FOVar (B+8))))
-      (FOOr
-         (FOAnd (FOEq (FOVar B) (FOnumeral 4))
-            (FOSTEP4 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
-               (FOVar (B+2)) (FOVar (B+4)) (FOVar (B+6))
-               (FOVar (B+8))))
-         (FOAnd (FOEq (FOVar B) (FOnumeral 5))
-            (FOSTEP5 (B+30) ct dt c1 d1 c2 d2 c3 d3 cr dr len
-               (FOVar (B+2)) (FOVar (B+8)))))))))))))))))).
 
 Lemma FOdelta0_FOSTEPDISPATCH : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr
     len j,
@@ -20091,12 +20108,6 @@ Proof.
     setoid_rewrite (Eu5 cr Hcr). setoid_rewrite (Eu5 dr Hdr).
     reflexivity. }
 Qed.
-
-Definition FOTBLVALID (B : nat)
-    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm) : FOFormula :=
-  FOBallC B len
-    (FOSTEPDISPATCH (B+2) ct dt c1 d1 c2 d2 c3 d3 cr dr len
-       (FOVar B)).
 
 Lemma dispatch_sem_ext : forall L L' vct vdt vc1 vd1 vc2 vd2 vc3 vd3
     vcr vdr vj,
