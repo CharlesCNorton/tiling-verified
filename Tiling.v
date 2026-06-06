@@ -28779,6 +28779,441 @@ Proof.
     + right. exact (IH HIn).
 Qed.
 
+(** ** Encoding: from an accepted sequence to the matrix semantics.
+
+    Position extraction from the boolean acceptance, resolution of
+    backward references, and the per-justification witnesses against
+    the realized table. *)
+
+Lemma FOseq_check_nth : forall axb PrF items done i B j,
+  FOseq_check axb PrF done items = true ->
+  nth_error items i = Some (B, j) ->
+  FOentry_check axb PrF (done ++ map fst (firstn i items)) B j = true.
+Proof.
+  intros axb PrF items.
+  induction items as [|[A0 j0] rest IH]; intros done i B j Hck Hnth.
+  - destruct i; discriminate.
+  - cbn [FOseq_check] in Hck. apply andb_prop in Hck.
+    destruct Hck as [He Hrest].
+    destruct i as [|i'].
+    + cbn in Hnth. injection Hnth as -> ->.
+      cbn [firstn map]. rewrite app_nil_r. exact He.
+    + cbn [nth_error] in Hnth.
+      cbn [firstn map fst].
+      specialize (IH (done ++ [A0]) i' B j Hrest Hnth).
+      rewrite <- app_assoc in IH. exact IH.
+Qed.
+
+Lemma FOseq_check_nth0 : forall axb PrF items i B j,
+  FOseq_check axb PrF [] items = true ->
+  nth_error items i = Some (B, j) ->
+  FOentry_check axb PrF (map fst (firstn i items)) B j = true.
+Proof.
+  intros axb PrF items i B j Hck Hnth.
+  exact (FOseq_check_nth axb PrF items [] i B j Hck Hnth).
+Qed.
+
+Lemma prev_nth_resolve : forall (items : list (FOFormula * FOjust)) ii i' AB,
+  nth_error (map fst (firstn ii items)) i' = Some AB ->
+  i' < ii /\ exists j0, nth_error items i' = Some (AB, j0).
+Proof.
+  intros items ii i' AB H.
+  rewrite nth_error_map in H.
+  rewrite nth_error_firstn in H.
+  destruct (i' <? ii) eqn:Hlt; [|discriminate].
+  apply Nat.ltb_lt in Hlt.
+  destruct (nth_error items i') as [[A0 j0]|]; [|discriminate].
+  cbn in H. injection H as ->.
+  split; [exact Hlt|]. exists j0. reflexivity.
+Qed.
+
+Opaque FOPRMAT.
+
+Lemma justck_thax : forall (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    n items B,
+  (forall tg a1 a2 a3 r,
+     In (mkTE tg a1 a2 a3 r) (seqrows n items) -> L tg a1 a2 a3 r) ->
+  In (B, J_thax) items ->
+  FOaxb n B = true ->
+  thax_sem L (FOPrCores n) (FOcode_f B).
+Proof.
+  intros L n items B Hsub HIn Hax.
+  unfold FOaxb in Hax. apply Bool.orb_true_iff in Hax.
+  destruct Hax as [Hrq|Hrefl].
+  - left. exact (FORobinsonQ_axq B (FOis_RQ_sound B Hrq)).
+  - right.
+    destruct B as [a b | | P C | x B0 | x B0]; try discriminate.
+    cbn [FOreflb] in Hrefl.
+    apply existsb_exists in Hrefl.
+    destruct Hrefl as [k [Hk Heqb]].
+    apply in_seq in Hk.
+    apply FOform_eqb_eq in Heqb. subst P.
+    apply (refls_sem_of _ _
+      (FOcode_f (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores k)))
+         (FOPRMAT (FOPrCores k)))) _).
+    + apply FOPrCores_in_of. lia.
+    + exists (FOcode_f C), (FOcode_tm (FOnumeral (FOcode_f C))),
+        (FOcode_f (FOProvSentence k C)).
+      split; [|split].
+      * apply Hsub.
+        apply (seqrows_jrows_in n items _ J_thax _ HIn).
+        cbv beta iota delta [jrows].
+        apply in_concat.
+        exists (trace5 (FOcode_f C)
+                ++ trace3 1 (FOnumeral (FOcode_f C))
+                     (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores k)))
+                        (FOPRMAT (FOPrCores k)))).
+        split.
+        { apply in_map_iff. exists k. split; [reflexivity|].
+          apply in_seq. lia. }
+        apply in_or_app. left. apply trace5_seed. reflexivity.
+      * apply Hsub.
+        apply (seqrows_jrows_in n items _ J_thax _ HIn).
+        cbv beta iota delta [jrows].
+        apply in_concat.
+        exists (trace5 (FOcode_f C)
+                ++ trace3 1 (FOnumeral (FOcode_f C))
+                     (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores k)))
+                        (FOPRMAT (FOPrCores k)))).
+        split.
+        { apply in_map_iff. exists k. split; [reflexivity|].
+          apply in_seq. lia. }
+        apply in_or_app. right. apply trace3_seed.
+        unfold FOProvSentence. rewrite FOsubst_f_num. reflexivity.
+      * reflexivity.
+Qed.
+
+Lemma justck_log : forall (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    n items B,
+  (forall tg a1 a2 a3 r,
+     In (mkTE tg a1 a2 a3 r) (seqrows n items) -> L tg a1 a2 a3 r) ->
+  In (B, J_log) items ->
+  FOis_logical_axiom B = true ->
+  logax_sem L (FOcode_f B).
+Proof.
+  intros L n items B Hsub HIn Hax.
+  unfold FOis_logical_axiom in Hax.
+  repeat (apply Bool.orb_true_iff in Hax;
+          destruct Hax as [Hax|Hax]).
+  - destruct (FOis_K_shape B Hax) as [P [Q HB]]. subst B.
+    left. exists (FOcode_f P), (FOcode_f Q). reflexivity.
+  - destruct (FOis_S_shape B Hax) as [P [Q [R HB]]]. subst B.
+    right; left.
+    exists (FOcode_f P), (FOcode_f Q), (FOcode_f R). reflexivity.
+  - destruct (FOis_DN_shape B Hax) as [P HB]. subst B.
+    do 2 right; left. exists (FOcode_f P). reflexivity.
+  - destruct (FOis_EqRefl_shape B Hax) as [t HB]. subst B.
+    do 3 right; left. exists (FOcode_tm t). reflexivity.
+  - destruct (FOis_EqSym_shape B Hax) as [a [b HB]]. subst B.
+    do 4 right; left.
+    exists (FOcode_tm a), (FOcode_tm b). reflexivity.
+  - destruct (FOis_EqTrans_shape B Hax) as [a [b [c HB]]]. subst B.
+    do 5 right; left.
+    exists (FOcode_tm a), (FOcode_tm b), (FOcode_tm c). reflexivity.
+  - destruct (FOis_CongS_shape B Hax) as [a [b HB]]. subst B.
+    do 6 right; left.
+    exists (FOcode_tm a), (FOcode_tm b). reflexivity.
+  - destruct (FOis_CongPlus_shape B Hax) as [a [b [c [d HB]]]]. subst B.
+    do 7 right; left.
+    exists (FOcode_tm a), (FOcode_tm b), (FOcode_tm c), (FOcode_tm d).
+    reflexivity.
+  - destruct (FOis_CongMult_shape B Hax) as [a [b [c [d HB]]]]. subst B.
+    do 8 right; left.
+    exists (FOcode_tm a), (FOcode_tm b), (FOcode_tm c), (FOcode_tm d).
+    reflexivity.
+  - destruct (FOis_ExElim_shape B Hax) as [x [P [Q [HB Hf]]]]. subst B.
+    do 9 right; left.
+    exists x, (FOcode_f P), (FOcode_f Q).
+    split; [reflexivity|].
+    apply Hsub.
+    apply (seqrows_jrows_in n items _ J_log _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. left. apply trace1_seed.
+    rewrite Hf. reflexivity.
+  - destruct (FOis_AllK_shape B Hax) as [y [P [Q HB]]]. subst B.
+    do 10 right; left.
+    exists y, (FOcode_f P), (FOcode_f Q). reflexivity.
+  - destruct (FOis_AllExport_shape B Hax) as [y [Hh [R [HB Hf]]]]. subst B.
+    do 11 right.
+    exists y, (FOcode_f Hh), (FOcode_f R).
+    split; [reflexivity|].
+    apply Hsub.
+    apply (seqrows_jrows_in n items _ J_log _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. right. apply trace1_seed.
+    rewrite Hf. reflexivity.
+Qed.
+
+Lemma justck_allelim : forall (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    n items B x t,
+  (forall tg a1 a2 a3 r,
+     In (mkTE tg a1 a2 a3 r) (seqrows n items) -> L tg a1 a2 a3 r) ->
+  In (B, J_AllElim x t) items ->
+  FOis_AllElim x t B = true ->
+  exists P Q,
+    FOcode_f B = cpair 2 (cpair (cpair 3 (cpair x P)) Q)
+    /\ L 4 x (FOcode_tm t) P 1
+    /\ L 3 x (FOcode_tm t) P Q.
+Proof.
+  intros L n items B x t Hsub HIn Hck.
+  destruct B as [a b | | L0 Q0 | y B0 | y B0]; try discriminate.
+  destruct L0 as [a b | | P0 C0 | x' P | y B0]; try discriminate.
+  cbn in Hck.
+  apply Bool.andb_true_iff in Hck. destruct Hck as [Hck HQ].
+  apply Bool.andb_true_iff in Hck. destruct Hck as [Hx Hok].
+  apply Nat.eqb_eq in Hx. subst x'.
+  apply FOform_eqb_eq in HQ.
+  exists (FOcode_f P), (FOcode_f Q0).
+  split; [reflexivity|].
+  split.
+  - apply Hsub.
+    apply (seqrows_jrows_in n items _ (J_AllElim x t) _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. left. apply trace4_seed.
+    rewrite Hok. reflexivity.
+  - apply Hsub.
+    apply (seqrows_jrows_in n items _ (J_AllElim x t) _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. right. apply trace3_seed.
+    rewrite HQ. reflexivity.
+Qed.
+
+Lemma justck_exintro : forall (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    n items B x t,
+  (forall tg a1 a2 a3 r,
+     In (mkTE tg a1 a2 a3 r) (seqrows n items) -> L tg a1 a2 a3 r) ->
+  In (B, J_ExIntro x t) items ->
+  FOis_ExIntro x t B = true ->
+  exists P Q,
+    FOcode_f B = cpair 2 (cpair Q (cpair 4 (cpair x P)))
+    /\ L 4 x (FOcode_tm t) P 1
+    /\ L 3 x (FOcode_tm t) P Q.
+Proof.
+  intros L n items B x t Hsub HIn Hck.
+  destruct B as [a b | | Q0 R0 | y B0 | y B0]; try discriminate.
+  destruct R0 as [a b | | P0 C0 | y B0 | x' P]; try discriminate.
+  cbn in Hck.
+  apply Bool.andb_true_iff in Hck. destruct Hck as [Hck HQ].
+  apply Bool.andb_true_iff in Hck. destruct Hck as [Hx Hok].
+  apply Nat.eqb_eq in Hx. subst x'.
+  apply FOform_eqb_eq in HQ.
+  exists (FOcode_f P), (FOcode_f Q0).
+  split; [reflexivity|].
+  split.
+  - apply Hsub.
+    apply (seqrows_jrows_in n items _ (J_ExIntro x t) _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. left. apply trace4_seed.
+    rewrite Hok. reflexivity.
+  - apply Hsub.
+    apply (seqrows_jrows_in n items _ (J_ExIntro x t) _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. right. apply trace3_seed.
+    rewrite HQ. reflexivity.
+Qed.
+
+Lemma justck_loeb_rows : forall
+    (L : nat -> nat -> nat -> nat -> nat -> Prop) n items B i,
+  (forall tg a1 a2 a3 r,
+     In (mkTE tg a1 a2 a3 r) (seqrows n items) -> L tg a1 a2 a3 r) ->
+  In (B, J_Loeb i) items ->
+  exists nu core na p,
+    L 5 (FOcode_f (FOPRMAT (FOPrCores n))) 0 0 nu
+    /\ L 3 0 nu (FOcode_f (FOPRMAT (FOPrCores n))) core
+    /\ L 5 (FOcode_f B) 0 0 na
+    /\ L 3 1 na core p
+    /\ p = FOcode_f (FOProvSentence n B).
+Proof.
+  intros L n items B i Hsub HIn.
+  exists (FOcode_tm (FOnumeral (FOcode_f (FOPRMAT (FOPrCores n))))),
+    (FOcode_f (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores n)))
+       (FOPRMAT (FOPrCores n)))),
+    (FOcode_tm (FOnumeral (FOcode_f B))),
+    (FOcode_f (FOProvSentence n B)).
+  split; [|split; [|split; [|split]]].
+  - apply Hsub.
+    apply (seqrows_jrows_in n items B (J_Loeb i) _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. left. apply trace5_seed. reflexivity.
+  - apply Hsub.
+    apply (seqrows_jrows_in n items B (J_Loeb i) _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. right. apply in_or_app. left.
+    apply trace3_seed. rewrite FOsubst_f_num. reflexivity.
+  - apply Hsub.
+    apply (seqrows_jrows_in n items B (J_Loeb i) _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. right. apply in_or_app. right.
+    apply in_or_app. left.
+    apply trace5_seed. reflexivity.
+  - apply Hsub.
+    apply (seqrows_jrows_in n items B (J_Loeb i) _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. right. apply in_or_app. right.
+    apply in_or_app. right.
+    apply trace3_seed.
+    unfold FOProvSentence. rewrite FOsubst_f_num. reflexivity.
+  - reflexivity.
+Qed.
+
+Theorem provmat_encode : forall n A,
+  FOProvesTn n A ->
+  provmat_sem (FOPrCores n) (FOcode_f (FOPRMAT (FOPrCores n)))
+    (FOcode_f A).
+Proof.
+  intros n A HPr.
+  destruct (FOProvesTn_to_seq n A HPr) as [items [pre [Hck Hmap]]].
+  destruct (table_realize (seqrows n items)
+      (seqrows_ok n items (seqrows n items) (incl_refl _)))
+    as [vct [vdt [vc1 [vd1 [vc2 [vd2 [vc3 [vd3 [vcr [vdr
+        [HIFF Hdisp]]]]]]]]]]].
+  destruct (beta_complete (map (fun it => FOcode_f (fst it)) items))
+    as [vcs [vds Hbs]].
+  destruct (beta_complete (map (fun it => jcode (snd it)) items))
+    as [vcj [vdj Hbj]].
+  assert (Hsub : forall tg a1 a2 a3 r,
+      In (mkTE tg a1 a2 a3 r) (seqrows n items) ->
+      tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr
+        (length (seqrows n items)) tg a1 a2 a3 r).
+  { intros tg a1 a2 a3 r Hrow. apply HIFF. exact Hrow. }
+  exists vct, vdt, vc1, vd1, vc2, vd2, vc3, vd3, vcr, vdr,
+    (length (seqrows n items)), vcs, vds, vcj, vdj, (length items).
+  split; [exact Hdisp|].
+  split.
+  { exists (length pre).
+    assert (HlenA : length items = S (length pre)).
+    { pose proof (length_map fst items) as Hl.
+      rewrite Hmap in Hl. rewrite length_app in Hl.
+      cbn [length] in Hl. lia. }
+    split; [exact HlenA|].
+    rewrite Hbs by (rewrite length_map; lia).
+    apply nth_error_nth.
+    rewrite <- map_map. rewrite Hmap. rewrite map_app.
+    rewrite nth_error_app2 by (rewrite length_map; lia).
+    rewrite length_map. rewrite Nat.sub_diag. reflexivity. }
+  split.
+  { intros ii Hii.
+    destruct (nth_error items ii) as [[B j]|] eqn:Hith.
+    2:{ apply nth_error_None in Hith. lia. }
+    pose proof (nth_error_In _ _ Hith) as HInBj.
+    pose proof (FOseq_check_nth0 _ _ _ _ _ _ Hck Hith) as Hentry.
+    assert (Hvd : beta vcs vds ii = FOcode_f B).
+    { rewrite Hbs by (rewrite length_map; lia).
+      apply nth_error_nth. rewrite nth_error_map.
+      rewrite Hith. reflexivity. }
+    assert (Hvj : beta vcj vdj ii = jcode j).
+    { rewrite Hbj by (rewrite length_map; lia).
+      apply nth_error_nth. rewrite nth_error_map.
+      rewrite Hith. reflexivity. }
+    exists (FOcode_f B), (jcode j).
+    destruct j as [| | x t | x t | i1 j1 | i1 | i1];
+      cbv beta iota delta [FOentry_check] in Hentry.
+    - exists 0, 0.
+      split; [exact Hvd|]. split; [exact Hvj|]. split; [reflexivity|].
+      left. split; [reflexivity|].
+      exact (justck_thax _ n items B Hsub HInBj Hentry).
+    - exists 1, 0.
+      split; [exact Hvd|]. split; [exact Hvj|]. split; [reflexivity|].
+      right; left. split; [reflexivity|].
+      exact (justck_log _ n items B Hsub HInBj Hentry).
+    - exists 2, (cpair x (FOcode_tm t)).
+      split; [exact Hvd|]. split; [exact Hvj|]. split; [reflexivity|].
+      do 2 right; left. split; [reflexivity|].
+      destruct (justck_allelim _ n items B x t Hsub HInBj Hentry)
+        as [P [Q [Hshape [H4 H3]]]].
+      exists x, (FOcode_tm t), P, Q.
+      split; [reflexivity|]. split; [exact Hshape|].
+      split; [exact H4|exact H3].
+    - exists 3, (cpair x (FOcode_tm t)).
+      split; [exact Hvd|]. split; [exact Hvj|]. split; [reflexivity|].
+      do 3 right; left. split; [reflexivity|].
+      destruct (justck_exintro _ n items B x t Hsub HInBj Hentry)
+        as [P [Q [Hshape [H4 H3]]]].
+      exists x, (FOcode_tm t), P, Q.
+      split; [reflexivity|]. split; [exact Hshape|].
+      split; [exact H4|exact H3].
+    - exists 4, (cpair i1 j1).
+      split; [exact Hvd|]. split; [exact Hvj|]. split; [reflexivity|].
+      do 4 right; left. split; [reflexivity|].
+      revert Hentry.
+      destruct (nth_error (map fst (firstn ii items)) i1)
+        as [AB|] eqn:HAB; intros Hentry; [|discriminate].
+      revert Hentry.
+      destruct (nth_error (map fst (firstn ii items)) j1)
+        as [B1|] eqn:HB1; intros Hentry; [|discriminate].
+      cbv beta iota in Hentry.
+      apply FOform_eqb_eq in Hentry. subst AB.
+      destruct (prev_nth_resolve _ _ _ _ HAB) as [Hi1 [jA HitA]].
+      destruct (prev_nth_resolve _ _ _ _ HB1) as [Hj1 [jB HitB]].
+      exists i1, j1, (FOcode_f (FOImplF B1 B)), (FOcode_f B1).
+      split; [reflexivity|]. split; [lia|]. split; [lia|].
+      split.
+      { rewrite Hbs by (rewrite length_map; lia).
+        apply nth_error_nth. rewrite nth_error_map.
+        rewrite HitA. reflexivity. }
+      split.
+      { rewrite Hbs by (rewrite length_map; lia).
+        apply nth_error_nth. rewrite nth_error_map.
+        rewrite HitB. reflexivity. }
+      reflexivity.
+    - destruct B as [a b | | P0 C0 | y B0 | y B0]; try discriminate.
+      exists 5, i1.
+      split; [exact Hvd|]. split; [exact Hvj|]. split; [reflexivity|].
+      do 5 right; left.
+      revert Hentry.
+      destruct (nth_error (map fst (firstn ii items)) i1)
+        as [B'|] eqn:HB'; intros Hentry; [|discriminate].
+      cbv beta iota in Hentry.
+      apply FOform_eqb_eq in Hentry. subst B0.
+      destruct (prev_nth_resolve _ _ _ _ HB') as [Hi1 [jB HitB]].
+      split; [reflexivity|]. split; [lia|].
+      exists (FOcode_f B'), y.
+      split.
+      { rewrite Hbs by (rewrite length_map; lia).
+        apply nth_error_nth. rewrite nth_error_map.
+        rewrite HitB. reflexivity. }
+      reflexivity.
+    - exists 6, i1.
+      split; [exact Hvd|]. split; [exact Hvj|]. split; [reflexivity|].
+      do 6 right.
+      revert Hentry.
+      destruct (nth_error (map fst (firstn ii items)) i1)
+        as [P0|] eqn:HP0; intros Hentry; [|discriminate].
+      cbv beta iota in Hentry.
+      apply FOform_eqb_eq in Hentry. subst P0.
+      destruct (prev_nth_resolve _ _ _ _ HP0) as [Hi1 [jP HitP]].
+      split; [reflexivity|]. split; [lia|].
+      destruct (justck_loeb_rows _ n items B i1 Hsub HInBj)
+        as [nu [core [na [p [R1 [R2 [R3 [R4 Hp]]]]]]]].
+      exists (FOcode_f (FOImplF (FOProvSentence n B) B)),
+        nu, core, na, p.
+      split.
+      { rewrite Hbs by (rewrite length_map; lia).
+        apply nth_error_nth. rewrite nth_error_map.
+        rewrite HitP. reflexivity. }
+      split; [exact R1|]. split; [exact R2|]. split; [exact R3|].
+      split; [exact R4|].
+      rewrite Hp. reflexivity. }
+  { intros ii Hii.
+    destruct (nth_error items ii) as [[B j]|] eqn:Hith.
+    2:{ apply nth_error_None in Hith. lia. }
+    pose proof (nth_error_In _ _ Hith) as HInBj.
+    assert (Hvd : beta vcs vds ii = FOcode_f B).
+    { rewrite Hbs by (rewrite length_map; lia).
+      apply nth_error_nth. rewrite nth_error_map.
+      rewrite Hith. reflexivity. }
+    rewrite Hvd.
+    exists (FOcode_f (FOsubst_f (S (FOcode_f B)) (FOVar 0) B)).
+    apply Hsub.
+    pose proof (trace3_seed (S (FOcode_f B)) (FOVar 0) B
+        (FOcode_f (FOsubst_f (S (FOcode_f B)) (FOVar 0) B))
+        eq_refl) as Hrow.
+    change (FOcode_tm (FOVar 0)) with 0 in Hrow.
+    exact (seqrows_guard_in n items B j _ HInBj Hrow). }
+Qed.
+
+Transparent FOPRMAT.
+
 Definition FOInconsistent (n : nat) : Prop := FOProvesTn n FOFalseF.
 
 (** The tower summary — cumulativity of derivability, strict axiom
