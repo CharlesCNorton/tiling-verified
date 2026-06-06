@@ -29214,6 +29214,49 @@ Qed.
 
 Transparent FOPRMAT.
 
+(** ** The representability bridge.
+
+    Satisfaction of the level-[n] provability sentence coincides with
+    derivability in [T_n]: decoding consumes an accepted matrix,
+    encoding produces one from an accepted sequence.  Modus ponens
+    and the Loeb rule then transfer to the satisfaction level. *)
+
+Theorem FOProvSentence_sat_iff : forall e n A,
+  FOsat e (FOProvSentence n A) <-> FOProvesTn n A.
+Proof.
+  intros e n A.
+  rewrite (FOsat_FOProvSentence e n A).
+  split; [exact (provmat_decode n A)|exact (provmat_encode n A)].
+Qed.
+
+Theorem FOHBL1_sat : forall e n A,
+  FOProvesTn n A -> FOsat e (FOProvSentence n A).
+Proof.
+  intros e n A H. apply (FOProvSentence_sat_iff e n A). exact H.
+Qed.
+
+Theorem FOHBL2_sat : forall e n A B,
+  FOsat e (FOProvSentence n (FOImplF A B)) ->
+  FOsat e (FOProvSentence n A) ->
+  FOsat e (FOProvSentence n B).
+Proof.
+  intros e n A B H1 H2.
+  apply (FOProvSentence_sat_iff e n B).
+  exact (FOProvesTn_MP n A B
+    (proj1 (FOProvSentence_sat_iff e n (FOImplF A B)) H1)
+    (proj1 (FOProvSentence_sat_iff e n A) H2)).
+Qed.
+
+Theorem FOLoeb_sat : forall e n A,
+  FOsat e (FOProvSentence n (FOImplF (FOProvSentence n A) A)) ->
+  FOsat e (FOProvSentence n A).
+Proof.
+  intros e n A H.
+  apply (FOProvSentence_sat_iff e n A).
+  apply FOProvesTn_Loeb.
+  exact (proj1 (FOProvSentence_sat_iff e n _) H).
+Qed.
+
 Definition FOInconsistent (n : nat) : Prop := FOProvesTn n FOFalseF.
 
 (** The tower summary — cumulativity of derivability, strict axiom
