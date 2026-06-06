@@ -29920,6 +29920,147 @@ Proof.
   exact (FOProvesTn_sound n FOFalseF H (fun _ => 0)).
 Qed.
 
+(** ** Goedel's second incompleteness theorem for the tower.
+
+    The consistency assertion in its derivability form is the Loeb
+    premise at falsity, so its provability would collapse the level;
+    its truth is the consistency theorem read through the bridge. *)
+
+Theorem FOGodel2 : forall n,
+  ~ FOProvesTn n (FONeg (FOProvSentence n FOFalseF)).
+Proof.
+  intros n H.
+  exact (FOProvesTn_consistent n (FOProvesTn_Loeb n FOFalseF H)).
+Qed.
+
+Theorem FOConSentenceF_true : forall e n,
+  FOsat e (FONeg (FOProvSentence n FOFalseF)).
+Proof.
+  intros e n. cbn [FOsat]. intro Hp.
+  exact (FOProvesTn_consistent n
+    (proj1 (FOProvSentence_sat_iff e n FOFalseF) Hp)).
+Qed.
+
+Theorem FOConSentence_true : forall e n, FOsat e (FOConSentence n).
+Proof.
+  intros e n. unfold FOConSentence. cbn [FOsat]. intro Hp.
+  apply (FOProvesTn_consistent n).
+  apply (FOProvesTn_MP n FOTopFm FOFalseF).
+  - exact (proj1 (FOProvSentence_sat_iff e n (FONeg FOTopFm)) Hp).
+  - exact (FOPr_idf n FOFalseF).
+Qed.
+
+(** ** The arithmetic embedding of the polymodal language.
+
+    [FOembed nu] interprets modal formulas over an atom assignment:
+    implication and falsity map to their first-order counterparts and
+    [Box n] maps to the level-[n] provability sentence.  Every axiom
+    of GLP* embeds to a sentence true in the standard model, modus
+    ponens preserves embedded truth, and necessitation transports
+    derivability of the embedded formula. *)
+
+Fixpoint FOembed (nu : nat -> FOFormula) (phi : Form) : FOFormula :=
+  match phi with
+  | Var p => nu p
+  | Bot => FOFalseF
+  | Impl a b => FOImplF (FOembed nu a) (FOembed nu b)
+  | Box n psi => FOProvSentence n (FOembed nu psi)
+  end.
+
+Definition is_FO_arithmetic_interpretation
+    (J : Form -> FOFormula) : Prop :=
+  (forall a b, J (Impl a b) = FOImplF (J a) (J b)) /\
+  (J Bot = FOFalseF) /\
+  (forall n psi, J (Box n psi) = FOProvSentence n (J psi)).
+
+Lemma FOembed_proper : forall nu,
+  is_FO_arithmetic_interpretation (FOembed nu).
+Proof.
+  intro nu. split; [|split]; reflexivity.
+Qed.
+
+Lemma FO_interpretation_factors : forall J,
+  is_FO_arithmetic_interpretation J ->
+  forall phi, J phi = FOembed (fun p => J (Var p)) phi.
+Proof.
+  intros J HJ phi.
+  destruct HJ as [HI [HB HX]].
+  induction phi as [p | | a IHa b IHb | n a IHa]; cbn [FOembed].
+  - reflexivity.
+  - exact HB.
+  - rewrite HI, IHa, IHb. reflexivity.
+  - rewrite HX, IHa. reflexivity.
+Qed.
+
+Theorem FOembed_Ax_K_valid : forall nu e phi psi,
+  FOsat e (FOembed nu (Impl phi (Impl psi phi))).
+Proof. intros. cbn. tauto. Qed.
+
+Theorem FOembed_Ax_S_valid : forall nu e phi psi chi,
+  FOsat e (FOembed nu (Impl (Impl phi (Impl psi chi))
+                        (Impl (Impl phi psi) (Impl phi chi)))).
+Proof. intros. cbn. tauto. Qed.
+
+Theorem FOembed_Ax_DN_valid : forall nu e phi,
+  FOsat e (FOembed nu (Impl (Neg (Neg phi)) phi)).
+Proof.
+  intros. cbn. intro Hnn.
+  destruct (classic (FOsat e (FOembed nu phi))) as [Hp|Hnp];
+    [exact Hp | exfalso; exact (Hnn Hnp)].
+Qed.
+
+Theorem FOembed_Ax_BoxK_valid : forall nu e n phi psi,
+  FOsat e (FOembed nu (Impl (Box n (Impl phi psi))
+                        (Impl (Box n phi) (Box n psi)))).
+Proof.
+  intros. cbn [FOembed FOsat]. intros H1 H2.
+  exact (FOHBL2_sat e n _ _ H1 H2).
+Qed.
+
+Theorem FOembed_Ax_Loeb_valid : forall nu e n phi,
+  FOsat e (FOembed nu (Impl (Box n (Impl (Box n phi) phi))
+                        (Box n phi))).
+Proof.
+  intros. cbn [FOembed FOsat]. intro H1.
+  exact (FOLoeb_sat e n _ H1).
+Qed.
+
+Theorem FOembed_Ax_Box4_valid : forall nu e n phi,
+  FOsat e (FOembed nu (Impl (Box n phi) (Box n (Box n phi)))).
+Proof.
+  intros. cbn [FOembed FOsat]. intro H1.
+  exact (FOHBL3_sat e n _ H1).
+Qed.
+
+Theorem FOembed_Ax_Mon_valid : forall nu e n phi,
+  FOsat e (FOembed nu (Impl (Box n phi) (Box (S n) phi))).
+Proof.
+  intros. cbn [FOembed FOsat]. intro H1.
+  exact (FOProv_sat_monotone e n (S n) _ (Nat.le_succ_diag_r n) H1).
+Qed.
+
+Theorem FOembed_Ax_NextCon_valid : forall nu e n,
+  FOsat e (FOembed nu (Box (S n) (Neg (Box n Bot)))).
+Proof.
+  intros. cbn [FOembed].
+  apply FOHBL1_sat.
+  exact (FOProvesTn_ax (S n) _
+           (FOAx_Refl (S n) n FOFalseF (Nat.lt_succ_diag_r n))).
+Qed.
+
+Theorem FOembed_MP_sat : forall nu e phi psi,
+  FOsat e (FOembed nu (Impl phi psi)) ->
+  FOsat e (FOembed nu phi) ->
+  FOsat e (FOembed nu psi).
+Proof. intros nu e phi psi H1 H2. exact (H1 H2). Qed.
+
+Theorem FOembed_Nec_sat : forall nu e n phi,
+  FOProvesTn n (FOembed nu phi) ->
+  FOsat e (FOembed nu (Box n phi)).
+Proof.
+  intros nu e n phi H. cbn [FOembed]. apply FOHBL1_sat. exact H.
+Qed.
+
 Definition FOInconsistent (n : nat) : Prop := FOProvesTn n FOFalseF.
 
 (** The tower summary — cumulativity of derivability, strict axiom
