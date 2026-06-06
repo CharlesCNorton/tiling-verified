@@ -13017,6 +13017,47 @@ Definition FODMONc (B : nat)
            (FOPATF (B+98) [FOVar (B+2); FOVar (B+4)]
               cpatImpl01 d))))).
 
+Fixpoint FOD2Sc (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (cores : list nat) (d : FOTerm) : FOFormula :=
+  match cores with
+  | [] => FOFalseF
+  | c :: rest =>
+      FOOr (FOD2c B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d)
+           (FOD2Sc B ct dt c1 d1 c2 d2 c3 d3 cr dr len rest d)
+  end.
+
+Fixpoint FOD3Sc (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (cores : list nat) (d : FOTerm) : FOFormula :=
+  match cores with
+  | [] => FOFalseF
+  | c :: rest =>
+      FOOr (FOD3c B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d)
+           (FOD3Sc B ct dt c1 d1 c2 d2 c3 d3 cr dr len rest d)
+  end.
+
+Fixpoint FODMONS1 (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (c : nat) (cs : list nat) (d : FOTerm) : FOFormula :=
+  match cs with
+  | [] => FOFalseF
+  | c' :: rest =>
+      FOOr (FODMONc B ct dt c1 d1 c2 d2 c3 d3 cr dr len c c' d)
+           (FODMONS1 B ct dt c1 d1 c2 d2 c3 d3 cr dr len c rest d)
+  end.
+
+Fixpoint FODMONSc (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (cores : list nat) (d : FOTerm) : FOFormula :=
+  match cores with
+  | [] => FOFalseF
+  | c :: rest =>
+      FOOr (FODMONS1 B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+              c (c :: rest) d)
+           (FODMONSc B ct dt c1 d1 c2 d2 c3 d3 cr dr len rest d)
+  end.
+
 Definition FOJUSTCK (B : nat) (cores : list nat)
     (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
     (cs ds cj dj : FOTerm) (i : FOTerm) : FOFormula :=
@@ -18951,6 +18992,86 @@ Proof.
   repeat first [arm_provat | arm_patf | ffree_leaf]; ffin.
 Qed.
 
+Lemma FOD2Sc_free : forall cores w B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len d,
+  FOfree_in w
+    (FOD2Sc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w d = true \/ w < 2.
+Proof.
+  induction cores as [|c rest IH];
+    intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len d H;
+    cbn [FOD2Sc] in H.
+  - discriminate H.
+  - rewrite FOfree_in_FOOr in H.
+    apply Bool.orb_true_iff in H. destruct H as [H|H].
+    + exact (FOD2c_free _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H).
+    + exact (IH _ _ _ _ _ _ _ _ _ _ _ _ _ _ H).
+Qed.
+
+Lemma FOD3Sc_free : forall cores w B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len d,
+  FOfree_in w
+    (FOD3Sc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w d = true \/ w < 2.
+Proof.
+  induction cores as [|c rest IH];
+    intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len d H;
+    cbn [FOD3Sc] in H.
+  - discriminate H.
+  - rewrite FOfree_in_FOOr in H.
+    apply Bool.orb_true_iff in H. destruct H as [H|H].
+    + exact (FOD3c_free _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H).
+    + exact (IH _ _ _ _ _ _ _ _ _ _ _ _ _ _ H).
+Qed.
+
+Lemma FODMONS1_free : forall cs w B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len c d,
+  FOfree_in w
+    (FODMONS1 B ct dt c1 d1 c2 d2 c3 d3 cr dr len c cs d) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w d = true \/ w < 2.
+Proof.
+  induction cs as [|c' rest IH];
+    intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d H;
+    cbn [FODMONS1] in H.
+  - discriminate H.
+  - rewrite FOfree_in_FOOr in H.
+    apply Bool.orb_true_iff in H. destruct H as [H|H].
+    + exact (FODMONc_free _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H).
+    + exact (IH _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H).
+Qed.
+
+Lemma FODMONSc_free : forall cores w B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len d,
+  FOfree_in w
+    (FODMONSc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w d = true \/ w < 2.
+Proof.
+  induction cores as [|c rest IH];
+    intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len d H;
+    cbn [FODMONSc] in H.
+  - discriminate H.
+  - rewrite FOfree_in_FOOr in H.
+    apply Bool.orb_true_iff in H. destruct H as [H|H].
+    + exact (FODMONS1_free _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H).
+    + exact (IH _ _ _ _ _ _ _ _ _ _ _ _ _ _ H).
+Qed.
+
 Lemma FOAXQc_free : forall w B d,
   FOfree_in w (FOAXQc B d) = true ->
   FOin_tm w d = true \/ w < 2.
@@ -19934,6 +20055,34 @@ Definition dmonone_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
     provat_sem L c a p /\ provat_sem L c' a p' /\
     d = cpair 2 (cpair p p').
 
+Fixpoint d2s_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    (cores : list nat) (d : nat) : Prop :=
+  match cores with
+  | [] => False
+  | c :: rest => d2one_sem L c d \/ d2s_sem L rest d
+  end.
+
+Fixpoint d3s_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    (cores : list nat) (d : nat) : Prop :=
+  match cores with
+  | [] => False
+  | c :: rest => d3one_sem L c d \/ d3s_sem L rest d
+  end.
+
+Fixpoint dmons1_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    (c : nat) (cs : list nat) (d : nat) : Prop :=
+  match cs with
+  | [] => False
+  | c' :: rest => dmonone_sem L c c' d \/ dmons1_sem L c rest d
+  end.
+
+Fixpoint dmons_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    (cores : list nat) (d : nat) : Prop :=
+  match cores with
+  | [] => False
+  | c :: rest => dmons1_sem L c (c :: rest) d \/ dmons_sem L rest d
+  end.
+
 Definition refl_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
     (c d : nat) : Prop :=
   exists a na p, L 5 a 0 0 na /\ L 3 1 na c p /\
@@ -20522,6 +20671,66 @@ Proof.
   - exact FOd0_false.
   - apply FOdelta0_or.
     + apply FOdelta0_FOAXREFLc; assumption.
+    + apply IH; assumption.
+Qed.
+
+Lemma FOdelta0_FOD2Sc : forall cores B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  FOdelta0 (FOD2Sc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d).
+Proof.
+  induction cores as [|c rest IH];
+    intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len d Htb Hd;
+    cbn [FOD2Sc].
+  - exact FOd0_false.
+  - apply FOdelta0_or.
+    + apply FOdelta0_FOD2c; assumption.
+    + apply IH; assumption.
+Qed.
+
+Lemma FOdelta0_FOD3Sc : forall cores B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  FOdelta0 (FOD3Sc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d).
+Proof.
+  induction cores as [|c rest IH];
+    intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len d Htb Hd;
+    cbn [FOD3Sc].
+  - exact FOd0_false.
+  - apply FOdelta0_or.
+    + apply FOdelta0_FOD3c; assumption.
+    + apply IH; assumption.
+Qed.
+
+Lemma FOdelta0_FODMONS1 : forall cs B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len c d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  FOdelta0 (FODMONS1 B ct dt c1 d1 c2 d2 c3 d3 cr dr len c cs d).
+Proof.
+  induction cs as [|c' rest IH];
+    intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d Htb Hd;
+    cbn [FODMONS1].
+  - exact FOd0_false.
+  - apply FOdelta0_or.
+    + apply FOdelta0_FODMONc; assumption.
+    + apply IH; assumption.
+Qed.
+
+Lemma FOdelta0_FODMONSc : forall cores B ct dt c1 d1 c2 d2 c3 d3 cr
+    dr len d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  FOdelta0 (FODMONSc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d).
+Proof.
+  induction cores as [|c rest IH];
+    intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len d Htb Hd;
+    cbn [FODMONSc].
+  - exact FOd0_false.
+  - apply FOdelta0_or.
+    + apply FOdelta0_FODMONS1; assumption.
     + apply IH; assumption.
 Qed.
 
@@ -21608,6 +21817,106 @@ Proof.
     rewrite (Hstab d Hd).
     cbn [cpat_sem cpatImpl01 pImpP].
     symmetry. exact Hshape.
+Qed.
+
+Lemma FOsat_FOD2Sc : forall cores e B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  (FOsat e (FOD2Sc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d) <->
+   d2s_sem
+     (fun tg a1 a2 a3 r => exists j, j < FOeval e len /\
+        beta (FOeval e ct) (FOeval e dt) j = tg /\
+        beta (FOeval e c1) (FOeval e d1) j = a1 /\
+        beta (FOeval e c2) (FOeval e d2) j = a2 /\
+        beta (FOeval e c3) (FOeval e d3) j = a3 /\
+        beta (FOeval e cr) (FOeval e dr) j = r)
+     cores (FOeval e d)).
+Proof.
+  induction cores as [|c rest IH];
+    intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len d Htb Hd;
+    cbn [FOD2Sc d2s_sem].
+  - cbn. tauto.
+  - rewrite FOsat_FOOr.
+    rewrite (FOsat_FOD2c e B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d
+               Htb Hd).
+    rewrite (IH e B ct dt c1 d1 c2 d2 c3 d3 cr dr len d Htb Hd).
+    reflexivity.
+Qed.
+
+Lemma FOsat_FOD3Sc : forall cores e B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  (FOsat e (FOD3Sc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d) <->
+   d3s_sem
+     (fun tg a1 a2 a3 r => exists j, j < FOeval e len /\
+        beta (FOeval e ct) (FOeval e dt) j = tg /\
+        beta (FOeval e c1) (FOeval e d1) j = a1 /\
+        beta (FOeval e c2) (FOeval e d2) j = a2 /\
+        beta (FOeval e c3) (FOeval e d3) j = a3 /\
+        beta (FOeval e cr) (FOeval e dr) j = r)
+     cores (FOeval e d)).
+Proof.
+  induction cores as [|c rest IH];
+    intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len d Htb Hd;
+    cbn [FOD3Sc d3s_sem].
+  - cbn. tauto.
+  - rewrite FOsat_FOOr.
+    rewrite (FOsat_FOD3c e B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d
+               Htb Hd).
+    rewrite (IH e B ct dt c1 d1 c2 d2 c3 d3 cr dr len d Htb Hd).
+    reflexivity.
+Qed.
+
+Lemma FOsat_FODMONS1 : forall cs e B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len c d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  (FOsat e (FODMONS1 B ct dt c1 d1 c2 d2 c3 d3 cr dr len c cs d) <->
+   dmons1_sem
+     (fun tg a1 a2 a3 r => exists j, j < FOeval e len /\
+        beta (FOeval e ct) (FOeval e dt) j = tg /\
+        beta (FOeval e c1) (FOeval e d1) j = a1 /\
+        beta (FOeval e c2) (FOeval e d2) j = a2 /\
+        beta (FOeval e c3) (FOeval e d3) j = a3 /\
+        beta (FOeval e cr) (FOeval e dr) j = r)
+     c cs (FOeval e d)).
+Proof.
+  induction cs as [|c' rest IH];
+    intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d Htb Hd;
+    cbn [FODMONS1 dmons1_sem].
+  - cbn. tauto.
+  - rewrite FOsat_FOOr.
+    rewrite (FOsat_FODMONc e B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               c c' d Htb Hd).
+    rewrite (IH e B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d Htb Hd).
+    reflexivity.
+Qed.
+
+Lemma FOsat_FODMONSc : forall cores e B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  (FOsat e (FODMONSc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d) <->
+   dmons_sem
+     (fun tg a1 a2 a3 r => exists j, j < FOeval e len /\
+        beta (FOeval e ct) (FOeval e dt) j = tg /\
+        beta (FOeval e c1) (FOeval e d1) j = a1 /\
+        beta (FOeval e c2) (FOeval e d2) j = a2 /\
+        beta (FOeval e c3) (FOeval e d3) j = a3 /\
+        beta (FOeval e cr) (FOeval e dr) j = r)
+     cores (FOeval e d)).
+Proof.
+  induction cores as [|c rest IH];
+    intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len d Htb Hd;
+    cbn [FODMONSc dmons_sem].
+  - cbn. tauto.
+  - rewrite FOsat_FOOr.
+    rewrite (FOsat_FODMONS1 (c :: rest) e B ct dt c1 d1 c2 d2 c3 d3
+               cr dr len c d Htb Hd).
+    rewrite (IH e B ct dt c1 d1 c2 d2 c3 d3 cr dr len d Htb Hd).
+    reflexivity.
 Qed.
 
 Lemma FOsat_FOJSUBST : forall e B ct dt c1 d1 c2 d2 c3 d3 cr dr len
