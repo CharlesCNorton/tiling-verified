@@ -17172,6 +17172,333 @@ Proof.
     + destruct s; reflexivity.
 Qed.
 
+(** The semantic mirror of the Robinson-axiom recognizer: the code is
+    one of the seven scheme shapes over component codes. *)
+
+Definition axq_sem (d : nat) : Prop :=
+  (exists a b, d = cpair 2 (cpair
+     (cpair 0 (cpair (cpair 2 a) (cpair 2 b)))
+     (cpair 0 (cpair a b))))
+  \/ (exists a, d = cpair 2 (cpair
+     (cpair 0 (cpair (cpair 2 a) (cpair 1 0)))
+     (cpair 1 0)))
+  \/ (exists x, d = cpair 2 (cpair
+     (cpair 2 (cpair (cpair 0 (cpair (cpair 0 x) (cpair 1 0)))
+                     (cpair 1 0)))
+     (cpair 4 (cpair (S x)
+        (cpair 0 (cpair (cpair 0 x) (cpair 2 (cpair 0 (S x)))))))))
+  \/ (exists a, d = cpair 0 (cpair (cpair 3 (cpair a (cpair 1 0))) a))
+  \/ (exists a b, d = cpair 0 (cpair
+     (cpair 3 (cpair a (cpair 2 b)))
+     (cpair 2 (cpair 3 (cpair a b)))))
+  \/ (exists a, d = cpair 0 (cpair (cpair 4 (cpair a (cpair 1 0)))
+                                   (cpair 1 0)))
+  \/ (exists a b, d = cpair 0 (cpair
+     (cpair 4 (cpair a (cpair 2 b)))
+     (cpair 3 (cpair (cpair 4 (cpair a b)) a)))).
+
+Lemma FOsat_FOAXQ1c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOAXQ1c B d) <->
+   exists a b, FOeval e d = cpair 2 (cpair
+     (cpair 0 (cpair (cpair 2 a) (cpair 2 b)))
+     (cpair 0 (cpair a b)))).
+Proof.
+  intros e B d Hd. unfold FOAXQ1c.
+  rewrite (FOsat_pat2 e B cpatQ1 d Hd).
+  split.
+  - intros [v0 [v1 [_ [_ Hs]]]].
+    cbn [cpat_sem cpatQ1 pImpP pEqP tSuccP] in Hs.
+    exists v0, v1. symmetry. exact Hs.
+  - intros [a [b Heq]].
+    pose proof (cpat_occurs_le cpatQ1
+      (fun s => match s with 0 => a | 1 => b | _ => 0 end) 0
+      eq_refl) as Ha.
+    pose proof (cpat_occurs_le cpatQ1
+      (fun s => match s with 0 => a | 1 => b | _ => 0 end) 1
+      eq_refl) as Hb.
+    cbn [cpat_sem cpatQ1 pImpP pEqP tSuccP] in Ha, Hb.
+    exists a, b.
+    split; [rewrite Heq; exact Ha|].
+    split; [rewrite Heq; exact Hb|].
+    cbn [cpat_sem cpatQ1 pImpP pEqP tSuccP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOAXQ2c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOAXQ2c B d) <->
+   exists a, FOeval e d = cpair 2 (cpair
+     (cpair 0 (cpair (cpair 2 a) (cpair 1 0)))
+     (cpair 1 0))).
+Proof.
+  intros e B d Hd. unfold FOAXQ2c.
+  rewrite (FOsat_pat1 e B cpatQ2 d Hd).
+  split.
+  - intros [v0 [_ Hs]].
+    cbn [cpat_sem cpatQ2 pImpP pEqP tSuccP tZeroP pFlsP] in Hs.
+    exists v0. symmetry. exact Hs.
+  - intros [a Heq].
+    pose proof (cpat_occurs_le cpatQ2
+      (fun s => match s with 0 => a | _ => 0 end) 0 eq_refl) as Ha.
+    cbn [cpat_sem cpatQ2 pImpP pEqP tSuccP tZeroP pFlsP] in Ha.
+    exists a.
+    split; [rewrite Heq; exact Ha|].
+    cbn [cpat_sem cpatQ2 pImpP pEqP tSuccP tZeroP pFlsP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOAXQ3c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOAXQ3c B d) <->
+   exists x, FOeval e d = cpair 2 (cpair
+     (cpair 2 (cpair (cpair 0 (cpair (cpair 0 x) (cpair 1 0)))
+                     (cpair 1 0)))
+     (cpair 4 (cpair (S x)
+        (cpair 0 (cpair (cpair 0 x) (cpair 2 (cpair 0 (S x))))))))).
+Proof.
+  intros e B d Hd. unfold FOAXQ3c.
+  rewrite (FOsat_pat1 e B cpatQ3 d Hd).
+  split.
+  - intros [v0 [_ Hs]].
+    cbn [cpat_sem cpatQ3 pImpP pEqP pExP tVarP tSuccP tZeroP
+         pFlsP] in Hs.
+    exists v0. symmetry. exact Hs.
+  - intros [x Heq].
+    pose proof (cpat_occurs_le cpatQ3
+      (fun s => match s with 0 => x | _ => 0 end) 0 eq_refl) as Hx.
+    cbn [cpat_sem cpatQ3 pImpP pEqP pExP tVarP tSuccP tZeroP
+         pFlsP] in Hx.
+    exists x.
+    split; [rewrite Heq; lia|].
+    cbn [cpat_sem cpatQ3 pImpP pEqP pExP tVarP tSuccP tZeroP pFlsP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOAXQ4c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOAXQ4c B d) <->
+   exists a, FOeval e d
+     = cpair 0 (cpair (cpair 3 (cpair a (cpair 1 0))) a)).
+Proof.
+  intros e B d Hd. unfold FOAXQ4c.
+  rewrite (FOsat_pat1 e B cpatQ4 d Hd).
+  split.
+  - intros [v0 [_ Hs]].
+    cbn [cpat_sem cpatQ4 pEqP tPlusP tZeroP] in Hs.
+    exists v0. symmetry. exact Hs.
+  - intros [a Heq].
+    pose proof (cpat_occurs_le cpatQ4
+      (fun s => match s with 0 => a | _ => 0 end) 0 eq_refl) as Ha.
+    cbn [cpat_sem cpatQ4 pEqP tPlusP tZeroP] in Ha.
+    exists a.
+    split; [rewrite Heq; exact Ha|].
+    cbn [cpat_sem cpatQ4 pEqP tPlusP tZeroP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOAXQ5c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOAXQ5c B d) <->
+   exists a b, FOeval e d = cpair 0 (cpair
+     (cpair 3 (cpair a (cpair 2 b)))
+     (cpair 2 (cpair 3 (cpair a b))))).
+Proof.
+  intros e B d Hd. unfold FOAXQ5c.
+  rewrite (FOsat_pat2 e B cpatQ5 d Hd).
+  split.
+  - intros [v0 [v1 [_ [_ Hs]]]].
+    cbn [cpat_sem cpatQ5 pEqP tPlusP tSuccP] in Hs.
+    exists v0, v1. symmetry. exact Hs.
+  - intros [a [b Heq]].
+    pose proof (cpat_occurs_le cpatQ5
+      (fun s => match s with 0 => a | 1 => b | _ => 0 end) 0
+      eq_refl) as Ha.
+    pose proof (cpat_occurs_le cpatQ5
+      (fun s => match s with 0 => a | 1 => b | _ => 0 end) 1
+      eq_refl) as Hb.
+    cbn [cpat_sem cpatQ5 pEqP tPlusP tSuccP] in Ha, Hb.
+    exists a, b.
+    split; [rewrite Heq; exact Ha|].
+    split; [rewrite Heq; exact Hb|].
+    cbn [cpat_sem cpatQ5 pEqP tPlusP tSuccP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOAXQ6c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOAXQ6c B d) <->
+   exists a, FOeval e d
+     = cpair 0 (cpair (cpair 4 (cpair a (cpair 1 0))) (cpair 1 0))).
+Proof.
+  intros e B d Hd. unfold FOAXQ6c.
+  rewrite (FOsat_pat1 e B cpatQ6 d Hd).
+  split.
+  - intros [v0 [_ Hs]].
+    cbn [cpat_sem cpatQ6 pEqP tMultP tZeroP] in Hs.
+    exists v0. symmetry. exact Hs.
+  - intros [a Heq].
+    pose proof (cpat_occurs_le cpatQ6
+      (fun s => match s with 0 => a | _ => 0 end) 0 eq_refl) as Ha.
+    cbn [cpat_sem cpatQ6 pEqP tMultP tZeroP] in Ha.
+    exists a.
+    split; [rewrite Heq; exact Ha|].
+    cbn [cpat_sem cpatQ6 pEqP tMultP tZeroP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOAXQ7c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOAXQ7c B d) <->
+   exists a b, FOeval e d = cpair 0 (cpair
+     (cpair 4 (cpair a (cpair 2 b)))
+     (cpair 3 (cpair (cpair 4 (cpair a b)) a)))).
+Proof.
+  intros e B d Hd. unfold FOAXQ7c.
+  rewrite (FOsat_pat2 e B cpatQ7 d Hd).
+  split.
+  - intros [v0 [v1 [_ [_ Hs]]]].
+    cbn [cpat_sem cpatQ7 pEqP tMultP tPlusP tSuccP] in Hs.
+    exists v0, v1. symmetry. exact Hs.
+  - intros [a [b Heq]].
+    pose proof (cpat_occurs_le cpatQ7
+      (fun s => match s with 0 => a | 1 => b | _ => 0 end) 0
+      eq_refl) as Ha.
+    pose proof (cpat_occurs_le cpatQ7
+      (fun s => match s with 0 => a | 1 => b | _ => 0 end) 1
+      eq_refl) as Hb.
+    cbn [cpat_sem cpatQ7 pEqP tMultP tPlusP tSuccP] in Ha, Hb.
+    exists a, b.
+    split; [rewrite Heq; exact Ha|].
+    split; [rewrite Heq; exact Hb|].
+    cbn [cpat_sem cpatQ7 pEqP tMultP tPlusP tSuccP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOAXQc : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOAXQc B d) <-> axq_sem (FOeval e d)).
+Proof.
+  intros e B d Hd. unfold FOAXQc, axq_sem.
+  rewrite (FOsat_FOOr e _ _).
+  rewrite (FOsat_FOOr e _ _).
+  rewrite (FOsat_FOOr e _ _).
+  rewrite (FOsat_FOOr e _ _).
+  rewrite (FOsat_FOOr e _ _).
+  rewrite (FOsat_FOOr e _ _).
+  rewrite (FOsat_FOAXQ1c e B d Hd).
+  rewrite (FOsat_FOAXQ2c e B d Hd).
+  rewrite (FOsat_FOAXQ3c e B d Hd).
+  rewrite (FOsat_FOAXQ4c e B d Hd).
+  rewrite (FOsat_FOAXQ5c e B d Hd).
+  rewrite (FOsat_FOAXQ6c e B d Hd).
+  rewrite (FOsat_FOAXQ7c e B d Hd).
+  reflexivity.
+Qed.
+
+Lemma FOdelta0_pat1 : forall B p d,
+  FOmax_var_tm d < B ->
+  FOdelta0 (FOBexC B (FOSucc d) (FOPATF (B+2) [FOVar B] p d)).
+Proof.
+  intros B p d Hd.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; exact Hd
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOPATF.
+  - constructor; [cbn; lia | constructor].
+  - lia.
+Qed.
+
+Lemma FOdelta0_pat2 : forall B p d,
+  FOmax_var_tm d < B ->
+  FOdelta0 (FOBexC B (FOSucc d)
+              (FOBexC (B+2) (FOSucc d)
+                 (FOPATF (B+4) [FOVar B; FOVar (B+2)] p d))).
+Proof.
+  intros B p d Hd.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; exact Hd
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOPATF.
+  - constructor; [cbn; lia | constructor; [cbn; lia | constructor]].
+  - lia.
+Qed.
+
+Lemma FOdelta0_pat3 : forall B p d,
+  FOmax_var_tm d < B ->
+  FOdelta0 (FOBexC B (FOSucc d)
+              (FOBexC (B+2) (FOSucc d)
+                 (FOBexC (B+4) (FOSucc d)
+                    (FOPATF (B+6) [FOVar B; FOVar (B+2); FOVar (B+4)]
+                       p d)))).
+Proof.
+  intros B p d Hd.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; exact Hd
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOPATF.
+  - constructor; [cbn; lia |
+      constructor; [cbn; lia |
+      constructor; [cbn; lia | constructor]]].
+  - lia.
+Qed.
+
+Lemma FOdelta0_pat4 : forall B p d,
+  FOmax_var_tm d < B ->
+  FOdelta0 (FOBexC B (FOSucc d)
+              (FOBexC (B+2) (FOSucc d)
+                 (FOBexC (B+4) (FOSucc d)
+                    (FOBexC (B+6) (FOSucc d)
+                       (FOPATF (B+8)
+                          [FOVar B; FOVar (B+2); FOVar (B+4);
+                           FOVar (B+6)] p d))))).
+Proof.
+  intros B p d Hd.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; exact Hd
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOPATF.
+  - constructor; [cbn; lia |
+      constructor; [cbn; lia |
+      constructor; [cbn; lia |
+      constructor; [cbn; lia | constructor]]]].
+  - lia.
+Qed.
+
+Lemma FOdelta0_FOAXQc : forall B d,
+  FOmax_var_tm d < B ->
+  FOdelta0 (FOAXQc B d).
+Proof.
+  intros B d Hd. unfold FOAXQc.
+  unfold FOAXQ1c, FOAXQ2c, FOAXQ3c, FOAXQ4c, FOAXQ5c, FOAXQ6c,
+    FOAXQ7c.
+  apply FOdelta0_or; [apply FOdelta0_pat2; exact Hd|].
+  apply FOdelta0_or; [apply FOdelta0_pat1; exact Hd|].
+  apply FOdelta0_or; [apply FOdelta0_pat1; exact Hd|].
+  apply FOdelta0_or; [apply FOdelta0_pat1; exact Hd|].
+  apply FOdelta0_or; [apply FOdelta0_pat2; exact Hd|].
+  apply FOdelta0_or; [apply FOdelta0_pat1; exact Hd|].
+  apply FOdelta0_pat2; exact Hd.
+Qed.
+
 Lemma FOsat_FObetaF : forall e v c d i x,
   FOmax_var_tm c < v -> FOmax_var_tm d < v ->
   FOmax_var_tm i < v -> FOmax_var_tm x < v ->
