@@ -26212,6 +26212,326 @@ Proof.
   exact (MAIN (S pc) x sc pc r (Nat.lt_succ_diag_r pc) Hx Hmem).
 Qed.
 
+(** ** Substitution-row inversion and the substitution witness.
+
+    A validated table makes every tag-2 and tag-3 row satisfy its
+    step relation.  At genuine input and output codes, a substitution
+    row either touches no occurrence — the variable is not free and
+    the output equals the input — or it places the substituted code
+    into the output, forcing it to be a genuine term code. *)
+
+Lemma tblL_step2 : forall vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr
+    vlen,
+  (forall j, j < vlen ->
+     dispatch_sem (tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen)
+       vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr j) ->
+  forall x sc tc r,
+    tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen 2 x sc tc r ->
+    step2_sem (tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen)
+      x sc tc r.
+Proof.
+  intros vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen Hvalid
+    x sc tc r Hmem.
+  destruct Hmem as [j [Hj Hf]].
+  pose proof (Hvalid j Hj) as Hd.
+  unfold dispatch_sem in Hd.
+  destruct Hd as [tg' [Htgb [a1' [Ha1b [a2' [Ha2b [a3' [Ha3b [rr'
+    [Hrrb [Hbt [Hb1 [Hb2 [Hb3 [Hbr Hsw]]]]]]]]]]]]]]].
+  destruct Hf as [Hft [Hf1 [Hf2 [Hf3 Hfr]]]].
+  assert (Etg : tg' = 2) by congruence.
+  assert (Ea1 : a1' = x) by congruence.
+  assert (Ea2 : a2' = sc) by congruence.
+  assert (Ea3 : a3' = tc) by congruence.
+  assert (Err : rr' = r) by congruence.
+  clear Hbt Hb1 Hb2 Hb3 Hbr Hft Hf1 Hf2 Hf3 Hfr Htgb Ha1b Ha2b
+    Ha3b Hrrb Hj.
+  subst tg' a1' a2' a3' rr'.
+  destruct Hsw as [[E _]|[[E _]|[[_ Hst]|[[E _]|[[E _]|[E _]]]]]];
+    try discriminate E.
+  exact Hst.
+Qed.
+
+Lemma tblL_step3 : forall vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr
+    vlen,
+  (forall j, j < vlen ->
+     dispatch_sem (tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen)
+       vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr j) ->
+  forall x sc pc r,
+    tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen 3 x sc pc r ->
+    step3_sem (tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen)
+      x sc pc r.
+Proof.
+  intros vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen Hvalid
+    x sc pc r Hmem.
+  destruct Hmem as [j [Hj Hf]].
+  pose proof (Hvalid j Hj) as Hd.
+  unfold dispatch_sem in Hd.
+  destruct Hd as [tg' [Htgb [a1' [Ha1b [a2' [Ha2b [a3' [Ha3b [rr'
+    [Hrrb [Hbt [Hb1 [Hb2 [Hb3 [Hbr Hsw]]]]]]]]]]]]]]].
+  destruct Hf as [Hft [Hf1 [Hf2 [Hf3 Hfr]]]].
+  assert (Etg : tg' = 3) by congruence.
+  assert (Ea1 : a1' = x) by congruence.
+  assert (Ea2 : a2' = sc) by congruence.
+  assert (Ea3 : a3' = pc) by congruence.
+  assert (Err : rr' = r) by congruence.
+  clear Hbt Hb1 Hb2 Hb3 Hbr Hft Hf1 Hf2 Hf3 Hfr Htgb Ha1b Ha2b
+    Ha3b Hrrb Hj.
+  subst tg' a1' a2' a3' rr'.
+  destruct Hsw as [[E _]|[[E _]|[[E _]|[[_ Hst]|[[E _]|[E _]]]]]];
+    try discriminate E.
+  exact Hst.
+Qed.
+
+Lemma tbl_subst_tm_witness : forall vct vdt vc1 vd1 vc2 vd2 vc3 vd3
+    vcr vdr vlen,
+  (forall j, j < vlen ->
+     dispatch_sem (tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen)
+       vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr j) ->
+  forall t' r' x sc,
+    tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen 2 x sc
+      (FOcode_tm t') (FOcode_tm r') ->
+    (FOin_tm x t' = false /\ FOcode_tm r' = FOcode_tm t')
+    \/ (exists s, sc = FOcode_tm s).
+Proof.
+  intros vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen Hvalid.
+  induction t' as [y| |t1 IH|t1 IH1 t2 IH2|t1 IH1 t2 IH2];
+    intros r' x sc Hrow;
+    apply (tblL_step2 _ _ _ _ _ _ _ _ _ _ _ Hvalid) in Hrow;
+    unfold step2_sem in Hrow;
+    cbn [FOcode_tm] in Hrow;
+    destruct Hrow as [C|[C|[C|[C|C]]]].
+  - destruct C as [y0 [Hyb [Hcp Hca]]].
+    apply cpair_inj in Hcp. destruct Hcp as [_ Hy0]. subst y0.
+    destruct Hca as [[Exy Hr]|[Hne Hr]].
+    + right. exists r'. symmetry. exact Hr.
+    + left. split.
+      * cbn [FOin_tm]. exact (proj2 (Nat.eqb_neq y x) Hne).
+      * cbn [FOcode_tm]. exact Hr.
+  - destruct C as [Hcp _].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [tc' [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [y0 [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [_ Hr].
+    left. split; [reflexivity|]. exact Hr.
+  - destruct C as [tc' [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [y0 [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [Hcp _].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [tc' [Htcb [Hcp [rsub [Hrb [Hsubrow Hcr]]]]]].
+    apply cpair_inj in Hcp. destruct Hcp as [_ Htc']. subst tc'.
+    destruct r' as [ry| |r1|r1 r2|r1 r2]; cbn [FOcode_tm] in Hcr;
+      apply cpair_inj in Hcr; destruct Hcr as [Ecr Hrs];
+      try discriminate Ecr.
+    subst rsub.
+    destruct (IH r1 x sc Hsubrow) as [[Hin Heq]|Hgen].
+    + left. split.
+      * cbn [FOin_tm]. exact Hin.
+      * cbn [FOcode_tm]. rewrite Heq. reflexivity.
+    + right. exact Hgen.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [y0 [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [Hcp _].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [tc' [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [Hpb [Hcp [ta [Htab [tb [Htbb [Hp [ra [Hrab
+      [rb [Hrbb [Hsa [Hsb [q [Hqb [Hq Hcr]]]]]]]]]]]]]]]]].
+    apply cpair_inj in Hcp. destruct Hcp as [_ Hpe]. subst p.
+    apply cpair_inj in Hp. destruct Hp as [Hta Htb2]. subst ta tb.
+    destruct r' as [ry| |r1|r1 r2|r1 r2]; cbn [FOcode_tm] in Hcr;
+      apply cpair_inj in Hcr; destruct Hcr as [Ecr Hq2];
+      try discriminate Ecr.
+    rewrite Hq2 in Hq.
+    apply cpair_inj in Hq. destruct Hq as [Hra Hrb2]. subst ra rb.
+    destruct (IH1 r1 x sc Hsa) as [[Hin1 Heq1]|Hgen];
+      [|right; exact Hgen].
+    destruct (IH2 r2 x sc Hsb) as [[Hin2 Heq2]|Hgen];
+      [|right; exact Hgen].
+    left. split.
+    + cbn [FOin_tm]. rewrite Hin1, Hin2. reflexivity.
+    + cbn [FOcode_tm]. rewrite Heq1, Heq2. reflexivity.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [y0 [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [Hcp _].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [tc' [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [Hpb [Hcp [ta [Htab [tb [Htbb [Hp [ra [Hrab
+      [rb [Hrbb [Hsa [Hsb [q [Hqb [Hq Hcr]]]]]]]]]]]]]]]]].
+    apply cpair_inj in Hcp. destruct Hcp as [_ Hpe]. subst p.
+    apply cpair_inj in Hp. destruct Hp as [Hta Htb2]. subst ta tb.
+    destruct r' as [ry| |r1|r1 r2|r1 r2]; cbn [FOcode_tm] in Hcr;
+      apply cpair_inj in Hcr; destruct Hcr as [Ecr Hq2];
+      try discriminate Ecr.
+    rewrite Hq2 in Hq.
+    apply cpair_inj in Hq. destruct Hq as [Hra Hrb2]. subst ra rb.
+    destruct (IH1 r1 x sc Hsa) as [[Hin1 Heq1]|Hgen];
+      [|right; exact Hgen].
+    destruct (IH2 r2 x sc Hsb) as [[Hin2 Heq2]|Hgen];
+      [|right; exact Hgen].
+    left. split.
+    + cbn [FOin_tm]. rewrite Hin1, Hin2. reflexivity.
+    + cbn [FOcode_tm]. rewrite Heq1, Heq2. reflexivity.
+Qed.
+
+Lemma tbl_subst_f_witness : forall vct vdt vc1 vd1 vc2 vd2 vc3 vd3
+    vcr vdr vlen,
+  (forall j, j < vlen ->
+     dispatch_sem (tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen)
+       vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr j) ->
+  forall P' Q' x sc,
+    tblL vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen 3 x sc
+      (FOcode_f P') (FOcode_f Q') ->
+    (FOfree_in x P' = false /\ FOcode_f Q' = FOcode_f P')
+    \/ (exists s, sc = FOcode_tm s).
+Proof.
+  intros vct vdt vc1 vd1 vc2 vd2 vc3 vd3 vcr vdr vlen Hvalid.
+  induction P' as [a b| |B IHB Cf IHC|y B IHB|y B IHB];
+    intros Q' x sc Hrow;
+    apply (tblL_step3 _ _ _ _ _ _ _ _ _ _ _ Hvalid) in Hrow;
+    unfold step3_sem in Hrow;
+    cbn [FOcode_f] in Hrow;
+    destruct Hrow as [C|[C|[C|[C|C]]]].
+  - destruct C as [p [Hpb [Hcp [ta [Htab [tb [Htbb [Hp [ra [Hrab
+      [rb [Hrbb [Hsa [Hsb [q [Hqb [Hq Hcr]]]]]]]]]]]]]]]]].
+    apply cpair_inj in Hcp. destruct Hcp as [_ Hpe]. subst p.
+    apply cpair_inj in Hp. destruct Hp as [Hta Htb2]. subst ta tb.
+    destruct Q' as [a2 b2| |Q1 Q2|y2 B2|y2 B2]; cbn [FOcode_f] in Hcr;
+      apply cpair_inj in Hcr; destruct Hcr as [Ecr Hq2];
+      try discriminate Ecr.
+    rewrite Hq2 in Hq.
+    apply cpair_inj in Hq. destruct Hq as [Hra Hrb2]. subst ra rb.
+    destruct (tbl_subst_tm_witness _ _ _ _ _ _ _ _ _ _ _ Hvalid
+                a a2 x sc Hsa) as [[Hin1 Heq1]|Hgen];
+      [|right; exact Hgen].
+    destruct (tbl_subst_tm_witness _ _ _ _ _ _ _ _ _ _ _ Hvalid
+                b b2 x sc Hsb) as [[Hin2 Heq2]|Hgen];
+      [|right; exact Hgen].
+    left. split.
+    + cbn [FOfree_in]. rewrite Hin1, Hin2. reflexivity.
+    + cbn [FOcode_f]. rewrite Heq1, Heq2. reflexivity.
+  - destruct C as [Hcp _].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [_ Hr].
+    left. split; [reflexivity|]. exact Hr.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [Hcp _].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [Hpb [Hcp [ta [Htab [tb [Htbb [Hp [ra [Hrab
+      [rb [Hrbb [Hsa [Hsb [q [Hqb [Hq Hcr]]]]]]]]]]]]]]]]].
+    apply cpair_inj in Hcp. destruct Hcp as [_ Hpe]. subst p.
+    apply cpair_inj in Hp. destruct Hp as [Hta Htb2]. subst ta tb.
+    destruct Q' as [a2 b2| |Q1 Q2|y2 B2|y2 B2]; cbn [FOcode_f] in Hcr;
+      apply cpair_inj in Hcr; destruct Hcr as [Ecr Hq2];
+      try discriminate Ecr.
+    rewrite Hq2 in Hq.
+    apply cpair_inj in Hq. destruct Hq as [Hra Hrb2]. subst ra rb.
+    destruct (IHB Q1 x sc Hsa) as [[Hin1 Heq1]|Hgen];
+      [|right; exact Hgen].
+    destruct (IHC Q2 x sc Hsb) as [[Hin2 Heq2]|Hgen];
+      [|right; exact Hgen].
+    left. split.
+    + cbn [FOfree_in]. rewrite Hin1, Hin2. reflexivity.
+    + cbn [FOcode_f]. rewrite Heq1, Heq2. reflexivity.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [Hcp _].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [Hpb [Hcp [y0 [Hyb [pb [Hpbb [Hp Hcase]]]]]]]].
+    apply cpair_inj in Hcp. destruct Hcp as [_ Hpe]. subst p.
+    apply cpair_inj in Hp. destruct Hp as [Hy0 Hpb2]. subst y0 pb.
+    destruct Hcase as [[Exy Hr]|[Hne [rb [Hrbb [Hsub [q [Hqb
+      [Hq Hcr]]]]]]]].
+    + left. split.
+      * cbn [FOfree_in]. rewrite Exy, Nat.eqb_refl. reflexivity.
+      * exact Hr.
+    + destruct Q' as [a2 b2| |Q1 Q2|y2 B2|y2 B2];
+        cbn [FOcode_f] in Hcr;
+        apply cpair_inj in Hcr; destruct Hcr as [Ecr Hq2];
+        try discriminate Ecr.
+      rewrite Hq2 in Hq.
+      apply cpair_inj in Hq. destruct Hq as [Hy2 Hrb2]. subst y2 rb.
+      destruct (IHB B2 x sc Hsub) as [[Hin Heq]|Hgen];
+        [|right; exact Hgen].
+      left. split.
+      * cbn [FOfree_in].
+        rewrite (proj2 (Nat.eqb_neq y x) Hne).
+        exact Hin.
+      * cbn [FOcode_f]. rewrite Heq. reflexivity.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [Hcp _].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [_ [Hcp _]]].
+    apply cpair_inj in Hcp. destruct Hcp as [E _]. discriminate E.
+  - destruct C as [p [Hpb [Hcp [y0 [Hyb [pb [Hpbb [Hp Hcase]]]]]]]].
+    apply cpair_inj in Hcp. destruct Hcp as [_ Hpe]. subst p.
+    apply cpair_inj in Hp. destruct Hp as [Hy0 Hpb2]. subst y0 pb.
+    destruct Hcase as [[Exy Hr]|[Hne [rb [Hrbb [Hsub [q [Hqb
+      [Hq Hcr]]]]]]]].
+    + left. split.
+      * cbn [FOfree_in]. rewrite Exy, Nat.eqb_refl. reflexivity.
+      * exact Hr.
+    + destruct Q' as [a2 b2| |Q1 Q2|y2 B2|y2 B2];
+        cbn [FOcode_f] in Hcr;
+        apply cpair_inj in Hcr; destruct Hcr as [Ecr Hq2];
+        try discriminate Ecr.
+      rewrite Hq2 in Hq.
+      apply cpair_inj in Hq. destruct Hq as [Hy2 Hrb2]. subst y2 rb.
+      destruct (IHB B2 x sc Hsub) as [[Hin Heq]|Hgen];
+        [|right; exact Hgen].
+      left. split.
+      * cbn [FOfree_in].
+        rewrite (proj2 (Nat.eqb_neq y x) Hne).
+        exact Hin.
+      * cbn [FOcode_f]. rewrite Heq. reflexivity.
+Qed.
+
 (** ** Trace builders: completeness of the master table.
 
     For each represented function, a structurally recursive builder
