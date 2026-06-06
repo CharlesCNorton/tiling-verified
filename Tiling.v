@@ -19008,6 +19008,361 @@ Proof.
   - apply FOdelta0_FOREFLSc; assumption.
 Qed.
 
+(** Extensionality of the recognizer semantics in the lookup
+    relation. *)
+
+Lemma logax_sem_ext : forall L L' d,
+  (forall a b c0 d0 r, L a b c0 d0 r <-> L' a b c0 d0 r) ->
+  (logax_sem L d <-> logax_sem L' d).
+Proof.
+  intros L L' d HL. unfold logax_sem.
+  split; intro H;
+    destruct H as [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]]].
+  - left. exact H.
+  - right; left. exact H.
+  - right; right; left. exact H.
+  - do 3 right; left. exact H.
+  - do 4 right; left. exact H.
+  - do 5 right; left. exact H.
+  - do 6 right; left. exact H.
+  - do 7 right; left. exact H.
+  - do 8 right; left. exact H.
+  - do 9 right; left.
+    destruct H as [x [P [Q [Hs Hr]]]].
+    exists x, P, Q. split; [exact Hs | apply HL; exact Hr].
+  - do 10 right; left. exact H.
+  - do 11 right.
+    destruct H as [x [P [Q [Hs Hr]]]].
+    exists x, P, Q. split; [exact Hs | apply HL; exact Hr].
+  - left. exact H.
+  - right; left. exact H.
+  - right; right; left. exact H.
+  - do 3 right; left. exact H.
+  - do 4 right; left. exact H.
+  - do 5 right; left. exact H.
+  - do 6 right; left. exact H.
+  - do 7 right; left. exact H.
+  - do 8 right; left. exact H.
+  - do 9 right; left.
+    destruct H as [x [P [Q [Hs Hr]]]].
+    exists x, P, Q. split; [exact Hs | apply HL; exact Hr].
+  - do 10 right; left. exact H.
+  - do 11 right.
+    destruct H as [x [P [Q [Hs Hr]]]].
+    exists x, P, Q. split; [exact Hs | apply HL; exact Hr].
+Qed.
+
+Lemma refl_sem_ext : forall L L' c d,
+  (forall a b c0 d0 r, L a b c0 d0 r <-> L' a b c0 d0 r) ->
+  (refl_sem L c d <-> refl_sem L' c d).
+Proof.
+  intros L L' c d HL. unfold refl_sem.
+  split; intros [a [na [p [H1 [H2 H3]]]]];
+    exists a, na, p;
+    (split; [apply HL; exact H1 |
+     split; [apply HL; exact H2 | exact H3]]).
+Qed.
+
+Lemma refls_sem_ext : forall cores L L' d,
+  (forall a b c0 d0 r, L a b c0 d0 r <-> L' a b c0 d0 r) ->
+  (refls_sem L cores d <-> refls_sem L' cores d).
+Proof.
+  intros cores.
+  induction cores as [|c rest IH]; intros L L' d HL; cbn [refls_sem].
+  - tauto.
+  - rewrite (refl_sem_ext L L' c d HL).
+    rewrite (IH L L' d HL).
+    reflexivity.
+Qed.
+
+Lemma thax_sem_ext : forall L L' cores d,
+  (forall a b c0 d0 r, L a b c0 d0 r <-> L' a b c0 d0 r) ->
+  (thax_sem L cores d <-> thax_sem L' cores d).
+Proof.
+  intros L L' cores d HL. unfold thax_sem.
+  rewrite (refls_sem_ext cores L L' d HL).
+  reflexivity.
+Qed.
+
+(** The semantic mirror of the justification checker at one position.
+    [u] is the value of the free template variable 0. *)
+
+Definition justck_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    (cores : list nat) (u vcs vds vcj vdj i : nat) : Prop :=
+  exists vd vj tg pl,
+    beta vcs vds i = vd /\ beta vcj vdj i = vj /\
+    cpair tg pl = vj /\
+    ( (tg = 0 /\ thax_sem L cores vd)
+    \/ (tg = 1 /\ logax_sem L vd)
+    \/ (tg = 2 /\ exists x tc P Q, cpair x tc = pl /\
+          vd = cpair 2 (cpair (cpair 3 (cpair x P)) Q) /\
+          L 4 x tc P 1 /\ L 3 x tc P Q)
+    \/ (tg = 3 /\ exists x tc P Q, cpair x tc = pl /\
+          vd = cpair 2 (cpair Q (cpair 4 (cpair x P))) /\
+          L 4 x tc P 1 /\ L 3 x tc P Q)
+    \/ (tg = 4 /\ exists i' j' bi bj, cpair i' j' = pl /\
+          i' < i /\ j' < i /\
+          beta vcs vds i' = bi /\ beta vcs vds j' = bj /\
+          bi = cpair 2 (cpair bj vd))
+    \/ (tg = 5 /\ pl < i /\ exists bj x,
+          beta vcs vds pl = bj /\ vd = cpair 3 (cpair x bj))
+    \/ (tg = 6 /\ pl < i /\ exists bj nu core na p,
+          beta vcs vds pl = bj /\
+          L 5 u 0 0 nu /\ L 3 0 nu u core /\
+          L 5 vd 0 0 na /\ L 3 1 na core p /\
+          bj = cpair 2 (cpair p vd))).
+
+Lemma justck_sem_ext : forall L L' cores u vcs vds vcj vdj i,
+  (forall a b c0 d0 r, L a b c0 d0 r <-> L' a b c0 d0 r) ->
+  (justck_sem L cores u vcs vds vcj vdj i <->
+   justck_sem L' cores u vcs vds vcj vdj i).
+Proof.
+  intros L L' cores u vcs vds vcj vdj i HL. unfold justck_sem.
+  split; intros [vd [vj [tg [pl [H1 [H2 [H3 H4]]]]]]];
+    exists vd, vj, tg, pl;
+    (split; [exact H1|]); (split; [exact H2|]); (split; [exact H3|]);
+    (destruct H4 as [H4|[H4|[H4|[H4|[H4|[H4|H4]]]]]]).
+  - left. destruct H4 as [Ht H4]. split; [exact Ht|].
+    apply (thax_sem_ext L L' cores vd HL). exact H4.
+  - right; left. destruct H4 as [Ht H4]. split; [exact Ht|].
+    apply (logax_sem_ext L L' vd HL). exact H4.
+  - do 2 right; left.
+    destruct H4 as [Ht [x [tc [P [Q [Hp [Hs [Ha Hb]]]]]]]].
+    split; [exact Ht|]. exists x, tc, P, Q.
+    split; [exact Hp|]. split; [exact Hs|].
+    split; [apply HL; exact Ha | apply HL; exact Hb].
+  - do 3 right; left.
+    destruct H4 as [Ht [x [tc [P [Q [Hp [Hs [Ha Hb]]]]]]]].
+    split; [exact Ht|]. exists x, tc, P, Q.
+    split; [exact Hp|]. split; [exact Hs|].
+    split; [apply HL; exact Ha | apply HL; exact Hb].
+  - do 4 right; left. exact H4.
+  - do 5 right; left. exact H4.
+  - do 6 right.
+    destruct H4 as [Ht [Hpl [bj [nu [core [na [p
+      [Hb [Hn [Hc [Hna [Hp Hsh]]]]]]]]]]]].
+    split; [exact Ht|]. split; [exact Hpl|].
+    exists bj, nu, core, na, p.
+    split; [exact Hb|].
+    split; [apply HL; exact Hn|].
+    split; [apply HL; exact Hc|].
+    split; [apply HL; exact Hna|].
+    split; [apply HL; exact Hp|].
+    exact Hsh.
+  - left. destruct H4 as [Ht H4]. split; [exact Ht|].
+    apply (thax_sem_ext L L' cores vd HL). exact H4.
+  - right; left. destruct H4 as [Ht H4]. split; [exact Ht|].
+    apply (logax_sem_ext L L' vd HL). exact H4.
+  - do 2 right; left.
+    destruct H4 as [Ht [x [tc [P [Q [Hp [Hs [Ha Hb]]]]]]]].
+    split; [exact Ht|]. exists x, tc, P, Q.
+    split; [exact Hp|]. split; [exact Hs|].
+    split; [apply HL; exact Ha | apply HL; exact Hb].
+  - do 3 right; left.
+    destruct H4 as [Ht [x [tc [P [Q [Hp [Hs [Ha Hb]]]]]]]].
+    split; [exact Ht|]. exists x, tc, P, Q.
+    split; [exact Hp|]. split; [exact Hs|].
+    split; [apply HL; exact Ha | apply HL; exact Hb].
+  - do 4 right; left. exact H4.
+  - do 5 right; left. exact H4.
+  - do 6 right.
+    destruct H4 as [Ht [Hpl [bj [nu [core [na [p
+      [Hb [Hn [Hc [Hna [Hp Hsh]]]]]]]]]]]].
+    split; [exact Ht|]. split; [exact Hpl|].
+    exists bj, nu, core, na, p.
+    split; [exact Hb|].
+    split; [apply HL; exact Hn|].
+    split; [apply HL; exact Hc|].
+    split; [apply HL; exact Hna|].
+    split; [apply HL; exact Hp|].
+    exact Hsh.
+Qed.
+
+Lemma FOdelta0_FOJUSTCK : forall B cores ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len cs ds cj dj i,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm cs < B -> FOmax_var_tm ds < B ->
+  FOmax_var_tm cj < B -> FOmax_var_tm dj < B ->
+  FOmax_var_tm i < B ->
+  FOdelta0 (FOJUSTCK B cores ct dt c1 d1 c2 d2 c3 d3 cr dr len
+              cs ds cj dj i).
+Proof.
+  intros B cores ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds cj dj i
+    Htb Hcs Hds Hcj Hdj Hi.
+  pose proof Htb as Htb'.
+  destruct Htb' as [Hct [Hdt [Hc1 [Hd1' [Hc2 [Hd2' [Hc3 [Hd3'
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  assert (Htb16 : tbl_below (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb46 : tbl_below (B+46) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb68 : tbl_below (B+68) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb32 : tbl_below (B+32) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb54 : tbl_below (B+54) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb76 : tbl_below (B+76) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb98 : tbl_below (B+98) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  unfold FOJUSTCK.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and.
+  { apply FOdelta0_FObetaF; cbn; lia. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FObetaF; cbn; lia. }
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOTHAXc; [exact Htb16 | cbn; lia]. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOLOGc; [exact Htb16 | cbn; lia]. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_and.
+    { apply FOdelta0_FOPATF.
+      - constructor; [cbn; lia |
+          constructor; [cbn; lia |
+          constructor; [cbn; lia | constructor]]].
+      - cbn. lia. }
+    apply FOdelta0_and.
+    { apply FOdelta0_FOlookup; try assumption;
+        rewrite ?FOmax_var_numeral; cbn; lia. }
+    apply FOdelta0_FOlookup; try assumption;
+      rewrite ?FOmax_var_numeral; cbn; lia. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_and.
+    { apply FOdelta0_FOPATF.
+      - constructor; [cbn; lia |
+          constructor; [cbn; lia |
+          constructor; [cbn; lia | constructor]]].
+      - cbn. lia. }
+    apply FOdelta0_and.
+    { apply FOdelta0_FOlookup; try assumption;
+        rewrite ?FOmax_var_numeral; cbn; lia. }
+    apply FOdelta0_FOlookup; try assumption;
+      rewrite ?FOmax_var_numeral; cbn; lia. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_and.
+    { apply FOdelta0_FObetaF; cbn; lia. }
+    apply FOdelta0_and.
+    { apply FOdelta0_FObetaF; cbn; lia. }
+    apply FOdelta0_FOPATF.
+    - constructor; [cbn; lia |
+        constructor; [cbn; lia | constructor]].
+    - cbn. lia. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_and.
+    { apply FOdelta0_FObetaF; cbn; lia. }
+    apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia|].
+    apply FOdelta0_FOPATF.
+    - constructor; [cbn; lia |
+        constructor; [cbn; lia | constructor]].
+    - cbn. lia. }
+  apply FOdelta0_and; [apply FOd0_eq|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and; [apply FOd0_eq|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and.
+  { apply FOdelta0_FObetaF; cbn; lia. }
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and.
+  { apply FOdelta0_FOlookup; try assumption;
+      rewrite ?FOmax_var_numeral; cbn; lia. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FOlookup; try assumption;
+      rewrite ?FOmax_var_numeral; cbn; lia. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FOlookup; try assumption;
+      rewrite ?FOmax_var_numeral; cbn; lia. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FOlookup; try assumption;
+      rewrite ?FOmax_var_numeral; cbn; lia. }
+  apply FOdelta0_FOPATF.
+  - constructor; [cbn; lia |
+      constructor; [cbn; lia | constructor]].
+  - cbn. lia.
+Qed.
+
 Definition mfun (tag a1 a2 a3 : nat) : nat :=
   match tag with
   | 0 => if FOin_tm a1 (FOdecode_tm a2) then 1 else 0
