@@ -18901,6 +18901,56 @@ Proof.
   ffree_walk; ffin.
 Qed.
 
+Ltac arm_provat :=
+  match goal with
+  | H : FOfree_in _
+          (FOPROVAT _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) = true |- _ =>
+      apply FOPROVAT_free in H;
+      destruct H as
+        [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]]]]]
+  end.
+
+Lemma FOD2c_free : forall w B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d,
+  FOfree_in w (FOD2c B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w d = true \/ w < 2.
+Proof.
+  intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d H.
+  unfold FOD2c in H.
+  repeat first [arm_provat | arm_patf | ffree_leaf]; ffin.
+Qed.
+
+Lemma FOD3c_free : forall w B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d,
+  FOfree_in w (FOD3c B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w d = true \/ w < 2.
+Proof.
+  intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d H.
+  unfold FOD3c in H.
+  repeat first [arm_provat | arm_patf | ffree_leaf]; ffin.
+Qed.
+
+Lemma FODMONc_free : forall w B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    c c' d,
+  FOfree_in w
+    (FODMONc B ct dt c1 d1 c2 d2 c3 d3 cr dr len c c' d) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w d = true \/ w < 2.
+Proof.
+  intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len c c' d H.
+  unfold FODMONc in H.
+  repeat first [arm_provat | arm_patf | ffree_leaf]; ffin.
+Qed.
+
 Lemma FOAXQc_free : forall w B d,
   FOfree_in w (FOAXQc B d) = true ->
   FOin_tm w d = true \/ w < 2.
@@ -20291,6 +20341,87 @@ Proof.
       |cbn; lia
       |rewrite FOmax_var_numeral; lia
       |lia].
+Qed.
+
+Lemma FOdelta0_FOD2c : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    c d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  FOdelta0 (FOD2c B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d).
+Proof.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d Htb Hd.
+  pose proof Htb as [Hct [Hdt [Hc1 [Hd1 [Hc2 [Hd2 [Hc3 [Hd3
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  unfold FOD2c.
+  repeat (apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia |]).
+  apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+  apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+  apply FOdelta0_and.
+  { apply FOdelta0_FOPROVAT;
+      [unfold tbl_below; repeat split; lia | cbn; lia | cbn; lia]. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FOPROVAT;
+      [unfold tbl_below; repeat split; lia | cbn; lia | cbn; lia]. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FOPROVAT;
+      [unfold tbl_below; repeat split; lia | cbn; lia | cbn; lia]. }
+  apply FOdelta0_FOPATF.
+  - constructor; [cbn; lia |
+      constructor; [cbn; lia |
+      constructor; [cbn; lia | constructor]]].
+  - lia.
+Qed.
+
+Lemma FOdelta0_FOD3c : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    c d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  FOdelta0 (FOD3c B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d).
+Proof.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d Htb Hd.
+  pose proof Htb as [Hct [Hdt [Hc1 [Hd1 [Hc2 [Hd2 [Hc3 [Hd3
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  unfold FOD3c.
+  repeat (apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia |]).
+  apply FOdelta0_and.
+  { apply FOdelta0_FOPROVAT;
+      [unfold tbl_below; repeat split; lia | cbn; lia | cbn; lia]. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FOPROVAT;
+      [unfold tbl_below; repeat split; lia | cbn; lia | cbn; lia]. }
+  apply FOdelta0_FOPATF.
+  - constructor; [cbn; lia |
+      constructor; [cbn; lia | constructor]].
+  - lia.
+Qed.
+
+Lemma FOdelta0_FODMONc : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    c c' d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  FOdelta0 (FODMONc B ct dt c1 d1 c2 d2 c3 d3 cr dr len c c' d).
+Proof.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len c c' d Htb Hd.
+  pose proof Htb as [Hct [Hdt [Hc1 [Hd1 [Hc2 [Hd2 [Hc3 [Hd3
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  unfold FODMONc.
+  repeat (apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia |]).
+  apply FOdelta0_and.
+  { apply FOdelta0_FOPROVAT;
+      [unfold tbl_below; repeat split; lia | cbn; lia | cbn; lia]. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FOPROVAT;
+      [unfold tbl_below; repeat split; lia | cbn; lia | cbn; lia]. }
+  apply FOdelta0_FOPATF.
+  - constructor; [cbn; lia |
+      constructor; [cbn; lia | constructor]].
+  - lia.
 Qed.
 
 Lemma FOsat_FOREFLSc : forall cores e B ct dt c1 d1 c2 d2 c3 d3 cr dr
