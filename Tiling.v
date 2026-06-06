@@ -16839,6 +16839,339 @@ Proof.
            rewrite (cpat_sem_ext b _ _ Hsg), EvB2. reflexivity.
 Qed.
 
+(** Slot wrappers: each recognizer binds its slot witnesses by the
+    code and matches a fixed pattern; the satisfaction laws expose the
+    slot values, each bounded by the code value. *)
+
+Lemma FOsat_pat1 : forall e B p d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOBexC B (FOSucc d) (FOPATF (B+2) [FOVar B] p d)) <->
+   exists v0, v0 <= FOeval e d /\
+     cpat_sem (fun s => match s with 0 => v0 | _ => 0 end) p
+     = FOeval e d).
+Proof.
+  intros e B p d Hd.
+  assert (HinB : FOin_tm B (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; exact Hd).
+  assert (HinSB : FOin_tm (S B) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (Henv : Forall (fun t => FOmax_var_tm t < B+2) [FOVar B])
+    by (constructor; [cbn; lia | constructor]).
+  assert (Hd2 : FOmax_var_tm d < B+2) by lia.
+  rewrite (FOsat_FOBexC e B (FOSucc d) _ HinB HinSB).
+  split.
+  - intros [w [Hw Hp]].
+    cbn [FOeval] in Hw.
+    apply (proj1 (FOsat_FOPATF p _ (B+2) [FOVar B] d Henv Hd2)) in Hp.
+    rewrite (FOeval_update_above d e B w Hd) in Hp.
+    exists w. split; [lia|].
+    rewrite <- Hp.
+    apply cpat_sem_ext. intro s.
+    destruct s as [|s]; cbn.
+    + unfold FOupdate. rewrite Nat.eqb_refl. reflexivity.
+    + destruct s; reflexivity.
+  - intros [v0 [Hb Hsem]].
+    exists v0. split.
+    + cbn [FOeval]. lia.
+    + apply (proj2 (FOsat_FOPATF p _ (B+2) [FOVar B] d Henv Hd2)).
+      rewrite (FOeval_update_above d e B v0 Hd).
+      rewrite <- Hsem.
+      apply cpat_sem_ext. intro s.
+      destruct s as [|s]; cbn.
+      * unfold FOupdate. rewrite Nat.eqb_refl. reflexivity.
+      * destruct s; reflexivity.
+Qed.
+
+Lemma FOsat_pat2 : forall e B p d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOBexC B (FOSucc d)
+              (FOBexC (B+2) (FOSucc d)
+                 (FOPATF (B+4) [FOVar B; FOVar (B+2)] p d))) <->
+   exists v0 v1, v0 <= FOeval e d /\ v1 <= FOeval e d /\
+     cpat_sem (fun s => match s with 0 => v0 | 1 => v1 | _ => 0 end) p
+     = FOeval e d).
+Proof.
+  intros e B p d Hd.
+  assert (HinB : FOin_tm B (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; exact Hd).
+  assert (HinSB : FOin_tm (S B) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB2 : FOin_tm (B+2) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB2 : FOin_tm (S (B+2)) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (EB2 : Nat.eqb B (B+2) = false) by (apply Nat.eqb_neq; lia).
+  assert (Henv : Forall (fun t => FOmax_var_tm t < B+4)
+                   [FOVar B; FOVar (B+2)])
+    by (constructor; [cbn; lia |
+        constructor; [cbn; lia | constructor]]).
+  assert (Hd4 : FOmax_var_tm d < B+4) by lia.
+  rewrite (FOsat_FOBexC e B (FOSucc d) _ HinB HinSB).
+  split.
+  - intros [w0 [Hw0 Hb1]].
+    cbn [FOeval] in Hw0.
+    rewrite (FOsat_FOBexC _ (B+2) (FOSucc d) _ HinB2 HinSB2) in Hb1.
+    destruct Hb1 as [w1 [Hw1 Hp]].
+    cbn [FOeval] in Hw1.
+    rewrite (FOeval_update_above d e B w0 Hd) in Hw1.
+    set (e2 := FOupdate (FOupdate e B w0) (B+2) w1) in *.
+    apply (proj1 (FOsat_FOPATF p _ (B+4) _ d Henv Hd4)) in Hp.
+    assert (Ed : FOeval e2 d = FOeval e d).
+    { unfold e2.
+      rewrite (FOeval_update_above d _ (B+2) w1 ltac:(lia)).
+      exact (FOeval_update_above d e B w0 Hd). }
+    rewrite Ed in Hp.
+    exists w0, w1. split; [lia|]. split; [lia|].
+    rewrite <- Hp.
+    apply cpat_sem_ext. intro s.
+    destruct s as [|[|s]]; cbn.
+    + unfold e2, FOupdate. rewrite EB2, Nat.eqb_refl. reflexivity.
+    + unfold e2, FOupdate. rewrite Nat.eqb_refl. reflexivity.
+    + destruct s; reflexivity.
+  - intros [v0 [v1 [Hb0 [Hb1 Hsem]]]].
+    exists v0. split; [cbn [FOeval]; lia|].
+    rewrite (FOsat_FOBexC _ (B+2) (FOSucc d) _ HinB2 HinSB2).
+    exists v1. split.
+    + cbn [FOeval].
+      rewrite (FOeval_update_above d e B v0 Hd). lia.
+    + set (e2 := FOupdate (FOupdate e B v0) (B+2) v1).
+      apply (proj2 (FOsat_FOPATF p e2 (B+4) _ d Henv Hd4)).
+      assert (Ed : FOeval e2 d = FOeval e d).
+      { unfold e2.
+        rewrite (FOeval_update_above d _ (B+2) v1 ltac:(lia)).
+        exact (FOeval_update_above d e B v0 Hd). }
+      rewrite Ed, <- Hsem.
+      apply cpat_sem_ext. intro s.
+      destruct s as [|[|s]]; cbn.
+      * unfold e2, FOupdate. rewrite EB2, Nat.eqb_refl. reflexivity.
+      * unfold e2, FOupdate. rewrite Nat.eqb_refl. reflexivity.
+      * destruct s; reflexivity.
+Qed.
+
+Lemma FOsat_pat3 : forall e B p d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOBexC B (FOSucc d)
+              (FOBexC (B+2) (FOSucc d)
+                 (FOBexC (B+4) (FOSucc d)
+                    (FOPATF (B+6) [FOVar B; FOVar (B+2); FOVar (B+4)]
+                       p d)))) <->
+   exists v0 v1 v2,
+     v0 <= FOeval e d /\ v1 <= FOeval e d /\ v2 <= FOeval e d /\
+     cpat_sem (fun s => match s with
+                        | 0 => v0 | 1 => v1 | 2 => v2 | _ => 0 end) p
+     = FOeval e d).
+Proof.
+  intros e B p d Hd.
+  assert (HinB : FOin_tm B (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; exact Hd).
+  assert (HinSB : FOin_tm (S B) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB2 : FOin_tm (B+2) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB2 : FOin_tm (S (B+2)) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB4 : FOin_tm (B+4) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB4 : FOin_tm (S (B+4)) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (EB2 : Nat.eqb B (B+2) = false) by (apply Nat.eqb_neq; lia).
+  assert (EB4 : Nat.eqb B (B+4) = false) by (apply Nat.eqb_neq; lia).
+  assert (E24 : Nat.eqb (B+2) (B+4) = false)
+    by (apply Nat.eqb_neq; lia).
+  assert (Henv : Forall (fun t => FOmax_var_tm t < B+6)
+                   [FOVar B; FOVar (B+2); FOVar (B+4)])
+    by (constructor; [cbn; lia |
+        constructor; [cbn; lia |
+        constructor; [cbn; lia | constructor]]]).
+  assert (Hd6 : FOmax_var_tm d < B+6) by lia.
+  rewrite (FOsat_FOBexC e B (FOSucc d) _ HinB HinSB).
+  split.
+  - intros [w0 [Hw0 Hb1]].
+    cbn [FOeval] in Hw0.
+    rewrite (FOsat_FOBexC _ (B+2) (FOSucc d) _ HinB2 HinSB2) in Hb1.
+    destruct Hb1 as [w1 [Hw1 Hb2]].
+    cbn [FOeval] in Hw1.
+    rewrite (FOeval_update_above d e B w0 Hd) in Hw1.
+    rewrite (FOsat_FOBexC _ (B+4) (FOSucc d) _ HinB4 HinSB4) in Hb2.
+    destruct Hb2 as [w2 [Hw2 Hp]].
+    cbn [FOeval] in Hw2.
+    rewrite (FOeval_update_above d _ (B+2) w1 ltac:(lia)) in Hw2.
+    rewrite (FOeval_update_above d e B w0 Hd) in Hw2.
+    set (e3 := FOupdate (FOupdate (FOupdate e B w0) (B+2) w1)
+                 (B+4) w2) in *.
+    apply (proj1 (FOsat_FOPATF p _ (B+6) _ d Henv Hd6)) in Hp.
+    assert (Ed : FOeval e3 d = FOeval e d).
+    { unfold e3.
+      rewrite (FOeval_update_above d _ (B+4) w2 ltac:(lia)).
+      rewrite (FOeval_update_above d _ (B+2) w1 ltac:(lia)).
+      exact (FOeval_update_above d e B w0 Hd). }
+    rewrite Ed in Hp.
+    exists w0, w1, w2.
+    split; [lia|]. split; [lia|]. split; [lia|].
+    rewrite <- Hp.
+    apply cpat_sem_ext. intro s.
+    destruct s as [|[|[|s]]]; cbn.
+    + unfold e3, FOupdate. rewrite EB4, EB2, Nat.eqb_refl. reflexivity.
+    + unfold e3, FOupdate. rewrite E24, Nat.eqb_refl. reflexivity.
+    + unfold e3, FOupdate. rewrite Nat.eqb_refl. reflexivity.
+    + destruct s; reflexivity.
+  - intros [v0 [v1 [v2 [Hb0 [Hb1 [Hb2 Hsem]]]]]].
+    exists v0. split; [cbn [FOeval]; lia|].
+    rewrite (FOsat_FOBexC _ (B+2) (FOSucc d) _ HinB2 HinSB2).
+    exists v1. split.
+    { cbn [FOeval].
+      rewrite (FOeval_update_above d e B v0 Hd). lia. }
+    rewrite (FOsat_FOBexC _ (B+4) (FOSucc d) _ HinB4 HinSB4).
+    exists v2. split.
+    { cbn [FOeval].
+      rewrite (FOeval_update_above d _ (B+2) v1 ltac:(lia)).
+      rewrite (FOeval_update_above d e B v0 Hd). lia. }
+    set (e3 := FOupdate (FOupdate (FOupdate e B v0) (B+2) v1)
+                 (B+4) v2).
+    apply (proj2 (FOsat_FOPATF p e3 (B+6) _ d Henv Hd6)).
+    assert (Ed : FOeval e3 d = FOeval e d).
+    { unfold e3.
+      rewrite (FOeval_update_above d _ (B+4) v2 ltac:(lia)).
+      rewrite (FOeval_update_above d _ (B+2) v1 ltac:(lia)).
+      exact (FOeval_update_above d e B v0 Hd). }
+    rewrite Ed, <- Hsem.
+    apply cpat_sem_ext. intro s.
+    destruct s as [|[|[|s]]]; cbn.
+    + unfold e3, FOupdate. rewrite EB4, EB2, Nat.eqb_refl. reflexivity.
+    + unfold e3, FOupdate. rewrite E24, Nat.eqb_refl. reflexivity.
+    + unfold e3, FOupdate. rewrite Nat.eqb_refl. reflexivity.
+    + destruct s; reflexivity.
+Qed.
+
+Lemma FOsat_pat4 : forall e B p d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOBexC B (FOSucc d)
+              (FOBexC (B+2) (FOSucc d)
+                 (FOBexC (B+4) (FOSucc d)
+                    (FOBexC (B+6) (FOSucc d)
+                       (FOPATF (B+8)
+                          [FOVar B; FOVar (B+2); FOVar (B+4);
+                           FOVar (B+6)] p d))))) <->
+   exists v0 v1 v2 v3,
+     v0 <= FOeval e d /\ v1 <= FOeval e d /\
+     v2 <= FOeval e d /\ v3 <= FOeval e d /\
+     cpat_sem (fun s => match s with
+                        | 0 => v0 | 1 => v1 | 2 => v2 | 3 => v3
+                        | _ => 0 end) p
+     = FOeval e d).
+Proof.
+  intros e B p d Hd.
+  assert (HinB : FOin_tm B (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; exact Hd).
+  assert (HinSB : FOin_tm (S B) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB2 : FOin_tm (B+2) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB2 : FOin_tm (S (B+2)) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB4 : FOin_tm (B+4) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB4 : FOin_tm (S (B+4)) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB6 : FOin_tm (B+6) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB6 : FOin_tm (S (B+6)) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (EB2 : Nat.eqb B (B+2) = false) by (apply Nat.eqb_neq; lia).
+  assert (EB4 : Nat.eqb B (B+4) = false) by (apply Nat.eqb_neq; lia).
+  assert (EB6 : Nat.eqb B (B+6) = false) by (apply Nat.eqb_neq; lia).
+  assert (E24 : Nat.eqb (B+2) (B+4) = false)
+    by (apply Nat.eqb_neq; lia).
+  assert (E26 : Nat.eqb (B+2) (B+6) = false)
+    by (apply Nat.eqb_neq; lia).
+  assert (E46 : Nat.eqb (B+4) (B+6) = false)
+    by (apply Nat.eqb_neq; lia).
+  assert (Henv : Forall (fun t => FOmax_var_tm t < B+8)
+                   [FOVar B; FOVar (B+2); FOVar (B+4); FOVar (B+6)])
+    by (constructor; [cbn; lia |
+        constructor; [cbn; lia |
+        constructor; [cbn; lia |
+        constructor; [cbn; lia | constructor]]]]).
+  assert (Hd8 : FOmax_var_tm d < B+8) by lia.
+  rewrite (FOsat_FOBexC e B (FOSucc d) _ HinB HinSB).
+  split.
+  - intros [w0 [Hw0 Hb1]].
+    cbn [FOeval] in Hw0.
+    rewrite (FOsat_FOBexC _ (B+2) (FOSucc d) _ HinB2 HinSB2) in Hb1.
+    destruct Hb1 as [w1 [Hw1 Hb2]].
+    cbn [FOeval] in Hw1.
+    rewrite (FOeval_update_above d e B w0 Hd) in Hw1.
+    rewrite (FOsat_FOBexC _ (B+4) (FOSucc d) _ HinB4 HinSB4) in Hb2.
+    destruct Hb2 as [w2 [Hw2 Hb3]].
+    cbn [FOeval] in Hw2.
+    rewrite (FOeval_update_above d _ (B+2) w1 ltac:(lia)) in Hw2.
+    rewrite (FOeval_update_above d e B w0 Hd) in Hw2.
+    rewrite (FOsat_FOBexC _ (B+6) (FOSucc d) _ HinB6 HinSB6) in Hb3.
+    destruct Hb3 as [w3 [Hw3 Hp]].
+    cbn [FOeval] in Hw3.
+    rewrite (FOeval_update_above d _ (B+4) w2 ltac:(lia)) in Hw3.
+    rewrite (FOeval_update_above d _ (B+2) w1 ltac:(lia)) in Hw3.
+    rewrite (FOeval_update_above d e B w0 Hd) in Hw3.
+    set (e4 := FOupdate (FOupdate (FOupdate (FOupdate e B w0)
+                 (B+2) w1) (B+4) w2) (B+6) w3) in *.
+    apply (proj1 (FOsat_FOPATF p _ (B+8) _ d Henv Hd8)) in Hp.
+    assert (Ed : FOeval e4 d = FOeval e d).
+    { unfold e4.
+      rewrite (FOeval_update_above d _ (B+6) w3 ltac:(lia)).
+      rewrite (FOeval_update_above d _ (B+4) w2 ltac:(lia)).
+      rewrite (FOeval_update_above d _ (B+2) w1 ltac:(lia)).
+      exact (FOeval_update_above d e B w0 Hd). }
+    rewrite Ed in Hp.
+    exists w0, w1, w2, w3.
+    split; [lia|]. split; [lia|]. split; [lia|]. split; [lia|].
+    rewrite <- Hp.
+    apply cpat_sem_ext. intro s.
+    destruct s as [|[|[|[|s]]]]; cbn.
+    + unfold e4, FOupdate.
+      rewrite EB6, EB4, EB2, Nat.eqb_refl. reflexivity.
+    + unfold e4, FOupdate.
+      rewrite E26, E24, Nat.eqb_refl. reflexivity.
+    + unfold e4, FOupdate. rewrite E46, Nat.eqb_refl. reflexivity.
+    + unfold e4, FOupdate. rewrite Nat.eqb_refl. reflexivity.
+    + destruct s; reflexivity.
+  - intros [v0 [v1 [v2 [v3 [Hb0 [Hb1 [Hb2 [Hb3 Hsem]]]]]]]].
+    exists v0. split; [cbn [FOeval]; lia|].
+    rewrite (FOsat_FOBexC _ (B+2) (FOSucc d) _ HinB2 HinSB2).
+    exists v1. split.
+    { cbn [FOeval].
+      rewrite (FOeval_update_above d e B v0 Hd). lia. }
+    rewrite (FOsat_FOBexC _ (B+4) (FOSucc d) _ HinB4 HinSB4).
+    exists v2. split.
+    { cbn [FOeval].
+      rewrite (FOeval_update_above d _ (B+2) v1 ltac:(lia)).
+      rewrite (FOeval_update_above d e B v0 Hd). lia. }
+    rewrite (FOsat_FOBexC _ (B+6) (FOSucc d) _ HinB6 HinSB6).
+    exists v3. split.
+    { cbn [FOeval].
+      rewrite (FOeval_update_above d _ (B+4) v2 ltac:(lia)).
+      rewrite (FOeval_update_above d _ (B+2) v1 ltac:(lia)).
+      rewrite (FOeval_update_above d e B v0 Hd). lia. }
+    set (e4 := FOupdate (FOupdate (FOupdate (FOupdate e B v0)
+                 (B+2) v1) (B+4) v2) (B+6) v3).
+    apply (proj2 (FOsat_FOPATF p e4 (B+8) _ d Henv Hd8)).
+    assert (Ed : FOeval e4 d = FOeval e d).
+    { unfold e4.
+      rewrite (FOeval_update_above d _ (B+6) v3 ltac:(lia)).
+      rewrite (FOeval_update_above d _ (B+4) v2 ltac:(lia)).
+      rewrite (FOeval_update_above d _ (B+2) v1 ltac:(lia)).
+      exact (FOeval_update_above d e B v0 Hd). }
+    rewrite Ed, <- Hsem.
+    apply cpat_sem_ext. intro s.
+    destruct s as [|[|[|[|s]]]]; cbn.
+    + unfold e4, FOupdate.
+      rewrite EB6, EB4, EB2, Nat.eqb_refl. reflexivity.
+    + unfold e4, FOupdate.
+      rewrite E26, E24, Nat.eqb_refl. reflexivity.
+    + unfold e4, FOupdate. rewrite E46, Nat.eqb_refl. reflexivity.
+    + unfold e4, FOupdate. rewrite Nat.eqb_refl. reflexivity.
+    + destruct s; reflexivity.
+Qed.
+
 Lemma FOsat_FObetaF : forall e v c d i x,
   FOmax_var_tm c < v -> FOmax_var_tm d < v ->
   FOmax_var_tm i < v -> FOmax_var_tm x < v ->
