@@ -25958,6 +25958,66 @@ Proof.
   apply FOdelta0_FOSTEPDISPATCH; [exact Htb2 | cbn; lia].
 Qed.
 
+(** ** The derivation checker is Delta_0; the matrix is Sigma_1. *)
+
+Lemma FOdelta0_FOGUARDC : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    cs ds i,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm cs < B -> FOmax_var_tm ds < B -> FOmax_var_tm i < B ->
+  FOdelta0 (FOGUARDC B ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds i).
+Proof.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds i Htb Hcs Hds Hi.
+  pose proof Htb as [Hct [Hdt [Hc1 [Hd1 [Hc2 [Hd2 [Hc3 [Hd3
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  unfold FOGUARDC.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia | apply FOin_tm_above; cbn; lia |].
+  apply FOdelta0_and.
+  - apply FOdelta0_FObetaF; cbn; lia.
+  - apply FOdelta0_FOBexC;
+      [apply FOin_tm_above; cbn; lia
+      |apply FOin_tm_above; cbn; lia |].
+    apply FOdelta0_FOlookup;
+      [unfold tbl_below; repeat split; lia
+      |cbn; lia | cbn; lia | cbn; lia | cbn; lia | cbn; lia].
+Qed.
+
+Lemma FOdelta0_FOPRDER : forall cores, FOdelta0 (FOPRDER cores).
+Proof.
+  intro cores. unfold FOPRDER.
+  apply FOdelta0_and.
+  { apply FOdelta0_FOTBLVALID.
+    unfold tbl_below; repeat split; cbn; lia. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FOBexC; [reflexivity | reflexivity |].
+    apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FObetaF; cbn; lia. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FOBallC; [reflexivity | reflexivity |].
+    apply FOdelta0_FOJUSTCK;
+      [unfold tbl_below; repeat split; cbn; lia
+      |cbn; lia | cbn; lia | cbn; lia | cbn; lia | cbn; lia]. }
+  { apply FOdelta0_FOBallC; [reflexivity | reflexivity |].
+    apply FOdelta0_FOGUARDC;
+      [unfold tbl_below; repeat split; cbn; lia
+      |cbn; lia | cbn; lia | cbn; lia]. }
+Qed.
+
+Lemma FOsigma1_FOPRMAT : forall cores, FOsigma1 (FOPRMAT cores).
+Proof.
+  intro cores. unfold FOPRMAT.
+  do 16 apply FOs1_ex.
+  apply FOs1_d0. apply FOdelta0_FOPRDER.
+Qed.
+
+Lemma FOsigma1_FOProvSentence : forall n A,
+  FOsigma1 (FOProvSentence n A).
+Proof.
+  intros n A. unfold FOProvSentence.
+  apply FOsigma1_subst_num. apply FOsigma1_subst_num.
+  apply FOsigma1_FOPRMAT.
+Qed.
+
 Lemma FOsat_FOTBLVALID : forall e B ct dt c1 d1 c2 d2 c3 d3 cr dr len,
   tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
   (FOsat e (FOTBLVALID B ct dt c1 d1 c2 d2 c3 d3 cr dr len)
@@ -29712,6 +29772,76 @@ Proof.
   apply (FOProvSentence_sat_iff e n A).
   apply FOProvesTn_Loeb.
   exact (proj1 (FOProvSentence_sat_iff e n _) H).
+Qed.
+
+(** ** Formalized derivability and tower cumulativity.
+
+    The provability sentence is a closed Sigma_1 formula, so provable
+    Sigma_1-completeness turns derivability of [A] in [T_n] into
+    derivability of the level-[n] provability sentence at every
+    level.  Cumulativity then absorbs the Loeb rule: the rule's
+    conclusion at level [n] re-enters level [m] through the
+    formalized derivability statement. *)
+
+Theorem FOHBL3_provable : forall n m A,
+  FOProvesTn n A -> FOProvesTn m (FOProvSentence n A).
+Proof.
+  intros n m A H.
+  apply (FOsigma1_completeness_closed (FOProvSentence n A)).
+  - apply FOsigma1_FOProvSentence.
+  - intro v. apply FOProvSentence_closed.
+  - apply (FOHBL1_sat (fun _ => 0) n A). exact H.
+Qed.
+
+Theorem FOHBL3_sat : forall e n A,
+  FOsat e (FOProvSentence n A) ->
+  FOsat e (FOProvSentence n (FOProvSentence n A)).
+Proof.
+  intros e n A H.
+  apply FOHBL1_sat. apply (FOHBL3_provable n n).
+  exact (proj1 (FOProvSentence_sat_iff e n A) H).
+Qed.
+
+Theorem FOProvesTn_cumulative : forall n m A,
+  n <= m -> FOProvesTn n A -> FOProvesTn m A.
+Proof.
+  intros n m A Hnm H. induction H.
+  - apply FOProvesTn_ax.
+    match goal with
+    | HA : FOAxiomTn _ _ |- _ =>
+        inversion HA; subst;
+        [apply FOAx_RQ; assumption | apply FOAx_Refl; lia]
+    end.
+  - apply FOProvesTn_K.
+  - apply FOProvesTn_S.
+  - apply FOProvesTn_DN.
+  - eapply FOProvesTn_MP; eassumption.
+  - apply FOProvesTn_Gen; assumption.
+  - apply FOProvesTn_EqRefl.
+  - apply FOProvesTn_EqSym.
+  - apply FOProvesTn_EqTrans.
+  - apply FOProvesTn_CongS.
+  - apply FOProvesTn_CongPlus.
+  - apply FOProvesTn_CongMult.
+  - apply FOProvesTn_AllElimT; assumption.
+  - apply FOProvesTn_ExIntroT; assumption.
+  - apply FOProvesTn_ExElim; assumption.
+  - apply FOProvesTn_AllK.
+  - apply FOProvesTn_AllExport; assumption.
+  - apply (FOProvesTn_MP m (FOProvSentence n phi) phi);
+      [assumption|].
+    apply (FOHBL3_provable n m).
+    apply FOProvesTn_Loeb. assumption.
+Qed.
+
+Theorem FOProv_sat_monotone : forall e n m A,
+  n <= m ->
+  FOsat e (FOProvSentence n A) -> FOsat e (FOProvSentence m A).
+Proof.
+  intros e n m A Hnm H.
+  apply FOProvSentence_sat_iff.
+  exact (FOProvesTn_cumulative n m A Hnm
+           (proj1 (FOProvSentence_sat_iff e n A) H)).
 Qed.
 
 Definition FOInconsistent (n : nat) : Prop := FOProvesTn n FOFalseF.
