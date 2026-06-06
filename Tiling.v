@@ -20946,6 +20946,366 @@ Proof.
     symmetry. exact Hshape.
 Qed.
 
+Lemma FOsat_FOD2c : forall e B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  (FOsat e (FOD2c B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d) <->
+   d2one_sem
+     (fun tg a1 a2 a3 r => exists j, j < FOeval e len /\
+        beta (FOeval e ct) (FOeval e dt) j = tg /\
+        beta (FOeval e c1) (FOeval e d1) j = a1 /\
+        beta (FOeval e c2) (FOeval e d2) j = a2 /\
+        beta (FOeval e c3) (FOeval e d3) j = a3 /\
+        beta (FOeval e cr) (FOeval e dr) j = r)
+     c (FOeval e d)).
+Proof.
+  intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d Htb Hd.
+  pose proof Htb as Htb'.
+  destruct Htb' as [Hct [Hdt [Hc1 [Hd1' [Hc2 [Hd2' [Hc3 [Hd3'
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  assert (Htb14 : tbl_below (B+14) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb60 : tbl_below (B+60) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb106 : tbl_below (B+106) ct dt c1 d1 c2 d2 c3 d3 cr dr
+                     len)
+    by (unfold tbl_below; lia).
+  assert (Hin0 : forall k, B <= k ->
+      FOin_tm k (FOSucc c1) = false /\
+      FOin_tm k (FOSucc cr) = false).
+  { intros k Hk. split; apply FOin_tm_above; cbn; lia. }
+  assert (Hz14 : FOmax_var_tm (FOVar (B+6)) < B+14) by (cbn; lia).
+  assert (Hp14 : FOmax_var_tm (FOVar (B+8)) < B+14) by (cbn; lia).
+  assert (Hz60 : FOmax_var_tm (FOVar B) < B+60) by (cbn; lia).
+  assert (Hp60 : FOmax_var_tm (FOVar (B+10)) < B+60) by (cbn; lia).
+  assert (Hz106 : FOmax_var_tm (FOVar (B+2)) < B+106) by (cbn; lia).
+  assert (Hp106 : FOmax_var_tm (FOVar (B+12)) < B+106) by (cbn; lia).
+  assert (Henv : Forall (fun t => FOmax_var_tm t < B+152)
+                   [FOVar (B+8); FOVar (B+10); FOVar (B+12)])
+    by (constructor; [cbn; lia |
+        constructor; [cbn; lia |
+        constructor; [cbn; lia | constructor]]]).
+  assert (Hd152 : FOmax_var_tm d < B+152) by lia.
+  unfold FOD2c, d2one_sem.
+  rewrite (FOsat_FOBexC e B (FOSucc c1) _
+             (proj1 (Hin0 B ltac:(lia)))
+             (proj1 (Hin0 (S B) ltac:(lia)))).
+  split.
+  - intros [x [Hx Hb]].
+    rewrite (FOsat_FOBexC _ (B+2) (FOSucc c1) _
+               (proj1 (Hin0 (B+2) ltac:(lia)))
+               (proj1 (Hin0 (S (B+2)) ltac:(lia)))) in Hb.
+    destruct Hb as [y [Hy Hb]].
+    rewrite (FOsat_FOBexC _ (B+4) (FOSucc c1) _
+               (proj1 (Hin0 (B+4) ltac:(lia)))
+               (proj1 (Hin0 (S (B+4)) ltac:(lia)))) in Hb.
+    destruct Hb as [w1 [Hw1 Hb]].
+    rewrite (FOsat_FOBexC _ (B+6) (FOSucc c1) _
+               (proj1 (Hin0 (B+6) ltac:(lia)))
+               (proj1 (Hin0 (S (B+6)) ltac:(lia)))) in Hb.
+    destruct Hb as [ixy [Hixy Hb]].
+    rewrite (FOsat_FOBexC _ (B+8) (FOSucc cr) _
+               (proj2 (Hin0 (B+8) ltac:(lia)))
+               (proj2 (Hin0 (S (B+8)) ltac:(lia)))) in Hb.
+    destruct Hb as [pixy [Hpixy Hb]].
+    rewrite (FOsat_FOBexC _ (B+10) (FOSucc cr) _
+               (proj2 (Hin0 (B+10) ltac:(lia)))
+               (proj2 (Hin0 (S (B+10)) ltac:(lia)))) in Hb.
+    destruct Hb as [px [Hpx Hb]].
+    rewrite (FOsat_FOBexC _ (B+12) (FOSucc cr) _
+               (proj2 (Hin0 (B+12) ltac:(lia)))
+               (proj2 (Hin0 (S (B+12)) ltac:(lia)))) in Hb.
+    destruct Hb as [py [Hpy Hb]].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb.
+    destruct Hb as [Hcp1 Hb].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb.
+    destruct Hb as [Hcp2 Hb].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb.
+    destruct Hb as [Hpv1 Hb].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb.
+    destruct Hb as [Hpv2 Hb].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb.
+    destruct Hb as [Hpv3 Hpat].
+    set (e7 := FOupdate (FOupdate (FOupdate (FOupdate (FOupdate
+      (FOupdate (FOupdate e B x) (B+2) y) (B+4) w1) (B+6) ixy)
+      (B+8) pixy) (B+10) px) (B+12) py) in *.
+    assert (Hstab : forall t, FOmax_var_tm t < B ->
+        FOeval e7 t = FOeval e t).
+    { intros t Ht. unfold e7.
+      rewrite (FOeval_update_above t _ (B+12) py ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+10) px ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+8) pixy ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+6) ixy ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+4) w1 ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+2) y ltac:(lia)).
+      exact (FOeval_update_above t e B x Ht). }
+    assert (Ee7B : e7 B = x).
+    { unfold e7.
+      rewrite (FOupdate_neq _ (B+12) py B) by lia.
+      rewrite (FOupdate_neq _ (B+10) px B) by lia.
+      rewrite (FOupdate_neq _ (B+8) pixy B) by lia.
+      rewrite (FOupdate_neq _ (B+6) ixy B) by lia.
+      rewrite (FOupdate_neq _ (B+4) w1 B) by lia.
+      rewrite (FOupdate_neq _ (B+2) y B) by lia.
+      apply FOupdate_eq. }
+    assert (Ee7B2 : e7 (B+2) = y).
+    { unfold e7.
+      rewrite (FOupdate_neq _ (B+12) py (B+2)) by lia.
+      rewrite (FOupdate_neq _ (B+10) px (B+2)) by lia.
+      rewrite (FOupdate_neq _ (B+8) pixy (B+2)) by lia.
+      rewrite (FOupdate_neq _ (B+6) ixy (B+2)) by lia.
+      rewrite (FOupdate_neq _ (B+4) w1 (B+2)) by lia.
+      apply FOupdate_eq. }
+    assert (Ee7B4 : e7 (B+4) = w1).
+    { unfold e7.
+      rewrite (FOupdate_neq _ (B+12) py (B+4)) by lia.
+      rewrite (FOupdate_neq _ (B+10) px (B+4)) by lia.
+      rewrite (FOupdate_neq _ (B+8) pixy (B+4)) by lia.
+      rewrite (FOupdate_neq _ (B+6) ixy (B+4)) by lia.
+      apply FOupdate_eq. }
+    assert (Ee7B6 : e7 (B+6) = ixy).
+    { unfold e7.
+      rewrite (FOupdate_neq _ (B+12) py (B+6)) by lia.
+      rewrite (FOupdate_neq _ (B+10) px (B+6)) by lia.
+      rewrite (FOupdate_neq _ (B+8) pixy (B+6)) by lia.
+      apply FOupdate_eq. }
+    assert (Ee7B8 : e7 (B+8) = pixy).
+    { unfold e7.
+      rewrite (FOupdate_neq _ (B+12) py (B+8)) by lia.
+      rewrite (FOupdate_neq _ (B+10) px (B+8)) by lia.
+      apply FOupdate_eq. }
+    assert (Ee7B10 : e7 (B+10) = px).
+    { unfold e7.
+      rewrite (FOupdate_neq _ (B+12) py (B+10)) by lia.
+      apply FOupdate_eq. }
+    assert (Ee7B12 : e7 (B+12) = py).
+    { unfold e7. apply FOupdate_eq. }
+    apply (proj1 (FOsat_FOcpairF _ _ _ _)) in Hcp1.
+    apply (proj1 (FOsat_FOcpairF _ _ _ _)) in Hcp2.
+    cbn [FOeval] in Hcp1, Hcp2.
+    rewrite Ee7B, Ee7B2, Ee7B4 in Hcp1.
+    rewrite FOeval_numeral, Ee7B4, Ee7B6 in Hcp2.
+    apply (proj1 (FOsat_FOPROVAT e7 (B+14) ct dt c1 d1 c2 d2 c3 d3
+                    cr dr len c (FOVar (B+6)) (FOVar (B+8))
+                    Htb14 Hz14 Hp14)) in Hpv1.
+    apply (proj1 (FOsat_FOPROVAT e7 (B+60) ct dt c1 d1 c2 d2 c3 d3
+                    cr dr len c (FOVar B) (FOVar (B+10))
+                    Htb60 Hz60 Hp60)) in Hpv2.
+    apply (proj1 (FOsat_FOPROVAT e7 (B+106) ct dt c1 d1 c2 d2 c3 d3
+                    cr dr len c (FOVar (B+2)) (FOVar (B+12))
+                    Htb106 Hz106 Hp106)) in Hpv3.
+    cbn [FOeval] in Hpv1, Hpv2, Hpv3.
+    rewrite Ee7B6, Ee7B8 in Hpv1.
+    rewrite Ee7B, Ee7B10 in Hpv2.
+    rewrite Ee7B2, Ee7B12 in Hpv3.
+    rewrite (Hstab len Hlen), (Hstab ct Hct), (Hstab dt Hdt),
+      (Hstab c1 Hc1), (Hstab d1 Hd1'), (Hstab c2 Hc2),
+      (Hstab d2 Hd2'), (Hstab c3 Hc3), (Hstab d3 Hd3'),
+      (Hstab cr Hcr), (Hstab dr Hdr) in Hpv1, Hpv2, Hpv3.
+    apply (proj1 (FOsat_FOPATF cpatImpl012 e7 (B+152) _ d Henv
+                    Hd152)) in Hpat.
+    assert (Hsg : forall s,
+        FOeval e7 (nth s [FOVar (B+8); FOVar (B+10); FOVar (B+12)]
+                     FOZero)
+        = (fun s => match s with
+                    | 0 => pixy | 1 => px | 2 => py | _ => 0 end) s).
+    { intro s. destruct s as [|[|[|s]]]; cbn.
+      - exact Ee7B8.
+      - exact Ee7B10.
+      - exact Ee7B12.
+      - destruct s; reflexivity. }
+    rewrite (cpat_sem_ext _ _ _ Hsg) in Hpat.
+    rewrite (Hstab d Hd) in Hpat.
+    cbn [cpat_sem cpatImpl012 pImpP] in Hpat.
+    exists x, y, pixy, px, py.
+    rewrite <- Hcp2, <- Hcp1 in Hpv1.
+    split; [exact Hpv1|]. split; [exact Hpv2|].
+    split; [exact Hpv3|].
+    symmetry. exact Hpat.
+  - intros [x [y [pixy [px [py [R1 [R2 [R3 Hshape]]]]]]]].
+    destruct (provat_arg_le e ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                c (cpair 2 (cpair x y)) pixy R1) as [HixyB HpixyB].
+    destruct (provat_arg_le e ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                c x px R2) as [HxB HpxB].
+    destruct (provat_arg_le e ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                c y py R3) as [HyB HpyB].
+    pose proof (cpair_bound x y) as Hcbxy.
+    pose proof (cpair_bound 2 (cpair x y)) as Hcb2.
+    cbn [FOeval].
+    exists x. split; [lia|].
+    rewrite (FOsat_FOBexC _ (B+2) (FOSucc c1) _
+               (proj1 (Hin0 (B+2) ltac:(lia)))
+               (proj1 (Hin0 (S (B+2)) ltac:(lia)))).
+    exists y. split.
+    { cbn [FOeval]. rewrite (FOeval_update_above c1 e B x Hc1).
+      lia. }
+    rewrite (FOsat_FOBexC _ (B+4) (FOSucc c1) _
+               (proj1 (Hin0 (B+4) ltac:(lia)))
+               (proj1 (Hin0 (S (B+4)) ltac:(lia)))).
+    exists (cpair x y). split.
+    { cbn [FOeval].
+      rewrite (FOeval_update_above c1 _ (B+2) y ltac:(lia)).
+      rewrite (FOeval_update_above c1 e B x Hc1). lia. }
+    rewrite (FOsat_FOBexC _ (B+6) (FOSucc c1) _
+               (proj1 (Hin0 (B+6) ltac:(lia)))
+               (proj1 (Hin0 (S (B+6)) ltac:(lia)))).
+    exists (cpair 2 (cpair x y)). split.
+    { cbn [FOeval].
+      rewrite (FOeval_update_above c1 _ (B+4) (cpair x y)
+                 ltac:(lia)).
+      rewrite (FOeval_update_above c1 _ (B+2) y ltac:(lia)).
+      rewrite (FOeval_update_above c1 e B x Hc1). lia. }
+    rewrite (FOsat_FOBexC _ (B+8) (FOSucc cr) _
+               (proj2 (Hin0 (B+8) ltac:(lia)))
+               (proj2 (Hin0 (S (B+8)) ltac:(lia)))).
+    exists pixy. split.
+    { cbn [FOeval].
+      rewrite (FOeval_update_above cr _ (B+6)
+                 (cpair 2 (cpair x y)) ltac:(lia)).
+      rewrite (FOeval_update_above cr _ (B+4) (cpair x y)
+                 ltac:(lia)).
+      rewrite (FOeval_update_above cr _ (B+2) y ltac:(lia)).
+      rewrite (FOeval_update_above cr e B x Hcr). lia. }
+    rewrite (FOsat_FOBexC _ (B+10) (FOSucc cr) _
+               (proj2 (Hin0 (B+10) ltac:(lia)))
+               (proj2 (Hin0 (S (B+10)) ltac:(lia)))).
+    exists px. split.
+    { cbn [FOeval].
+      rewrite (FOeval_update_above cr _ (B+8) pixy ltac:(lia)).
+      rewrite (FOeval_update_above cr _ (B+6)
+                 (cpair 2 (cpair x y)) ltac:(lia)).
+      rewrite (FOeval_update_above cr _ (B+4) (cpair x y)
+                 ltac:(lia)).
+      rewrite (FOeval_update_above cr _ (B+2) y ltac:(lia)).
+      rewrite (FOeval_update_above cr e B x Hcr). lia. }
+    rewrite (FOsat_FOBexC _ (B+12) (FOSucc cr) _
+               (proj2 (Hin0 (B+12) ltac:(lia)))
+               (proj2 (Hin0 (S (B+12)) ltac:(lia)))).
+    exists py. split.
+    { cbn [FOeval].
+      rewrite (FOeval_update_above cr _ (B+10) px ltac:(lia)).
+      rewrite (FOeval_update_above cr _ (B+8) pixy ltac:(lia)).
+      rewrite (FOeval_update_above cr _ (B+6)
+                 (cpair 2 (cpair x y)) ltac:(lia)).
+      rewrite (FOeval_update_above cr _ (B+4) (cpair x y)
+                 ltac:(lia)).
+      rewrite (FOeval_update_above cr _ (B+2) y ltac:(lia)).
+      rewrite (FOeval_update_above cr e B x Hcr). lia. }
+    set (e7 := FOupdate (FOupdate (FOupdate (FOupdate (FOupdate
+      (FOupdate (FOupdate e B x) (B+2) y) (B+4) (cpair x y))
+      (B+6) (cpair 2 (cpair x y))) (B+8) pixy) (B+10) px)
+      (B+12) py).
+    assert (Hstab : forall t, FOmax_var_tm t < B ->
+        FOeval e7 t = FOeval e t).
+    { intros t Ht. unfold e7.
+      rewrite (FOeval_update_above t _ (B+12) py ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+10) px ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+8) pixy ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+6)
+                 (cpair 2 (cpair x y)) ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+4) (cpair x y)
+                 ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+2) y ltac:(lia)).
+      exact (FOeval_update_above t e B x Ht). }
+    assert (Ee7B : e7 B = x).
+    { unfold e7.
+      rewrite (FOupdate_neq _ (B+12) py B) by lia.
+      rewrite (FOupdate_neq _ (B+10) px B) by lia.
+      rewrite (FOupdate_neq _ (B+8) pixy B) by lia.
+      rewrite (FOupdate_neq _ (B+6) (cpair 2 (cpair x y)) B)
+        by lia.
+      rewrite (FOupdate_neq _ (B+4) (cpair x y) B) by lia.
+      rewrite (FOupdate_neq _ (B+2) y B) by lia.
+      apply FOupdate_eq. }
+    assert (Ee7B2 : e7 (B+2) = y).
+    { unfold e7.
+      rewrite (FOupdate_neq _ (B+12) py (B+2)) by lia.
+      rewrite (FOupdate_neq _ (B+10) px (B+2)) by lia.
+      rewrite (FOupdate_neq _ (B+8) pixy (B+2)) by lia.
+      rewrite (FOupdate_neq _ (B+6) (cpair 2 (cpair x y)) (B+2))
+        by lia.
+      rewrite (FOupdate_neq _ (B+4) (cpair x y) (B+2)) by lia.
+      apply FOupdate_eq. }
+    assert (Ee7B4 : e7 (B+4) = cpair x y).
+    { unfold e7.
+      rewrite (FOupdate_neq _ (B+12) py (B+4)) by lia.
+      rewrite (FOupdate_neq _ (B+10) px (B+4)) by lia.
+      rewrite (FOupdate_neq _ (B+8) pixy (B+4)) by lia.
+      rewrite (FOupdate_neq _ (B+6) (cpair 2 (cpair x y)) (B+4))
+        by lia.
+      apply FOupdate_eq. }
+    assert (Ee7B6 : e7 (B+6) = cpair 2 (cpair x y)).
+    { unfold e7.
+      rewrite (FOupdate_neq _ (B+12) py (B+6)) by lia.
+      rewrite (FOupdate_neq _ (B+10) px (B+6)) by lia.
+      rewrite (FOupdate_neq _ (B+8) pixy (B+6)) by lia.
+      apply FOupdate_eq. }
+    assert (Ee7B8 : e7 (B+8) = pixy).
+    { unfold e7.
+      rewrite (FOupdate_neq _ (B+12) py (B+8)) by lia.
+      rewrite (FOupdate_neq _ (B+10) px (B+8)) by lia.
+      apply FOupdate_eq. }
+    assert (Ee7B10 : e7 (B+10) = px).
+    { unfold e7.
+      rewrite (FOupdate_neq _ (B+12) py (B+10)) by lia.
+      apply FOupdate_eq. }
+    assert (Ee7B12 : e7 (B+12) = py).
+    { unfold e7. apply FOupdate_eq. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOcpairF _ _ _ _)).
+      cbn [FOeval]. rewrite Ee7B, Ee7B2, Ee7B4. reflexivity. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOcpairF _ _ _ _)).
+      cbn [FOeval].
+      rewrite FOeval_numeral, Ee7B4, Ee7B6. reflexivity. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOPROVAT e7 (B+14) ct dt c1 d1 c2 d2 c3 d3
+                      cr dr len c (FOVar (B+6)) (FOVar (B+8))
+                      Htb14 Hz14 Hp14)).
+      cbn [FOeval]. rewrite Ee7B6, Ee7B8.
+      rewrite (Hstab len Hlen), (Hstab ct Hct), (Hstab dt Hdt),
+        (Hstab c1 Hc1), (Hstab d1 Hd1'), (Hstab c2 Hc2),
+        (Hstab d2 Hd2'), (Hstab c3 Hc3), (Hstab d3 Hd3'),
+        (Hstab cr Hcr), (Hstab dr Hdr).
+      exact R1. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOPROVAT e7 (B+60) ct dt c1 d1 c2 d2 c3 d3
+                      cr dr len c (FOVar B) (FOVar (B+10))
+                      Htb60 Hz60 Hp60)).
+      cbn [FOeval]. rewrite Ee7B, Ee7B10.
+      rewrite (Hstab len Hlen), (Hstab ct Hct), (Hstab dt Hdt),
+        (Hstab c1 Hc1), (Hstab d1 Hd1'), (Hstab c2 Hc2),
+        (Hstab d2 Hd2'), (Hstab c3 Hc3), (Hstab d3 Hd3'),
+        (Hstab cr Hcr), (Hstab dr Hdr).
+      exact R2. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOPROVAT e7 (B+106) ct dt c1 d1 c2 d2 c3
+                      d3 cr dr len c (FOVar (B+2)) (FOVar (B+12))
+                      Htb106 Hz106 Hp106)).
+      cbn [FOeval]. rewrite Ee7B2, Ee7B12.
+      rewrite (Hstab len Hlen), (Hstab ct Hct), (Hstab dt Hdt),
+        (Hstab c1 Hc1), (Hstab d1 Hd1'), (Hstab c2 Hc2),
+        (Hstab d2 Hd2'), (Hstab c3 Hc3), (Hstab d3 Hd3'),
+        (Hstab cr Hcr), (Hstab dr Hdr).
+      exact R3. }
+    apply (proj2 (FOsat_FOPATF cpatImpl012 e7 (B+152) _ d Henv
+                    Hd152)).
+    assert (Hsg : forall s,
+        FOeval e7 (nth s [FOVar (B+8); FOVar (B+10); FOVar (B+12)]
+                     FOZero)
+        = (fun s => match s with
+                    | 0 => pixy | 1 => px | 2 => py | _ => 0 end) s).
+    { intro s. destruct s as [|[|[|s]]]; cbn.
+      - exact Ee7B8.
+      - exact Ee7B10.
+      - exact Ee7B12.
+      - destruct s; reflexivity. }
+    rewrite (cpat_sem_ext _ _ _ Hsg).
+    rewrite (Hstab d Hd).
+    cbn [cpat_sem cpatImpl012 pImpP].
+    symmetry. exact Hshape.
+Qed.
+
 Lemma FOsat_FODMONc : forall e B ct dt c1 d1 c2 d2 c3 d3 cr dr len
     c c' d,
   tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
