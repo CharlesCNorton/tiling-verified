@@ -25391,29 +25391,45 @@ Proof.
   - lia.
 Qed.
 
+Lemma FOdecode_tm_b_plus_step : forall d a b,
+  FOdecode_tm_b (S d) (cpair 3 (cpair a b))
+  = FOPlus (FOdecode_tm_b d a) (FOdecode_tm_b d b).
+Proof.
+  intros d a b. cbn [FOdecode_tm_b].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. cbn [fst snd].
+  reflexivity.
+Qed.
+
 Lemma FOdecode_tm_plus : forall a b,
   FOdecode_tm (cpair 3 (cpair a b))
   = FOPlus (FOdecode_tm a) (FOdecode_tm b).
 Proof.
-  intros a b. unfold FOdecode_tm at 1. cbn [FOdecode_tm_b].
-  rewrite cunpair_cpair. cbn [fst snd].
-  rewrite cunpair_cpair. cbn [fst snd].
+  intros a b. unfold FOdecode_tm.
+  rewrite FOdecode_tm_b_plus_step.
   pose proof (cpair_bound 3 (cpair a b)).
   pose proof (cpair_bound a b).
-  unfold FOdecode_tm.
   f_equal; apply FOdecode_tm_b_stable; lia.
+Qed.
+
+Lemma FOdecode_tm_b_mult_step : forall d a b,
+  FOdecode_tm_b (S d) (cpair 4 (cpair a b))
+  = FOMult (FOdecode_tm_b d a) (FOdecode_tm_b d b).
+Proof.
+  intros d a b. cbn [FOdecode_tm_b].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. cbn [fst snd].
+  reflexivity.
 Qed.
 
 Lemma FOdecode_tm_mult : forall a b,
   FOdecode_tm (cpair 4 (cpair a b))
   = FOMult (FOdecode_tm a) (FOdecode_tm b).
 Proof.
-  intros a b. unfold FOdecode_tm at 1. cbn [FOdecode_tm_b].
-  rewrite cunpair_cpair. cbn [fst snd].
-  rewrite cunpair_cpair. cbn [fst snd].
+  intros a b. unfold FOdecode_tm.
+  rewrite FOdecode_tm_b_mult_step.
   pose proof (cpair_bound 4 (cpair a b)).
   pose proof (cpair_bound a b).
-  unfold FOdecode_tm.
   f_equal; apply FOdecode_tm_b_stable; lia.
 Qed.
 
@@ -25450,41 +25466,65 @@ Proof.
   rewrite cunpair_cpair. reflexivity.
 Qed.
 
+Lemma FOdecode_f_b_impl_step : forall d a b,
+  FOdecode_f_b (S d) (cpair 2 (cpair a b))
+  = FOImplF (FOdecode_f_b d a) (FOdecode_f_b d b).
+Proof.
+  intros d a b. cbn [FOdecode_f_b].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. cbn [fst snd].
+  reflexivity.
+Qed.
+
 Lemma FOdecode_f_impl : forall a b,
   FOdecode_f (cpair 2 (cpair a b))
   = FOImplF (FOdecode_f a) (FOdecode_f b).
 Proof.
-  intros a b. unfold FOdecode_f at 1. cbn [FOdecode_f_b].
-  rewrite cunpair_cpair. cbn [fst snd].
-  rewrite cunpair_cpair. cbn [fst snd].
+  intros a b. unfold FOdecode_f.
+  rewrite FOdecode_f_b_impl_step.
   pose proof (cpair_bound 2 (cpair a b)).
   pose proof (cpair_bound a b).
-  unfold FOdecode_f.
   f_equal; apply FOdecode_f_b_stable; lia.
+Qed.
+
+Lemma FOdecode_f_b_forall_step : forall d y b,
+  FOdecode_f_b (S d) (cpair 3 (cpair y b))
+  = FOForall y (FOdecode_f_b d b).
+Proof.
+  intros d y b. cbn [FOdecode_f_b].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. cbn [fst snd].
+  reflexivity.
 Qed.
 
 Lemma FOdecode_f_forall : forall y b,
   FOdecode_f (cpair 3 (cpair y b)) = FOForall y (FOdecode_f b).
 Proof.
-  intros y b. unfold FOdecode_f at 1. cbn [FOdecode_f_b].
-  rewrite cunpair_cpair. cbn [fst snd].
-  rewrite cunpair_cpair. cbn [fst snd].
+  intros y b. unfold FOdecode_f.
+  rewrite FOdecode_f_b_forall_step.
   pose proof (cpair_bound 3 (cpair y b)).
   pose proof (cpair_bound y b).
-  unfold FOdecode_f.
-  f_equal; apply FOdecode_f_b_stable; lia.
+  f_equal. apply FOdecode_f_b_stable; lia.
+Qed.
+
+Lemma FOdecode_f_b_exists_step : forall d y b,
+  FOdecode_f_b (S d) (cpair 4 (cpair y b))
+  = FOExists y (FOdecode_f_b d b).
+Proof.
+  intros d y b. cbn [FOdecode_f_b].
+  rewrite cunpair_cpair. cbn [fst snd].
+  rewrite cunpair_cpair. cbn [fst snd].
+  reflexivity.
 Qed.
 
 Lemma FOdecode_f_exists : forall y b,
   FOdecode_f (cpair 4 (cpair y b)) = FOExists y (FOdecode_f b).
 Proof.
-  intros y b. unfold FOdecode_f at 1. cbn [FOdecode_f_b].
-  rewrite cunpair_cpair. cbn [fst snd].
-  rewrite cunpair_cpair. cbn [fst snd].
+  intros y b. unfold FOdecode_f.
+  rewrite FOdecode_f_b_exists_step.
   pose proof (cpair_bound 4 (cpair y b)).
   pose proof (cpair_bound y b).
-  unfold FOdecode_f.
-  f_equal; apply FOdecode_f_b_stable; lia.
+  f_equal. apply FOdecode_f_b_stable; lia.
 Qed.
 
 Lemma cpair_inj : forall a b c d,
@@ -28224,6 +28264,281 @@ Proof.
       rewrite EBj2 in PBj. exact PBj. }
   destruct Hlast as [m [Hvdlen Hbeta]].
   apply (MAIN (S m) m); [lia | rewrite Hvdlen; lia | exact Hbeta].
+Qed.
+
+(** ** Encoding a derivation as a justified entry list.
+
+    Each sequence entry contributes its entry-code guard trace and
+    the computation rows its justification consults: substitution and
+    capture traces for the quantifier axioms, freeness traces for the
+    side-conditioned logical axioms, numeral and self-substitution
+    traces for the reflection axioms and the Loeb rule. *)
+
+Definition jcode (j : FOjust) : nat :=
+  match j with
+  | J_thax => cpair 0 0
+  | J_log => cpair 1 0
+  | J_AllElim x t => cpair 2 (cpair x (FOcode_tm t))
+  | J_ExIntro x t => cpair 3 (cpair x (FOcode_tm t))
+  | J_MP i j' => cpair 4 (cpair i j')
+  | J_Gen i => cpair 5 i
+  | J_Loeb i => cpair 6 i
+  end.
+
+Definition jrows (n : nat) (B : FOFormula) (j : FOjust)
+    : list TEntry :=
+  match j with
+  | J_thax =>
+      match B with
+      | FOImplF P C =>
+          concat (map (fun k =>
+            trace5 (FOcode_f C)
+            ++ trace3 1 (FOnumeral (FOcode_f C))
+                 (FOsubst_num 0
+                    (FOcode_f (FOPRMAT (FOPrCores k)))
+                    (FOPRMAT (FOPrCores k)))) (seq 0 n))
+      | _ => []
+      end
+  | J_log =>
+      match B with
+      | FOImplF (FOForall x (FOImplF P Q)) _ =>
+          trace1 x Q ++ trace1 x P
+      | _ => []
+      end
+  | J_AllElim x t =>
+      match B with
+      | FOImplF (FOForall _ P) _ => trace4 x t P ++ trace3 x t P
+      | _ => []
+      end
+  | J_ExIntro x t =>
+      match B with
+      | FOImplF _ (FOExists _ P) => trace4 x t P ++ trace3 x t P
+      | _ => []
+      end
+  | J_MP _ _ => []
+  | J_Gen _ => []
+  | J_Loeb _ =>
+      trace5 (FOcode_f (FOPRMAT (FOPrCores n)))
+      ++ trace3 0 (FOnumeral (FOcode_f (FOPRMAT (FOPrCores n))))
+           (FOPRMAT (FOPrCores n))
+      ++ trace5 (FOcode_f B)
+      ++ trace3 1 (FOnumeral (FOcode_f B))
+           (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores n)))
+              (FOPRMAT (FOPrCores n)))
+  end.
+
+Fixpoint seqrows (n : nat) (items : list (FOFormula * FOjust))
+    : list TEntry :=
+  match items with
+  | [] => []
+  | (B, j) :: rest =>
+      trace3 (S (FOcode_f B)) (FOVar 0) B
+      ++ jrows n B j ++ seqrows n rest
+  end.
+
+Lemma incl_concat_member : forall (X : Type) (l : list X) ll,
+  In l ll -> incl l (concat ll).
+Proof.
+  intros X l ll HIn x Hx.
+  induction ll as [|l0 rest IH]; cbn [concat].
+  - destruct HIn.
+  - destruct HIn as [->|HIn].
+    + apply in_or_app. left. exact Hx.
+    + apply in_or_app. right. exact (IH HIn).
+Qed.
+
+Opaque FOPRMAT.
+
+Lemma reflrows_one_ok : forall C k L,
+  incl (trace5 (FOcode_f C)
+        ++ trace3 1 (FOnumeral (FOcode_f C))
+             (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores k)))
+                (FOPRMAT (FOPrCores k)))) L ->
+  forall e,
+    In e (trace5 (FOcode_f C)
+          ++ trace3 1 (FOnumeral (FOcode_f C))
+               (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores k)))
+                  (FOPRMAT (FOPrCores k)))) ->
+    entry_ok L e.
+Proof.
+  intros C k L Hincl e HeIn.
+  apply in_app_or in HeIn. destruct HeIn as [HeIn|HeIn].
+  - exact (trace5_ok _ L (incl_app_head _ _ _ _ Hincl) e HeIn).
+  - exact (trace3_ok _ _ _ L (incl_app_tail _ _ _ _ Hincl) e HeIn).
+Qed.
+
+Lemma jrows_ok_thax : forall n C L,
+  incl (concat (map (fun k =>
+    trace5 (FOcode_f C)
+    ++ trace3 1 (FOnumeral (FOcode_f C))
+         (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores k)))
+            (FOPRMAT (FOPrCores k)))) (seq 0 n))) L ->
+  forall e,
+    In e (concat (map (fun k =>
+      trace5 (FOcode_f C)
+      ++ trace3 1 (FOnumeral (FOcode_f C))
+           (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores k)))
+              (FOPRMAT (FOPrCores k)))) (seq 0 n))) ->
+    entry_ok L e.
+Proof.
+  intros n C L Hincl e HeIn.
+  apply in_concat in HeIn.
+  destruct HeIn as [l [Hl HeIn]].
+  apply in_map_iff in Hl.
+  destruct Hl as [k [<- Hk]].
+  apply (reflrows_one_ok C k L); [|exact HeIn].
+  apply incl_tran with (2 := Hincl).
+  apply incl_concat_member.
+  apply in_map_iff.
+  exists k. split; [reflexivity|exact Hk].
+Qed.
+
+Lemma jrows_ok_free : forall x P Q L,
+  incl (trace1 x Q ++ trace1 x P) L ->
+  forall e, In e (trace1 x Q ++ trace1 x P) -> entry_ok L e.
+Proof.
+  intros x P Q L Hincl e HeIn.
+  apply in_app_or in HeIn. destruct HeIn as [HeIn|HeIn].
+  - exact (trace1_ok _ _ L (incl_app_head _ _ _ _ Hincl) e HeIn).
+  - exact (trace1_ok _ _ L (incl_app_tail _ _ _ _ Hincl) e HeIn).
+Qed.
+
+Lemma jrows_ok_subst : forall x t P L,
+  incl (trace4 x t P ++ trace3 x t P) L ->
+  forall e, In e (trace4 x t P ++ trace3 x t P) -> entry_ok L e.
+Proof.
+  intros x t P L Hincl e HeIn.
+  apply in_app_or in HeIn. destruct HeIn as [HeIn|HeIn].
+  - exact (trace4_ok _ _ _ L (incl_app_head _ _ _ _ Hincl) e HeIn).
+  - exact (trace3_ok _ _ _ L (incl_app_tail _ _ _ _ Hincl) e HeIn).
+Qed.
+
+Lemma jrows_ok_loeb : forall n B L,
+  incl (trace5 (FOcode_f (FOPRMAT (FOPrCores n)))
+        ++ trace3 0 (FOnumeral (FOcode_f (FOPRMAT (FOPrCores n))))
+             (FOPRMAT (FOPrCores n))
+        ++ trace5 (FOcode_f B)
+        ++ trace3 1 (FOnumeral (FOcode_f B))
+             (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores n)))
+                (FOPRMAT (FOPrCores n)))) L ->
+  forall e,
+    In e (trace5 (FOcode_f (FOPRMAT (FOPrCores n)))
+          ++ trace3 0 (FOnumeral (FOcode_f (FOPRMAT (FOPrCores n))))
+               (FOPRMAT (FOPrCores n))
+          ++ trace5 (FOcode_f B)
+          ++ trace3 1 (FOnumeral (FOcode_f B))
+               (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores n)))
+                  (FOPRMAT (FOPrCores n)))) ->
+    entry_ok L e.
+Proof.
+  intros n B L Hincl e HeIn.
+  apply in_app_or in HeIn. destruct HeIn as [HeIn|HeIn].
+  - exact (trace5_ok _ L (incl_app_head _ _ _ _ Hincl) e HeIn).
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn|HeIn].
+    + exact (trace3_ok _ _ _ L
+               (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl))
+               e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn|HeIn].
+      * exact (trace5_ok _ L
+                 (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _
+                    (incl_app_tail _ _ _ _ Hincl))) e HeIn).
+      * exact (trace3_ok _ _ _ L
+                 (incl_app_tail _ _ _ _ (incl_app_tail _ _ _ _
+                    (incl_app_tail _ _ _ _ Hincl))) e HeIn).
+Qed.
+
+Lemma jrows_ok_nil : forall (L : list TEntry) e,
+  In e (@nil TEntry) -> entry_ok L e.
+Proof.
+  intros L e HeIn. destruct HeIn.
+Qed.
+
+Lemma jrows_ok : forall n B j L,
+  incl (jrows n B j) L ->
+  forall e, In e (jrows n B j) -> entry_ok L e.
+Proof.
+  intros n B j L Hincl e HeIn.
+  destruct j as [| | x t | x t | i j' | i | i].
+  - destruct B as [a b| |P C|y B0|y B0]; try destruct HeIn.
+    exact (jrows_ok_thax n C L Hincl e HeIn).
+  - destruct B as [a b| |P C|y B0|y B0]; try destruct HeIn.
+    destruct P as [a b| |P1 Q1|y P0|y P0]; try destruct HeIn.
+    destruct P0 as [a b| |P1 Q1|y2 B2|y2 B2]; try destruct HeIn.
+    exact (jrows_ok_free y P1 Q1 L Hincl e HeIn).
+  - destruct B as [a b| |P C|y B0|y B0]; try destruct HeIn.
+    destruct P as [a b| |P1 Q1|y P0|y P0]; try destruct HeIn.
+    exact (jrows_ok_subst x t P0 L Hincl e HeIn).
+  - destruct B as [a b| |P C|y B0|y B0]; try destruct HeIn.
+    destruct C as [a b| |P1 Q1|y P0|y P0]; try destruct HeIn.
+    exact (jrows_ok_subst x t P0 L Hincl e HeIn).
+  - exact (jrows_ok_nil L e HeIn).
+  - exact (jrows_ok_nil L e HeIn).
+  - cbv beta iota delta [jrows] in Hincl, HeIn.
+    exact (jrows_ok_loeb n B L Hincl e HeIn).
+Qed.
+
+Transparent FOPRMAT.
+
+Lemma seqrows_ok : forall n items L,
+  incl (seqrows n items) L ->
+  forall e, In e (seqrows n items) -> entry_ok L e.
+Proof.
+  intros n items.
+  induction items as [|[B j] rest IH]; intros L Hincl e HeIn;
+    cbn [seqrows] in HeIn.
+  - destruct HeIn.
+  - apply in_app_or in HeIn. destruct HeIn as [HeIn|HeIn].
+    + cbn [seqrows] in Hincl.
+      exact (trace3_ok _ _ _ L (incl_app_head _ _ _ _ Hincl) e HeIn).
+    + apply in_app_or in HeIn. destruct HeIn as [HeIn|HeIn].
+      * cbn [seqrows] in Hincl.
+        exact (jrows_ok n B j L
+                 (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl))
+                 e HeIn).
+      * cbn [seqrows] in Hincl.
+        exact (IH L
+                 (incl_app_tail _ _ _ _ (incl_app_tail _ _ _ _ Hincl))
+                 e HeIn).
+Qed.
+
+Lemma FORobinsonQ_axq : forall B,
+  FORobinsonQ B -> axq_sem (FOcode_f B).
+Proof.
+  intros B HQ. unfold axq_sem.
+  destruct HQ as [a b|a|x|a|a b|a|a b];
+    unfold FONeg; cbn [FOcode_f FOcode_tm].
+  - left. exists (FOcode_tm a), (FOcode_tm b). reflexivity.
+  - right; left. exists (FOcode_tm a). reflexivity.
+  - do 2 right; left. exists x. reflexivity.
+  - do 3 right; left. exists (FOcode_tm a). reflexivity.
+  - do 4 right; left. exists (FOcode_tm a), (FOcode_tm b).
+    reflexivity.
+  - do 5 right; left. exists (FOcode_tm a). reflexivity.
+  - do 6 right. exists (FOcode_tm a), (FOcode_tm b). reflexivity.
+Qed.
+
+Lemma FOPrCores_in_of : forall n k,
+  k < n ->
+  In (FOcode_f (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores k)))
+        (FOPRMAT (FOPrCores k)))) (FOPrCores n).
+Proof.
+  induction n as [|n IH]; intros k Hk.
+  - lia.
+  - cbn [FOPrCores]. apply in_or_app.
+    destruct (Nat.eq_dec k n) as [->|Hne].
+    + right. left. reflexivity.
+    + left. apply IH. lia.
+Qed.
+
+Lemma refls_sem_of : forall L cores c d,
+  In c cores -> refl_sem L c d -> refls_sem L cores d.
+Proof.
+  intros L cores c d HIn Hr. revert HIn.
+  induction cores as [|c0 rest IH]; cbn [refls_sem]; intros HIn.
+  - destruct HIn.
+  - destruct HIn as [->|HIn].
+    + left. exact Hr.
+    + right. exact (IH HIn).
 Qed.
 
 Definition FOInconsistent (n : nat) : Prop := FOProvesTn n FOFalseF.
