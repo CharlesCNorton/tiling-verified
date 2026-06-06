@@ -18824,6 +18824,257 @@ Proof.
   ffree_walk; ffin.
 Qed.
 
+Lemma FOLOGc_free : forall w B ct dt c1 d1 c2 d2 c3 d3 cr dr len d,
+  FOfree_in w (FOLOGc B ct dt c1 d1 c2 d2 c3 d3 cr dr len d) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w d = true \/ w < 2.
+Proof.
+  intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len d H.
+  unfold FOLOGc, FOLOG1c, FOLOG2c, FOLOG3c, FOLOG4c, FOLOG5c,
+    FOLOG6c, FOLOG7c, FOLOG8c, FOLOG9c, FOLOG10c, FOLOG11c,
+    FOLOG12c in H.
+  ffree_walk; ffin.
+Qed.
+
+Lemma FOAXREFLc_free : forall w B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    c d,
+  FOfree_in w
+    (FOAXREFLc B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w d = true \/ w < 2.
+Proof.
+  intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d H.
+  unfold FOAXREFLc in H.
+  ffree_walk; ffin.
+Qed.
+
+Lemma FOREFLSc_free : forall cores w B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len d,
+  FOfree_in w
+    (FOREFLSc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w d = true \/ w < 2.
+Proof.
+  induction cores as [|c rest IH];
+    intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len d H;
+    cbn [FOREFLSc] in H.
+  - discriminate H.
+  - rewrite FOfree_in_FOOr in H.
+    apply Bool.orb_true_iff in H. destruct H as [H|H].
+    + exact (FOAXREFLc_free _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H).
+    + exact (IH _ _ _ _ _ _ _ _ _ _ _ _ _ _ H).
+Qed.
+
+Lemma FOTHAXc_free : forall cores w B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len d,
+  FOfree_in w
+    (FOTHAXc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w d = true \/ w < 2.
+Proof.
+  intros cores w B ct dt c1 d1 c2 d2 c3 d3 cr dr len d H.
+  unfold FOTHAXc in H.
+  rewrite FOfree_in_FOOr in H.
+  apply Bool.orb_true_iff in H. destruct H as [H|H].
+  - destruct (FOAXQc_free _ _ _ H) as [H'|H'].
+    + do 11 right; left; exact H'.
+    + do 12 right; exact H'.
+  - exact (FOREFLSc_free _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H).
+Qed.
+
+Lemma FOJSUBST_free : forall w B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    pat vd pl,
+  FOfree_in w
+    (FOJSUBST B ct dt c1 d1 c2 d2 c3 d3 cr dr len pat vd pl) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w vd = true \/ FOin_tm w pl = true \/ w < 2.
+Proof.
+  intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len pat vd pl H.
+  unfold FOJSUBST in H.
+  ffree_walk; ffin.
+Qed.
+
+Lemma FOJMP_free : forall w B cs ds vd pl ipos,
+  FOfree_in w (FOJMP B cs ds vd pl ipos) = true ->
+  FOin_tm w cs = true \/ FOin_tm w ds = true \/ FOin_tm w vd = true
+  \/ FOin_tm w pl = true \/ FOin_tm w ipos = true \/ w < 2.
+Proof.
+  intros w B cs ds vd pl ipos H.
+  unfold FOJMP in H.
+  ffree_walk; ffin.
+Qed.
+
+Lemma FOJGEN_free : forall w B cs ds vd pl ipos,
+  FOfree_in w (FOJGEN B cs ds vd pl ipos) = true ->
+  FOin_tm w cs = true \/ FOin_tm w ds = true \/ FOin_tm w vd = true
+  \/ FOin_tm w pl = true \/ FOin_tm w ipos = true \/ w < 2.
+Proof.
+  intros w B cs ds vd pl ipos H.
+  unfold FOJGEN in H.
+  ffree_walk; ffin.
+Qed.
+
+Lemma FOJLOEB_free : forall w B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    cs ds vd pl ipos,
+  FOfree_in w
+    (FOJLOEB B ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds vd pl ipos)
+  = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true \/ FOin_tm w cs = true
+  \/ FOin_tm w ds = true \/ FOin_tm w vd = true \/ FOin_tm w pl = true
+  \/ FOin_tm w ipos = true \/ w < 2.
+Proof.
+  intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds vd pl ipos H.
+  unfold FOJLOEB in H.
+  ffree_walk; ffin.
+Qed.
+
+Ltac arm_recog :=
+  match goal with
+  | H : FOfree_in _
+          (FOTHAXc _ _ _ _ _ _ _ _ _ _ _ _ _ _) = true |- _ =>
+      apply FOTHAXc_free in H;
+      destruct H as [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]]]]
+  | H : FOfree_in _
+          (FOLOGc _ _ _ _ _ _ _ _ _ _ _ _ _) = true |- _ =>
+      apply FOLOGc_free in H;
+      destruct H as [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]]]]
+  | H : FOfree_in _
+          (FOJSUBST _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) = true |- _ =>
+      apply FOJSUBST_free in H;
+      destruct H as [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]]]]]
+  | H : FOfree_in _ (FOJMP _ _ _ _ _ _) = true |- _ =>
+      apply FOJMP_free in H;
+      destruct H as [H|[H|[H|[H|[H|H]]]]]
+  | H : FOfree_in _ (FOJGEN _ _ _ _ _ _) = true |- _ =>
+      apply FOJGEN_free in H;
+      destruct H as [H|[H|[H|[H|[H|H]]]]]
+  | H : FOfree_in _
+          (FOJLOEB _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) = true |- _ =>
+      apply FOJLOEB_free in H;
+      destruct H as
+        [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]]]]]]]]
+  end.
+
+Lemma FOJUSTCK_free : forall cores w B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len cs ds cj dj i,
+  FOfree_in w
+    (FOJUSTCK B cores ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds cj dj i)
+  = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true \/ FOin_tm w cs = true
+  \/ FOin_tm w ds = true \/ FOin_tm w cj = true \/ FOin_tm w dj = true
+  \/ FOin_tm w i = true \/ w < 2.
+Proof.
+  intros cores w B ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds cj dj i H.
+  unfold FOJUSTCK in H.
+  repeat first [arm_recog | arm_lookup | arm_betaF | arm_patf
+               | ffree_leaf]; ffin.
+Qed.
+
+Lemma FOGUARDC_free : forall w B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    cs ds i,
+  FOfree_in w
+    (FOGUARDC B ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds i) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true \/ FOin_tm w cs = true
+  \/ FOin_tm w ds = true \/ FOin_tm w i = true \/ w < 2.
+Proof.
+  intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len cs ds i H.
+  unfold FOGUARDC in H.
+  ffree_walk; ffin.
+Qed.
+
+Lemma FOTBLVALID_free : forall w B ct dt c1 d1 c2 d2 c3 d3 cr dr len,
+  FOfree_in w
+    (FOTBLVALID B ct dt c1 d1 c2 d2 c3 d3 cr dr len) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true \/ w < 2.
+Proof.
+  intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len H.
+  unfold FOTBLVALID, FOSTEPDISPATCH, FOSTEP0, FOSTEP1, FOSTEP2,
+    FOSTEP3, FOSTEP4, FOSTEP5, FOSTEP_bin, FOSTEP_quant0,
+    FOSTEP_substbin, FOSTEP_substquant, FOSTEP_subokbin,
+    FOSTEP_subokquant in H.
+  ffree_walk; ffin.
+Qed.
+
+Ltac arm_prder :=
+  match goal with
+  | H : FOfree_in _
+          (FOTBLVALID _ _ _ _ _ _ _ _ _ _ _ _) = true |- _ =>
+      apply FOTBLVALID_free in H;
+      destruct H as [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]]]
+  | H : FOfree_in _
+          (FOJUSTCK _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) = true |- _ =>
+      apply FOJUSTCK_free in H;
+      destruct H as
+        [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]]]]]]]]
+  | H : FOfree_in _
+          (FOGUARDC _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) = true |- _ =>
+      apply FOGUARDC_free in H;
+      destruct H as
+        [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]]]]]]
+  end.
+
+Lemma FOPRDER_free : forall cores w,
+  FOfree_in w (FOPRDER cores) = true -> w < 18.
+Proof.
+  intros cores w H. unfold FOPRDER in H.
+  repeat first [arm_prder | arm_betaF | ffree_leaf]; ffin.
+Qed.
+
+Lemma FOPRMAT_free : forall cores w,
+  2 <= w -> FOfree_in w (FOPRMAT cores) = false.
+Proof.
+  intros cores w Hw.
+  destruct (FOfree_in w (FOPRMAT cores)) eqn:E; [exfalso|reflexivity].
+  unfold FOPRMAT in E.
+  repeat match goal with
+  | Hx : FOfree_in ?w0 (FOExists ?y _) = true |- _ =>
+      let E2 := fresh "E2" in
+      destruct (Nat.eqb y w0) eqn:E2;
+        [cbn -[Nat.eqb] in Hx; rewrite E2 in Hx; discriminate Hx
+        |apply Nat.eqb_neq in E2;
+         rewrite (FOfree_in_FOExists_neq _ _ _ E2) in Hx]
+  end.
+  apply FOPRDER_free in E. lia.
+Qed.
+
+Lemma FOProvSentence_closed : forall n A v,
+  FOfree_in v (FOProvSentence n A) = false.
+Proof.
+  intros n A v. unfold FOProvSentence.
+  rewrite FOfree_in_subst_num.
+  destruct (Nat.eqb_spec v 1) as [->|Hv1]; [reflexivity|].
+  rewrite FOfree_in_subst_num.
+  destruct (Nat.eqb_spec v 0) as [->|Hv0]; [reflexivity|].
+  apply FOPRMAT_free. lia.
+Qed.
+
 (** ** The master computation table.
 
     The recursive code-level functions behind the derivation checker
