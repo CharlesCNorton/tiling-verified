@@ -18643,6 +18643,371 @@ Proof.
   apply FOdelta0_FOLOG12c; assumption.
 Qed.
 
+(** The semantic mirrors of the reflection-instance recognizer and the
+    assembled theory-axiom recognizer.  A reflection instance at a
+    lower core code [c] is an implication whose antecedent is the core
+    applied through the table — tag 5 turns the conclusion code into
+    its numeral code, tag 3 substitutes it at variable 1 in [c]. *)
+
+Definition refl_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    (c d : nat) : Prop :=
+  exists a na p, L 5 a 0 0 na /\ L 3 1 na c p /\
+    d = cpair 2 (cpair p a).
+
+Fixpoint refls_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    (cores : list nat) (d : nat) : Prop :=
+  match cores with
+  | [] => False
+  | c :: rest => refl_sem L c d \/ refls_sem L rest d
+  end.
+
+Definition thax_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    (cores : list nat) (d : nat) : Prop :=
+  axq_sem d \/ refls_sem L cores d.
+
+Lemma FOsat_FOAXREFLc : forall e B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    c d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  (FOsat e (FOAXREFLc B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d) <->
+   refl_sem
+     (fun tg a1 a2 a3 r => exists j, j < FOeval e len /\
+        beta (FOeval e ct) (FOeval e dt) j = tg /\
+        beta (FOeval e c1) (FOeval e d1) j = a1 /\
+        beta (FOeval e c2) (FOeval e d2) j = a2 /\
+        beta (FOeval e c3) (FOeval e d3) j = a3 /\
+        beta (FOeval e cr) (FOeval e dr) j = r)
+     c (FOeval e d)).
+Proof.
+  intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d Htb Hd.
+  pose proof Htb as Htb'.
+  destruct Htb' as [Hct [Hdt [Hc1 [Hd1' [Hc2 [Hd2' [Hc3 [Hd3'
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  assert (Htb6 : tbl_below (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb28 : tbl_below (B+28) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (HinB : FOin_tm B (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; exact Hd).
+  assert (HinSB : FOin_tm (S B) (FOSucc d) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB2 : FOin_tm (B+2) (FOSucc cr) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB2 : FOin_tm (S (B+2)) (FOSucc cr) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB4 : FOin_tm (B+4) (FOSucc cr) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB4 : FOin_tm (S (B+4)) (FOSucc cr) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (EB2 : Nat.eqb B (B+2) = false) by (apply Nat.eqb_neq; lia).
+  assert (EB4 : Nat.eqb B (B+4) = false) by (apply Nat.eqb_neq; lia).
+  assert (E24 : Nat.eqb (B+2) (B+4) = false)
+    by (apply Nat.eqb_neq; lia).
+  assert (Henv : Forall (fun t => FOmax_var_tm t < B+50)
+                   [FOVar (B+4); FOVar B])
+    by (constructor; [cbn; lia |
+        constructor; [cbn; lia | constructor]]).
+  assert (Hd50 : FOmax_var_tm d < B+50) by lia.
+  assert (H5m : FOmax_var_tm (FOnumeral 5) < B+6)
+    by (rewrite FOmax_var_numeral; lia).
+  assert (HvBm : FOmax_var_tm (FOVar B) < B+6) by (cbn; lia).
+  assert (HvB2m : FOmax_var_tm (FOVar (B+2)) < B+6) by (cbn; lia).
+  assert (H0m : FOmax_var_tm FOZero < B+6) by (cbn; lia).
+  assert (H3m : FOmax_var_tm (FOnumeral 3) < B+28)
+    by (rewrite FOmax_var_numeral; lia).
+  assert (H1m : FOmax_var_tm (FOnumeral 1) < B+28)
+    by (rewrite FOmax_var_numeral; lia).
+  assert (HvB2m' : FOmax_var_tm (FOVar (B+2)) < B+28) by (cbn; lia).
+  assert (Hcm : FOmax_var_tm (FOnumeral c) < B+28)
+    by (rewrite FOmax_var_numeral; lia).
+  assert (HvB4m : FOmax_var_tm (FOVar (B+4)) < B+28) by (cbn; lia).
+  unfold FOAXREFLc, refl_sem.
+  rewrite (FOsat_FOBexC e B (FOSucc d) _ HinB HinSB).
+  split.
+  - intros [v0 [Hv0 Hb1]].
+    rewrite (FOsat_FOBexC _ (B+2) (FOSucc cr) _ HinB2 HinSB2) in Hb1.
+    destruct Hb1 as [v1 [Hv1 Hb2]].
+    rewrite (FOsat_FOBexC _ (B+4) (FOSucc cr) _ HinB4 HinSB4) in Hb2.
+    destruct Hb2 as [v2 [Hv2 Hb3]].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb3.
+    destruct Hb3 as [Hlk1 Hb4].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb4.
+    destruct Hb4 as [Hlk2 Hpat].
+    set (e3 := FOupdate (FOupdate (FOupdate e B v0) (B+2) v1)
+                 (B+4) v2) in *.
+    assert (Hstab : forall t, FOmax_var_tm t < B ->
+        FOeval e3 t = FOeval e t).
+    { intros t Ht. unfold e3.
+      rewrite (FOeval_update_above t _ (B+4) v2 ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+2) v1 ltac:(lia)).
+      exact (FOeval_update_above t e B v0 Ht). }
+    assert (Ee3B : e3 B = v0).
+    { unfold e3, FOupdate. rewrite EB4, EB2, Nat.eqb_refl.
+      reflexivity. }
+    assert (Ee3B2 : e3 (B+2) = v1).
+    { unfold e3, FOupdate. rewrite E24, Nat.eqb_refl. reflexivity. }
+    assert (Ee3B4 : e3 (B+4) = v2).
+    { unfold e3, FOupdate. rewrite Nat.eqb_refl. reflexivity. }
+    apply (proj1 (FOsat_FOlookup e3 (B+6) ct dt c1 d1 c2 d2 c3 d3
+                    cr dr len (FOnumeral 5) (FOVar B) FOZero FOZero
+                    (FOVar (B+2)) Htb6 H5m HvBm H0m H0m HvB2m))
+      in Hlk1.
+    apply (proj1 (FOsat_FOlookup e3 (B+28) ct dt c1 d1 c2 d2 c3 d3
+                    cr dr len (FOnumeral 3) (FOnumeral 1)
+                    (FOVar (B+2)) (FOnumeral c) (FOVar (B+4))
+                    Htb28 H3m H1m HvB2m' Hcm HvB4m)) in Hlk2.
+    apply (proj1 (FOsat_FOPATF cpatImpl01 _ (B+50) _ d Henv Hd50))
+      in Hpat.
+    assert (Hsg : forall s,
+        FOeval e3 (nth s [FOVar (B+4); FOVar B] FOZero)
+        = (fun s => match s with
+                    | 0 => v2 | 1 => v0 | _ => 0 end) s).
+    { intro s. destruct s as [|[|s]]; cbn.
+      - unfold e3, FOupdate. rewrite Nat.eqb_refl. reflexivity.
+      - unfold e3, FOupdate. rewrite EB4, EB2, Nat.eqb_refl.
+        reflexivity.
+      - destruct s; reflexivity. }
+    rewrite (cpat_sem_ext _ _ _ Hsg) in Hpat.
+    rewrite (Hstab d Hd) in Hpat.
+    cbn [cpat_sem cpatImpl01 pImpP] in Hpat.
+    destruct Hlk1 as [j [Hj [Hf1 [Hf2 [Hf3 [Hf4 Hf5]]]]]].
+    rewrite (Hstab len Hlen) in Hj.
+    rewrite (Hstab ct Hct), (Hstab dt Hdt), FOeval_numeral in Hf1.
+    cbn [FOeval] in Hf2, Hf3, Hf4, Hf5.
+    rewrite (Hstab c1 Hc1), (Hstab d1 Hd1'), Ee3B in Hf2.
+    rewrite (Hstab c2 Hc2), (Hstab d2 Hd2') in Hf3.
+    rewrite (Hstab c3 Hc3), (Hstab d3 Hd3') in Hf4.
+    rewrite (Hstab cr Hcr), (Hstab dr Hdr), Ee3B2 in Hf5.
+    destruct Hlk2 as [j2 [Hj2 [Hg1 [Hg2 [Hg3 [Hg4 Hg5]]]]]].
+    rewrite (Hstab len Hlen) in Hj2.
+    rewrite (Hstab ct Hct), (Hstab dt Hdt), FOeval_numeral in Hg1.
+    cbn [FOeval] in Hg2, Hg3, Hg4, Hg5.
+    rewrite (Hstab c1 Hc1), (Hstab d1 Hd1'), FOeval_numeral in Hg2.
+    rewrite (Hstab c2 Hc2), (Hstab d2 Hd2'), Ee3B2 in Hg3.
+    rewrite (Hstab c3 Hc3), (Hstab d3 Hd3'), FOeval_numeral in Hg4.
+    rewrite (Hstab cr Hcr), (Hstab dr Hdr), Ee3B4 in Hg5.
+    exists v0, v1, v2.
+    split.
+    { exists j. repeat split; assumption. }
+    split.
+    { exists j2. repeat split; assumption. }
+    symmetry. exact Hpat.
+  - intros [a [na [p [Hr1 [Hr2 Hshape]]]]].
+    pose proof (cpair_bound p a) as Hcb1.
+    pose proof (cpair_bound 2 (cpair p a)) as Hcb2.
+    assert (Hna : na <= FOeval e cr).
+    { destruct Hr1 as [j [_ [_ [_ [_ [_ F5]]]]]].
+      unfold beta in F5.
+      pose proof (Nat.Div0.mod_le (FOeval e cr)
+                    (FOeval e dr * S j + 1)).
+      lia. }
+    assert (Hp : p <= FOeval e cr).
+    { destruct Hr2 as [j [_ [_ [_ [_ [_ F5]]]]]].
+      unfold beta in F5.
+      pose proof (Nat.Div0.mod_le (FOeval e cr)
+                    (FOeval e dr * S j + 1)).
+      lia. }
+    cbn [FOeval].
+    exists a. split; [lia|].
+    rewrite (FOsat_FOBexC _ (B+2) (FOSucc cr) _ HinB2 HinSB2).
+    exists na. split.
+    { cbn [FOeval].
+      rewrite (FOeval_update_above cr e B a Hcr). lia. }
+    rewrite (FOsat_FOBexC _ (B+4) (FOSucc cr) _ HinB4 HinSB4).
+    exists p. split.
+    { cbn [FOeval].
+      rewrite (FOeval_update_above cr _ (B+2) na ltac:(lia)).
+      rewrite (FOeval_update_above cr e B a Hcr). lia. }
+    set (e3 := FOupdate (FOupdate (FOupdate e B a) (B+2) na)
+                 (B+4) p).
+    assert (Hstab : forall t, FOmax_var_tm t < B ->
+        FOeval e3 t = FOeval e t).
+    { intros t Ht. unfold e3.
+      rewrite (FOeval_update_above t _ (B+4) p ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+2) na ltac:(lia)).
+      exact (FOeval_update_above t e B a Ht). }
+    assert (Ee3B : e3 B = a).
+    { unfold e3, FOupdate. rewrite EB4, EB2, Nat.eqb_refl.
+      reflexivity. }
+    assert (Ee3B2 : e3 (B+2) = na).
+    { unfold e3, FOupdate. rewrite E24, Nat.eqb_refl. reflexivity. }
+    assert (Ee3B4 : e3 (B+4) = p).
+    { unfold e3, FOupdate. rewrite Nat.eqb_refl. reflexivity. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOlookup e3 (B+6) ct dt c1 d1 c2 d2 c3 d3
+                      cr dr len (FOnumeral 5) (FOVar B) FOZero FOZero
+                      (FOVar (B+2)) Htb6 H5m HvBm H0m H0m HvB2m)).
+      destruct Hr1 as [j [Hj [Hf1 [Hf2 [Hf3 [Hf4 Hf5]]]]]].
+      exists j.
+      split; [rewrite (Hstab len Hlen); exact Hj|].
+      split.
+      { rewrite (Hstab ct Hct), (Hstab dt Hdt), FOeval_numeral.
+        exact Hf1. }
+      split.
+      { cbn [FOeval].
+        rewrite (Hstab c1 Hc1), (Hstab d1 Hd1'), Ee3B. exact Hf2. }
+      split.
+      { cbn [FOeval].
+        rewrite (Hstab c2 Hc2), (Hstab d2 Hd2'). exact Hf3. }
+      split.
+      { cbn [FOeval].
+        rewrite (Hstab c3 Hc3), (Hstab d3 Hd3'). exact Hf4. }
+      cbn [FOeval].
+      rewrite (Hstab cr Hcr), (Hstab dr Hdr), Ee3B2. exact Hf5. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOlookup e3 (B+28) ct dt c1 d1 c2 d2 c3 d3
+                      cr dr len (FOnumeral 3) (FOnumeral 1)
+                      (FOVar (B+2)) (FOnumeral c) (FOVar (B+4))
+                      Htb28 H3m H1m HvB2m' Hcm HvB4m)).
+      destruct Hr2 as [j [Hj [Hf1 [Hf2 [Hf3 [Hf4 Hf5]]]]]].
+      exists j.
+      split; [rewrite (Hstab len Hlen); exact Hj|].
+      split.
+      { rewrite (Hstab ct Hct), (Hstab dt Hdt), FOeval_numeral.
+        exact Hf1. }
+      split.
+      { cbn [FOeval].
+        rewrite (Hstab c1 Hc1), (Hstab d1 Hd1'), FOeval_numeral.
+        exact Hf2. }
+      split.
+      { cbn [FOeval].
+        rewrite (Hstab c2 Hc2), (Hstab d2 Hd2'), Ee3B2. exact Hf3. }
+      split.
+      { cbn [FOeval].
+        rewrite (Hstab c3 Hc3), (Hstab d3 Hd3'), FOeval_numeral.
+        exact Hf4. }
+      cbn [FOeval].
+      rewrite (Hstab cr Hcr), (Hstab dr Hdr), Ee3B4. exact Hf5. }
+    apply (proj2 (FOsat_FOPATF cpatImpl01 e3 (B+50) _ d Henv Hd50)).
+    assert (Hsg : forall s,
+        FOeval e3 (nth s [FOVar (B+4); FOVar B] FOZero)
+        = (fun s => match s with
+                    | 0 => p | 1 => a | _ => 0 end) s).
+    { intro s. destruct s as [|[|s]]; cbn.
+      - unfold e3, FOupdate. rewrite Nat.eqb_refl. reflexivity.
+      - unfold e3, FOupdate. rewrite EB4, EB2, Nat.eqb_refl.
+        reflexivity.
+      - destruct s; reflexivity. }
+    rewrite (cpat_sem_ext _ _ _ Hsg).
+    rewrite (Hstab d Hd).
+    cbn [cpat_sem cpatImpl01 pImpP].
+    symmetry. exact Hshape.
+Qed.
+
+Lemma FOsat_FOREFLSc : forall cores e B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  (FOsat e (FOREFLSc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d) <->
+   refls_sem
+     (fun tg a1 a2 a3 r => exists j, j < FOeval e len /\
+        beta (FOeval e ct) (FOeval e dt) j = tg /\
+        beta (FOeval e c1) (FOeval e d1) j = a1 /\
+        beta (FOeval e c2) (FOeval e d2) j = a2 /\
+        beta (FOeval e c3) (FOeval e d3) j = a3 /\
+        beta (FOeval e cr) (FOeval e dr) j = r)
+     cores (FOeval e d)).
+Proof.
+  intros cores.
+  induction cores as [|c rest IH];
+    intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len d Htb Hd;
+    cbn [FOREFLSc refls_sem].
+  - cbn [FOsat]. tauto.
+  - rewrite (FOsat_FOOr e _ _).
+    rewrite (FOsat_FOAXREFLc e B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+               c d Htb Hd).
+    rewrite (IH e B ct dt c1 d1 c2 d2 c3 d3 cr dr len d Htb Hd).
+    reflexivity.
+Qed.
+
+Lemma FOsat_FOTHAXc : forall e B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    cores d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  (FOsat e (FOTHAXc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d) <->
+   thax_sem
+     (fun tg a1 a2 a3 r => exists j, j < FOeval e len /\
+        beta (FOeval e ct) (FOeval e dt) j = tg /\
+        beta (FOeval e c1) (FOeval e d1) j = a1 /\
+        beta (FOeval e c2) (FOeval e d2) j = a2 /\
+        beta (FOeval e c3) (FOeval e d3) j = a3 /\
+        beta (FOeval e cr) (FOeval e dr) j = r)
+     cores (FOeval e d)).
+Proof.
+  intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d Htb Hd.
+  unfold FOTHAXc, thax_sem.
+  rewrite (FOsat_FOOr e _ _).
+  rewrite (FOsat_FOAXQc e B d Hd).
+  rewrite (FOsat_FOREFLSc cores e B ct dt c1 d1 c2 d2 c3 d3 cr dr
+             len d Htb Hd).
+  reflexivity.
+Qed.
+
+Lemma FOdelta0_FOAXREFLc : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    c d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  FOdelta0 (FOAXREFLc B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d).
+Proof.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len c d Htb Hd.
+  pose proof Htb as Htb'.
+  destruct Htb' as [Hct [Hdt [Hc1 [Hd1' [Hc2 [Hd2' [Hc3 [Hd3'
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  assert (Htb6 : tbl_below (B+6) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb28 : tbl_below (B+28) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  unfold FOAXREFLc.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; exact Hd
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia
+    |apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and.
+  { apply FOdelta0_FOlookup; try assumption;
+      rewrite ?FOmax_var_numeral; cbn; lia. }
+  apply FOdelta0_and.
+  { apply FOdelta0_FOlookup; try assumption;
+      rewrite ?FOmax_var_numeral; cbn; lia. }
+  apply FOdelta0_FOPATF.
+  - constructor; [cbn; lia |
+      constructor; [cbn; lia | constructor]].
+  - lia.
+Qed.
+
+Lemma FOdelta0_FOREFLSc : forall cores B ct dt c1 d1 c2 d2 c3 d3 cr dr
+    len d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  FOdelta0 (FOREFLSc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d).
+Proof.
+  intros cores.
+  induction cores as [|c rest IH];
+    intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len d Htb Hd;
+    cbn [FOREFLSc].
+  - exact FOd0_false.
+  - apply FOdelta0_or.
+    + apply FOdelta0_FOAXREFLc; assumption.
+    + apply IH; assumption.
+Qed.
+
+Lemma FOdelta0_FOTHAXc : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
+    cores d,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm d < B ->
+  FOdelta0 (FOTHAXc B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d).
+Proof.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len cores d Htb Hd.
+  unfold FOTHAXc.
+  apply FOdelta0_or.
+  - apply FOdelta0_FOAXQc. exact Hd.
+  - apply FOdelta0_FOREFLSc; assumption.
+Qed.
+
 Definition mfun (tag a1 a2 a3 : nat) : nat :=
   match tag with
   | 0 => if FOin_tm a1 (FOdecode_tm a2) then 1 else 0
