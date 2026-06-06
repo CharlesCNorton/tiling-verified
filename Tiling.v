@@ -14338,6 +14338,114 @@ Proof.
     reflexivity.
 Qed.
 
+(** ** The level axiom recognizer and sequence-checker soundness.
+
+    [FOaxb n] decides membership in [FOAxiomTn n]: a Robinson scheme
+    instance or a reflection instance at some level below [n].  An
+    [FOseq_check]-accepted sequence then consists of [FOProvesTn]
+    theorems, by one pass with the per-shape soundness kit. *)
+
+Definition FOreflb (n : nat) (A : FOFormula) : bool :=
+  match A with
+  | FOImplF P C =>
+      existsb (fun k => FOform_eqb P (FOProvSentence k C)) (seq 0 n)
+  | _ => false
+  end.
+
+Definition FOaxb (n : nat) (A : FOFormula) : bool :=
+  FOis_RQ A || FOreflb n A.
+
+Lemma FOaxb_sound : forall n A,
+  FOaxb n A = true -> FOAxiomTn n A.
+Proof.
+  intros n A H. unfold FOaxb in H.
+  apply Bool.orb_prop in H. destruct H as [H|H].
+  - apply FOAx_RQ. exact (FOis_RQ_sound A H).
+  - unfold FOreflb in H.
+    destruct A as [a b | | P C | y A' | y A']; try discriminate.
+    apply existsb_exists in H.
+    destruct H as [k [Hin Heq]].
+    apply in_seq in Hin.
+    apply FOform_eqb_eq in Heq.
+    subst P.
+    apply FOAx_Refl. lia.
+Qed.
+
+Lemma FOaxb_complete : forall n A,
+  FOAxiomTn n A -> FOaxb n A = true.
+Proof.
+  intros n A H. unfold FOaxb.
+  destruct H as [n' phi HQ | n' k A' Hk].
+  - rewrite (FOis_RQ_complete phi HQ). reflexivity.
+  - apply Bool.orb_true_iff. right.
+    unfold FOreflb.
+    apply existsb_exists.
+    exists k. split.
+    + apply in_seq. lia.
+    + apply FOform_eqb_refl.
+Qed.
+
+Lemma FOentry_check_sound : forall n prev A j,
+  FOentry_check (FOaxb n) (FOProvSentence n) prev A j = true ->
+  (forall B, In B prev -> FOProvesTn n B) ->
+  FOProvesTn n A.
+Proof.
+  intros n prev A j Hck Hprev.
+  destruct j as [| | x t | x t | i j' | i | i]; cbn [FOentry_check] in Hck.
+  - apply FOProvesTn_ax. exact (FOaxb_sound n A Hck).
+  - exact (FOis_logical_axiom_sound n A Hck).
+  - exact (FOis_AllElim_sound n x t A Hck).
+  - exact (FOis_ExIntro_sound n x t A Hck).
+  - destruct (nth_error prev i) as [AB|] eqn:E1; [|discriminate].
+    destruct (nth_error prev j') as [B|] eqn:E2; [|discriminate].
+    apply FOform_eqb_eq in Hck. subst AB.
+    apply (FOProvesTn_MP n B A).
+    + apply Hprev. exact (nth_error_In prev i E1).
+    + apply Hprev. exact (nth_error_In prev j' E2).
+  - destruct A as [a b | | P C | y A' | y A']; try discriminate.
+    destruct (nth_error prev i) as [B|] eqn:E1; [|discriminate].
+    apply FOform_eqb_eq in Hck. subst B.
+    apply FOProvesTn_Gen.
+    apply Hprev. exact (nth_error_In prev i E1).
+  - destruct (nth_error prev i) as [P|] eqn:E1; [|discriminate].
+    apply FOform_eqb_eq in Hck. subst P.
+    apply FOProvesTn_Loeb.
+    apply Hprev. exact (nth_error_In prev i E1).
+Qed.
+
+Lemma FOseq_check_sound : forall n items done,
+  FOseq_check (FOaxb n) (FOProvSentence n) done items = true ->
+  (forall B, In B done -> FOProvesTn n B) ->
+  forall B, In B (map fst items) -> FOProvesTn n B.
+Proof.
+  intros n items.
+  induction items as [|[A j] rest IH]; intros done Hck Hdone B HB.
+  - destruct HB.
+  - cbn [FOseq_check] in Hck.
+    apply Bool.andb_true_iff in Hck.
+    destruct Hck as [Hentry Hrest].
+    assert (HA : FOProvesTn n A)
+      by (exact (FOentry_check_sound n done A j Hentry Hdone)).
+    destruct HB as [HB | HB].
+    + subst B. exact HA.
+    + apply (IH (done ++ [A]) Hrest); [|exact HB].
+      intros C HC.
+      apply in_app_or in HC.
+      destruct HC as [HC | HC].
+      * exact (Hdone C HC).
+      * destruct HC as [HC|[]]. subst C. exact HA.
+Qed.
+
+Lemma FOProvesTn_of_seq : forall n items A,
+  FOseq_check (FOaxb n) (FOProvSentence n) [] items = true ->
+  In A (map fst items) ->
+  FOProvesTn n A.
+Proof.
+  intros n items A Hck HIn.
+  apply (FOseq_check_sound n items [] Hck); [|exact HIn].
+  intros B HB. destruct HB.
+Qed.
+
 (** ** Propositional tautologies transfer into the T_n tower.
 
     [FOofForm m phi] reads a modal skeleton as an FO formula through an
