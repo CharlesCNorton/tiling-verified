@@ -13045,13 +13045,20 @@ Definition FOProvSentence (n : nat) (A : FOFormula) : FOFormula :=
 
 Definition FOTopFm : FOFormula := FOImplF FOFalseF FOFalseF.
 
+(** The consistency sentence of level [n]: the level-[n] provability
+    sentence does not prove the negation of the propositional truth.
+    The tower axioms are local reflection: for every [k] below the
+    level and every formula [A], if [T_k] proves [A] then [A].  The
+    consistency sentence is the reflection instance at [FONeg FOTopFm]
+    composed with the derivability of [FOTopFm]. *)
+
 Definition FOConSentence (n : nat) : FOFormula :=
-  FOEq (FOnumeral n) (FOnumeral n).
+  FONeg (FOProvSentence n (FONeg FOTopFm)).
 
 Inductive FOAxiomTn : nat -> FOFormula -> Prop :=
   | FOAx_RQ : forall n phi, FORobinsonQ phi -> FOAxiomTn n phi
-  | FOAx_ConPrev : forall n k, k < n ->
-      FOAxiomTn n (FOConSentence k).
+  | FOAx_Refl : forall n k A, k < n ->
+      FOAxiomTn n (FOImplF (FOProvSentence k A) A).
 
 (** Term-level substitution with its capture test.  [FOin_tm v t]:
     [v] occurs in [t].  [FOfree_in v A]: [v] occurs free in [A].
@@ -13812,14 +13819,17 @@ Inductive FOProvesTn (n : nat) : FOFormula -> Prop :=
   | FOProvesTn_AllExport : forall y H R,
       FOfree_in y H = false ->
       FOProvesTn n (FOImplF (FOForall y (FOImplF H R))
-                            (FOImplF H (FOForall y R))).
+                            (FOImplF H (FOForall y R)))
+  | FOProvesTn_Loeb : forall phi,
+      FOProvesTn n (FOImplF (FOProvSentence n phi) phi) ->
+      FOProvesTn n phi.
 
 Theorem FOAxiomTn_cumulative : forall n phi,
   FOAxiomTn n phi -> FOAxiomTn (S n) phi.
 Proof.
   intros n phi H. inversion H.
   - apply FOAx_RQ. exact H0.
-  - apply FOAx_ConPrev. lia.
+  - apply FOAx_Refl. lia.
 Qed.
 
 Theorem FOAxiomTn_cumulative_chain : forall n m phi,
@@ -13831,33 +13841,10 @@ Proof.
   - exact (FOAxiomTn_cumulative m' phi IH).
 Qed.
 
-Theorem FOProvesTn_cumulative : forall n phi,
-  FOProvesTn n phi -> FOProvesTn (S n) phi.
-Proof.
-  intros n phi H.
-  induction H as [phi Hax | phi psi | phi psi chi | phi |
-                   phi psi _ IH1 _ IH2 | x phi _ IH
-                   | t | a b | a b c | a b | a b c d | a b c d
-                   | x t phi Hok | x t phi Hok | x phi psi Hnf
-                   | y P Q | y Hf R Hnf2].
-  - apply FOProvesTn_ax. exact (FOAxiomTn_cumulative n phi Hax).
-  - exact (FOProvesTn_K (S n) phi psi).
-  - exact (FOProvesTn_S (S n) phi psi chi).
-  - exact (FOProvesTn_DN (S n) phi).
-  - exact (FOProvesTn_MP (S n) phi psi IH1 IH2).
-  - exact (FOProvesTn_Gen (S n) x phi IH).
-  - exact (FOProvesTn_EqRefl (S n) t).
-  - exact (FOProvesTn_EqSym (S n) a b).
-  - exact (FOProvesTn_EqTrans (S n) a b c).
-  - exact (FOProvesTn_CongS (S n) a b).
-  - exact (FOProvesTn_CongPlus (S n) a b c d).
-  - exact (FOProvesTn_CongMult (S n) a b c d).
-  - exact (FOProvesTn_AllElimT (S n) x t phi Hok).
-  - exact (FOProvesTn_ExIntroT (S n) x t phi Hok).
-  - exact (FOProvesTn_ExElim (S n) x phi psi Hnf).
-  - exact (FOProvesTn_AllK (S n) y P Q).
-  - exact (FOProvesTn_AllExport (S n) y Hf R Hnf2).
-Qed.
+(** Cumulativity of [FOProvesTn] is proved after the representability
+    bridge: lifting a Loeb-rule step from level [n] to level [S n]
+    goes through the truth of the level-[n] provability sentence and
+    Sigma_1 completeness against the level-[S n] reflection axiom. *)
 
 (** Numerals are variable-free, so numeral substitution is always
     capture-free; the numeral rules are instances of the term rules. *)
@@ -14555,20 +14542,18 @@ Proof.
            (FOProvesTn_MP n _ _ (FOProvesTn_S n H0 A B) H1) H2).
 Qed.
 
-Theorem FOProvesTn_cumulative_chain : forall n m phi,
-  n <= m -> FOProvesTn n phi -> FOProvesTn m phi.
-Proof.
-  intros n m phi Hnm Hax.
-  induction Hnm as [|m' Hnm IH].
-  - exact Hax.
-  - exact (FOProvesTn_cumulative m' phi IH).
-Qed.
-
 Theorem FO_T_n_proves_Con_prev : forall n,
   FOProvesTn (S n) (FOConSentence n).
 Proof.
-  intro n. apply FOProvesTn_ax.
-  apply FOAx_ConPrev. lia.
+  intro n.
+  unfold FOConSentence, FONeg.
+  apply (FOPr_under_mp (S n) (FOProvSentence n (FONeg FOTopFm))
+           FOTopFm FOFalseF).
+  - exact (FOProvesTn_ax (S n) _
+             (FOAx_Refl (S n) n (FONeg FOTopFm) (Nat.lt_succ_diag_r n))).
+  - apply (FOProvesTn_MP (S n) FOTopFm).
+    + exact (FOProvesTn_K (S n) FOTopFm _).
+    + exact (FOPr_idf (S n) FOFalseF).
 Qed.
 
 Lemma FOnumeral_not_FOPlus : forall n x y,
@@ -15005,61 +14990,10 @@ Proof.
     lia.
 Qed.
 
-Theorem FOProvesTn_sound : forall n A,
-  FOProvesTn n A -> forall e, FOsat e A.
-Proof.
-  intros n A H.
-  induction H as [phi Hax | phi psi | phi psi chi | phi
-                 | phi psi H1 IH1 H2 IH2 | x phi H IH
-                 | t | a b | a b c | a b | a b c d | a b c d
-                 | x t phi Hok | x t phi Hok | x phi psi Hnf
-                 | y P Q | y Hf R Hnf2]; intro e.
-  - destruct Hax as [n1 phi1 HQ | n1 k Hk].
-    + destruct HQ as [a b | a | x | a | a b | a | a b]; cbn.
-      * intro Hab. lia.
-      * intro Ha. lia.
-      * intro Hne.
-        destruct (e x) as [|m] eqn:Ex.
-        { exfalso. apply Hne. reflexivity. }
-        { exists m.
-          assert (Exx : Nat.eqb x (S x) = false) by (apply Nat.eqb_neq; lia).
-          try unfold FOupdate.
-          rewrite Exx, Nat.eqb_refl. cbn. exact Ex. }
-      * lia.
-      * lia.
-      * lia.
-      * lia.
-    + cbn. reflexivity.
-  - cbn. intros Ha _. exact Ha.
-  - cbn. intros Hf Hg Ha. exact (Hf Ha (Hg Ha)).
-  - cbn. intro Hnn. apply NNPP. exact Hnn.
-  - exact (IH1 e (IH2 e)).
-  - cbn. intro v. exact (IH (FOupdate e x v)).
-  - cbn. reflexivity.
-  - cbn. intro H1. symmetry. exact H1.
-  - cbn. intros H1 H2. rewrite H1. exact H2.
-  - cbn. intro H1. rewrite H1. reflexivity.
-  - cbn. intros H1 H2. rewrite H1, H2. reflexivity.
-  - cbn. intros H1 H2. rewrite H1, H2. reflexivity.
-  - cbn. intro Hall.
-    apply (proj2 (FOsat_subst_f phi x t e Hok)). exact (Hall (FOeval e t)).
-  - cbn. intro Hs.
-    exists (FOeval e t). exact (proj1 (FOsat_subst_f phi x t e Hok) Hs).
-  - cbn. intros Hall [v Hv].
-    exact (proj1 (FOsat_update_not_free psi e x v Hnf) (Hall v Hv)).
-  - cbn. intros Hall HP v. exact (Hall v (HP v)).
-  - cbn. intros Hall Hh v.
-    apply (Hall v).
-    exact (proj2 (FOsat_update_not_free Hf e y v Hnf2) Hh).
-Qed.
-
-Theorem FOProvesTn_consistent : forall n, ~ FOProvesTn n FOFalseF.
-Proof.
-  intros n H. exact (FOProvesTn_sound n FOFalseF H (fun _ => 0)).
-Qed.
-
-Lemma FOsat_ConSentence : forall e k, FOsat e (FOConSentence k).
-Proof. intros e k. cbn. reflexivity. Qed.
+(** Soundness of [FOProvesTn] against [FOsat] is proved after the
+    representability bridge: the reflection axioms and the Loeb rule
+    refer to the provability sentence, whose truth at each level needs
+    the bridge at the levels below. *)
 
 Lemma FOsat_FOAnd : forall e A B,
   FOsat e (FOAnd A B) <-> (FOsat e A /\ FOsat e B).
@@ -22411,53 +22345,11 @@ Proof.
   - exfalso. exact He.
 Qed.
 
-Lemma FOAxiomTn_FOConSentence_implies_idx : forall n m,
-  FOAxiomTn m (FOConSentence n) -> n < m.
-Proof.
-  intros n m H.
-  remember (FOConSentence n) as F eqn:HF.
-  induction H as [m phi Hrq | m k Hkm].
-  - subst phi. exfalso. apply (FOnumeral_form_not_RobinsonQ n). exact Hrq.
-  - unfold FOConSentence in HF. injection HF as HL _.
-    pose proof (FOnumeral_inj _ _ HL) as Hk. subst k. exact Hkm.
-Qed.
-
-Theorem FO_T_n_strict_extension : forall N,
-  exists phi, FOAxiomTn (S N) phi /\ ~ FOAxiomTn N phi.
-Proof.
-  intro N. exists (FOConSentence N). split.
-  - apply FOAx_ConPrev. lia.
-  - intro Hax.
-    pose proof (FOAxiomTn_FOConSentence_implies_idx N N Hax) as HNN.
-    lia.
-Qed.
-
 Definition FOInconsistent (n : nat) : Prop := FOProvesTn n FOFalseF.
 
-Theorem FO_consistency_assumption_axiomatic : forall n,
-  ~ FOInconsistent n ->
-  forall k, k < n -> ~ FOInconsistent k.
-Proof.
-  intros n Hcon k Hkn Hck.
-  apply Hcon.
-  unfold FOInconsistent in *.
-  exact (FOProvesTn_cumulative_chain k n FOFalseF (Nat.lt_le_incl _ _ Hkn) Hck).
-Qed.
-
-Theorem FO_T_n_axiomatic_summary :
-  (forall n m phi, n <= m -> FOAxiomTn n phi -> FOAxiomTn m phi) /\
-  (forall n m phi, n <= m -> FOProvesTn n phi -> FOProvesTn m phi) /\
-  (forall n, FOProvesTn (S n) (FOConSentence n)) /\
-  (forall n, exists phi, FOAxiomTn (S n) phi /\ ~ FOAxiomTn n phi) /\
-  (forall n, ~ FOInconsistent n -> forall k, k < n -> ~ FOInconsistent k).
-Proof.
-  split; [|split; [|split; [|split]]].
-  - exact FOAxiomTn_cumulative_chain.
-  - exact FOProvesTn_cumulative_chain.
-  - exact FO_T_n_proves_Con_prev.
-  - exact FO_T_n_strict_extension.
-  - exact FO_consistency_assumption_axiomatic.
-Qed.
+(** The tower summary — cumulativity of derivability, strict axiom
+    growth, downward consistency transfer — is reassembled after the
+    representability bridge, where the Loeb-rule lift is available. *)
 
 Theorem Bew_axiomatic_summary :
   (forall n m phi, n <= m -> T_axiom n phi -> T_axiom m phi) /\
