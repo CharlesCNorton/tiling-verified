@@ -17499,6 +17499,356 @@ Proof.
   apply FOdelta0_pat2; exact Hd.
 Qed.
 
+(** The semantic mirror of the logical-axiom recognizer.  The lookup
+    relation [L] carries the freshness side conditions of the
+    exists-elimination and forall-export shapes through the master
+    table's tag-1 rows. *)
+
+Definition logax_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    (d : nat) : Prop :=
+  (exists P Q, d = cpair 2 (cpair P (cpair 2 (cpair Q P))))
+  \/ (exists P Q R, d = cpair 2 (cpair
+       (cpair 2 (cpair P (cpair 2 (cpair Q R))))
+       (cpair 2 (cpair (cpair 2 (cpair P Q))
+                       (cpair 2 (cpair P R))))))
+  \/ (exists P, d = cpair 2 (cpair
+       (cpair 2 (cpair (cpair 2 (cpair P (cpair 1 0))) (cpair 1 0)))
+       P))
+  \/ (exists a, d = cpair 0 (cpair a a))
+  \/ (exists a b, d = cpair 2 (cpair (cpair 0 (cpair a b))
+                                     (cpair 0 (cpair b a))))
+  \/ (exists a b c, d = cpair 2 (cpair
+       (cpair 0 (cpair a b))
+       (cpair 2 (cpair (cpair 0 (cpair b c)) (cpair 0 (cpair a c))))))
+  \/ (exists a b, d = cpair 2 (cpair
+       (cpair 0 (cpair a b))
+       (cpair 0 (cpair (cpair 2 a) (cpair 2 b)))))
+  \/ (exists a b c dd, d = cpair 2 (cpair
+       (cpair 0 (cpair a b))
+       (cpair 2 (cpair (cpair 0 (cpair c dd))
+          (cpair 0 (cpair (cpair 3 (cpair a c))
+                          (cpair 3 (cpair b dd))))))))
+  \/ (exists a b c dd, d = cpair 2 (cpair
+       (cpair 0 (cpair a b))
+       (cpair 2 (cpair (cpair 0 (cpair c dd))
+          (cpair 0 (cpair (cpair 4 (cpair a c))
+                          (cpair 4 (cpair b dd))))))))
+  \/ (exists x P Q, d = cpair 2 (cpair
+       (cpair 3 (cpair x (cpair 2 (cpair P Q))))
+       (cpair 2 (cpair (cpair 4 (cpair x P)) Q))) /\ L 1 x Q 0 0)
+  \/ (exists x P Q, d = cpair 2 (cpair
+       (cpair 3 (cpair x (cpair 2 (cpair P Q))))
+       (cpair 2 (cpair (cpair 3 (cpair x P)) (cpair 3 (cpair x Q))))))
+  \/ (exists x P Q, d = cpair 2 (cpair
+       (cpair 3 (cpair x (cpair 2 (cpair P Q))))
+       (cpair 2 (cpair P (cpair 3 (cpair x Q))))) /\ L 1 x P 0 0).
+
+Lemma FOsat_FOLOG1c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOLOG1c B d) <->
+   exists P Q, FOeval e d = cpair 2 (cpair P (cpair 2 (cpair Q P)))).
+Proof.
+  intros e B d Hd. unfold FOLOG1c.
+  rewrite (FOsat_pat2 e B cpatLK d Hd).
+  split.
+  - intros [v0 [v1 [_ [_ Hs]]]].
+    cbn [cpat_sem cpatLK pImpP] in Hs.
+    exists v0, v1. symmetry. exact Hs.
+  - intros [P [Q Heq]].
+    pose proof (cpat_occurs_le cpatLK
+      (fun s => match s with 0 => P | 1 => Q | _ => 0 end) 0
+      eq_refl) as HP.
+    pose proof (cpat_occurs_le cpatLK
+      (fun s => match s with 0 => P | 1 => Q | _ => 0 end) 1
+      eq_refl) as HQ.
+    cbn [cpat_sem cpatLK pImpP] in HP, HQ.
+    exists P, Q.
+    split; [rewrite Heq; exact HP|].
+    split; [rewrite Heq; exact HQ|].
+    cbn [cpat_sem cpatLK pImpP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOLOG2c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOLOG2c B d) <->
+   exists P Q R, FOeval e d = cpair 2 (cpair
+     (cpair 2 (cpair P (cpair 2 (cpair Q R))))
+     (cpair 2 (cpair (cpair 2 (cpair P Q)) (cpair 2 (cpair P R)))))).
+Proof.
+  intros e B d Hd. unfold FOLOG2c.
+  rewrite (FOsat_pat3 e B cpatLS d Hd).
+  split.
+  - intros [v0 [v1 [v2 [_ [_ [_ Hs]]]]]].
+    cbn [cpat_sem cpatLS pImpP] in Hs.
+    exists v0, v1, v2. symmetry. exact Hs.
+  - intros [P [Q [R Heq]]].
+    pose proof (cpat_occurs_le cpatLS
+      (fun s => match s with 0 => P | 1 => Q | 2 => R | _ => 0 end) 0
+      eq_refl) as HP.
+    pose proof (cpat_occurs_le cpatLS
+      (fun s => match s with 0 => P | 1 => Q | 2 => R | _ => 0 end) 1
+      eq_refl) as HQ.
+    pose proof (cpat_occurs_le cpatLS
+      (fun s => match s with 0 => P | 1 => Q | 2 => R | _ => 0 end) 2
+      eq_refl) as HR.
+    cbn [cpat_sem cpatLS pImpP] in HP, HQ, HR.
+    exists P, Q, R.
+    split; [rewrite Heq; exact HP|].
+    split; [rewrite Heq; exact HQ|].
+    split; [rewrite Heq; exact HR|].
+    cbn [cpat_sem cpatLS pImpP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOLOG3c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOLOG3c B d) <->
+   exists P, FOeval e d = cpair 2 (cpair
+     (cpair 2 (cpair (cpair 2 (cpair P (cpair 1 0))) (cpair 1 0)))
+     P)).
+Proof.
+  intros e B d Hd. unfold FOLOG3c.
+  rewrite (FOsat_pat1 e B cpatLDN d Hd).
+  split.
+  - intros [v0 [_ Hs]].
+    cbn [cpat_sem cpatLDN pImpP pFlsP] in Hs.
+    exists v0. symmetry. exact Hs.
+  - intros [P Heq].
+    pose proof (cpat_occurs_le cpatLDN
+      (fun s => match s with 0 => P | _ => 0 end) 0 eq_refl) as HP.
+    cbn [cpat_sem cpatLDN pImpP pFlsP] in HP.
+    exists P.
+    split; [rewrite Heq; exact HP|].
+    cbn [cpat_sem cpatLDN pImpP pFlsP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOLOG4c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOLOG4c B d) <->
+   exists a, FOeval e d = cpair 0 (cpair a a)).
+Proof.
+  intros e B d Hd. unfold FOLOG4c.
+  rewrite (FOsat_pat1 e B cpatLEqRefl d Hd).
+  split.
+  - intros [v0 [_ Hs]].
+    cbn [cpat_sem cpatLEqRefl pEqP] in Hs.
+    exists v0. symmetry. exact Hs.
+  - intros [a Heq].
+    pose proof (cpat_occurs_le cpatLEqRefl
+      (fun s => match s with 0 => a | _ => 0 end) 0 eq_refl) as Ha.
+    cbn [cpat_sem cpatLEqRefl pEqP] in Ha.
+    exists a.
+    split; [rewrite Heq; exact Ha|].
+    cbn [cpat_sem cpatLEqRefl pEqP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOLOG5c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOLOG5c B d) <->
+   exists a b, FOeval e d = cpair 2 (cpair (cpair 0 (cpair a b))
+                                           (cpair 0 (cpair b a)))).
+Proof.
+  intros e B d Hd. unfold FOLOG5c.
+  rewrite (FOsat_pat2 e B cpatLEqSym d Hd).
+  split.
+  - intros [v0 [v1 [_ [_ Hs]]]].
+    cbn [cpat_sem cpatLEqSym pImpP pEqP] in Hs.
+    exists v0, v1. symmetry. exact Hs.
+  - intros [a [b Heq]].
+    pose proof (cpat_occurs_le cpatLEqSym
+      (fun s => match s with 0 => a | 1 => b | _ => 0 end) 0
+      eq_refl) as Ha.
+    pose proof (cpat_occurs_le cpatLEqSym
+      (fun s => match s with 0 => a | 1 => b | _ => 0 end) 1
+      eq_refl) as Hb.
+    cbn [cpat_sem cpatLEqSym pImpP pEqP] in Ha, Hb.
+    exists a, b.
+    split; [rewrite Heq; exact Ha|].
+    split; [rewrite Heq; exact Hb|].
+    cbn [cpat_sem cpatLEqSym pImpP pEqP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOLOG6c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOLOG6c B d) <->
+   exists a b c, FOeval e d = cpair 2 (cpair
+     (cpair 0 (cpair a b))
+     (cpair 2 (cpair (cpair 0 (cpair b c)) (cpair 0 (cpair a c)))))).
+Proof.
+  intros e B d Hd. unfold FOLOG6c.
+  rewrite (FOsat_pat3 e B cpatLEqTrans d Hd).
+  split.
+  - intros [v0 [v1 [v2 [_ [_ [_ Hs]]]]]].
+    cbn [cpat_sem cpatLEqTrans pImpP pEqP] in Hs.
+    exists v0, v1, v2. symmetry. exact Hs.
+  - intros [a [b [c Heq]]].
+    pose proof (cpat_occurs_le cpatLEqTrans
+      (fun s => match s with 0 => a | 1 => b | 2 => c | _ => 0 end) 0
+      eq_refl) as Ha.
+    pose proof (cpat_occurs_le cpatLEqTrans
+      (fun s => match s with 0 => a | 1 => b | 2 => c | _ => 0 end) 1
+      eq_refl) as Hb.
+    pose proof (cpat_occurs_le cpatLEqTrans
+      (fun s => match s with 0 => a | 1 => b | 2 => c | _ => 0 end) 2
+      eq_refl) as Hc.
+    cbn [cpat_sem cpatLEqTrans pImpP pEqP] in Ha, Hb, Hc.
+    exists a, b, c.
+    split; [rewrite Heq; exact Ha|].
+    split; [rewrite Heq; exact Hb|].
+    split; [rewrite Heq; exact Hc|].
+    cbn [cpat_sem cpatLEqTrans pImpP pEqP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOLOG7c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOLOG7c B d) <->
+   exists a b, FOeval e d = cpair 2 (cpair
+     (cpair 0 (cpair a b))
+     (cpair 0 (cpair (cpair 2 a) (cpair 2 b))))).
+Proof.
+  intros e B d Hd. unfold FOLOG7c.
+  rewrite (FOsat_pat2 e B cpatLCongS d Hd).
+  split.
+  - intros [v0 [v1 [_ [_ Hs]]]].
+    cbn [cpat_sem cpatLCongS pImpP pEqP tSuccP] in Hs.
+    exists v0, v1. symmetry. exact Hs.
+  - intros [a [b Heq]].
+    pose proof (cpat_occurs_le cpatLCongS
+      (fun s => match s with 0 => a | 1 => b | _ => 0 end) 0
+      eq_refl) as Ha.
+    pose proof (cpat_occurs_le cpatLCongS
+      (fun s => match s with 0 => a | 1 => b | _ => 0 end) 1
+      eq_refl) as Hb.
+    cbn [cpat_sem cpatLCongS pImpP pEqP tSuccP] in Ha, Hb.
+    exists a, b.
+    split; [rewrite Heq; exact Ha|].
+    split; [rewrite Heq; exact Hb|].
+    cbn [cpat_sem cpatLCongS pImpP pEqP tSuccP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOLOG8c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOLOG8c B d) <->
+   exists a b c dd, FOeval e d = cpair 2 (cpair
+     (cpair 0 (cpair a b))
+     (cpair 2 (cpair (cpair 0 (cpair c dd))
+        (cpair 0 (cpair (cpair 3 (cpair a c))
+                        (cpair 3 (cpair b dd)))))))).
+Proof.
+  intros e B d Hd. unfold FOLOG8c.
+  rewrite (FOsat_pat4 e B cpatLCongPlus d Hd).
+  split.
+  - intros [v0 [v1 [v2 [v3 [_ [_ [_ [_ Hs]]]]]]]].
+    cbn [cpat_sem cpatLCongPlus pImpP pEqP tPlusP] in Hs.
+    exists v0, v1, v2, v3. symmetry. exact Hs.
+  - intros [a [b [c [dd Heq]]]].
+    pose proof (cpat_occurs_le cpatLCongPlus
+      (fun s => match s with
+                | 0 => a | 1 => b | 2 => c | 3 => dd | _ => 0 end) 0
+      eq_refl) as Ha.
+    pose proof (cpat_occurs_le cpatLCongPlus
+      (fun s => match s with
+                | 0 => a | 1 => b | 2 => c | 3 => dd | _ => 0 end) 1
+      eq_refl) as Hb.
+    pose proof (cpat_occurs_le cpatLCongPlus
+      (fun s => match s with
+                | 0 => a | 1 => b | 2 => c | 3 => dd | _ => 0 end) 2
+      eq_refl) as Hc.
+    pose proof (cpat_occurs_le cpatLCongPlus
+      (fun s => match s with
+                | 0 => a | 1 => b | 2 => c | 3 => dd | _ => 0 end) 3
+      eq_refl) as Hdd.
+    cbn [cpat_sem cpatLCongPlus pImpP pEqP tPlusP] in Ha, Hb, Hc, Hdd.
+    exists a, b, c, dd.
+    split; [rewrite Heq; exact Ha|].
+    split; [rewrite Heq; exact Hb|].
+    split; [rewrite Heq; exact Hc|].
+    split; [rewrite Heq; exact Hdd|].
+    cbn [cpat_sem cpatLCongPlus pImpP pEqP tPlusP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOLOG9c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOLOG9c B d) <->
+   exists a b c dd, FOeval e d = cpair 2 (cpair
+     (cpair 0 (cpair a b))
+     (cpair 2 (cpair (cpair 0 (cpair c dd))
+        (cpair 0 (cpair (cpair 4 (cpair a c))
+                        (cpair 4 (cpair b dd)))))))).
+Proof.
+  intros e B d Hd. unfold FOLOG9c.
+  rewrite (FOsat_pat4 e B cpatLCongMult d Hd).
+  split.
+  - intros [v0 [v1 [v2 [v3 [_ [_ [_ [_ Hs]]]]]]]].
+    cbn [cpat_sem cpatLCongMult pImpP pEqP tMultP] in Hs.
+    exists v0, v1, v2, v3. symmetry. exact Hs.
+  - intros [a [b [c [dd Heq]]]].
+    pose proof (cpat_occurs_le cpatLCongMult
+      (fun s => match s with
+                | 0 => a | 1 => b | 2 => c | 3 => dd | _ => 0 end) 0
+      eq_refl) as Ha.
+    pose proof (cpat_occurs_le cpatLCongMult
+      (fun s => match s with
+                | 0 => a | 1 => b | 2 => c | 3 => dd | _ => 0 end) 1
+      eq_refl) as Hb.
+    pose proof (cpat_occurs_le cpatLCongMult
+      (fun s => match s with
+                | 0 => a | 1 => b | 2 => c | 3 => dd | _ => 0 end) 2
+      eq_refl) as Hc.
+    pose proof (cpat_occurs_le cpatLCongMult
+      (fun s => match s with
+                | 0 => a | 1 => b | 2 => c | 3 => dd | _ => 0 end) 3
+      eq_refl) as Hdd.
+    cbn [cpat_sem cpatLCongMult pImpP pEqP tMultP] in Ha, Hb, Hc, Hdd.
+    exists a, b, c, dd.
+    split; [rewrite Heq; exact Ha|].
+    split; [rewrite Heq; exact Hb|].
+    split; [rewrite Heq; exact Hc|].
+    split; [rewrite Heq; exact Hdd|].
+    cbn [cpat_sem cpatLCongMult pImpP pEqP tMultP].
+    symmetry. exact Heq.
+Qed.
+
+Lemma FOsat_FOLOG11c : forall e B d,
+  FOmax_var_tm d < B ->
+  (FOsat e (FOLOG11c B d) <->
+   exists x P Q, FOeval e d = cpair 2 (cpair
+     (cpair 3 (cpair x (cpair 2 (cpair P Q))))
+     (cpair 2 (cpair (cpair 3 (cpair x P))
+                     (cpair 3 (cpair x Q)))))).
+Proof.
+  intros e B d Hd. unfold FOLOG11c.
+  rewrite (FOsat_pat3 e B cpatLAllK d Hd).
+  split.
+  - intros [v0 [v1 [v2 [_ [_ [_ Hs]]]]]].
+    cbn [cpat_sem cpatLAllK pImpP pAllP] in Hs.
+    exists v0, v1, v2. symmetry. exact Hs.
+  - intros [x [P [Q Heq]]].
+    pose proof (cpat_occurs_le cpatLAllK
+      (fun s => match s with 0 => x | 1 => P | 2 => Q | _ => 0 end) 0
+      eq_refl) as Hx.
+    pose proof (cpat_occurs_le cpatLAllK
+      (fun s => match s with 0 => x | 1 => P | 2 => Q | _ => 0 end) 1
+      eq_refl) as HP.
+    pose proof (cpat_occurs_le cpatLAllK
+      (fun s => match s with 0 => x | 1 => P | 2 => Q | _ => 0 end) 2
+      eq_refl) as HQ.
+    cbn [cpat_sem cpatLAllK pImpP pAllP] in Hx, HP, HQ.
+    exists x, P, Q.
+    split; [rewrite Heq; exact Hx|].
+    split; [rewrite Heq; exact HP|].
+    split; [rewrite Heq; exact HQ|].
+    cbn [cpat_sem cpatLAllK pImpP pAllP].
+    symmetry. exact Heq.
+Qed.
+
 Lemma FOsat_FObetaF : forall e v c d i x,
   FOmax_var_tm c < v -> FOmax_var_tm d < v ->
   FOmax_var_tm i < v -> FOmax_var_tm x < v ->
