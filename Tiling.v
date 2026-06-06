@@ -27841,6 +27841,391 @@ Proof.
   reflexivity.
 Qed.
 
+(** ** Decoding an accepted matrix into a tower derivation.
+
+    With the entry-code guard, every track entry of an accepted
+    derivation is a genuine formula code, so a strong induction over
+    positions converts each justified entry into an [FOProvesTn]
+    derivation: shape disjuncts decode through the [FOdecode] shape
+    equations, table rows convert through [tbl_sound]'s per-tag
+    specification, and the substitution witness supplies the
+    instantiating term for the quantifier axioms. *)
+
+Lemma FOPrCores_in : forall n c,
+  In c (FOPrCores n) ->
+  exists k, k < n /\
+    c = FOcode_f (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores k)))
+                    (FOPRMAT (FOPrCores k))).
+Proof.
+  induction n as [|n IH]; intros c Hc; cbn [FOPrCores] in Hc.
+  - destruct Hc.
+  - apply in_app_or in Hc. destruct Hc as [Hc|Hc].
+    + destruct (IH c Hc) as [k [Hk Hck]].
+      exists k. split; [lia|exact Hck].
+    + destruct Hc as [<-|[]].
+      exists n. split; [lia|reflexivity].
+Qed.
+
+Lemma refls_sem_in : forall L cores d,
+  refls_sem L cores d ->
+  exists c, In c cores /\ refl_sem L c d.
+Proof.
+  intros L cores d.
+  induction cores as [|c0 rest IH]; cbn [refls_sem].
+  - intros [].
+  - intros [H|H].
+    + exists c0. split; [left; reflexivity|exact H].
+    + destruct (IH H) as [c [Hin Hr]].
+      exists c. split; [right; exact Hin|exact Hr].
+Qed.
+
+Ltac decode_shape H :=
+  do 3 (rewrite ?FOdecode_f_impl, ?FOdecode_f_eq,
+    ?FOdecode_f_false, ?FOdecode_f_forall, ?FOdecode_f_exists,
+    ?FOdecode_tm_succ, ?FOdecode_tm_plus, ?FOdecode_tm_mult,
+    ?FOdecode_tm_var, ?FOdecode_tm_zero in H).
+
+Theorem provmat_decode : forall n A,
+  provmat_sem (FOPrCores n) (FOcode_f (FOPRMAT (FOPrCores n)))
+    (FOcode_f A) ->
+  FOProvesTn n A.
+Proof.
+  intros n A Hpm.
+  destruct Hpm as [vct [vdt [vc1 [vd1 [vc2 [vd2 [vc3 [vd3 [vcr [vdr
+    [vlen [vcs [vds [vcj [vdj [vdlen
+    [Hdisp [Hlast [Hjust Hguard]]]]]]]]]]]]]]]]]]].
+  assert (MAIN : forall m i, i < m -> i < vdlen ->
+      forall B, beta vcs vds i = FOcode_f B -> FOProvesTn n B).
+  { induction m as [|m IHm].
+    { intros; lia. }
+    intros i Him Hivd B HA.
+    pose proof (Hjust i Hivd) as HJ.
+    unfold justck_sem in HJ.
+    destruct HJ as [vd [vj [tg [pl [Hvd [Hvj [Hcpv Hsw]]]]]]].
+    assert (Evd : vd = FOcode_f B) by congruence.
+    clear Hvd. subst vd.
+    destruct Hsw as
+      [[_ Hth]|[[_ Hlog]|[[_ Hj2]|[[_ Hj3]|[[_ Hj4]|[[_ Hj5]
+        |[_ Hj6]]]]]]].
+    - (* theory axiom *)
+      unfold thax_sem in Hth. destruct Hth as [Haxq|Hrefl].
+      + unfold axq_sem in Haxq.
+        destruct Haxq as [Hq|[Hq|[Hq|[Hq|[Hq|[Hq|Hq]]]]]].
+        * destruct Hq as [a [b Hsh]].
+          pose proof (FOdecode_code_f B) as HD.
+          rewrite Hsh in HD. decode_shape HD.
+          rewrite <- HD.
+          apply FOProvesTn_ax, FOAx_RQ, RQ_S_inj.
+        * destruct Hq as [a Hsh].
+          pose proof (FOdecode_code_f B) as HD.
+          rewrite Hsh in HD. decode_shape HD.
+          rewrite <- HD.
+          apply FOProvesTn_ax, FOAx_RQ, RQ_S_nonzero.
+        * destruct Hq as [x Hsh].
+          pose proof (FOdecode_code_f B) as HD.
+          rewrite Hsh in HD. decode_shape HD.
+          rewrite <- HD.
+          apply FOProvesTn_ax, FOAx_RQ, RQ_zero_or_succ.
+        * destruct Hq as [a Hsh].
+          pose proof (FOdecode_code_f B) as HD.
+          rewrite Hsh in HD. decode_shape HD.
+          rewrite <- HD.
+          apply FOProvesTn_ax, FOAx_RQ, RQ_plus_zero.
+        * destruct Hq as [a [b Hsh]].
+          pose proof (FOdecode_code_f B) as HD.
+          rewrite Hsh in HD. decode_shape HD.
+          rewrite <- HD.
+          apply FOProvesTn_ax, FOAx_RQ, RQ_plus_succ.
+        * destruct Hq as [a Hsh].
+          pose proof (FOdecode_code_f B) as HD.
+          rewrite Hsh in HD. decode_shape HD.
+          rewrite <- HD.
+          apply FOProvesTn_ax, FOAx_RQ, RQ_mult_zero.
+        * destruct Hq as [a [b Hsh]].
+          pose proof (FOdecode_code_f B) as HD.
+          rewrite Hsh in HD. decode_shape HD.
+          rewrite <- HD.
+          apply FOProvesTn_ax, FOAx_RQ, RQ_mult_succ.
+      + apply refls_sem_in in Hrefl.
+        destruct Hrefl as [c [HcIn Hrf]].
+        destruct (FOPrCores_in n c HcIn) as [k [Hk Hc]].
+        unfold refl_sem in Hrf.
+        destruct Hrf as [aa [na [p [H5 [H3 Hsh]]]]].
+        destruct B as [a0 b0| |A1 A2|y0 B0|y0 B0];
+          cbn [FOcode_f] in Hsh;
+          apply cpair_inj in Hsh; destruct Hsh as [Esh Hsh];
+          try discriminate Esh.
+        apply cpair_inj in Hsh. destruct Hsh as [Hp Ha].
+        subst p aa.
+        pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                      5 (FOcode_f A2) 0 0 na H5) as M5.
+        cbn [mspec] in M5.
+        pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                      3 1 na c (FOcode_f A1) H3) as M3.
+        cbn [mspec] in M3.
+        specialize (M3 (FOnumeral (FOcode_f A2))
+          (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores k)))
+             (FOPRMAT (FOPrCores k))) M5 Hc).
+        rewrite FOsubst_f_num in M3.
+        apply FOcode_f_inj in M3.
+        subst A1.
+        apply FOProvesTn_ax.
+        exact (FOAx_Refl n k A2 Hk).
+    - (* logical axiom *)
+      unfold logax_sem in Hlog.
+      destruct Hlog as
+        [HL|[HL|[HL|[HL|[HL|[HL|[HL|[HL|[HL|[HL|[HL|HL]]]]]]]]]]].
+      + destruct HL as [P [Q Hsh]].
+        pose proof (FOdecode_code_f B) as HD.
+        rewrite Hsh in HD. decode_shape HD.
+        rewrite <- HD. apply FOProvesTn_K.
+      + destruct HL as [P [Q [R Hsh]]].
+        pose proof (FOdecode_code_f B) as HD.
+        rewrite Hsh in HD. decode_shape HD.
+        rewrite <- HD. apply FOProvesTn_S.
+      + destruct HL as [P Hsh].
+        pose proof (FOdecode_code_f B) as HD.
+        rewrite Hsh in HD. decode_shape HD.
+        rewrite <- HD. apply FOProvesTn_DN.
+      + destruct HL as [aq Hsh].
+        pose proof (FOdecode_code_f B) as HD.
+        rewrite Hsh in HD. decode_shape HD.
+        rewrite <- HD. apply FOProvesTn_EqRefl.
+      + destruct HL as [aq [bq Hsh]].
+        pose proof (FOdecode_code_f B) as HD.
+        rewrite Hsh in HD. decode_shape HD.
+        rewrite <- HD. apply FOProvesTn_EqSym.
+      + destruct HL as [aq [bq [cq Hsh]]].
+        pose proof (FOdecode_code_f B) as HD.
+        rewrite Hsh in HD. decode_shape HD.
+        rewrite <- HD. apply FOProvesTn_EqTrans.
+      + destruct HL as [aq [bq Hsh]].
+        pose proof (FOdecode_code_f B) as HD.
+        rewrite Hsh in HD. decode_shape HD.
+        rewrite <- HD. apply FOProvesTn_CongS.
+      + destruct HL as [aq [bq [cq [dq Hsh]]]].
+        pose proof (FOdecode_code_f B) as HD.
+        rewrite Hsh in HD. decode_shape HD.
+        rewrite <- HD. apply FOProvesTn_CongPlus.
+      + destruct HL as [aq [bq [cq [dq Hsh]]]].
+        pose proof (FOdecode_code_f B) as HD.
+        rewrite Hsh in HD. decode_shape HD.
+        rewrite <- HD. apply FOProvesTn_CongMult.
+      + destruct HL as [x [P [Q [Hsh HLrow]]]].
+        destruct B as [a0 b0| |A1 A2|y0 B0|y0 B0];
+          cbn [FOcode_f] in Hsh;
+          apply cpair_inj in Hsh; destruct Hsh as [Esh Hsh];
+          try discriminate Esh.
+        apply cpair_inj in Hsh. destruct Hsh as [Hsh1 Hsh2].
+        destruct A1 as [a0 b0| |C1 C2|y1 B1|y1 B1];
+          cbn [FOcode_f] in Hsh1;
+          apply cpair_inj in Hsh1; destruct Hsh1 as [Esh1 Hsh1];
+          try discriminate Esh1.
+        apply cpair_inj in Hsh1. destruct Hsh1 as [Ey1 Hsh1].
+        subst y1.
+        destruct B1 as [a0 b0| |P1 Q1|y2 B2|y2 B2];
+          cbn [FOcode_f] in Hsh1;
+          apply cpair_inj in Hsh1; destruct Hsh1 as [Esh1b Hsh1];
+          try discriminate Esh1b.
+        apply cpair_inj in Hsh1. destruct Hsh1 as [HP HQ].
+        subst P Q.
+        destruct A2 as [a0 b0| |C1 C2|y3 B3|y3 B3];
+          cbn [FOcode_f] in Hsh2;
+          apply cpair_inj in Hsh2; destruct Hsh2 as [Esh2 Hsh2];
+          try discriminate Esh2.
+        apply cpair_inj in Hsh2. destruct Hsh2 as [Hsh2a Hsh2b].
+        destruct C1 as [a0 b0| |D1 D2|y4 B4|y4 B4];
+          cbn [FOcode_f] in Hsh2a;
+          apply cpair_inj in Hsh2a; destruct Hsh2a as [Esh2a Hsh2a];
+          try discriminate Esh2a.
+        apply cpair_inj in Hsh2a. destruct Hsh2a as [Ey4 Hsh2a].
+        subst y4.
+        apply FOcode_f_inj in Hsh2a. subst B4.
+        apply FOcode_f_inj in Hsh2b. subst C2.
+        pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                      1 x (FOcode_f Q1) 0 0 HLrow) as M1.
+        cbn [mspec] in M1.
+        specialize (M1 Q1 eq_refl).
+        destruct (FOfree_in x Q1) eqn:EF; [discriminate M1|].
+        apply FOProvesTn_ExElim. exact EF.
+      + destruct HL as [x [P [Q Hsh]]].
+        pose proof (FOdecode_code_f B) as HD.
+        rewrite Hsh in HD. decode_shape HD.
+        rewrite <- HD. apply FOProvesTn_AllK.
+      + destruct HL as [x [P [Q [Hsh HLrow]]]].
+        destruct B as [a0 b0| |A1 A2|y0 B0|y0 B0];
+          cbn [FOcode_f] in Hsh;
+          apply cpair_inj in Hsh; destruct Hsh as [Esh Hsh];
+          try discriminate Esh.
+        apply cpair_inj in Hsh. destruct Hsh as [Hsh1 Hsh2].
+        destruct A1 as [a0 b0| |C1 C2|y1 B1|y1 B1];
+          cbn [FOcode_f] in Hsh1;
+          apply cpair_inj in Hsh1; destruct Hsh1 as [Esh1 Hsh1];
+          try discriminate Esh1.
+        apply cpair_inj in Hsh1. destruct Hsh1 as [Ey1 Hsh1].
+        subst y1.
+        destruct B1 as [a0 b0| |P1 Q1|y2 B2|y2 B2];
+          cbn [FOcode_f] in Hsh1;
+          apply cpair_inj in Hsh1; destruct Hsh1 as [Esh1b Hsh1];
+          try discriminate Esh1b.
+        apply cpair_inj in Hsh1. destruct Hsh1 as [HP HQ].
+        subst P Q.
+        destruct A2 as [a0 b0| |C1 C2|y3 B3|y3 B3];
+          cbn [FOcode_f] in Hsh2;
+          apply cpair_inj in Hsh2; destruct Hsh2 as [Esh2 Hsh2];
+          try discriminate Esh2.
+        apply cpair_inj in Hsh2. destruct Hsh2 as [Hsh2a Hsh2b].
+        apply FOcode_f_inj in Hsh2a. subst C1.
+        destruct C2 as [a0 b0| |D1 D2|y4 B4|y4 B4];
+          cbn [FOcode_f] in Hsh2b;
+          apply cpair_inj in Hsh2b; destruct Hsh2b as [Esh2b Hsh2b];
+          try discriminate Esh2b.
+        apply cpair_inj in Hsh2b. destruct Hsh2b as [Ey4 Hsh2b].
+        subst y4.
+        apply FOcode_f_inj in Hsh2b. subst B4.
+        pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                      1 x (FOcode_f P1) 0 0 HLrow) as M1.
+        cbn [mspec] in M1.
+        specialize (M1 P1 eq_refl).
+        destruct (FOfree_in x P1) eqn:EF; [discriminate M1|].
+        apply FOProvesTn_AllExport. exact EF.
+    - (* forall-elimination *)
+      destruct Hj2 as [x [tc [P [Q [Hpl [Hsh [HL4 HL3]]]]]]].
+      destruct B as [a0 b0| |A1 A2|y0 B0|y0 B0];
+        cbn [FOcode_f] in Hsh;
+        apply cpair_inj in Hsh; destruct Hsh as [Esh Hsh];
+        try discriminate Esh.
+      apply cpair_inj in Hsh. destruct Hsh as [Hsh1 Hsh2].
+      destruct A1 as [a0 b0| |C1 C2|y1 P1|y1 P1];
+        cbn [FOcode_f] in Hsh1;
+        apply cpair_inj in Hsh1; destruct Hsh1 as [Esh1 Hsh1];
+        try discriminate Esh1.
+      apply cpair_inj in Hsh1. destruct Hsh1 as [Ey1 HP1].
+      subst y1 P Q.
+      destruct (tbl_subst_f_witness _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                  P1 A2 x tc HL3) as [[Hnf HQP]|[s Hs]].
+      + apply FOcode_f_inj in HQP. subst A2.
+        pose proof (FOProvesTn_AllElimT n x FOZero P1
+                      (FOsubst_ok_numeral P1 x 0)) as HAE.
+        rewrite (FOsubst_f_not_free P1 x FOZero Hnf) in HAE.
+        exact HAE.
+      + pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                      4 x tc (FOcode_f P1) 1 HL4) as M4.
+        cbn [mspec] in M4.
+        specialize (M4 s P1 Hs eq_refl).
+        destruct (FOsubst_ok x s P1) eqn:EOK; [|discriminate M4].
+        pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                      3 x tc (FOcode_f P1) (FOcode_f A2) HL3) as M3.
+        cbn [mspec] in M3.
+        specialize (M3 s P1 Hs eq_refl).
+        apply FOcode_f_inj in M3. subst A2.
+        apply FOProvesTn_AllElimT. exact EOK.
+    - (* exists-introduction *)
+      destruct Hj3 as [x [tc [P [Q [Hpl [Hsh [HL4 HL3]]]]]]].
+      destruct B as [a0 b0| |A1 A2|y0 B0|y0 B0];
+        cbn [FOcode_f] in Hsh;
+        apply cpair_inj in Hsh; destruct Hsh as [Esh Hsh];
+        try discriminate Esh.
+      apply cpair_inj in Hsh. destruct Hsh as [Hsh1 Hsh2].
+      destruct A2 as [a0 b0| |C1 C2|y1 P1|y1 P1];
+        cbn [FOcode_f] in Hsh2;
+        apply cpair_inj in Hsh2; destruct Hsh2 as [Esh2 Hsh2];
+        try discriminate Esh2.
+      apply cpair_inj in Hsh2. destruct Hsh2 as [Ey1 HP1].
+      subst y1 P Q.
+      destruct (tbl_subst_f_witness _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                  P1 A1 x tc HL3) as [[Hnf HQP]|[s Hs]].
+      + apply FOcode_f_inj in HQP. subst A1.
+        pose proof (FOProvesTn_ExIntroT n x FOZero P1
+                      (FOsubst_ok_numeral P1 x 0)) as HAE.
+        rewrite (FOsubst_f_not_free P1 x FOZero Hnf) in HAE.
+        exact HAE.
+      + pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                      4 x tc (FOcode_f P1) 1 HL4) as M4.
+        cbn [mspec] in M4.
+        specialize (M4 s P1 Hs eq_refl).
+        destruct (FOsubst_ok x s P1) eqn:EOK; [|discriminate M4].
+        pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                      3 x tc (FOcode_f P1) (FOcode_f A1) HL3) as M3.
+        cbn [mspec] in M3.
+        specialize (M3 s P1 Hs eq_refl).
+        apply FOcode_f_inj in M3. subst A1.
+        apply FOProvesTn_ExIntroT. exact EOK.
+    - (* modus ponens *)
+      destruct Hj4 as [i' [j' [bi [bj [Hpl [Hii' [Hjj' [Hbi [Hbj
+        Hsh]]]]]]]]].
+      pose proof (Hguard i' ltac:(lia)) as [rgi Hrowi].
+      rewrite Hbi in Hrowi.
+      destruct (tbl_genuine_f _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                  _ _ _ _ Hrowi (Nat.lt_succ_diag_r bi)) as [Bi EBi].
+      pose proof (Hguard j' ltac:(lia)) as [rgj Hrowj].
+      rewrite Hbj in Hrowj.
+      destruct (tbl_genuine_f _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                  _ _ _ _ Hrowj (Nat.lt_succ_diag_r bj)) as [Bj EBj].
+      rewrite EBi, EBj in Hsh.
+      assert (EBi2 : Bi = FOImplF Bj B).
+      { apply FOcode_f_inj. cbn [FOcode_f]. exact Hsh. }
+      apply (FOProvesTn_MP n Bj B).
+      + assert (PBi : FOProvesTn n Bi).
+        { apply (IHm i' ltac:(lia) ltac:(lia)). congruence. }
+        rewrite EBi2 in PBi. exact PBi.
+      + apply (IHm j' ltac:(lia) ltac:(lia)). congruence.
+    - (* generalization *)
+      destruct Hj5 as [Hpli [bb [x [Hbb Hsh]]]].
+      pose proof (Hguard pl ltac:(lia)) as [rgb Hrowb].
+      rewrite Hbb in Hrowb.
+      destruct (tbl_genuine_f _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                  _ _ _ _ Hrowb (Nat.lt_succ_diag_r bb)) as [Bb EBb].
+      rewrite EBb in Hsh.
+      assert (EA : B = FOForall x Bb).
+      { apply FOcode_f_inj. cbn [FOcode_f]. exact Hsh. }
+      rewrite EA.
+      apply FOProvesTn_Gen.
+      apply (IHm pl ltac:(lia) ltac:(lia)). congruence.
+    - (* Loeb *)
+      destruct Hj6 as [Hpli [bj [nu [core [na [p [Hbj [H5u [H3c [H5a
+        [H3p Hsh]]]]]]]]]]].
+      pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                    5 (FOcode_f (FOPRMAT (FOPrCores n))) 0 0 nu H5u)
+        as M5u.
+      cbn [mspec] in M5u.
+      pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                    3 0 nu (FOcode_f (FOPRMAT (FOPrCores n))) core
+                    H3c) as M3c.
+      cbn [mspec] in M3c.
+      specialize (M3c (FOnumeral (FOcode_f (FOPRMAT (FOPrCores n))))
+                    (FOPRMAT (FOPrCores n)) M5u eq_refl).
+      rewrite FOsubst_f_num in M3c.
+      pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                    5 (FOcode_f B) 0 0 na H5a) as M5a.
+      cbn [mspec] in M5a.
+      pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                    3 1 na core p H3p) as M3p.
+      cbn [mspec] in M3p.
+      specialize (M3p (FOnumeral (FOcode_f B))
+                    (FOsubst_num 0
+                       (FOcode_f (FOPRMAT (FOPrCores n)))
+                       (FOPRMAT (FOPrCores n))) M5a M3c).
+      rewrite FOsubst_f_num in M3p.
+      pose proof (Hguard pl ltac:(lia)) as [rgb Hrowb].
+      rewrite Hbj in Hrowb.
+      destruct (tbl_genuine_f _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                  _ _ _ _ Hrowb (Nat.lt_succ_diag_r bj)) as [Bj EBj].
+      rewrite EBj in Hsh.
+      rewrite M3p in Hsh.
+      assert (EBj2 : Bj = FOImplF
+        (FOsubst_num 1 (FOcode_f B)
+           (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores n)))
+              (FOPRMAT (FOPrCores n)))) B).
+      { apply FOcode_f_inj. cbn [FOcode_f]. exact Hsh. }
+      apply FOProvesTn_Loeb.
+      assert (PBj : FOProvesTn n Bj).
+      { apply (IHm pl ltac:(lia) ltac:(lia)). congruence. }
+      rewrite EBj2 in PBj. exact PBj. }
+  destruct Hlast as [m [Hvdlen Hbeta]].
+  apply (MAIN (S m) m); [lia | rewrite Hvdlen; lia | exact Hbeta].
+Qed.
+
 Definition FOInconsistent (n : nat) : Prop := FOProvesTn n FOFalseF.
 
 (** The tower summary — cumulativity of derivability, strict axiom
