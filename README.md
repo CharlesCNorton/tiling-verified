@@ -89,6 +89,16 @@ assumed-positivity or type-in-type escapes.
 - `proof_theoretic_ordinal_summary`
   The proof-theoretic ordinal of GLP is bounded by Veblen_eps0_ordinal.
 
+- `FOProvSentence_sat_iff`
+  Satisfaction of the level-n Sigma_1 provability sentence coincides
+  with derivability in T_n — representability for the reflection tower.
+
+- `arithmetic_layer_summary`
+  The first-order arithmetic layer in one statement: the HBL conditions
+  and Loeb's rule against N-satisfaction, tower soundness, Goedel's
+  second incompleteness theorem at every level, and the transposed
+  Solovay, Japaridze, and Pi_2 theorems.
+
 ## Files
 
 - `Tiling.v` — the whole development: calculus, Hilbert combinators,
@@ -139,10 +149,18 @@ machine-checked refutation together with the strongest true variant.
   (`sambin_uniqueness_modalised`), and the proof-theoretic ordinal
   bound at the `V_gamma0` Veblen atom
   (`GLP_proof_height_below_Gamma_0`).
-
-The first-order layer additionally carries N-satisfaction (`FOsat`) with
-soundness of the T_n tower (`FOProvesTn_sound`,
-`FOProvesTn_consistent`).
+- The first-order arithmetic layer: a reflection tower `FOProvesTn`
+  over Robinson arithmetic with D2/D3/monotonicity schemes below each
+  level, N-satisfaction `FOsat`, a checker-verified Sigma_1
+  provability sentence with `FOProvSentence_sat_iff`, the
+  Hilbert-Bernays-Loeb conditions and Loeb's rule against `FOsat`,
+  stratified soundness and Goedel's second incompleteness theorem at
+  every level, and the four headline theorems transposed to
+  `FOProvesTn`/`FOsat`: `FOSolovay_first_full`,
+  `FOSolovay_second_full`, `FOJaparidze_full_via_tree`,
+  `FOPi_2_conservativity`, with the level-0 truth-completeness
+  refutations marking the Solovay boundary. Bundle
+  `arithmetic_layer_summary`.
 
 ## Tutorial
 
@@ -182,6 +200,15 @@ The development proceeds in the following stages:
    algebra, Stone duality at canonical worlds, Esakia-style duality
    between LT and canonical frames, FrameMorphism record with
    identity/composition laws.
+
+10. **Arithmetic layer.** First-order terms and formulas over 0, S, +,
+    *, with equality, order, and quantifiers; N-satisfaction `FOsat`;
+    Goedel coding of the syntax; the reflection tower `FOProvesTn` with
+    D2/D3/monotonicity schemes below each level; the beta-coded proof
+    checker and its arithmetization; the Sigma_1 provability sentence
+    and the representability bridge; HBL, Loeb, soundness, and Goedel
+    II against `FOsat`; the embedding `FOembed` and the transposed
+    headline theorems.
 
 ## Cross-references
 

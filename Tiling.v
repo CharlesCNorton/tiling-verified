@@ -35469,6 +35469,389 @@ Proof.
   - exact Pi_2_not_box_free_restriction.
 Qed.
 
+(** ** The arithmetic layer: the four headline theorems over [FOProvesTn]
+    and [FOsat].
+
+    Interpretations are [Form -> FOFormula] maps commuting with
+    implication and falsity and sending [Box n] to the level-[n]
+    provability sentence ([is_FO_arithmetic_interpretation]); the
+    standard model is [FOsat]; provability is derivability in the
+    reflection tower.  Completeness on the box-free fragment goes
+    through a Boolean-valuation family: every interpretation factors
+    through [FOembed] ([FO_interpretation_factors]), and the closed
+    atoms [FOTopFm]/[FOFalseF] realize every classical valuation.  On
+    the level-0 fragment the literal truth-completeness for GL fails:
+    the reflection instance [Impl (Box 0 (Var 0)) (Var 0)] is true
+    under every interpretation by tower soundness
+    ([FOProvesTn_sound]) but is not a GL theorem, so recovering GL
+    from truth at the standard model requires Solovay's nonstandard
+    construction rather than this tower's soundness
+    ([FOSolovay_first_truth_completeness_refuted]).  The tower
+    transposes Solovay's second theorem as truth strictly exceeding
+    every level's derivability ([FOSolovay_second_full], witness the
+    level-0 consistency sentence via [FOGodel2]), the Japaridze tree
+    theorem as box-free tree-validation completeness plus the strict
+    growth of the tower ([FOJaparidze_full_via_tree],
+    [FOJaparidze_tower_strict]), and Pi_2 conservativity over the
+    [FOForall]/[FOExists] class as witness extraction plus Sigma_1
+    conservativity of every level over the base
+    ([FOPi_2_conservativity]). *)
+
+Lemma eval_Impl_true_iff : forall val a b,
+  eval val (Impl a b) = true <->
+  (eval val a = true -> eval val b = true).
+Proof.
+  intros val a b. cbn [eval].
+  destruct (eval val a); destruct (eval val b); cbn;
+    split; intros H;
+    try reflexivity; try discriminate;
+    try (intros H2; reflexivity);
+    try (intros H2; discriminate H2);
+    try (apply H; reflexivity).
+Qed.
+
+Definition FOof_bool (b : bool) : FOFormula :=
+  if b then FOTopFm else FOFalseF.
+
+Lemma FOsat_FOof_bool : forall e b,
+  FOsat e (FOof_bool b) <-> b = true.
+Proof.
+  intros e b. destruct b; cbn.
+  - split; [intros _; reflexivity | intros _ HF; exact HF].
+  - split; [intros HF; exfalso; exact HF | intro Hb; discriminate Hb].
+Qed.
+
+(** Satisfaction of a box-free embedding over Boolean-valued atoms is
+    classical evaluation. *)
+
+Lemma FOembed_bool_box_free_sat : forall phi val e,
+  box_free phi ->
+  (FOsat e (FOembed (fun p => FOof_bool (val p)) phi) <->
+   eval val phi = true).
+Proof.
+  induction phi as [p | | a IHa b IHb | n a IHa]; intros val e Hbf.
+  - cbn [FOembed eval]. apply FOsat_FOof_bool.
+  - cbn [FOembed FOsat eval].
+    split; [intros HF; destruct HF | intro Hb; discriminate Hb].
+  - destruct Hbf as [Hba Hbb].
+    cbn [FOembed FOsat].
+    rewrite eval_Impl_true_iff.
+    split.
+    + intros Himp Ha.
+      apply (IHb val e Hbb). apply Himp. apply (IHa val e Hba). exact Ha.
+    + intros Hev Hsa.
+      apply (IHb val e Hbb). apply Hev. apply (IHa val e Hba). exact Hsa.
+  - exfalso; exact Hbf.
+Qed.
+
+(** Satisfaction of a box-free embedding over arbitrary atoms is
+    classical evaluation at the valuation reading off each atom's
+    truth. *)
+
+Lemma FOembed_box_free_sat_eval : forall phi nu e,
+  box_free phi ->
+  (FOsat e (FOembed nu phi) <->
+   eval (fun p => if excluded_middle_informative (FOsat e (nu p))
+                  then true else false) phi = true).
+Proof.
+  induction phi as [p | | a IHa b IHb | n a IHa]; intros nu e Hbf.
+  - cbn [FOembed eval].
+    destruct (excluded_middle_informative (FOsat e (nu p))) as [Hs|Hs].
+    + split; [intros _; reflexivity | intros _; exact Hs].
+    + split; [intro Hc; exfalso; exact (Hs Hc) | intro Hc; discriminate Hc].
+  - cbn [FOembed FOsat eval].
+    split; [intros HF; destruct HF | intro Hb; discriminate Hb].
+  - destruct Hbf as [Hba Hbb].
+    cbn [FOembed FOsat].
+    rewrite eval_Impl_true_iff.
+    split.
+    + intros Himp Ha.
+      apply (IHb nu e Hbb). apply Himp. apply (IHa nu e Hba). exact Ha.
+    + intros Hev Hsa.
+      apply (IHb nu e Hbb). apply Hev. apply (IHa nu e Hba). exact Hsa.
+  - exfalso; exact Hbf.
+Qed.
+
+(** The reflection instance at an atom is not a GL theorem: it fails in
+    [Fnat] at world 1 under the valuation marking only world 0. *)
+
+Lemma reflection_axiom_not_GL_provable :
+  ~ Provable_GL (Impl (Box 0 (Var 0)) (Var 0)).
+Proof.
+  intro HGL.
+  pose proof (GL_in_provable _ HGL) as Hp.
+  pose proof (soundness _ Hp Fnat (fun w _ => Nat.eqb w 0) 1) as Hf.
+  cbn in Hf.
+  assert (Hant : forall v : nat, Fnat_R 0 1 v -> Nat.eqb v 0 = true).
+  { intros v Hv. destruct Hv as [Hv1 Hv2].
+    assert (v = 0) by lia. subst v. reflexivity. }
+  pose proof (Hf Hant) as Hbad. cbn in Hbad. discriminate Hbad.
+Qed.
+
+(** Solovay's first theorem over the tower: on the box-free fragment,
+    truth under every arithmetic interpretation coincides with GL
+    derivability. *)
+
+Theorem FOSolovay_first_full : forall phi,
+  box_free phi ->
+  ((forall J, is_FO_arithmetic_interpretation J ->
+      forall e, FOsat e (J phi)) <-> Provable_GL phi).
+Proof.
+  intros phi Hbf. split.
+  - intro H.
+    apply ProvableProp_to_Provable_GL.
+    apply prop_completeness; [exact Hbf|].
+    intro val.
+    apply (FOembed_bool_box_free_sat phi val (fun _ => 0) Hbf).
+    exact (H (FOembed (fun p => FOof_bool (val p)))
+             (FOembed_proper _) (fun _ => 0)).
+  - intros HGL J HJ e.
+    rewrite (FO_interpretation_factors J HJ phi).
+    apply (FOembed_box_free_sat_eval phi (fun p => J (Var p)) e Hbf).
+    apply (provable_classically_valid phi (GL_in_provable _ HGL)).
+Qed.
+
+(** On the level-0 fragment with boxes the truth hypothesis is weaker
+    than GL derivability: the reflection instance is true under every
+    interpretation by tower soundness yet GL-unprovable. *)
+
+Theorem FOSolovay_first_truth_completeness_refuted :
+  ~ (forall phi, level_0_only phi ->
+       (forall J, is_FO_arithmetic_interpretation J ->
+          forall e, FOsat e (J phi)) ->
+       Provable_GL phi).
+Proof.
+  intro Hfull.
+  apply reflection_axiom_not_GL_provable.
+  apply Hfull.
+  - cbn. split; [split; [reflexivity | exact I] | exact I].
+  - intros J HJ e.
+    destruct HJ as [HI [HB HX]].
+    rewrite HI, HX.
+    cbn [FOsat]. intro Hp.
+    exact (FOProvesTn_sound 0 (J (Var 0))
+             (proj1 (FOProvSentence_sat_iff e 0 (J (Var 0))) Hp) e).
+Qed.
+
+(** Solovay's second theorem over the tower: derivability yields truth
+    of both the formula and its provability sentence, and truth
+    strictly exceeds derivability — the level-0 consistency sentence is
+    true and underivable. *)
+
+Theorem FOSolovay_second_full :
+  (forall n A, FOProvesTn n A ->
+     (forall e, FOsat e (FOProvSentence n A)) /\ (forall e, FOsat e A)) /\
+  (exists A, (forall e, FOsat e A) /\ ~ FOProvesTn 0 A).
+Proof.
+  split.
+  - intros n A H. split.
+    + intro e. apply FOHBL1_sat. exact H.
+    + intro e. exact (FOProvesTn_sound n A H e).
+  - exists (FONeg (FOProvSentence 0 FOFalseF)). split.
+    + intro e. exact (FOConSentenceF_true e 0).
+    + exact (FOGodel2 0).
+Qed.
+
+(** Tree validation over the Solovay tree, with images read through
+    [FOsat]. *)
+
+Fixpoint FOtree_validates (J : Form -> FOFormula) (u : Solovay_node) : Prop :=
+  match u with
+  | sol_root => True
+  | sol_child p _ f => FOtree_validates J p /\ forall e, FOsat e (J f)
+  end.
+
+(** Japaridze's theorem over the tower: box-free tree validation under
+    every arithmetic interpretation yields GLP derivability. *)
+
+Theorem FOJaparidze_full_via_tree : forall phi,
+  box_free phi ->
+  (forall J, is_FO_arithmetic_interpretation J ->
+     FOtree_validates J (build_solovay_tree phi)) ->
+  Provable_full_GLP phi.
+Proof.
+  intros phi Hbf H.
+  apply ProvableProp_implies_Provable_GLP.
+  apply prop_completeness; [exact Hbf|].
+  intro val.
+  pose proof (H (FOembed (fun p => FOof_bool (val p)))
+                (FOembed_proper _)) as Hv.
+  cbn [FOtree_validates build_solovay_tree] in Hv.
+  destruct Hv as [_ Hsat].
+  apply (FOembed_bool_box_free_sat phi val (fun _ => 0) Hbf).
+  exact (Hsat (fun _ => 0)).
+Qed.
+
+(** The unrestricted tree statement fails on the same reflection
+    witness. *)
+
+Theorem FOJaparidze_full_unrestricted_refuted :
+  ~ (forall phi,
+       (forall J, is_FO_arithmetic_interpretation J ->
+          FOtree_validates J (build_solovay_tree phi)) ->
+       Provable_full_GLP phi).
+Proof.
+  intro Hfull.
+  apply reflection_axiom_not_GL_provable.
+  apply (GLP_level_0_conservativity (Impl (Box 0 (Var 0)) (Var 0))).
+  - cbn. split; [split; [reflexivity | exact I] | exact I].
+  - apply Hfull.
+    intros J HJ.
+    cbn [FOtree_validates build_solovay_tree].
+    split; [exact I|].
+    intro e.
+    destruct HJ as [HI [HB HX]].
+    rewrite HI, HX.
+    cbn [FOsat]. intro Hp.
+    exact (FOProvesTn_sound 0 (J (Var 0))
+             (proj1 (FOProvSentence_sat_iff e 0 (J (Var 0))) Hp) e).
+Qed.
+
+(** The realized tower grows strictly at every level: the level-[n]
+    consistency sentence is the [FOAx_Refl] instance at falsity one
+    level up, and is underivable at its own level by Goedel's second
+    incompleteness theorem. *)
+
+Theorem FOJaparidze_tower_strict : forall n,
+  FOProvesTn (S n) (FONeg (FOProvSentence n FOFalseF)) /\
+  ~ FOProvesTn n (FONeg (FOProvSentence n FOFalseF)).
+Proof.
+  intro n. split.
+  - apply FOProvesTn_ax.
+    exact (FOAx_Refl (S n) n FOFalseF (Nat.lt_succ_diag_r n)).
+  - exact (FOGodel2 n).
+Qed.
+
+(** The Pi_2 class over [FOFormula], in [FOForall]/[FOExists] shape. *)
+
+Definition is_FO_Pi_2 (A : FOFormula) : Prop :=
+  exists x y D, FOdelta0 D /\ A = FOForall x (FOExists y D).
+
+(** Derivable Pi_2 sentences yield witnesses in the standard model. *)
+
+Theorem FOPi_2_conservativity_witnesses : forall n x y D,
+  FOdelta0 D ->
+  FOProvesTn n (FOForall x (FOExists y D)) ->
+  forall e a, exists b, FOsat (FOupdate (FOupdate e x a) y b) D.
+Proof.
+  intros n x y D _ H e a.
+  pose proof (FOProvesTn_sound n _ H e) as Hs.
+  cbn [FOsat] in Hs.
+  exact (Hs a).
+Qed.
+
+(** Every tower level is Sigma_1-conservative over the base: a closed
+    Sigma_1 sentence derivable at any level is true, hence derivable at
+    level 0 by Sigma_1 completeness. *)
+
+Theorem FOSigma_1_conservativity : forall n A,
+  FOsigma1 A -> (forall v, FOfree_in v A = false) ->
+  FOProvesTn n A -> FOProvesTn 0 A.
+Proof.
+  intros n A HS Hcl H.
+  exact (FOsigma1_completeness_closed A HS Hcl
+           (FOProvesTn_sound n A H (fun _ => 0)) 0).
+Qed.
+
+Theorem FOPi_2_nonvacuous :
+  exists A, is_FO_Pi_2 A /\ FOProvesTn 0 A.
+Proof.
+  exists (FOForall 0 (FOExists 1 (FOEq (FOVar 1) (FOVar 0)))).
+  split.
+  - exists 0, 1, (FOEq (FOVar 1) (FOVar 0)).
+    split; [apply FOd0_eq | reflexivity].
+  - apply FOProvesTn_Gen.
+    eapply FOProvesTn_MP.
+    + exact (FOProvesTn_ExIntroT 0 1 (FOVar 0)
+               (FOEq (FOVar 1) (FOVar 0)) eq_refl).
+    + cbn. apply FOProvesTn_EqRefl.
+Qed.
+
+(** Pi_2 conservativity over the tower: witness extraction for
+    derivable Pi_2 sentences, Sigma_1 conservativity of every level
+    over the base, a derivable Pi_2 inhabitant, and the failure of
+    downward conservativity at Pi_1 (the consistency sentence). *)
+
+Theorem FOPi_2_conservativity :
+  (forall n x y D, FOdelta0 D ->
+     FOProvesTn n (FOForall x (FOExists y D)) ->
+     forall e a, exists b, FOsat (FOupdate (FOupdate e x a) y b) D) /\
+  (forall n A, FOsigma1 A -> (forall v, FOfree_in v A = false) ->
+     FOProvesTn n A -> FOProvesTn 0 A) /\
+  (exists A, is_FO_Pi_2 A /\ FOProvesTn 0 A) /\
+  (exists A, (forall v, FOfree_in v A = false) /\
+     FOProvesTn 1 A /\ ~ FOProvesTn 0 A).
+Proof.
+  split; [|split; [|split]].
+  - exact FOPi_2_conservativity_witnesses.
+  - exact FOSigma_1_conservativity.
+  - exact FOPi_2_nonvacuous.
+  - exists (FONeg (FOProvSentence 0 FOFalseF)).
+    destruct (FOJaparidze_tower_strict 0) as [H1 H0].
+    split; [|split].
+    + intro v. unfold FONeg. cbn [FOfree_in].
+      rewrite FOProvSentence_closed. reflexivity.
+    + exact H1.
+    + exact H0.
+Qed.
+
+(** The arithmetic layer in one statement: representability of
+    derivability by the Sigma_1 provability sentence, the
+    Hilbert-Bernays-Loeb conditions and Loeb's rule against [FOsat],
+    soundness at the standard model, Goedel's second incompleteness
+    theorem at every level, and the four transposed headline
+    theorems. *)
+
+Theorem arithmetic_layer_summary :
+  (forall e n A, FOsat e (FOProvSentence n A) <-> FOProvesTn n A) /\
+  (forall e n A, FOProvesTn n A -> FOsat e (FOProvSentence n A)) /\
+  (forall e n A B, FOsat e (FOProvSentence n (FOImplF A B)) ->
+     FOsat e (FOProvSentence n A) -> FOsat e (FOProvSentence n B)) /\
+  (forall e n A, FOsat e (FOProvSentence n A) ->
+     FOsat e (FOProvSentence n (FOProvSentence n A))) /\
+  (forall e n A,
+     FOsat e (FOProvSentence n (FOImplF (FOProvSentence n A) A)) ->
+     FOsat e (FOProvSentence n A)) /\
+  (forall n A, FOProvesTn n A -> forall e, FOsat e A) /\
+  (forall n, ~ FOProvesTn n (FONeg (FOProvSentence n FOFalseF))) /\
+  (forall phi, box_free phi ->
+     ((forall J, is_FO_arithmetic_interpretation J ->
+         forall e, FOsat e (J phi)) <-> Provable_GL phi)) /\
+  ((forall n A, FOProvesTn n A ->
+      (forall e, FOsat e (FOProvSentence n A)) /\ (forall e, FOsat e A)) /\
+   (exists A, (forall e, FOsat e A) /\ ~ FOProvesTn 0 A)) /\
+  (forall phi, box_free phi ->
+     (forall J, is_FO_arithmetic_interpretation J ->
+        FOtree_validates J (build_solovay_tree phi)) ->
+     Provable_full_GLP phi) /\
+  (forall n,
+     FOProvesTn (S n) (FONeg (FOProvSentence n FOFalseF)) /\
+     ~ FOProvesTn n (FONeg (FOProvSentence n FOFalseF))) /\
+  ((forall n x y D, FOdelta0 D ->
+      FOProvesTn n (FOForall x (FOExists y D)) ->
+      forall e a, exists b, FOsat (FOupdate (FOupdate e x a) y b) D) /\
+   (forall n A, FOsigma1 A -> (forall v, FOfree_in v A = false) ->
+      FOProvesTn n A -> FOProvesTn 0 A) /\
+   (exists A, is_FO_Pi_2 A /\ FOProvesTn 0 A) /\
+   (exists A, (forall v, FOfree_in v A = false) /\
+      FOProvesTn 1 A /\ ~ FOProvesTn 0 A)).
+Proof.
+  split; [|split; [|split; [|split; [|split; [|split; [|split;
+    [|split; [|split; [|split; [|split]]]]]]]]]].
+  - exact FOProvSentence_sat_iff.
+  - exact FOHBL1_sat.
+  - exact FOHBL2_sat.
+  - exact FOHBL3_sat.
+  - exact FOLoeb_sat.
+  - exact FOProvesTn_sound.
+  - exact FOGodel2.
+  - exact FOSolovay_first_full.
+  - exact FOSolovay_second_full.
+  - exact FOJaparidze_full_via_tree.
+  - exact FOJaparidze_tower_strict.
+  - exact FOPi_2_conservativity.
+Qed.
+
 Definition arith_interp_top_conjunction : Form -> Form := fun phi => And phi Top.
 
 Theorem arith_interp_top_conjunction_is_arithmetic :
