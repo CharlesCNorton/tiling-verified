@@ -91,9 +91,9 @@ assumed-positivity or type-in-type escapes.
 
 ## Files
 
-- `Tiling.v` — the whole development, ~31,000 lines: calculus, Hilbert
-  combinators, Kripke semantics, fixed points, the T_n tower, proof
-  terms, worms, agents, and every section listed below.
+- `Tiling.v` — the whole development: calculus, Hilbert combinators,
+  Kripke semantics, fixed points, the T_n tower, proof terms, worms,
+  agents, and every section listed below.
 - `_CoqProject`, `Makefile` — build configuration.
 - `todo.md` — the open research programs, ordered by logical completion.
 
@@ -105,14 +105,14 @@ current `todo.md` tracks their successor programs). Where a program's
 literal statement is mathematically false, the resolution is a
 machine-checked refutation together with the strongest true variant.
 
-- Solovay first/second arithmetic completeness: the unrestricted
-  statements fail (witness `Box 5 Top`); the level-0 forms hold via the
-  `VS` reflection semantics. Bundles `Solovay_first_summary`,
+- Solovay first/second arithmetic completeness: the level-0 forms hold
+  via the `VS` reflection semantics, and the unrestricted statements are
+  refuted outright (witness `Box 5 Top`). Bundles `Solovay_first_summary`,
   `Solovay_second_summary`.
 - Pi_2-conservativity of GLP over GL by structural
   `glp_forget_derivation`. Bundle `Pi_2_conservativity_summary`.
-- Carlson speedup with `Bew_term` proof objects; the `n = 0` bound
-  fails and the speedup is infinite. Bundle `Carlson_speedup_summary`.
+- Carlson speedup with `Bew_term` proof objects: the speedup is
+  infinite, refuting the `n = 0` bound. Bundle `Carlson_speedup_summary`.
 - `LT_GLP` is the free polymodal Magari algebra; uniqueness by
   structural calculation. Bundle `LT_GLP_free_summary`.
 - Stone-duality category equivalence with `ECat`/`EFunctor` records and
@@ -126,14 +126,15 @@ machine-checked refutation together with the strongest true variant.
 - Curry-Howard realizer extraction: the lambda-box calculus with graded
   box intro/elim, size-decreasing reduction, `extract_realizer_typed`
   and `extract_realizer_reduces`. Bundle `lambda_box_realizer_summary`.
-- Polymodal Craig interpolation: the box-level-constrained (Lyndon)
-  form fails by the Mon axiom; the box-free four-condition form holds.
+- Polymodal Craig interpolation: the box-free four-condition form
+  holds; the Mon axiom refutes the box-level-constrained (Lyndon) form.
   Bundle `craig_polymodal_summary`.
 - Reverse-math subsystem calculi with a strict Big-Five hierarchy via
   the reflection/consistency tower. Bundle `reverse_math_summary`.
 - GLP* decidability: a measure-recursive decider for the
-  box-tower-over-box-free fragment, with the non-compositionality
-  obstructions to a total naive decider. Bundle `glp_decide_summary`.
+  box-tower-over-box-free fragment, plus the non-compositionality
+  theorems that pin a total decider to the finite/topological model
+  route (todo.md item 8). Bundle `glp_decide_summary`.
 - Sambin uniqueness for arbitrary modalised contexts
   (`sambin_uniqueness_modalised`), and the proof-theoretic ordinal
   bound at the `V_gamma0` Veblen atom
