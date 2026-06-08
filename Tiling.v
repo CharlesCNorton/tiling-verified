@@ -35127,6 +35127,35 @@ Proof.
     Hz Hs).
 Qed.
 
+(** Both sides of an equation discharged under a common hypothesis:
+    symmetry and transitivity in the [H -> _] reader, composed from the
+    bare [EqSym]/[EqTrans] axioms.  These shrink the equational chains in
+    the Euclidean-division step, where every fact arrives as an
+    antecedent (a conjunct of the body or the witness equation) rather
+    than as a standalone theorem. *)
+
+Lemma FOPr_imp_eq_sym : forall n H a b,
+  FOProvesTn n (FOImplF H (FOEq a b)) ->
+  FOProvesTn n (FOImplF H (FOEq b a)).
+Proof.
+  intros n H a b Hab.
+  exact (FOPr_compose n H (FOEq a b) (FOEq b a) Hab
+           (FOProvesTn_EqSym n a b)).
+Qed.
+
+Lemma FOPr_imp_eq_trans : forall n H a b c,
+  FOProvesTn n (FOImplF H (FOEq a b)) ->
+  FOProvesTn n (FOImplF H (FOEq b c)) ->
+  FOProvesTn n (FOImplF H (FOEq a c)).
+Proof.
+  intros n H a b c Hab Hbc.
+  exact (FOPr_under_mp n H (FOEq b c) (FOEq a c)
+           (FOPr_compose n H (FOEq a b)
+              (FOImplF (FOEq b c) (FOEq a c)) Hab
+              (FOProvesTn_EqTrans n a b c))
+           Hbc).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
