@@ -33726,6 +33726,46 @@ Proof.
            H1 (FOPr_congPlus_r n a b c)).
 Qed.
 
+(** The same congruences for [*]. *)
+
+Lemma FOPr_congMult_l : forall n a b c,
+  FOProvesTn n (FOImplF (FOEq a b) (FOEq (FOMult a c) (FOMult b c))).
+Proof.
+  intros n a b c.
+  exact (FOProvesTn_MP n _ _
+    (FOProvesTn_MP n _ _
+      (FOPr_imp_swap n (FOEq a b) (FOEq c c)
+         (FOEq (FOMult a c) (FOMult b c)))
+      (FOProvesTn_CongMult n a b c c))
+    (FOProvesTn_EqRefl n c)).
+Qed.
+
+Lemma FOPr_congMult_r : forall n a b c,
+  FOProvesTn n (FOImplF (FOEq b c) (FOEq (FOMult a b) (FOMult a c))).
+Proof.
+  intros n a b c.
+  exact (FOProvesTn_MP n _ _
+    (FOProvesTn_CongMult n a a b c) (FOProvesTn_EqRefl n a)).
+Qed.
+
+Lemma FOPr_imp_eq_congMult_l : forall n H a b c,
+  FOProvesTn n (FOImplF H (FOEq a b)) ->
+  FOProvesTn n (FOImplF H (FOEq (FOMult a c) (FOMult b c))).
+Proof.
+  intros n H a b c H1.
+  exact (FOPr_compose n H (FOEq a b) (FOEq (FOMult a c) (FOMult b c))
+           H1 (FOPr_congMult_l n a b c)).
+Qed.
+
+Lemma FOPr_imp_eq_congMult_r : forall n H a b c,
+  FOProvesTn n (FOImplF H (FOEq b c)) ->
+  FOProvesTn n (FOImplF H (FOEq (FOMult a b) (FOMult a c))).
+Proof.
+  intros n H a b c H1.
+  exact (FOPr_compose n H (FOEq b c) (FOEq (FOMult a b) (FOMult a c))
+           H1 (FOPr_congMult_r n a b c)).
+Qed.
+
 (** ** Object-level induction at work.
 
     Robinson [Q] proves [a + 0 = a] and [a + S b = S (a + b)] but not
