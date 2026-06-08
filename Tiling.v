@@ -33932,6 +33932,54 @@ Proof.
   - exact (FOPr_idf n (FOEq (FOMult FOZero (FOVar 0)) FOZero)).
 Qed.
 
+(** Fresh-variable restatements of the additive laws, obtained by
+    instantiating the committed [0..2]-indexed versions at the fresh
+    indices [7..9] (capture-free, [subst_ok] by computation) and
+    re-generalising.  These can then be instantiated at terms over the
+    low working variables [0..2] without variable capture — the form the
+    multiplicative laws need. *)
+
+Lemma FOPr_succ_plus_fv : forall n,
+  FOProvesTn n (FOForall 7 (FOForall 8
+    (FOEq (FOPlus (FOSucc (FOVar 7)) (FOVar 8))
+          (FOSucc (FOPlus (FOVar 7) (FOVar 8)))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 1 (FOVar 8)
+       (FOEq (FOPlus (FOSucc (FOVar 7)) (FOVar 1))
+             (FOSucc (FOPlus (FOVar 7) (FOVar 1)))) eq_refl)).
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 0 (FOVar 7)
+       (FOForall 1 (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+             (FOSucc (FOPlus (FOVar 0) (FOVar 1))))) eq_refl)).
+  exact (FOPr_succ_plus n).
+Qed.
+
+Lemma FOPr_plus_assoc_fv : forall n,
+  FOProvesTn n (FOForall 7 (FOForall 8 (FOForall 9
+    (FOEq (FOPlus (FOPlus (FOVar 7) (FOVar 8)) (FOVar 9))
+          (FOPlus (FOVar 7) (FOPlus (FOVar 8) (FOVar 9))))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 2 (FOVar 9)
+       (FOEq (FOPlus (FOPlus (FOVar 7) (FOVar 8)) (FOVar 2))
+             (FOPlus (FOVar 7) (FOPlus (FOVar 8) (FOVar 2)))) eq_refl)).
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 1 (FOVar 8)
+       (FOForall 2 (FOEq (FOPlus (FOPlus (FOVar 7) (FOVar 1)) (FOVar 2))
+             (FOPlus (FOVar 7) (FOPlus (FOVar 1) (FOVar 2))))) eq_refl)).
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 0 (FOVar 7)
+       (FOForall 1 (FOForall 2
+          (FOEq (FOPlus (FOPlus (FOVar 0) (FOVar 1)) (FOVar 2))
+                (FOPlus (FOVar 0) (FOPlus (FOVar 1) (FOVar 2)))))) eq_refl)).
+  exact (FOPr_plus_assoc n).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
