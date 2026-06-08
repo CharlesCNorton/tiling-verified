@@ -34939,6 +34939,54 @@ Proof.
   - exact Hneq.
 Qed.
 
+(** Two building blocks for the successor-trichotomy.  From [t + w = b]:
+    if [w = 0] then [t = b]; and [S x + S y = b] gives [S x < b]
+    (existential introduction at witness [y]). *)
+
+Lemma FOPr_eq_of_add_zero : forall n,
+  FOProvesTn n (FOForall 0 (FOForall 1 (FOForall 2
+    (FOImplF (FOEq (FOVar 2) FOZero)
+       (FOImplF (FOEq (FOPlus (FOVar 0) (FOVar 2)) (FOVar 1))
+                (FOEq (FOVar 0) (FOVar 1))))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  assert (He : FOProvesTn n
+    (FOImplF (FOEq (FOVar 2) FOZero)
+             (FOEq (FOPlus (FOVar 0) (FOVar 2)) (FOVar 0)))).
+  { apply (FOPr_imp_eq_trans_r n (FOEq (FOVar 2) FOZero)
+      (FOPlus (FOVar 0) (FOVar 2)) (FOPlus (FOVar 0) FOZero) (FOVar 0)).
+    - apply (FOPr_imp_eq_congPlus_r n (FOEq (FOVar 2) FOZero)
+        (FOVar 0) (FOVar 2) FOZero).
+      exact (FOPr_idf n (FOEq (FOVar 2) FOZero)).
+    - exact (FOPr_q_plus_zero n (FOVar 0)). }
+  exact (FOPr_compose n (FOEq (FOVar 2) FOZero)
+    (FOEq (FOPlus (FOVar 0) (FOVar 2)) (FOVar 0))
+    (FOImplF (FOEq (FOPlus (FOVar 0) (FOVar 2)) (FOVar 1))
+             (FOEq (FOVar 0) (FOVar 1)))
+    He
+    (FOPr_compose n
+       (FOEq (FOPlus (FOVar 0) (FOVar 2)) (FOVar 0))
+       (FOEq (FOVar 0) (FOPlus (FOVar 0) (FOVar 2)))
+       (FOImplF (FOEq (FOPlus (FOVar 0) (FOVar 2)) (FOVar 1))
+                (FOEq (FOVar 0) (FOVar 1)))
+       (FOProvesTn_EqSym n (FOPlus (FOVar 0) (FOVar 2)) (FOVar 0))
+       (FOProvesTn_EqTrans n (FOVar 0) (FOPlus (FOVar 0) (FOVar 2))
+          (FOVar 1)))).
+Qed.
+
+Lemma FOPr_lt_of_add_succ : forall n,
+  FOProvesTn n (FOForall 0 (FOForall 1 (FOForall 2
+    (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2))) (FOVar 1))
+             (FOLtF (FOSucc (FOVar 0)) (FOVar 1)))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  unfold FOLtF. cbn [FOmax_var_tm Nat.max].
+  exact (FOProvesTn_ExIntroT n 2 (FOVar 2)
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2))) (FOVar 1)) eq_refl).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
