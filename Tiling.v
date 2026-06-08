@@ -15837,6 +15837,63 @@ Proof.
         -- rewrite (FOsat_agree_free B _ _ (Hpt v0)). exact Hv0.
 Qed.
 
+(** ** The first-order induction schema and its standard-model soundness.
+
+    Robinson Q proves no nontrivial instance of its own Sigma_1-
+    completeness, so the tower base is strengthened to PA by the full
+    induction schema.  [FOInduction x A] is the curried base/step/
+    conclusion form
+
+      A[x:=0] -> (forall x, A -> A[x:=S x]) -> forall x, A,
+
+    avoiding the [FOAnd] packaging so it applies directly inside
+    derivations and arithmetizes through two ordinary substitution
+    traces.  The schema is true in the standard model by natural-number
+    induction on the bound; [FOInduction_sat] is the soundness
+    obligation discharged when the schema is admitted as a tower axiom. *)
+
+Definition FOInduction (x : nat) (A : FOFormula) : FOFormula :=
+  FOImplF (FOsubst_f x FOZero A)
+    (FOImplF (FOForall x (FOImplF A (FOsubst_f x (FOSucc (FOVar x)) A)))
+       (FOForall x A)).
+
+Lemma FOsubst_ok_succ_var_self : forall A x,
+  FOsubst_ok x (FOSucc (FOVar x)) A = true.
+Proof.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB]; intros x; cbn.
+  - reflexivity.
+  - reflexivity.
+  - rewrite IHB, IHC. reflexivity.
+  - destruct (Nat.eqb_spec y x) as [E|E]; [reflexivity|].
+    destruct (FOfree_in x B); [|reflexivity].
+    cbn. destruct (Nat.eqb_spec x y) as [E2|E2].
+    + exfalso. apply E. symmetry. exact E2.
+    + cbn. exact (IHB x).
+  - destruct (Nat.eqb_spec y x) as [E|E]; [reflexivity|].
+    destruct (FOfree_in x B); [|reflexivity].
+    cbn. destruct (Nat.eqb_spec x y) as [E2|E2].
+    + exfalso. apply E. symmetry. exact E2.
+    + cbn. exact (IHB x).
+Qed.
+
+Lemma FOInduction_sat : forall e x A, FOsat e (FOInduction x A).
+Proof.
+  intros e x A. unfold FOInduction. cbn [FOsat].
+  intros Hbase Hstep v.
+  induction v as [|v IHv].
+  - apply (proj1 (FOsat_subst_f A x FOZero e
+                   (FOsubst_ok_numeral A x 0))) in Hbase.
+    cbn [FOeval] in Hbase. exact Hbase.
+  - specialize (Hstep v). cbn [FOsat] in Hstep.
+    pose proof (Hstep IHv) as Hsucc.
+    apply (proj1 (FOsat_subst_f A x (FOSucc (FOVar x)) (FOupdate e x v)
+                   (FOsubst_ok_succ_var_self A x))) in Hsucc.
+    assert (Hev : FOeval (FOupdate e x v) (FOSucc (FOVar x)) = S v).
+    { cbn. unfold FOupdate. rewrite Nat.eqb_refl. reflexivity. }
+    rewrite Hev in Hsucc.
+    exact (proj1 (FOsat_ext A _ _ (FOupdate_shadow e x v (S v))) Hsucc).
+Qed.
+
 (** The order relation, defined Diophantine-style with a variable above
     both terms. *)
 
