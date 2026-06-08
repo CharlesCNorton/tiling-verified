@@ -33644,6 +33644,46 @@ Proof.
            (FOProvesTn_MP n _ _ (FOProvesTn_CongMult n a b c d) H1) H2).
 Qed.
 
+(** Implication-form equational steps: thread a closed equation onto an
+    equation that is conditional on a hypothesis [H].  These play the
+    role of a deduction theorem for the equational reasoning inside an
+    induction step, where [H] is the induction hypothesis. *)
+
+Lemma FOPr_imp_eq_trans_l : forall n H a b c,
+  FOProvesTn n (FOEq a b) ->
+  FOProvesTn n (FOImplF H (FOEq b c)) ->
+  FOProvesTn n (FOImplF H (FOEq a c)).
+Proof.
+  intros n H a b c Hab Hbc.
+  pose proof (FOPr_compose n H (FOEq a b) (FOImplF (FOEq b c) (FOEq a c))
+                (FOPr_weaken n (FOEq a b) H Hab)
+                (FOProvesTn_EqTrans n a b c)) as Hc.
+  exact (FOProvesTn_MP n _ _
+           (FOProvesTn_MP n _ _ (FOProvesTn_S n H (FOEq b c) (FOEq a c)) Hc)
+           Hbc).
+Qed.
+
+Lemma FOPr_imp_eq_trans_r : forall n H a b c,
+  FOProvesTn n (FOImplF H (FOEq a b)) ->
+  FOProvesTn n (FOEq b c) ->
+  FOProvesTn n (FOImplF H (FOEq a c)).
+Proof.
+  intros n H a b c Hab Hbc.
+  pose proof (FOProvesTn_MP n _ _
+    (FOProvesTn_MP n _ _ (FOPr_imp_swap n (FOEq a b) (FOEq b c) (FOEq a c))
+       (FOProvesTn_EqTrans n a b c)) Hbc) as Hac.
+  exact (FOPr_compose n H (FOEq a b) (FOEq a c) Hab Hac).
+Qed.
+
+Lemma FOPr_imp_eq_congS : forall n H a b,
+  FOProvesTn n (FOImplF H (FOEq a b)) ->
+  FOProvesTn n (FOImplF H (FOEq (FOSucc a) (FOSucc b))).
+Proof.
+  intros n H a b H1.
+  exact (FOPr_compose n H (FOEq a b) (FOEq (FOSucc a) (FOSucc b))
+           H1 (FOProvesTn_CongS n a b)).
+Qed.
+
 (** ** Object-level induction at work.
 
     Robinson [Q] proves [a + 0 = a] and [a + S b = S (a + b)] but not
@@ -33670,6 +33710,56 @@ Proof.
        (FOSucc (FOPlus FOZero (FOVar 0))) (FOSucc (FOVar 0)))
     (FOPr_q_plus_succ n FOZero (FOVar 0))) as Htr.
   exact (FOPr_compose n _ _ _ Hcong Htr).
+Qed.
+
+(** [S x + y = S (x + y)] by induction on [y].  The step chains the
+    successor congruence applied to the hypothesis between the two
+    [Q]-provable [plus_succ] facts, using the implication-form
+    equational steps. *)
+
+Lemma FOPr_succ_plus : forall n,
+  FOProvesTn n (FOForall 0 (FOForall 1
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+          (FOSucc (FOPlus (FOVar 0) (FOVar 1)))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen.
+  pose proof (FOProvesTn_ax n _ (FOAx_Ind n 1
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+          (FOSucc (FOPlus (FOVar 0) (FOVar 1)))))) as Hind.
+  unfold FOInduction in Hind.
+  assert (Hbase : FOProvesTn n
+    (FOEq (FOPlus (FOSucc (FOVar 0)) FOZero)
+          (FOSucc (FOPlus (FOVar 0) FOZero)))).
+  { exact (FOPr_eq_trans n _ (FOSucc (FOVar 0)) _
+             (FOPr_q_plus_zero n (FOSucc (FOVar 0)))
+             (FOPr_eq_sym n _ _
+                (FOPr_eq_congS n _ _ (FOPr_q_plus_zero n (FOVar 0))))). }
+  assert (Hstep : FOProvesTn n (FOForall 1 (FOImplF
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+          (FOSucc (FOPlus (FOVar 0) (FOVar 1))))
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 1)))
+          (FOSucc (FOPlus (FOVar 0) (FOSucc (FOVar 1)))))))).
+  { apply FOProvesTn_Gen.
+    apply (FOPr_imp_eq_trans_r n
+             (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+                   (FOSucc (FOPlus (FOVar 0) (FOVar 1))))
+             (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 1)))
+             (FOSucc (FOSucc (FOPlus (FOVar 0) (FOVar 1))))
+             (FOSucc (FOPlus (FOVar 0) (FOSucc (FOVar 1))))).
+    - apply (FOPr_imp_eq_trans_l n
+               (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+                     (FOSucc (FOPlus (FOVar 0) (FOVar 1))))
+               (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 1)))
+               (FOSucc (FOPlus (FOSucc (FOVar 0)) (FOVar 1)))
+               (FOSucc (FOSucc (FOPlus (FOVar 0) (FOVar 1))))).
+      + exact (FOPr_q_plus_succ n (FOSucc (FOVar 0)) (FOVar 1)).
+      + apply FOPr_imp_eq_congS.
+        exact (FOPr_idf n (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+                                (FOSucc (FOPlus (FOVar 0) (FOVar 1))))).
+    - apply FOPr_eq_sym. apply FOPr_eq_congS.
+      exact (FOPr_q_plus_succ n (FOVar 0) (FOVar 1)). }
+  exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Hind Hbase) Hstep).
 Qed.
 
 (** ** Stratified soundness of the tower.
