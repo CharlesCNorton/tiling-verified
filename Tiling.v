@@ -12704,6 +12704,13 @@ Definition cpatAllElim : CPat :=
 Definition cpatExIntro : CPat :=
   pImpP (CVarP 2) (pExP (CVarP 0) (CVarP 1)).
 
+(** The induction-axiom shape over slots [0=x], [1=A], [2=A[x:=0]],
+    [3=A[x:=S x]]: the curried base/step/conclusion form. *)
+Definition cpatInd : CPat :=
+  pImpP (CVarP 2)
+        (pImpP (pAllP (CVarP 0) (pImpP (CVarP 1) (CVarP 3)))
+               (pAllP (CVarP 0) (CVarP 1))).
+
 (** Code-level recognizers.  [FOAXQc] holds of [d] exactly when [d]
     codes an instance of one of the seven Robinson schemes; the slot
     witnesses are the component codes, each bounded by the code. *)
@@ -12897,6 +12904,51 @@ Definition FOJSUBST (B : nat)
          (FOlookup (B+52) ct dt c1 d1 c2 d2 c3 d3 cr dr len
             (FOnumeral 3) (FOVar B) (FOVar (B+2)) (FOVar (B+4))
             (FOVar (B+6))))))))).
+
+(** The induction-axiom recognizer.  [pl = cpair x PA] supplies the
+    induction variable [x] and the body code [PA].  Two table lookups
+    each check a substitution into [PA]: the base at the closed term
+    [FOZero] (term code [cpair 1 0]) giving [C0], and the step at
+    [FOSucc (FOVar x)] (term code [cpair 2 (cpair 0 x)], built by two
+    pairings [vx], [tcs]) giving [SS].  Nine pairings then assemble the
+    code of
+
+      FOInduction x A
+        = (A[x:=0]) -> (forall x, A -> A[x:=S x]) -> forall x, A
+
+    bottom-up into [vd].  The step term code is not a subterm of [vd],
+    so [vx] and [tcs] carry the square over-bounds [(x+1)^2] and
+    [(vx+3)^2] in place of the [FOSucc vd] bound used by the
+    subformula nodes. *)
+
+Definition FOJIND (B : nat)
+    (ct dt c1 d1 c2 d2 c3 d3 cr dr len : FOTerm)
+    (vd pl : FOTerm) : FOFormula :=
+  FOBexC B (FOSucc pl)
+  (FOBexC (B+2) (FOSucc pl)
+    (FOAnd (FOcpairF (FOVar B) (FOVar (B+2)) pl)
+  (FOBexC (B+4) (FOSucc vd)
+  (FOBexC (B+6) (FOSucc vd)
+  (FOBexC (B+8) (FOSucc (FOMult (FOSucc (FOVar B)) (FOSucc (FOVar B))))
+  (FOBexC (B+10) (FOSucc (FOMult (FOSucc (FOSucc (FOSucc (FOVar (B+8)))))
+                                 (FOSucc (FOSucc (FOSucc (FOVar (B+8)))))))
+    (FOAnd (FOcpairF FOZero (FOVar B) (FOVar (B+8)))
+    (FOAnd (FOcpairF (FOnumeral 2) (FOVar (B+8)) (FOVar (B+10)))
+    (FOAnd (FOPATF (B+12)
+              [FOVar B; FOVar (B+2); FOVar (B+4); FOVar (B+6)] cpatInd vd)
+    (FOAnd (FOlookup (B+52) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+              (FOnumeral 4) (FOVar B) (FOnumeral (cpair 1 0))
+              (FOVar (B+2)) (FOnumeral 1))
+    (FOAnd (FOlookup (B+74) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+              (FOnumeral 3) (FOVar B) (FOnumeral (cpair 1 0))
+              (FOVar (B+2)) (FOVar (B+4)))
+    (FOAnd (FOlookup (B+96) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+              (FOnumeral 4) (FOVar B) (FOVar (B+10))
+              (FOVar (B+2)) (FOnumeral 1))
+           (FOlookup (B+118) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+              (FOnumeral 3) (FOVar B) (FOVar (B+10))
+              (FOVar (B+2)) (FOVar (B+6)))
+    )))))))))))).
 
 Definition FOJMP (B : nat) (cs ds : FOTerm)
     (vd pl ipos : FOTerm) : FOFormula :=
@@ -21408,6 +21460,51 @@ Proof.
   apply FOdelta0_and.
   { apply FOdelta0_FOlookup; try assumption;
       rewrite ?FOmax_var_numeral; cbn; lia. }
+  apply FOdelta0_FOlookup; try assumption;
+    rewrite ?FOmax_var_numeral; cbn; lia.
+Qed.
+
+Lemma FOdelta0_FOJIND : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len vd pl,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm vd < B -> FOmax_var_tm pl < B ->
+  FOdelta0 (FOJIND B ct dt c1 d1 c2 d2 c3 d3 cr dr len vd pl).
+Proof.
+  intros B ct dt c1 d1 c2 d2 c3 d3 cr dr len vd pl Htb Hvd Hpl.
+  pose proof Htb as Htb'.
+  destruct Htb' as [Hct [Hdt [Hc1 [Hd1' [Hc2 [Hd2' [Hc3 [Hd3'
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  assert (Htb52 : tbl_below (B+52) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb74 : tbl_below (B+74) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb96 : tbl_below (B+96) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb118 : tbl_below (B+118) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  unfold FOJIND.
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia|apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia|apply FOin_tm_above; cbn; lia|].
+  apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+  repeat (apply FOdelta0_FOBexC;
+    [apply FOin_tm_above; cbn; lia|apply FOin_tm_above; cbn; lia|]).
+  apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+  apply FOdelta0_and; [apply FOdelta0_FOcpairF|].
+  apply FOdelta0_and.
+  { apply FOdelta0_FOPATF.
+    - constructor; [cbn; lia | constructor; [cbn; lia |
+        constructor; [cbn; lia | constructor; [cbn; lia | constructor]]]].
+    - lia. }
+  apply FOdelta0_and;
+    [apply FOdelta0_FOlookup; try assumption;
+       rewrite ?FOmax_var_numeral; cbn; lia|].
+  apply FOdelta0_and;
+    [apply FOdelta0_FOlookup; try assumption;
+       rewrite ?FOmax_var_numeral; cbn; lia|].
+  apply FOdelta0_and;
+    [apply FOdelta0_FOlookup; try assumption;
+       rewrite ?FOmax_var_numeral; cbn; lia|].
   apply FOdelta0_FOlookup; try assumption;
     rewrite ?FOmax_var_numeral; cbn; lia.
 Qed.
