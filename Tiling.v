@@ -13171,9 +13171,13 @@ Definition FOJUSTCK (B : nat) (cores : list nat)
            (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 8))
               (FOD3Sc (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len
                  cores (FOVar B)))
+        (FOOr
            (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 9))
               (FODMONSc (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len
-                 cores (FOVar B)))))))))))))))))).
+                 cores (FOVar B)))
+           (FOAnd (FOEq (FOVar (B+12)) (FOnumeral 10))
+              (FOJIND (B+16) ct dt c1 d1 c2 d2 c3 d3 cr dr len
+                 (FOVar B) (FOVar (B+14)))))))))))))))))))).
 
 (** Entry-code guard at one derivation position [i]: some table row
     substitutes at variable [S vd] inside the entry code [vd] off the
@@ -13368,7 +13372,8 @@ Inductive FOAxiomTn : nat -> FOFormula -> Prop :=
            (FOProvSentence k (FOProvSentence k A)))
   | FOAx_DMon : forall n k k' A, k <= k' -> k' < n ->
       FOAxiomTn n
-        (FOImplF (FOProvSentence k A) (FOProvSentence k' A)).
+        (FOImplF (FOProvSentence k A) (FOProvSentence k' A))
+  | FOAx_Ind : forall n x A, FOAxiomTn n (FOInduction x A).
 
 (** ** Boolean equality and Goedel codes for the first-order syntax. *)
 
@@ -13988,7 +13993,8 @@ Inductive FOjust : Type :=
   | J_Loeb : nat -> FOjust
   | J_d2 : nat -> FOFormula -> FOFormula -> FOjust
   | J_d3 : nat -> FOFormula -> FOjust
-  | J_dmon : nat -> nat -> FOFormula -> FOjust.
+  | J_dmon : nat -> nat -> FOFormula -> FOjust
+  | J_ind : nat -> FOFormula -> FOjust.
 
 Definition FOentry_check (axb : FOFormula -> bool)
     (PrF : FOFormula -> FOFormula) (maxk : nat)
@@ -14030,6 +14036,7 @@ Definition FOentry_check (axb : FOFormula -> bool)
       (k <=? k') && (k' <? maxk) &&
       FOform_eqb A (FOImplF (FOProvSentence k X)
                       (FOProvSentence k' X))
+  | J_ind x X => FOform_eqb A (FOInduction x X)
   end.
 
 Fixpoint FOseq_check (axb : FOFormula -> bool)
@@ -14098,6 +14105,7 @@ Proof.
   - apply FOAx_D2. lia.
   - apply FOAx_D3. lia.
   - apply FOAx_DMon; lia.
+  - apply FOAx_Ind.
 Qed.
 
 Theorem FOAxiomTn_cumulative_chain : forall n m phi,
@@ -14885,7 +14893,7 @@ Lemma FOentry_check_sound : forall n prev A j,
   FOProvesTn n A.
 Proof.
   intros n prev A j Hck Hprev.
-  destruct j as [| | x t | x t | i j' | i | i | k X Y | k X | k k' X];
+  destruct j as [| | x t | x t | i j' | i | i | k X Y | k X | k k' X | x X];
     cbn [FOentry_check] in Hck.
   - apply FOProvesTn_ax. exact (FOaxb_sound n A Hck).
   - exact (FOis_logical_axiom_sound n A Hck).
@@ -14919,6 +14927,8 @@ Proof.
     apply Nat.leb_le in Hkk. apply Nat.ltb_lt in Hk'.
     apply FOform_eqb_eq in Heq. subst A.
     apply FOProvesTn_ax. apply FOAx_DMon; assumption.
+  - apply FOform_eqb_eq in Hck. subst A.
+    apply FOProvesTn_ax. apply FOAx_Ind.
 Qed.
 
 Lemma FOseq_check_sound : forall n items done,
@@ -15007,7 +15017,7 @@ Lemma FOentry_check_shift : forall axb PrF maxk front prev A j,
     (FOjshift (length front) j) = true.
 Proof.
   intros axb PrF maxk front prev A j H.
-  destruct j as [| | x t | x t | i j' | i | i | k X Y | k X | k k' X];
+  destruct j as [| | x t | x t | i j' | i | i | k X Y | k X | k k' X | x X];
     cbn [FOjshift FOentry_check] in H |- *.
   - exact H.
   - exact H.
@@ -15025,6 +15035,7 @@ Proof.
   - destruct (nth_error prev i) as [P|] eqn:E1; [|discriminate].
     rewrite nth_error_app_shift, E1.
     exact H.
+  - exact H.
   - exact H.
   - exact H.
   - exact H.
@@ -15160,6 +15171,10 @@ Proof.
         (proj2 (Nat.leb_le _ _)),
         (proj2 (Nat.ltb_lt _ _)) by eassumption.
       reflexivity.
+    + eexists [(_, J_ind _ _)], [].
+      split; [|reflexivity].
+      cbn [FOseq_check FOentry_check].
+      rewrite FOform_eqb_refl. reflexivity.
   - exists [(FOImplF phi (FOImplF psi phi), J_log)], [].
     split; [|reflexivity].
     apply FOseq_check_single_log.
@@ -19425,6 +19440,20 @@ Proof.
   ffree_walk; ffin.
 Qed.
 
+Lemma FOJIND_free : forall w B ct dt c1 d1 c2 d2 c3 d3 cr dr len vd pl,
+  FOfree_in w
+    (FOJIND B ct dt c1 d1 c2 d2 c3 d3 cr dr len vd pl) = true ->
+  FOin_tm w ct = true \/ FOin_tm w dt = true \/ FOin_tm w c1 = true
+  \/ FOin_tm w d1 = true \/ FOin_tm w c2 = true \/ FOin_tm w d2 = true
+  \/ FOin_tm w c3 = true \/ FOin_tm w d3 = true \/ FOin_tm w cr = true
+  \/ FOin_tm w dr = true \/ FOin_tm w len = true
+  \/ FOin_tm w vd = true \/ FOin_tm w pl = true \/ w < 2.
+Proof.
+  intros w B ct dt c1 d1 c2 d2 c3 d3 cr dr len vd pl H.
+  unfold FOJIND in H.
+  ffree_walk; ffin.
+Qed.
+
 Lemma FOJMP_free : forall w B cs ds vd pl ipos,
   FOfree_in w (FOJMP B cs ds vd pl ipos) = true ->
   FOin_tm w cs = true \/ FOin_tm w ds = true \/ FOin_tm w vd = true
@@ -19475,6 +19504,10 @@ Ltac arm_recog :=
   | H : FOfree_in _
           (FOJSUBST _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) = true |- _ =>
       apply FOJSUBST_free in H;
+      destruct H as [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]]]]]
+  | H : FOfree_in _
+          (FOJIND _ _ _ _ _ _ _ _ _ _ _ _ _ _) = true |- _ =>
+      apply FOJIND_free in H;
       destruct H as [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]]]]]
   | H : FOfree_in _ (FOJMP _ _ _ _ _ _) = true |- _ =>
       apply FOJMP_free in H;
@@ -21240,7 +21273,15 @@ Definition justck_sem (L : nat -> nat -> nat -> nat -> nat -> Prop)
           bj = cpair 2 (cpair p vd))
     \/ (tg = 7 /\ d2s_sem L cores vd)
     \/ (tg = 8 /\ d3s_sem L cores vd)
-    \/ (tg = 9 /\ dmons_sem L cores vd)).
+    \/ (tg = 9 /\ dmons_sem L cores vd)
+    \/ (tg = 10 /\ exists x PA C0 SS,
+          pl = cpair x PA /\
+          vd = cpair 2 (cpair C0 (cpair 2 (cpair
+                 (cpair 3 (cpair x (cpair 2 (cpair PA SS))))
+                 (cpair 3 (cpair x PA))))) /\
+          L 4 x (cpair 1 0) PA 1 /\ L 3 x (cpair 1 0) PA C0 /\
+          L 4 x (cpair 2 (cpair 0 x)) PA 1 /\
+          L 3 x (cpair 2 (cpair 0 x)) PA SS)).
 
 Lemma provat_sem_ext : forall c z p L L',
   (forall a b c0 d0 r, L a b c0 d0 r <-> L' a b c0 d0 r) ->
@@ -21354,7 +21395,7 @@ Proof.
   split; intros [vd [vj [tg [pl [H1 [H2 [H3 H4]]]]]]];
     exists vd, vj, tg, pl;
     (split; [exact H1|]); (split; [exact H2|]); (split; [exact H3|]);
-    (destruct H4 as [H4|[H4|[H4|[H4|[H4|[H4|[H4|[H4|[H4|H4]]]]]]]]]).
+    (destruct H4 as [H4|[H4|[H4|[H4|[H4|[H4|[H4|[H4|[H4|[H4|H4]]]]]]]]]]).
   - left. destruct H4 as [Ht H4]. split; [exact Ht|].
     apply (thax_sem_ext L L' cores vd HL). exact H4.
   - right; left. destruct H4 as [Ht H4]. split; [exact Ht|].
@@ -21386,8 +21427,14 @@ Proof.
     apply (d2s_sem_ext cores L L' vd HL). exact H4.
   - do 8 right; left. destruct H4 as [Ht H4]. split; [exact Ht|].
     apply (d3s_sem_ext cores L L' vd HL). exact H4.
-  - do 9 right. destruct H4 as [Ht H4]. split; [exact Ht|].
+  - do 9 right; left. destruct H4 as [Ht H4]. split; [exact Ht|].
     apply (dmons_sem_ext cores L L' vd HL). exact H4.
+  - do 10 right.
+    destruct H4 as [Ht [x [PA [C0 [SS [Hp [Hv [Ha [Hb [Hc Hd]]]]]]]]]].
+    split; [exact Ht|]. exists x, PA, C0, SS.
+    split; [exact Hp|]. split; [exact Hv|].
+    split; [apply HL; exact Ha|]. split; [apply HL; exact Hb|].
+    split; [apply HL; exact Hc | apply HL; exact Hd].
   - left. destruct H4 as [Ht H4]. split; [exact Ht|].
     apply (thax_sem_ext L L' cores vd HL). exact H4.
   - right; left. destruct H4 as [Ht H4]. split; [exact Ht|].
@@ -21419,8 +21466,14 @@ Proof.
     apply (d2s_sem_ext cores L L' vd HL). exact H4.
   - do 8 right; left. destruct H4 as [Ht H4]. split; [exact Ht|].
     apply (d3s_sem_ext cores L L' vd HL). exact H4.
-  - do 9 right. destruct H4 as [Ht H4]. split; [exact Ht|].
+  - do 9 right; left. destruct H4 as [Ht H4]. split; [exact Ht|].
     apply (dmons_sem_ext cores L L' vd HL). exact H4.
+  - do 10 right.
+    destruct H4 as [Ht [x [PA [C0 [SS [Hp [Hv [Ha [Hb [Hc Hd]]]]]]]]]].
+    split; [exact Ht|]. exists x, PA, C0, SS.
+    split; [exact Hp|]. split; [exact Hv|].
+    split; [apply HL; exact Ha|]. split; [apply HL; exact Hb|].
+    split; [apply HL; exact Hc | apply HL; exact Hd].
 Qed.
 
 Lemma FOdelta0_FOJSUBST : forall B ct dt c1 d1 c2 d2 c3 d3 cr dr len
@@ -24313,11 +24366,12 @@ Proof.
     rewrite (FOsat_FOOr _ _ _) in Hor.
     rewrite (FOsat_FOOr _ _ _) in Hor.
     rewrite (FOsat_FOOr _ _ _) in Hor.
+    rewrite (FOsat_FOOr _ _ _) in Hor.
     exists vd, vj, tg, pl.
     split; [exact Hbeta1|].
     split; [exact Hbeta2|].
     split; [exact Hcp|].
-    destruct Hor as [H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]].
+    destruct Hor as [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]].
     + left.
       apply (proj1 (FOsat_FOAnd _ _ _)) in H.
       destruct H as [Heq Hth].
@@ -24516,7 +24570,7 @@ Proof.
       rewrite EvB in Hd.
       apply (proj1 (d3s_sem_ext cores _ _ vd HL4)).
       exact Hd.
-    + do 9 right.
+    + do 9 right; left.
       apply (proj1 (FOsat_FOAnd _ _ _)) in H.
       destruct H as [Heq Hd].
       cbn [FOsat FOeval] in Heq.
@@ -24529,6 +24583,27 @@ Proof.
       rewrite EvB in Hd.
       apply (proj1 (dmons_sem_ext cores _ _ vd HL4)).
       exact Hd.
+    + do 10 right.
+      apply (proj1 (FOsat_FOAnd _ _ _)) in H.
+      destruct H as [Heq HJ].
+      cbn [FOsat FOeval] in Heq.
+      rewrite EvB12 in Heq.
+      split; [exact Heq|].
+      apply (proj1 (FOsat_FOJIND e4 (B+16) ct dt c1 d1 c2 d2 c3 d3
+                      cr dr len (FOVar B) (FOVar (B+14))
+                      Htb16 ltac:(cbn; lia) ltac:(cbn; lia))) in HJ.
+      destruct HJ as [x [PA [C0 [SS [Hxpa [Hsem [Hr1 [Hr2 [Hr3 Hr4]]]]]]]]].
+      cbn [FOeval] in Hxpa, Hsem.
+      rewrite EvB14 in Hxpa.
+      rewrite EvB in Hsem.
+      cbn [cpat_sem cpatInd pImpP pAllP] in Hsem.
+      exists x, PA, C0, SS.
+      split; [symmetry; exact Hxpa|].
+      split; [symmetry; exact Hsem|].
+      split; [apply (proj1 (HL4 4 x (cpair 1 0) PA 1)); exact Hr1|].
+      split; [apply (proj1 (HL4 3 x (cpair 1 0) PA C0)); exact Hr2|].
+      split; [apply (proj1 (HL4 4 x (cpair 2 (cpair 0 x)) PA 1)); exact Hr3|].
+      apply (proj1 (HL4 3 x (cpair 2 (cpair 0 x)) PA SS)). exact Hr4.
   - intros [vd [vj [tg [pl [Hbeta1 [Hbeta2 [Hcp Hdisp]]]]]]].
     assert (Hvdb : vd <= FOeval e cs).
     { unfold beta in Hbeta1.
@@ -24658,7 +24733,8 @@ Proof.
     rewrite (FOsat_FOOr _ _ _).
     rewrite (FOsat_FOOr _ _ _).
     rewrite (FOsat_FOOr _ _ _).
-    destruct Hdisp as [H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]].
+    rewrite (FOsat_FOOr _ _ _).
+    destruct Hdisp as [H|[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]].
     + left.
       destruct H as [Heq Hth].
       apply (proj2 (FOsat_FOAnd _ _ _)). split.
@@ -24826,7 +24902,7 @@ Proof.
       rewrite EvB.
       apply (proj2 (d3s_sem_ext cores _ _ vd HL4)).
       exact Hd.
-    + do 9 right.
+    + do 9 right; left.
       destruct H as [Heq Hd].
       apply (proj2 (FOsat_FOAnd _ _ _)). split.
       { cbn [FOsat FOeval]. rewrite EvB12. exact Heq. }
@@ -24837,6 +24913,24 @@ Proof.
       rewrite EvB.
       apply (proj2 (dmons_sem_ext cores _ _ vd HL4)).
       exact Hd.
+    + do 10 right.
+      destruct H as [Heq [x [PA [C0 [SS [Hxpa [Hsh [Hr1 [Hr2 [Hr3 Hr4]]]]]]]]]].
+      apply (proj2 (FOsat_FOAnd _ _ _)). split.
+      { cbn [FOsat FOeval]. rewrite EvB12. exact Heq. }
+      apply (proj2 (FOsat_FOJIND e4 (B+16) ct dt c1 d1 c2 d2 c3 d3
+                      cr dr len (FOVar B) (FOVar (B+14))
+                      Htb16 ltac:(cbn; lia) ltac:(cbn; lia))).
+      exists x, PA, C0, SS.
+      split.
+      { cbn [FOeval]. rewrite EvB14. symmetry. exact Hxpa. }
+      split.
+      { cbn [FOeval]. rewrite EvB.
+        cbn [cpat_sem cpatInd pImpP pAllP].
+        symmetry. exact Hsh. }
+      split; [apply (proj2 (HL4 4 x (cpair 1 0) PA 1)); exact Hr1|].
+      split; [apply (proj2 (HL4 3 x (cpair 1 0) PA C0)); exact Hr2|].
+      split; [apply (proj2 (HL4 4 x (cpair 2 (cpair 0 x)) PA 1)); exact Hr3|].
+      apply (proj2 (HL4 3 x (cpair 2 (cpair 0 x)) PA SS)). exact Hr4.
 Qed.
 
 Lemma FOdelta0_FOJUSTCK : forall B cores ct dt c1 d1 c2 d2 c3 d3 cr dr
@@ -24898,8 +24992,11 @@ Proof.
   apply FOdelta0_or.
   { apply FOdelta0_and; [apply FOd0_eq|].
     apply FOdelta0_FOD3Sc; [exact Htb16 | cbn; lia]. }
+  apply FOdelta0_or.
+  { apply FOdelta0_and; [apply FOd0_eq|].
+    apply FOdelta0_FODMONSc; [exact Htb16 | cbn; lia]. }
   apply FOdelta0_and; [apply FOd0_eq|].
-  apply FOdelta0_FODMONSc; [exact Htb16 | cbn; lia].
+  apply FOdelta0_FOJIND; [exact Htb16 | cbn; lia | cbn; lia].
 Qed.
 
 Definition mfun (tag a1 a2 a3 : nat) : nat :=
@@ -31459,7 +31556,7 @@ Proof.
     clear Hvd. subst vd.
     destruct Hsw as
       [[_ Hth]|[[_ Hlog]|[[_ Hj2]|[[_ Hj3]|[[_ Hj4]|[[_ Hj5]
-        |[[_ Hj6]|[[_ Hj7]|[[_ Hj8]|[_ Hj9]]]]]]]]]].
+        |[[_ Hj6]|[[_ Hj7]|[[_ Hj8]|[[_ Hj9]|[_ Hj10]]]]]]]]]]].
     - (* theory axiom *)
       unfold thax_sem in Hth. destruct Hth as [Haxq|Hrefl].
       + unfold axq_sem in Haxq.
@@ -31948,7 +32045,51 @@ Proof.
               (FOPRMAT (FOPrCores i2))))).
       { apply FOcode_f_inj. cbn [FOcode_f]. exact Hsh. }
       rewrite EB.
-      exact (FOProvesTn_ax n _ (FOAx_DMon n i1 i2 A0 Hle Hk2)). }
+      exact (FOProvesTn_ax n _ (FOAx_DMon n i1 i2 A0 Hle Hk2)).
+    - (* induction schema *)
+      destruct Hj10 as [x [PA [C0 [SS [_ [Hsh [_ [HL3b [_ HL3s]]]]]]]]].
+      destruct B as [a0 b0| |B1 B2|y0 B0|y0 B0];
+        cbn [FOcode_f] in Hsh;
+        apply cpair_inj in Hsh; destruct Hsh as [Esh Hsh];
+        try discriminate Esh.
+      apply cpair_inj in Hsh. destruct Hsh as [HB1 Hsh].
+      destruct B2 as [a0 b0| |B21 B22|y0 B0|y0 B0];
+        cbn [FOcode_f] in Hsh;
+        apply cpair_inj in Hsh; destruct Hsh as [Esh2 Hsh];
+        try discriminate Esh2.
+      apply cpair_inj in Hsh. destruct Hsh as [HB21 HB22].
+      destruct B21 as [a0 b0| |C1 C2|y1 B21b|y1 B21b];
+        cbn [FOcode_f] in HB21;
+        apply cpair_inj in HB21; destruct HB21 as [E21 HB21];
+        try discriminate E21.
+      apply cpair_inj in HB21. destruct HB21 as [Ey1 HB21]. subst y1.
+      destruct B21b as [a0 b0| |B21b1 B21b2|y0 B0|y0 B0];
+        cbn [FOcode_f] in HB21;
+        apply cpair_inj in HB21; destruct HB21 as [E21b HB21];
+        try discriminate E21b.
+      apply cpair_inj in HB21. destruct HB21 as [HB21b1 HB21b2].
+      destruct B22 as [a0 b0| |C1 C2|y2 B22b|y2 B22b];
+        cbn [FOcode_f] in HB22;
+        apply cpair_inj in HB22; destruct HB22 as [E22 HB22];
+        try discriminate E22.
+      apply cpair_inj in HB22. destruct HB22 as [Ey2 HB22]. subst y2.
+      assert (EA : B21b1 = B22b)
+        by (apply FOcode_f_inj; rewrite HB21b1, HB22; reflexivity).
+      subst B21b1.
+      pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                    3 x (cpair 1 0) PA C0 HL3b) as M3b.
+      cbn [mspec] in M3b.
+      specialize (M3b FOZero B22b eq_refl (eq_sym HB22)).
+      pose proof (tbl_sound _ _ _ _ _ _ _ _ _ _ _ Hdisp
+                    3 x (cpair 2 (cpair 0 x)) PA SS HL3s) as M3s.
+      cbn [mspec] in M3s.
+      specialize (M3s (FOSucc (FOVar x)) B22b eq_refl (eq_sym HB22)).
+      assert (EB1 : B1 = FOsubst_f x FOZero B22b)
+        by (apply FOcode_f_inj; rewrite HB1; exact M3b).
+      assert (EB21b2 : B21b2 = FOsubst_f x (FOSucc (FOVar x)) B22b)
+        by (apply FOcode_f_inj; rewrite HB21b2; exact M3s).
+      subst B1 B21b2.
+      exact (FOProvesTn_ax n _ (FOAx_Ind n x B22b)). }
   destruct Hlast as [m [Hvdlen Hbeta]].
   apply (MAIN (S m) m); [lia | rewrite Hvdlen; lia | exact Hbeta].
 Qed.
@@ -31973,6 +32114,7 @@ Definition jcode (j : FOjust) : nat :=
   | J_d2 k X Y => cpair 7 (cpair k (cpair (FOcode_f X) (FOcode_f Y)))
   | J_d3 k X => cpair 8 (cpair k (FOcode_f X))
   | J_dmon k k' X => cpair 9 (cpair k (cpair k' (FOcode_f X)))
+  | J_ind x X => cpair 10 (cpair x (FOcode_f X))
   end.
 
 Definition jrows (n : nat) (B : FOFormula) (j : FOjust)
@@ -32049,6 +32191,10 @@ Definition jrows (n : nat) (B : FOFormula) (j : FOjust)
       ++ trace3 1 (FOnumeral (FOcode_f X))
            (FOsubst_num 0 (FOcode_f (FOPRMAT (FOPrCores k')))
               (FOPRMAT (FOPrCores k')))
+  | J_ind x X =>
+      trace4 x FOZero X ++ trace3 x FOZero X
+      ++ trace4 x (FOSucc (FOVar x)) X
+      ++ trace3 x (FOSucc (FOVar x)) X
   end.
 
 Fixpoint seqrows (n : nat) (items : list (FOFormula * FOjust))
@@ -32310,7 +32456,7 @@ Lemma jrows_ok : forall n B j L,
   forall e, In e (jrows n B j) -> entry_ok L e.
 Proof.
   intros n B j L Hincl e HeIn.
-  destruct j as [| | x t | x t | i j' | i | i | k X Y | k X | k k' X].
+  destruct j as [| | x t | x t | i j' | i | i | k X Y | k X | k k' X | x X].
   - destruct B as [a b| |P C|y B0|y B0]; try destruct HeIn.
     exact (jrows_ok_thax n C L Hincl e HeIn).
   - destruct B as [a b| |P C|y B0|y B0]; try destruct HeIn.
@@ -32333,6 +32479,20 @@ Proof.
     exact (jrows_ok_d3 k X L Hincl e HeIn).
   - cbv beta iota delta [jrows] in Hincl, HeIn.
     exact (jrows_ok_dmon k k' X L Hincl e HeIn).
+  - cbv beta iota delta [jrows] in Hincl, HeIn.
+    apply in_app_or in HeIn. destruct HeIn as [HeIn|HeIn].
+    { exact (trace4_ok _ _ _ L (incl_app_head _ _ _ _ Hincl) e HeIn). }
+    apply in_app_or in HeIn. destruct HeIn as [HeIn|HeIn].
+    { exact (trace3_ok _ _ _ L
+               (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _ Hincl))
+               e HeIn). }
+    apply in_app_or in HeIn. destruct HeIn as [HeIn|HeIn].
+    { exact (trace4_ok _ _ _ L
+               (incl_app_head _ _ _ _ (incl_app_tail _ _ _ _
+                  (incl_app_tail _ _ _ _ Hincl))) e HeIn). }
+    exact (trace3_ok _ _ _ L
+             (incl_app_tail _ _ _ _ (incl_app_tail _ _ _ _
+                (incl_app_tail _ _ _ _ Hincl))) e HeIn).
 Qed.
 
 Transparent FOPRMAT.
@@ -32913,6 +33073,47 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma justck_ind : forall (L : nat -> nat -> nat -> nat -> nat -> Prop)
+    n items x X,
+  (forall tg a1 a2 a3 r,
+     In (mkTE tg a1 a2 a3 r) (seqrows n items) -> L tg a1 a2 a3 r) ->
+  In (FOInduction x X, J_ind x X) items ->
+  L 4 x (FOcode_tm FOZero) (FOcode_f X) 1
+  /\ L 3 x (FOcode_tm FOZero) (FOcode_f X)
+       (FOcode_f (FOsubst_f x FOZero X))
+  /\ L 4 x (FOcode_tm (FOSucc (FOVar x))) (FOcode_f X) 1
+  /\ L 3 x (FOcode_tm (FOSucc (FOVar x))) (FOcode_f X)
+       (FOcode_f (FOsubst_f x (FOSucc (FOVar x)) X)).
+Proof.
+  intros L n items x X Hsub HIn.
+  pose proof (FOsubst_ok_numeral X x 0) as Hok0.
+  cbn [FOnumeral] in Hok0.
+  pose proof (FOsubst_ok_succ_var_self X x) as Hoks.
+  split; [|split; [|split]].
+  - apply Hsub.
+    apply (seqrows_jrows_in n items _ (J_ind x X) _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. left.
+    apply trace4_seed. rewrite Hok0. reflexivity.
+  - apply Hsub.
+    apply (seqrows_jrows_in n items _ (J_ind x X) _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. right. apply in_or_app. left.
+    apply trace3_seed. reflexivity.
+  - apply Hsub.
+    apply (seqrows_jrows_in n items _ (J_ind x X) _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. right. apply in_or_app. right.
+    apply in_or_app. left.
+    apply trace4_seed. rewrite Hoks. reflexivity.
+  - apply Hsub.
+    apply (seqrows_jrows_in n items _ (J_ind x X) _ HIn).
+    cbv beta iota delta [jrows].
+    apply in_or_app. right. apply in_or_app. right.
+    apply in_or_app. right.
+    apply trace3_seed. reflexivity.
+Qed.
+
 Theorem provmat_encode : forall n A,
   FOProvesTn n A ->
   provmat_sem (FOPrCores n) (FOcode_f (FOPRMAT (FOPrCores n)))
@@ -32964,7 +33165,7 @@ Proof.
       rewrite Hith. reflexivity. }
     exists (FOcode_f B), (jcode j).
     destruct j as [| | x t | x t | i1 j1 | i1 | i1
-                  | k X Y | k X | k k' X];
+                  | k X Y | k X | k k' X | x X];
       cbv beta iota delta [FOentry_check] in Hentry.
     - exists 0, 0.
       split; [exact Hvd|]. split; [exact Hvj|]. split; [reflexivity|].
@@ -33076,7 +33277,7 @@ Proof.
       + exact (justck_d3_rows _ n items k X Hsub HInBj).
     - exists 9, (cpair k (cpair k' (FOcode_f X))).
       split; [exact Hvd|]. split; [exact Hvj|]. split; [reflexivity|].
-      do 9 right. split; [reflexivity|].
+      do 9 right; left. split; [reflexivity|].
       apply andb_prop in Hentry. destruct Hentry as [Hk Heq].
       apply andb_prop in Hk. destruct Hk as [Hkk Hk'].
       apply Nat.leb_le in Hkk. apply Nat.ltb_lt in Hk'.
@@ -33088,7 +33289,20 @@ Proof.
            (FOPRMAT (FOPrCores k')))) _
         (FOPrCores_nth_of n k ltac:(lia))
         (FOPrCores_nth_of n k' Hk') Hkk).
-      exact (justck_dmon_rows _ n items k k' X Hsub HInBj). }
+      exact (justck_dmon_rows _ n items k k' X Hsub HInBj).
+    - apply FOform_eqb_eq in Hentry. subst B.
+      exists 10, (cpair x (FOcode_f X)).
+      split; [exact Hvd|]. split; [exact Hvj|]. split; [reflexivity|].
+      do 10 right. split; [reflexivity|].
+      destruct (justck_ind _ n items x X Hsub HInBj)
+        as [H4b [H3b [H4s H3s]]].
+      exists x, (FOcode_f X),
+        (FOcode_f (FOsubst_f x FOZero X)),
+        (FOcode_f (FOsubst_f x (FOSucc (FOVar x)) X)).
+      split; [reflexivity|].
+      split; [reflexivity|].
+      split; [exact H4b|]. split; [exact H3b|].
+      split; [exact H4s|exact H3s]. }
   { intros ii Hii.
     destruct (nth_error items ii) as [[B j]|] eqn:Hith.
     2:{ apply nth_error_None in Hith. lia. }
@@ -33192,7 +33406,8 @@ Proof.
         | apply FOAx_Refl; lia
         | apply FOAx_D2; lia
         | apply FOAx_D3; lia
-        | apply FOAx_DMon; lia ]
+        | apply FOAx_DMon; lia
+        | apply FOAx_Ind ]
     end.
   - apply FOProvesTn_K.
   - apply FOProvesTn_S.
@@ -33274,6 +33489,7 @@ Proof.
       exact (FOHBL3_sat e _ _ H1).
     + cbn [FOsat]. intro Hpm.
       eapply FOProv_sat_monotone; eassumption.
+    + apply FOInduction_sat.
   - cbn. tauto.
   - cbn. tauto.
   - cbn. intro Hnn.
