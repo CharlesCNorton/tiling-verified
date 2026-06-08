@@ -34575,6 +34575,67 @@ Proof.
                Hc3 Hc4).
 Qed.
 
+(** ** Ordering layer.
+
+    [S (a + w) <> a] (no value is its own successor-plus-anything), by
+    induction on [a]: the base is [Q]'s [succ_nonzero]; the step turns
+    [S (S a + w) = S a] into [S (a + w) = a] (via [succ_inj] and
+    [succ_plus]) and feeds the hypothesis through [FOPr_syl].  This is
+    the basis for irreflexivity and antisymmetry of the strict order. *)
+
+Lemma FOPr_neq_succ_add : forall n,
+  FOProvesTn n (FOForall 1 (FOForall 0
+    (FONeg (FOEq (FOSucc (FOPlus (FOVar 0) (FOVar 1))) (FOVar 0))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen.
+  pose proof (FOProvesTn_ax n _ (FOAx_Ind n 0
+    (FONeg (FOEq (FOSucc (FOPlus (FOVar 0) (FOVar 1))) (FOVar 0))))) as Hind.
+  unfold FOInduction in Hind.
+  assert (Hbase : FOProvesTn n
+    (FONeg (FOEq (FOSucc (FOPlus FOZero (FOVar 1))) FOZero))).
+  { exact (FOPr_q_succ_nonzero n (FOPlus FOZero (FOVar 1))). }
+  assert (Hstep : FOProvesTn n (FOForall 0 (FOImplF
+    (FONeg (FOEq (FOSucc (FOPlus (FOVar 0) (FOVar 1))) (FOVar 0)))
+    (FONeg (FOEq (FOSucc (FOPlus (FOSucc (FOVar 0)) (FOVar 1)))
+                 (FOSucc (FOVar 0))))))).
+  { apply FOProvesTn_Gen.
+    assert (Hsp : FOProvesTn n
+      (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+            (FOSucc (FOPlus (FOVar 0) (FOVar 1))))).
+    { pose proof (FOProvesTn_MP n _ _
+        (FOProvesTn_AllElimT n 0 (FOVar 0)
+           (FOForall 1 (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+                 (FOSucc (FOPlus (FOVar 0) (FOVar 1))))) eq_refl)
+        (FOPr_succ_plus n)) as H1.
+      exact (FOProvesTn_MP n _ _
+        (FOProvesTn_AllElimT n 1 (FOVar 1)
+           (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+                 (FOSucc (FOPlus (FOVar 0) (FOVar 1)))) eq_refl)
+        H1). }
+    pose proof (FOPr_compose n
+      (FOEq (FOSucc (FOPlus (FOSucc (FOVar 0)) (FOVar 1))) (FOSucc (FOVar 0)))
+      (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1)) (FOVar 0))
+      (FOEq (FOSucc (FOPlus (FOVar 0) (FOVar 1))) (FOVar 0))
+      (FOPr_q_succ_inj n (FOPlus (FOSucc (FOVar 0)) (FOVar 1)) (FOVar 0))
+      (FOPr_imp_eq_trans_l n
+         (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1)) (FOVar 0))
+         (FOSucc (FOPlus (FOVar 0) (FOVar 1)))
+         (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+         (FOVar 0)
+         (FOPr_eq_sym n _ _ Hsp)
+         (FOPr_idf n (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+                           (FOVar 0))))) as SC.
+    exact (FOProvesTn_MP n _ _
+      (FOPr_syl n
+         (FOEq (FOSucc (FOPlus (FOSucc (FOVar 0)) (FOVar 1)))
+               (FOSucc (FOVar 0)))
+         (FOEq (FOSucc (FOPlus (FOVar 0) (FOVar 1))) (FOVar 0))
+         FOFalseF)
+      SC). }
+  exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Hind Hbase) Hstep).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
