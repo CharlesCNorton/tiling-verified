@@ -33441,6 +33441,32 @@ Proof.
            (proj1 (FOProvSentence_sat_iff e n A) H)).
 Qed.
 
+(** ** Provable Sigma_1 completeness, closed Delta_0 fragment.
+
+    The level-[n] tower internally derives the completeness implication
+    [A -> Prov_n A] for every closed Delta_0 sentence [A].  Decidability
+    of closed Delta_0 sentences ([FOdelta0_decided]) splits on truth: a
+    true [A] is derivable, hence (by necessitation [FOHBL3_provable]) so
+    is [Prov_n A], and weakening discharges the antecedent; a false [A]
+    is refutable, and ex falso closes the implication.  This is the
+    closed-[Delta_0] case of provable Sigma_1 completeness; the open
+    case (and the existential wrap) need the internal numeral
+    substitution function and are not covered by truth-splitting. *)
+
+Theorem provable_delta0_completeness_closed : forall n A,
+  FOdelta0 A -> (forall v, FOfree_in v A = false) ->
+  FOProvesTn n (FOImplF A (FOProvSentence n A)).
+Proof.
+  intros n A HD Hcl.
+  destruct (FOdelta0_decided (FOfsize A) A (Nat.le_refl _) HD Hcl n)
+    as [Htrue Hfalse].
+  destruct (classic (FOsat (fun _ => 0) A)) as [Hs | Hns].
+  - exact (FOPr_weaken n (FOProvSentence n A) A
+             (FOHBL3_provable n n A (Htrue Hs))).
+  - exact (FOPr_compose n A FOFalseF (FOProvSentence n A)
+             (Hfalse Hns) (FOPr_efq n (FOProvSentence n A))).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
