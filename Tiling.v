@@ -33882,6 +33882,31 @@ Proof.
   exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Hind Hbase) Hstep).
 Qed.
 
+(** Left zero for [*] by induction on [x]: [0 * x = 0].  Step chains
+    [Q]'s [mult_succ] ([0 * S x = 0 * x + 0]) and [plus_zero] back to the
+    hypothesis [0 * x = 0]. *)
+
+Lemma FOPr_mult_zero_l : forall n,
+  FOProvesTn n (FOForall 0 (FOEq (FOMult FOZero (FOVar 0)) FOZero)).
+Proof.
+  intros n.
+  pose proof (FOProvesTn_ax n _ (FOAx_Ind n 0
+    (FOEq (FOMult FOZero (FOVar 0)) FOZero))) as Hind.
+  unfold FOInduction in Hind.
+  apply (FOProvesTn_MP n _ _
+           (FOProvesTn_MP n _ _ Hind (FOPr_q_mult_zero n FOZero))).
+  apply FOProvesTn_Gen.
+  apply (FOPr_imp_eq_trans_l n
+    (FOEq (FOMult FOZero (FOVar 0)) FOZero)
+    (FOMult FOZero (FOSucc (FOVar 0)))
+    (FOMult FOZero (FOVar 0))
+    FOZero).
+  - exact (FOPr_eq_trans n _ (FOPlus (FOMult FOZero (FOVar 0)) FOZero) _
+             (FOPr_q_mult_succ n FOZero (FOVar 0))
+             (FOPr_q_plus_zero n (FOMult FOZero (FOVar 0)))).
+  - exact (FOPr_idf n (FOEq (FOMult FOZero (FOVar 0)) FOZero)).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
