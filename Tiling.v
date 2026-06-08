@@ -34490,6 +34490,91 @@ Proof.
   exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Hind Hbase) Hstep).
 Qed.
 
+(** Fresh-variable commutativity of [*] (indices 7,8). *)
+
+Lemma FOPr_mult_comm_fv : forall n,
+  FOProvesTn n (FOForall 7 (FOForall 8
+    (FOEq (FOMult (FOVar 7) (FOVar 8)) (FOMult (FOVar 8) (FOVar 7))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 0 (FOVar 7)
+       (FOEq (FOMult (FOVar 0) (FOVar 8)) (FOMult (FOVar 8) (FOVar 0)))
+       eq_refl)).
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 1 (FOVar 8)
+       (FOForall 0 (FOEq (FOMult (FOVar 0) (FOVar 1))
+                         (FOMult (FOVar 1) (FOVar 0)))) eq_refl)).
+  exact (FOPr_mult_comm n).
+Qed.
+
+(** Right distributivity [(x+y)*z = x*z + y*z] from commutativity and
+    left distributivity (no induction). Completes the semiring laws. *)
+
+Lemma FOPr_mult_distrib_r : forall n,
+  FOProvesTn n (FOForall 0 (FOForall 1 (FOForall 2
+    (FOEq (FOMult (FOPlus (FOVar 0) (FOVar 1)) (FOVar 2))
+          (FOPlus (FOMult (FOVar 0) (FOVar 2))
+                  (FOMult (FOVar 1) (FOVar 2))))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  pose proof (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 8 (FOVar 2)
+       (FOEq (FOMult (FOPlus (FOVar 0) (FOVar 1)) (FOVar 8))
+             (FOMult (FOVar 8) (FOPlus (FOVar 0) (FOVar 1)))) eq_refl)
+    (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 7 (FOPlus (FOVar 0) (FOVar 1))
+         (FOForall 8 (FOEq (FOMult (FOVar 7) (FOVar 8))
+               (FOMult (FOVar 8) (FOVar 7)))) eq_refl)
+      (FOPr_mult_comm_fv n))) as Hc1.
+  pose proof (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 9 (FOVar 1)
+       (FOEq (FOMult (FOVar 2) (FOPlus (FOVar 0) (FOVar 9)))
+             (FOPlus (FOMult (FOVar 2) (FOVar 0))
+                     (FOMult (FOVar 2) (FOVar 9)))) eq_refl)
+    (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 8 (FOVar 0)
+         (FOForall 9 (FOEq (FOMult (FOVar 2) (FOPlus (FOVar 8) (FOVar 9)))
+               (FOPlus (FOMult (FOVar 2) (FOVar 8))
+                       (FOMult (FOVar 2) (FOVar 9))))) eq_refl)
+      (FOProvesTn_MP n _ _
+        (FOProvesTn_AllElimT n 7 (FOVar 2)
+           (FOForall 8 (FOForall 9
+              (FOEq (FOMult (FOVar 7) (FOPlus (FOVar 8) (FOVar 9)))
+                    (FOPlus (FOMult (FOVar 7) (FOVar 8))
+                            (FOMult (FOVar 7) (FOVar 9)))))) eq_refl)
+        (FOPr_mult_distrib_l_fv n)))) as Hc2.
+  pose proof (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 8 (FOVar 0)
+       (FOEq (FOMult (FOVar 2) (FOVar 8)) (FOMult (FOVar 8) (FOVar 2)))
+       eq_refl)
+    (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 7 (FOVar 2)
+         (FOForall 8 (FOEq (FOMult (FOVar 7) (FOVar 8))
+               (FOMult (FOVar 8) (FOVar 7)))) eq_refl)
+      (FOPr_mult_comm_fv n))) as Hc3.
+  pose proof (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 8 (FOVar 1)
+       (FOEq (FOMult (FOVar 2) (FOVar 8)) (FOMult (FOVar 8) (FOVar 2)))
+       eq_refl)
+    (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 7 (FOVar 2)
+         (FOForall 8 (FOEq (FOMult (FOVar 7) (FOVar 8))
+               (FOMult (FOVar 8) (FOVar 7)))) eq_refl)
+      (FOPr_mult_comm_fv n))) as Hc4.
+  apply (FOPr_eq_trans n _ (FOMult (FOVar 2) (FOPlus (FOVar 0) (FOVar 1))) _).
+  - exact Hc1.
+  - apply (FOPr_eq_trans n _
+      (FOPlus (FOMult (FOVar 2) (FOVar 0)) (FOMult (FOVar 2) (FOVar 1))) _).
+    + exact Hc2.
+    + exact (FOPr_eq_congPlus n
+               (FOMult (FOVar 2) (FOVar 0)) (FOMult (FOVar 0) (FOVar 2))
+               (FOMult (FOVar 2) (FOVar 1)) (FOMult (FOVar 1) (FOVar 2))
+               Hc3 Hc4).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
