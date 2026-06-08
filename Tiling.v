@@ -34853,6 +34853,35 @@ Proof.
                                 (FOVar 1))).
 Qed.
 
+(** [x + S w = S x + w] (both equal [S (x + w)]): the shift lemma used
+    to move a [< ] witness across the successor, central to the
+    trichotomy. *)
+
+Lemma FOPr_x_succ_eq_succ_x : forall n,
+  FOProvesTn n (FOForall 0 (FOForall 1
+    (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 1)))
+          (FOPlus (FOSucc (FOVar 0)) (FOVar 1))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  assert (Hsp : FOProvesTn n
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+          (FOSucc (FOPlus (FOVar 0) (FOVar 1))))).
+  { pose proof (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 0 (FOVar 0)
+         (FOForall 1 (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+               (FOSucc (FOPlus (FOVar 0) (FOVar 1))))) eq_refl)
+      (FOPr_succ_plus n)) as H1.
+    exact (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 1 (FOVar 1)
+         (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+               (FOSucc (FOPlus (FOVar 0) (FOVar 1)))) eq_refl)
+      H1). }
+  exact (FOPr_eq_trans n _ (FOSucc (FOPlus (FOVar 0) (FOVar 1))) _
+           (FOPr_q_plus_succ n (FOVar 0) (FOVar 1))
+           (FOPr_eq_sym n _ _ Hsp)).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
