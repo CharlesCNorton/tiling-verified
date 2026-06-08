@@ -34099,6 +34099,26 @@ Proof.
   exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Hind Hbase) Hstep).
 Qed.
 
+(** Fresh-variable commutativity of [+] (indices 7,8), for capture-free
+    instantiation by the multiplicative laws. *)
+
+Lemma FOPr_plus_comm_fv : forall n,
+  FOProvesTn n (FOForall 7 (FOForall 8
+    (FOEq (FOPlus (FOVar 7) (FOVar 8)) (FOPlus (FOVar 8) (FOVar 7))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 0 (FOVar 7)
+       (FOEq (FOPlus (FOVar 0) (FOVar 8)) (FOPlus (FOVar 8) (FOVar 0)))
+       eq_refl)).
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 1 (FOVar 8)
+       (FOForall 0 (FOEq (FOPlus (FOVar 0) (FOVar 1))
+                         (FOPlus (FOVar 1) (FOVar 0)))) eq_refl)).
+  exact (FOPr_plus_comm n).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
