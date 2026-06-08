@@ -22830,6 +22830,465 @@ Proof.
     rewrite (Hstab cr Hcr), (Hstab dr Hdr), EvB6. exact Hf5.
 Qed.
 
+Lemma cpair_le_sq : forall a b, cpair a b <= (a + b + 1) * (a + b + 1).
+Proof.
+  intros a b. unfold cpair.
+  pose proof (triangle_double (a + b)) as Ht. nia.
+Qed.
+
+Lemma FOsat_FOJIND : forall e B ct dt c1 d1 c2 d2 c3 d3 cr dr len vd pl,
+  tbl_below B ct dt c1 d1 c2 d2 c3 d3 cr dr len ->
+  FOmax_var_tm vd < B -> FOmax_var_tm pl < B ->
+  (FOsat e (FOJIND B ct dt c1 d1 c2 d2 c3 d3 cr dr len vd pl)
+   <->
+   exists x PA C0 SS,
+     cpair x PA = FOeval e pl /\
+     cpat_sem (fun s => match s with
+                        | 0 => x | 1 => PA | 2 => C0 | 3 => SS | _ => 0 end)
+       cpatInd = FOeval e vd /\
+     (exists j, j < FOeval e len /\
+        beta (FOeval e ct) (FOeval e dt) j = 4 /\
+        beta (FOeval e c1) (FOeval e d1) j = x /\
+        beta (FOeval e c2) (FOeval e d2) j = cpair 1 0 /\
+        beta (FOeval e c3) (FOeval e d3) j = PA /\
+        beta (FOeval e cr) (FOeval e dr) j = 1) /\
+     (exists j, j < FOeval e len /\
+        beta (FOeval e ct) (FOeval e dt) j = 3 /\
+        beta (FOeval e c1) (FOeval e d1) j = x /\
+        beta (FOeval e c2) (FOeval e d2) j = cpair 1 0 /\
+        beta (FOeval e c3) (FOeval e d3) j = PA /\
+        beta (FOeval e cr) (FOeval e dr) j = C0) /\
+     (exists j, j < FOeval e len /\
+        beta (FOeval e ct) (FOeval e dt) j = 4 /\
+        beta (FOeval e c1) (FOeval e d1) j = x /\
+        beta (FOeval e c2) (FOeval e d2) j = cpair 2 (cpair 0 x) /\
+        beta (FOeval e c3) (FOeval e d3) j = PA /\
+        beta (FOeval e cr) (FOeval e dr) j = 1) /\
+     (exists j, j < FOeval e len /\
+        beta (FOeval e ct) (FOeval e dt) j = 3 /\
+        beta (FOeval e c1) (FOeval e d1) j = x /\
+        beta (FOeval e c2) (FOeval e d2) j = cpair 2 (cpair 0 x) /\
+        beta (FOeval e c3) (FOeval e d3) j = PA /\
+        beta (FOeval e cr) (FOeval e dr) j = SS)).
+Proof.
+  intros e B ct dt c1 d1 c2 d2 c3 d3 cr dr len vd pl Htb Hvd Hpl.
+  pose proof Htb as Htb'.
+  destruct Htb' as [Hct [Hdt [Hc1 [Hd1' [Hc2 [Hd2' [Hc3 [Hd3'
+    [Hcr [Hdr Hlen]]]]]]]]]].
+  assert (Htb52 : tbl_below (B+52) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb74 : tbl_below (B+74) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb96 : tbl_below (B+96) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (Htb118 : tbl_below (B+118) ct dt c1 d1 c2 d2 c3 d3 cr dr len)
+    by (unfold tbl_below; lia).
+  assert (HinB : FOin_tm B (FOSucc pl) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB : FOin_tm (S B) (FOSucc pl) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB2 : FOin_tm (B+2) (FOSucc pl) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB2 : FOin_tm (S (B+2)) (FOSucc pl) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB4 : FOin_tm (B+4) (FOSucc vd) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB4 : FOin_tm (S (B+4)) (FOSucc vd) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB6 : FOin_tm (B+6) (FOSucc vd) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB6 : FOin_tm (S (B+6)) (FOSucc vd) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB8 : FOin_tm (B+8)
+            (FOSucc (FOMult (FOSucc (FOVar B)) (FOSucc (FOVar B)))) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB8 : FOin_tm (S (B+8))
+            (FOSucc (FOMult (FOSucc (FOVar B)) (FOSucc (FOVar B)))) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinB10 : FOin_tm (B+10)
+            (FOSucc (FOMult (FOSucc (FOSucc (FOSucc (FOVar (B+8)))))
+                            (FOSucc (FOSucc (FOSucc (FOVar (B+8))))))) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (HinSB10 : FOin_tm (S (B+10))
+            (FOSucc (FOMult (FOSucc (FOSucc (FOSucc (FOVar (B+8)))))
+                            (FOSucc (FOSucc (FOSucc (FOVar (B+8))))))) = false)
+    by (apply FOin_tm_above; cbn; lia).
+  assert (Henv : Forall (fun t => FOmax_var_tm t < B+12)
+                   [FOVar B; FOVar (B+2); FOVar (B+4); FOVar (B+6)])
+    by (repeat constructor; cbn; lia).
+  assert (Hvd12 : FOmax_var_tm vd < B+12) by lia.
+  assert (Hn4_52 : FOmax_var_tm (FOnumeral 4) < B+52)
+    by (rewrite FOmax_var_numeral; lia).
+  assert (Hn3_74 : FOmax_var_tm (FOnumeral 3) < B+74)
+    by (rewrite FOmax_var_numeral; lia).
+  assert (Hn4_96 : FOmax_var_tm (FOnumeral 4) < B+96)
+    by (rewrite FOmax_var_numeral; lia).
+  assert (Hn3_118 : FOmax_var_tm (FOnumeral 3) < B+118)
+    by (rewrite FOmax_var_numeral; lia).
+  assert (Hn1_52 : FOmax_var_tm (FOnumeral 1) < B+52)
+    by (rewrite FOmax_var_numeral; lia).
+  assert (Hn1_96 : FOmax_var_tm (FOnumeral 1) < B+96)
+    by (rewrite FOmax_var_numeral; lia).
+  assert (Hcz_52 : FOmax_var_tm (FOnumeral (cpair 1 0)) < B+52)
+    by (rewrite FOmax_var_numeral; lia).
+  assert (Hcz_74 : FOmax_var_tm (FOnumeral (cpair 1 0)) < B+74)
+    by (rewrite FOmax_var_numeral; lia).
+  assert (HtcsB96 : FOmax_var_tm (FOVar (B+10)) < B+96) by (cbn; lia).
+  assert (HtcsB118 : FOmax_var_tm (FOVar (B+10)) < B+118) by (cbn; lia).
+  assert (HxB52 : FOmax_var_tm (FOVar B) < B+52) by (cbn; lia).
+  assert (HxB74 : FOmax_var_tm (FOVar B) < B+74) by (cbn; lia).
+  assert (HxB96 : FOmax_var_tm (FOVar B) < B+96) by (cbn; lia).
+  assert (HxB118 : FOmax_var_tm (FOVar B) < B+118) by (cbn; lia).
+  assert (HpaB52 : FOmax_var_tm (FOVar (B+2)) < B+52) by (cbn; lia).
+  assert (HpaB74 : FOmax_var_tm (FOVar (B+2)) < B+74) by (cbn; lia).
+  assert (HpaB96 : FOmax_var_tm (FOVar (B+2)) < B+96) by (cbn; lia).
+  assert (HpaB118 : FOmax_var_tm (FOVar (B+2)) < B+118) by (cbn; lia).
+  assert (Hc0B74 : FOmax_var_tm (FOVar (B+4)) < B+74) by (cbn; lia).
+  assert (HssB118 : FOmax_var_tm (FOVar (B+6)) < B+118) by (cbn; lia).
+  unfold FOJIND.
+  rewrite (FOsat_FOBexC e B (FOSucc pl) _ HinB HinSB).
+  split.
+  - intros [x [Hx Hb1]].
+    rewrite (FOsat_FOBexC _ (B+2) (FOSucc pl) _ HinB2 HinSB2) in Hb1.
+    destruct Hb1 as [PA [HPA Hb2]].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb2. destruct Hb2 as [Hcp Hb3].
+    set (e2 := FOupdate (FOupdate e B x) (B+2) PA) in *.
+    apply (proj1 (FOsat_FOcpairF _ _ _ _)) in Hcp.
+    cbn [FOeval] in Hcp. unfold e2 in Hcp.
+    rewrite (FOupdate_eq _ _ _) in Hcp.
+    rewrite (FOupdate_neq _ (B+2) PA B ltac:(lia)) in Hcp.
+    rewrite (FOupdate_eq _ _ _) in Hcp.
+    rewrite (FOeval_update_above pl _ (B+2) PA ltac:(lia)) in Hcp.
+    rewrite (FOeval_update_above pl e B x Hpl) in Hcp.
+    rewrite (FOsat_FOBexC _ (B+4) (FOSucc vd) _ HinB4 HinSB4) in Hb3.
+    destruct Hb3 as [C0 [HC0 Hb4]].
+    rewrite (FOsat_FOBexC _ (B+6) (FOSucc vd) _ HinB6 HinSB6) in Hb4.
+    destruct Hb4 as [SS [HSS Hb5]].
+    rewrite (FOsat_FOBexC _ (B+8) _ _ HinB8 HinSB8) in Hb5.
+    destruct Hb5 as [vx [Hvx Hb6]].
+    rewrite (FOsat_FOBexC _ (B+10) _ _ HinB10 HinSB10) in Hb6.
+    destruct Hb6 as [tcs [Htcs Hb7]].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb7. destruct Hb7 as [Hcpvx Hb8].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb8. destruct Hb8 as [Hcptcs Hb9].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb9. destruct Hb9 as [Hpat Hb10].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb10. destruct Hb10 as [Hlk1 Hb11].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb11. destruct Hb11 as [Hlk2 Hb12].
+    apply (proj1 (FOsat_FOAnd _ _ _)) in Hb12. destruct Hb12 as [Hlk3 Hlk4].
+    set (e6 := FOupdate (FOupdate (FOupdate (FOupdate e2 (B+4) C0)
+                 (B+6) SS) (B+8) vx) (B+10) tcs) in *.
+    assert (Hstab : forall t, FOmax_var_tm t < B -> FOeval e6 t = FOeval e t).
+    { intros t Ht. unfold e6, e2.
+      rewrite (FOeval_update_above t _ (B+10) tcs ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+8) vx ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+6) SS ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+4) C0 ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+2) PA ltac:(lia)).
+      exact (FOeval_update_above t e B x Ht). }
+    assert (EvB : e6 B = x).
+    { unfold e6, e2.
+      rewrite (FOupdate_neq _ (B+10) tcs B ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+8) vx B ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+6) SS B ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+4) C0 B ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+2) PA B ltac:(lia)).
+      apply FOupdate_eq. }
+    assert (EvB2 : e6 (B+2) = PA).
+    { unfold e6, e2.
+      rewrite (FOupdate_neq _ (B+10) tcs (B+2) ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+8) vx (B+2) ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+6) SS (B+2) ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+4) C0 (B+2) ltac:(lia)).
+      apply FOupdate_eq. }
+    assert (EvB4 : e6 (B+4) = C0).
+    { unfold e6, e2.
+      rewrite (FOupdate_neq _ (B+10) tcs (B+4) ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+8) vx (B+4) ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+6) SS (B+4) ltac:(lia)).
+      apply FOupdate_eq. }
+    assert (EvB6 : e6 (B+6) = SS).
+    { unfold e6, e2.
+      rewrite (FOupdate_neq _ (B+10) tcs (B+6) ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+8) vx (B+6) ltac:(lia)).
+      apply FOupdate_eq. }
+    assert (EvB8 : e6 (B+8) = vx).
+    { unfold e6.
+      rewrite (FOupdate_neq _ (B+10) tcs (B+8) ltac:(lia)).
+      apply FOupdate_eq. }
+    assert (EvB10 : e6 (B+10) = tcs).
+    { unfold e6. apply FOupdate_eq. }
+    apply (proj1 (FOsat_FOcpairF _ _ _ _)) in Hcpvx.
+    cbn [FOeval] in Hcpvx. rewrite EvB, EvB8 in Hcpvx.
+    apply (proj1 (FOsat_FOcpairF _ _ _ _)) in Hcptcs.
+    cbn [FOeval] in Hcptcs. rewrite EvB8, EvB10, FOeval_numeral in Hcptcs.
+    rewrite <- Hcpvx in Hcptcs.
+    apply (proj1 (FOsat_FOPATF cpatInd e6 (B+12)
+                    [FOVar B; FOVar (B+2); FOVar (B+4); FOVar (B+6)]
+                    vd Henv Hvd12)) in Hpat.
+    assert (Hsg : forall s,
+        FOeval e6 (nth s [FOVar B; FOVar (B+2); FOVar (B+4); FOVar (B+6)] FOZero)
+        = (fun s => match s with
+                    | 0 => x | 1 => PA | 2 => C0 | 3 => SS | _ => 0 end) s).
+    { intro s. destruct s as [|[|[|[|s]]]]; cbn [nth FOeval].
+      - exact EvB.
+      - exact EvB2.
+      - exact EvB4.
+      - exact EvB6.
+      - destruct s; reflexivity. }
+    rewrite (cpat_sem_ext _ _ _ Hsg) in Hpat.
+    rewrite (Hstab vd Hvd) in Hpat.
+    apply (proj1 (FOsat_FOlookup e6 (B+52) ct dt c1 d1 c2 d2 c3 d3
+                    cr dr len (FOnumeral 4) (FOVar B)
+                    (FOnumeral (cpair 1 0)) (FOVar (B+2)) (FOnumeral 1)
+                    Htb52 Hn4_52 HxB52 Hcz_52 HpaB52 Hn1_52)) in Hlk1.
+    destruct Hlk1 as [j1 [Hj1 [Ha1 [Ha2 [Ha3 [Ha4 Ha5]]]]]].
+    rewrite (Hstab len Hlen) in Hj1.
+    rewrite (Hstab ct Hct), (Hstab dt Hdt), FOeval_numeral in Ha1.
+    cbn [FOeval] in Ha2, Ha4.
+    rewrite (Hstab c1 Hc1), (Hstab d1 Hd1'), EvB in Ha2.
+    rewrite (Hstab c2 Hc2), (Hstab d2 Hd2'), FOeval_numeral in Ha3.
+    rewrite (Hstab c3 Hc3), (Hstab d3 Hd3'), EvB2 in Ha4.
+    rewrite (Hstab cr Hcr), (Hstab dr Hdr), FOeval_numeral in Ha5.
+    apply (proj1 (FOsat_FOlookup e6 (B+74) ct dt c1 d1 c2 d2 c3 d3
+                    cr dr len (FOnumeral 3) (FOVar B)
+                    (FOnumeral (cpair 1 0)) (FOVar (B+2)) (FOVar (B+4))
+                    Htb74 Hn3_74 HxB74 Hcz_74 HpaB74 Hc0B74)) in Hlk2.
+    destruct Hlk2 as [j2 [Hj2 [Hb1' [Hb2' [Hb3' [Hb4' Hb5']]]]]].
+    rewrite (Hstab len Hlen) in Hj2.
+    rewrite (Hstab ct Hct), (Hstab dt Hdt), FOeval_numeral in Hb1'.
+    cbn [FOeval] in Hb2', Hb4', Hb5'.
+    rewrite (Hstab c1 Hc1), (Hstab d1 Hd1'), EvB in Hb2'.
+    rewrite (Hstab c2 Hc2), (Hstab d2 Hd2'), FOeval_numeral in Hb3'.
+    rewrite (Hstab c3 Hc3), (Hstab d3 Hd3'), EvB2 in Hb4'.
+    rewrite (Hstab cr Hcr), (Hstab dr Hdr), EvB4 in Hb5'.
+    apply (proj1 (FOsat_FOlookup e6 (B+96) ct dt c1 d1 c2 d2 c3 d3
+                    cr dr len (FOnumeral 4) (FOVar B)
+                    (FOVar (B+10)) (FOVar (B+2)) (FOnumeral 1)
+                    Htb96 Hn4_96 HxB96 HtcsB96 HpaB96 Hn1_96)) in Hlk3.
+    destruct Hlk3 as [j3 [Hj3 [Hc1'' [Hc2'' [Hc3'' [Hc4'' Hc5'']]]]]].
+    rewrite (Hstab len Hlen) in Hj3.
+    rewrite (Hstab ct Hct), (Hstab dt Hdt), FOeval_numeral in Hc1''.
+    cbn [FOeval] in Hc2'', Hc3'', Hc4''.
+    rewrite (Hstab c1 Hc1), (Hstab d1 Hd1'), EvB in Hc2''.
+    rewrite (Hstab c2 Hc2), (Hstab d2 Hd2'), EvB10, <- Hcptcs in Hc3''.
+    rewrite (Hstab c3 Hc3), (Hstab d3 Hd3'), EvB2 in Hc4''.
+    rewrite (Hstab cr Hcr), (Hstab dr Hdr), FOeval_numeral in Hc5''.
+    apply (proj1 (FOsat_FOlookup e6 (B+118) ct dt c1 d1 c2 d2 c3 d3
+                    cr dr len (FOnumeral 3) (FOVar B)
+                    (FOVar (B+10)) (FOVar (B+2)) (FOVar (B+6))
+                    Htb118 Hn3_118 HxB118 HtcsB118 HpaB118 HssB118)) in Hlk4.
+    destruct Hlk4 as [j4 [Hj4 [Hd1'' [Hd2'' [Hd3'' [Hd4'' Hd5'']]]]]].
+    rewrite (Hstab len Hlen) in Hj4.
+    rewrite (Hstab ct Hct), (Hstab dt Hdt), FOeval_numeral in Hd1''.
+    cbn [FOeval] in Hd2'', Hd3'', Hd4'', Hd5''.
+    rewrite (Hstab c1 Hc1), (Hstab d1 Hd1'), EvB in Hd2''.
+    rewrite (Hstab c2 Hc2), (Hstab d2 Hd2'), EvB10, <- Hcptcs in Hd3''.
+    rewrite (Hstab c3 Hc3), (Hstab d3 Hd3'), EvB2 in Hd4''.
+    rewrite (Hstab cr Hcr), (Hstab dr Hdr), EvB6 in Hd5''.
+    exists x, PA, C0, SS.
+    split; [exact Hcp|].
+    split; [exact Hpat|].
+    split. { exists j1. repeat split; assumption. }
+    split. { exists j2. repeat split; assumption. }
+    split. { exists j3. repeat split; assumption. }
+    exists j4. repeat split; assumption.
+  - intros [x [PA [C0 [SS [Hcp [Hpat [Hlk1 [Hlk2 [Hlk3 Hlk4]]]]]]]]].
+    pose proof (cpair_bound x PA) as Hxpa.
+    assert (HC0le : C0 <= FOeval e vd).
+    { rewrite <- Hpat. cbn [cpat_sem cpatInd pImpP pAllP].
+      pose proof (cpair_bound 2 (cpair C0 (cpair 2 (cpair
+        (cpair 3 (cpair x (cpair 2 (cpair PA SS)))) (cpair 3 (cpair x PA)))))) as Hb1.
+      pose proof (cpair_bound C0 (cpair 2 (cpair
+        (cpair 3 (cpair x (cpair 2 (cpair PA SS)))) (cpair 3 (cpair x PA))))) as Hb2.
+      lia. }
+    assert (HSSle : SS <= FOeval e vd).
+    { rewrite <- Hpat. cbn [cpat_sem cpatInd pImpP pAllP].
+      pose proof (cpair_bound 2 (cpair C0 (cpair 2 (cpair
+        (cpair 3 (cpair x (cpair 2 (cpair PA SS)))) (cpair 3 (cpair x PA)))))) as Hb1.
+      pose proof (cpair_bound C0 (cpair 2 (cpair
+        (cpair 3 (cpair x (cpair 2 (cpair PA SS)))) (cpair 3 (cpair x PA))))) as Hb2.
+      pose proof (cpair_bound 2 (cpair
+        (cpair 3 (cpair x (cpair 2 (cpair PA SS)))) (cpair 3 (cpair x PA)))) as Hb3.
+      pose proof (cpair_bound
+        (cpair 3 (cpair x (cpair 2 (cpair PA SS)))) (cpair 3 (cpair x PA))) as Hb4.
+      pose proof (cpair_bound 3 (cpair x (cpair 2 (cpair PA SS)))) as Hb5.
+      pose proof (cpair_bound x (cpair 2 (cpair PA SS))) as Hb6.
+      pose proof (cpair_bound 2 (cpair PA SS)) as Hb7.
+      pose proof (cpair_bound PA SS) as Hb8.
+      lia. }
+    cbn [FOeval].
+    exists x. split; [rewrite <- Hcp; lia|].
+    rewrite (FOsat_FOBexC _ (B+2) (FOSucc pl) _ HinB2 HinSB2).
+    exists PA. split.
+    { cbn [FOeval]. rewrite (FOeval_update_above pl e B x Hpl).
+      rewrite <- Hcp. lia. }
+    set (e2 := FOupdate (FOupdate e B x) (B+2) PA).
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOcpairF e2 _ _ _)). cbn [FOeval]. unfold e2.
+      rewrite (FOupdate_eq _ _ _).
+      rewrite (FOupdate_neq _ (B+2) PA B ltac:(lia)).
+      rewrite (FOupdate_eq _ _ _).
+      rewrite (FOeval_update_above pl _ (B+2) PA ltac:(lia)).
+      rewrite (FOeval_update_above pl e B x Hpl). exact Hcp. }
+    rewrite (FOsat_FOBexC _ (B+4) (FOSucc vd) _ HinB4 HinSB4).
+    exists C0. split.
+    { cbn [FOeval]. unfold e2.
+      rewrite (FOeval_update_above vd _ (B+2) PA ltac:(lia)).
+      rewrite (FOeval_update_above vd e B x Hvd). lia. }
+    rewrite (FOsat_FOBexC _ (B+6) (FOSucc vd) _ HinB6 HinSB6).
+    exists SS. split.
+    { cbn [FOeval]. unfold e2.
+      rewrite (FOeval_update_above vd _ (B+4) C0 ltac:(lia)).
+      rewrite (FOeval_update_above vd _ (B+2) PA ltac:(lia)).
+      rewrite (FOeval_update_above vd e B x Hvd). lia. }
+    rewrite (FOsat_FOBexC _ (B+8) _ _ HinB8 HinSB8).
+    exists (cpair 0 x). split.
+    { cbn [FOeval]. unfold e2.
+      rewrite (FOupdate_neq _ (B+6) SS B ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+4) C0 B ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+2) PA B ltac:(lia)).
+      rewrite (FOupdate_eq _ _ _).
+      pose proof (cpair_le_sq 0 x) as Hsq. lia. }
+    rewrite (FOsat_FOBexC _ (B+10) _ _ HinB10 HinSB10).
+    exists (cpair 2 (cpair 0 x)). split.
+    { cbn [FOeval].
+      rewrite (FOupdate_eq _ _ _).
+      pose proof (cpair_le_sq 2 (cpair 0 x)) as Hsq. lia. }
+    set (e6 := FOupdate (FOupdate (FOupdate (FOupdate e2 (B+4) C0)
+                 (B+6) SS) (B+8) (cpair 0 x)) (B+10) (cpair 2 (cpair 0 x))).
+    assert (Hstab : forall t, FOmax_var_tm t < B -> FOeval e6 t = FOeval e t).
+    { intros t Ht. unfold e6, e2.
+      rewrite (FOeval_update_above t _ (B+10) (cpair 2 (cpair 0 x)) ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+8) (cpair 0 x) ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+6) SS ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+4) C0 ltac:(lia)).
+      rewrite (FOeval_update_above t _ (B+2) PA ltac:(lia)).
+      exact (FOeval_update_above t e B x Ht). }
+    assert (EvB : e6 B = x).
+    { unfold e6, e2.
+      rewrite (FOupdate_neq _ (B+10) _ B ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+8) _ B ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+6) SS B ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+4) C0 B ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+2) PA B ltac:(lia)).
+      apply FOupdate_eq. }
+    assert (EvB2 : e6 (B+2) = PA).
+    { unfold e6, e2.
+      rewrite (FOupdate_neq _ (B+10) _ (B+2) ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+8) _ (B+2) ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+6) SS (B+2) ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+4) C0 (B+2) ltac:(lia)).
+      apply FOupdate_eq. }
+    assert (EvB4 : e6 (B+4) = C0).
+    { unfold e6, e2.
+      rewrite (FOupdate_neq _ (B+10) _ (B+4) ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+8) _ (B+4) ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+6) SS (B+4) ltac:(lia)).
+      apply FOupdate_eq. }
+    assert (EvB6 : e6 (B+6) = SS).
+    { unfold e6, e2.
+      rewrite (FOupdate_neq _ (B+10) _ (B+6) ltac:(lia)).
+      rewrite (FOupdate_neq _ (B+8) _ (B+6) ltac:(lia)).
+      apply FOupdate_eq. }
+    assert (EvB8 : e6 (B+8) = cpair 0 x).
+    { unfold e6.
+      rewrite (FOupdate_neq _ (B+10) _ (B+8) ltac:(lia)).
+      apply FOupdate_eq. }
+    assert (EvB10 : e6 (B+10) = cpair 2 (cpair 0 x)).
+    { unfold e6. apply FOupdate_eq. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOcpairF e6 _ _ _)). cbn [FOeval].
+      rewrite EvB, EvB8. reflexivity. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOcpairF e6 _ _ _)). cbn [FOeval].
+      rewrite EvB8, EvB10, FOeval_numeral. reflexivity. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOPATF cpatInd e6 (B+12)
+                      [FOVar B; FOVar (B+2); FOVar (B+4); FOVar (B+6)]
+                      vd Henv Hvd12)).
+      assert (Hsg : forall s,
+          FOeval e6
+            (nth s [FOVar B; FOVar (B+2); FOVar (B+4); FOVar (B+6)] FOZero)
+          = (fun s => match s with
+                      | 0 => x | 1 => PA | 2 => C0 | 3 => SS | _ => 0 end) s).
+      { intro s. destruct s as [|[|[|[|s]]]]; cbn [nth FOeval].
+        - exact EvB.
+        - exact EvB2.
+        - exact EvB4.
+        - exact EvB6.
+        - destruct s; reflexivity. }
+      rewrite (cpat_sem_ext _ _ _ Hsg).
+      rewrite (Hstab vd Hvd). exact Hpat. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOlookup e6 (B+52) ct dt c1 d1 c2 d2 c3 d3
+                      cr dr len (FOnumeral 4) (FOVar B)
+                      (FOnumeral (cpair 1 0)) (FOVar (B+2)) (FOnumeral 1)
+                      Htb52 Hn4_52 HxB52 Hcz_52 HpaB52 Hn1_52)).
+      destruct Hlk1 as [j [Hj [Ha1 [Ha2 [Ha3 [Ha4 Ha5]]]]]].
+      exists j.
+      split; [rewrite (Hstab len Hlen); exact Hj|].
+      split.
+      { rewrite (Hstab ct Hct), (Hstab dt Hdt), FOeval_numeral. exact Ha1. }
+      split.
+      { cbn [FOeval]. rewrite (Hstab c1 Hc1), (Hstab d1 Hd1'), EvB. exact Ha2. }
+      split.
+      { cbn [FOeval].
+        rewrite (Hstab c2 Hc2), (Hstab d2 Hd2'), FOeval_numeral. exact Ha3. }
+      split.
+      { cbn [FOeval]. rewrite (Hstab c3 Hc3), (Hstab d3 Hd3'), EvB2. exact Ha4. }
+      rewrite (Hstab cr Hcr), (Hstab dr Hdr), FOeval_numeral. exact Ha5. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOlookup e6 (B+74) ct dt c1 d1 c2 d2 c3 d3
+                      cr dr len (FOnumeral 3) (FOVar B)
+                      (FOnumeral (cpair 1 0)) (FOVar (B+2)) (FOVar (B+4))
+                      Htb74 Hn3_74 HxB74 Hcz_74 HpaB74 Hc0B74)).
+      destruct Hlk2 as [j [Hj [Ha1 [Ha2 [Ha3 [Ha4 Ha5]]]]]].
+      exists j.
+      split; [rewrite (Hstab len Hlen); exact Hj|].
+      split.
+      { rewrite (Hstab ct Hct), (Hstab dt Hdt), FOeval_numeral. exact Ha1. }
+      split.
+      { cbn [FOeval]. rewrite (Hstab c1 Hc1), (Hstab d1 Hd1'), EvB. exact Ha2. }
+      split.
+      { cbn [FOeval].
+        rewrite (Hstab c2 Hc2), (Hstab d2 Hd2'), FOeval_numeral. exact Ha3. }
+      split.
+      { cbn [FOeval]. rewrite (Hstab c3 Hc3), (Hstab d3 Hd3'), EvB2. exact Ha4. }
+      cbn [FOeval]. rewrite (Hstab cr Hcr), (Hstab dr Hdr), EvB4. exact Ha5. }
+    apply (proj2 (FOsat_FOAnd _ _ _)). split.
+    { apply (proj2 (FOsat_FOlookup e6 (B+96) ct dt c1 d1 c2 d2 c3 d3
+                      cr dr len (FOnumeral 4) (FOVar B)
+                      (FOVar (B+10)) (FOVar (B+2)) (FOnumeral 1)
+                      Htb96 Hn4_96 HxB96 HtcsB96 HpaB96 Hn1_96)).
+      destruct Hlk3 as [j [Hj [Ha1 [Ha2 [Ha3 [Ha4 Ha5]]]]]].
+      exists j.
+      split; [rewrite (Hstab len Hlen); exact Hj|].
+      split.
+      { rewrite (Hstab ct Hct), (Hstab dt Hdt), FOeval_numeral. exact Ha1. }
+      split.
+      { cbn [FOeval]. rewrite (Hstab c1 Hc1), (Hstab d1 Hd1'), EvB. exact Ha2. }
+      split.
+      { cbn [FOeval]. rewrite (Hstab c2 Hc2), (Hstab d2 Hd2'), EvB10. exact Ha3. }
+      split.
+      { cbn [FOeval]. rewrite (Hstab c3 Hc3), (Hstab d3 Hd3'), EvB2. exact Ha4. }
+      rewrite (Hstab cr Hcr), (Hstab dr Hdr), FOeval_numeral. exact Ha5. }
+    { apply (proj2 (FOsat_FOlookup e6 (B+118) ct dt c1 d1 c2 d2 c3 d3
+                      cr dr len (FOnumeral 3) (FOVar B)
+                      (FOVar (B+10)) (FOVar (B+2)) (FOVar (B+6))
+                      Htb118 Hn3_118 HxB118 HtcsB118 HpaB118 HssB118)).
+      destruct Hlk4 as [j [Hj [Ha1 [Ha2 [Ha3 [Ha4 Ha5]]]]]].
+      exists j.
+      split; [rewrite (Hstab len Hlen); exact Hj|].
+      split.
+      { rewrite (Hstab ct Hct), (Hstab dt Hdt), FOeval_numeral. exact Ha1. }
+      split.
+      { cbn [FOeval]. rewrite (Hstab c1 Hc1), (Hstab d1 Hd1'), EvB. exact Ha2. }
+      split.
+      { cbn [FOeval]. rewrite (Hstab c2 Hc2), (Hstab d2 Hd2'), EvB10. exact Ha3. }
+      split.
+      { cbn [FOeval]. rewrite (Hstab c3 Hc3), (Hstab d3 Hd3'), EvB2. exact Ha4. }
+      cbn [FOeval]. rewrite (Hstab cr Hcr), (Hstab dr Hdr), EvB6. exact Ha5. }
+Qed.
+
 Lemma FOsat_FOJMP : forall e B cs ds vd pl ipos,
   FOmax_var_tm cs < B -> FOmax_var_tm ds < B ->
   FOmax_var_tm vd < B -> FOmax_var_tm pl < B ->
