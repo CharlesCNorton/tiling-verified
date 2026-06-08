@@ -33762,6 +33762,68 @@ Proof.
   exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Hind Hbase) Hstep).
 Qed.
 
+(** Commutativity of [+] by induction on [x] (the second argument [y]
+    stays free).  The base uses [0 + y = y] (an instance of
+    [FOPr_zero_plus]) against [Q]'s [y + 0 = y]; the step uses
+    [S x + y = S (x + y)] (an instance of [FOPr_succ_plus]) and [Q]'s
+    [y + S x = S (y + x)].  Instantiations are capture-free: [succ_plus]
+    is taken at its own bound variables and [Q]'s [plus_succ] is the
+    arbitrary-term axiom. *)
+
+Lemma FOPr_plus_comm : forall n,
+  FOProvesTn n (FOForall 1 (FOForall 0
+    (FOEq (FOPlus (FOVar 0) (FOVar 1)) (FOPlus (FOVar 1) (FOVar 0))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen.
+  pose proof (FOProvesTn_ax n _ (FOAx_Ind n 0
+    (FOEq (FOPlus (FOVar 0) (FOVar 1)) (FOPlus (FOVar 1) (FOVar 0))))) as Hind.
+  unfold FOInduction in Hind.
+  assert (Hzy : FOProvesTn n (FOEq (FOPlus FOZero (FOVar 1)) (FOVar 1))).
+  { exact (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 0 (FOVar 1)
+         (FOEq (FOPlus FOZero (FOVar 0)) (FOVar 0)) eq_refl)
+      (FOPr_zero_plus n)). }
+  assert (Hbase : FOProvesTn n
+    (FOEq (FOPlus FOZero (FOVar 1)) (FOPlus (FOVar 1) FOZero))).
+  { exact (FOPr_eq_trans n _ (FOVar 1) _ Hzy
+             (FOPr_eq_sym n _ _ (FOPr_q_plus_zero n (FOVar 1)))). }
+  assert (Hsp : FOProvesTn n
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+          (FOSucc (FOPlus (FOVar 0) (FOVar 1))))).
+  { pose proof (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 0 (FOVar 0)
+         (FOForall 1 (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+                           (FOSucc (FOPlus (FOVar 0) (FOVar 1))))) eq_refl)
+      (FOPr_succ_plus n)) as H1.
+    exact (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 1 (FOVar 1)
+         (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+               (FOSucc (FOPlus (FOVar 0) (FOVar 1)))) eq_refl)
+      H1). }
+  assert (Hstep : FOProvesTn n (FOForall 0 (FOImplF
+    (FOEq (FOPlus (FOVar 0) (FOVar 1)) (FOPlus (FOVar 1) (FOVar 0)))
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+          (FOPlus (FOVar 1) (FOSucc (FOVar 0))))))).
+  { apply FOProvesTn_Gen.
+    apply (FOPr_imp_eq_trans_r n
+      (FOEq (FOPlus (FOVar 0) (FOVar 1)) (FOPlus (FOVar 1) (FOVar 0)))
+      (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+      (FOSucc (FOPlus (FOVar 1) (FOVar 0)))
+      (FOPlus (FOVar 1) (FOSucc (FOVar 0)))).
+    - apply (FOPr_imp_eq_trans_l n
+        (FOEq (FOPlus (FOVar 0) (FOVar 1)) (FOPlus (FOVar 1) (FOVar 0)))
+        (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+        (FOSucc (FOPlus (FOVar 0) (FOVar 1)))
+        (FOSucc (FOPlus (FOVar 1) (FOVar 0)))).
+      + exact Hsp.
+      + apply FOPr_imp_eq_congS.
+        exact (FOPr_idf n (FOEq (FOPlus (FOVar 0) (FOVar 1))
+                                (FOPlus (FOVar 1) (FOVar 0)))).
+    - apply FOPr_eq_sym. exact (FOPr_q_plus_succ n (FOVar 1) (FOVar 0)). }
+  exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Hind Hbase) Hstep).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
