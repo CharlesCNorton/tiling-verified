@@ -33522,6 +33522,83 @@ Proof.
            (FOsubst_ok_numeral delta x m)).
 Qed.
 
+(** Box versions of the propositional connective rules: each
+    necessitates the corresponding level-[k] tautology and distributes
+    it across the level-[k] box.  [box_imp_weaken] is the [K]
+    combinator boxed; [box_imp_from_neg] is the ex-falso direction,
+    boxed — together they give both halves of the implication case in a
+    boxed [Delta_0] completeness induction. *)
+
+Lemma FOprov_box_and_intro : forall n k A B,
+  k < n ->
+  FOProvesTn n (FOImplF (FOProvSentence k A)
+                  (FOImplF (FOProvSentence k B)
+                     (FOProvSentence k (FOAnd A B)))).
+Proof.
+  intros n k A B Hk.
+  apply (FOprov_box_nec_imp2 n k A B (FOAnd A B) Hk).
+  apply (FOPr_taut k (FOm2 A B)
+    (Impl (Var 0) (Impl (Var 1) (And (Var 0) (Var 1)))));
+    [cbn; tauto | reflexivity].
+Qed.
+
+Lemma FOprov_box_and_elim_l : forall n k A B,
+  k < n ->
+  FOProvesTn n (FOImplF (FOProvSentence k (FOAnd A B))
+                        (FOProvSentence k A)).
+Proof.
+  intros n k A B Hk.
+  exact (FOprov_box_nec_imp n k _ _ Hk (FOPr_and_elim_l k A B)).
+Qed.
+
+Lemma FOprov_box_and_elim_r : forall n k A B,
+  k < n ->
+  FOProvesTn n (FOImplF (FOProvSentence k (FOAnd A B))
+                        (FOProvSentence k B)).
+Proof.
+  intros n k A B Hk.
+  exact (FOprov_box_nec_imp n k _ _ Hk (FOPr_and_elim_r k A B)).
+Qed.
+
+Lemma FOprov_box_or_intro_l : forall n k A B,
+  k < n ->
+  FOProvesTn n (FOImplF (FOProvSentence k A)
+                        (FOProvSentence k (FOOr A B))).
+Proof.
+  intros n k A B Hk.
+  exact (FOprov_box_nec_imp n k _ _ Hk (FOPr_or_intro_l k A B)).
+Qed.
+
+Lemma FOprov_box_or_intro_r : forall n k A B,
+  k < n ->
+  FOProvesTn n (FOImplF (FOProvSentence k B)
+                        (FOProvSentence k (FOOr A B))).
+Proof.
+  intros n k A B Hk.
+  exact (FOprov_box_nec_imp n k _ _ Hk (FOPr_or_intro_r k A B)).
+Qed.
+
+Lemma FOprov_box_imp_weaken : forall n k B C,
+  k < n ->
+  FOProvesTn n (FOImplF (FOProvSentence k C)
+                        (FOProvSentence k (FOImplF B C))).
+Proof.
+  intros n k B C Hk.
+  exact (FOprov_box_nec_imp n k _ _ Hk (FOProvesTn_K k C B)).
+Qed.
+
+Lemma FOprov_box_imp_from_neg : forall n k B C,
+  k < n ->
+  FOProvesTn n (FOImplF (FOProvSentence k (FONeg B))
+                        (FOProvSentence k (FOImplF B C))).
+Proof.
+  intros n k B C Hk.
+  apply (FOprov_box_nec_imp n k (FONeg B) (FOImplF B C) Hk).
+  apply (FOPr_taut k (FOm2 B C)
+    (Impl (Neg (Var 0)) (Impl (Var 0) (Var 1))));
+    [cbn; tauto | reflexivity].
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
