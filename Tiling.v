@@ -34785,6 +34785,74 @@ Proof.
     exact (FOPr_idf n (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOVar 1))).
 Qed.
 
+(** Successor cancellation [S x < S y -> x < y] (same witness): from
+    [S x + S w = S y] strip the outer successor ([succ_inj]) to get
+    [S x + w = y], then [S x + w = S (x + w)] and [x + S w = S (x + w)]
+    give [x + S w = y]. *)
+
+Lemma FOPr_succ_lt_succ : forall n,
+  FOProvesTn n (FOForall 0 (FOForall 1
+    (FOImplF (FOLtF (FOSucc (FOVar 0)) (FOSucc (FOVar 1)))
+             (FOLtF (FOVar 0) (FOVar 1))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  unfold FOLtF. cbn [FOmax_var_tm Nat.max].
+  apply FOPr_ex_mono.
+  apply FOProvesTn_Gen.
+  assert (Hsp : FOProvesTn n
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2))
+          (FOSucc (FOPlus (FOVar 0) (FOVar 2))))).
+  { pose proof (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 0 (FOVar 0)
+         (FOForall 1 (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+               (FOSucc (FOPlus (FOVar 0) (FOVar 1))))) eq_refl)
+      (FOPr_succ_plus n)) as H1.
+    exact (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 1 (FOVar 2)
+         (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+               (FOSucc (FOPlus (FOVar 0) (FOVar 1)))) eq_refl)
+      H1). }
+  apply (FOPr_compose n
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2))) (FOSucc (FOVar 1)))
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1))
+    (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOVar 1))).
+  - apply (FOPr_compose n
+      (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2))) (FOSucc (FOVar 1)))
+      (FOEq (FOSucc (FOPlus (FOSucc (FOVar 0)) (FOVar 2))) (FOSucc (FOVar 1)))
+      (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1))).
+    + apply (FOPr_imp_eq_trans_l n
+        (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2))) (FOSucc (FOVar 1)))
+        (FOSucc (FOPlus (FOSucc (FOVar 0)) (FOVar 2)))
+        (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2)))
+        (FOSucc (FOVar 1))).
+      * exact (FOPr_eq_sym n _ _
+          (FOPr_q_plus_succ n (FOSucc (FOVar 0)) (FOVar 2))).
+      * exact (FOPr_idf n (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2)))
+                                (FOSucc (FOVar 1)))).
+    + exact (FOPr_q_succ_inj n (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1)).
+  - apply (FOPr_compose n
+      (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1))
+      (FOEq (FOSucc (FOPlus (FOVar 0) (FOVar 2))) (FOVar 1))
+      (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOVar 1))).
+    + apply (FOPr_imp_eq_trans_l n
+        (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1))
+        (FOSucc (FOPlus (FOVar 0) (FOVar 2)))
+        (FOPlus (FOSucc (FOVar 0)) (FOVar 2))
+        (FOVar 1)).
+      * exact (FOPr_eq_sym n _ _ Hsp).
+      * exact (FOPr_idf n (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2))
+                                (FOVar 1))).
+    + apply (FOPr_imp_eq_trans_l n
+        (FOEq (FOSucc (FOPlus (FOVar 0) (FOVar 2))) (FOVar 1))
+        (FOPlus (FOVar 0) (FOSucc (FOVar 2)))
+        (FOSucc (FOPlus (FOVar 0) (FOVar 2)))
+        (FOVar 1)).
+      * exact (FOPr_q_plus_succ n (FOVar 0) (FOVar 2)).
+      * exact (FOPr_idf n (FOEq (FOSucc (FOPlus (FOVar 0) (FOVar 2)))
+                                (FOVar 1))).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
