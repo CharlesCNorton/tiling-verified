@@ -35156,6 +35156,422 @@ Proof.
            Hbc).
 Qed.
 
+(** Conjunction introduction under a common hypothesis. *)
+Lemma FOPr_imp_and : forall n H A B,
+  FOProvesTn n (FOImplF H A) -> FOProvesTn n (FOImplF H B) ->
+  FOProvesTn n (FOImplF H (FOAnd A B)).
+Proof.
+  intros n H A B HA HB.
+  assert (T : FOProvesTn n (FOImplF A (FOImplF B (FOAnd A B)))).
+  { apply (FOPr_taut n (FOm2 A B)
+      (Impl (Var 0) (Impl (Var 1) (And (Var 0) (Var 1)))));
+      [cbn; tauto | reflexivity]. }
+  exact (FOPr_under_mp n H B (FOAnd A B)
+           (FOPr_compose n H A (FOImplF B (FOAnd A B)) HA T) HB).
+Qed.
+
+(** ** Euclidean division, object level.
+
+    [T_n] internally proves that every dividend [a] splits against a
+    positive divisor [S b] into a quotient [q] and a remainder [r] strictly
+    below [S b].  The proof is object-level induction on [a] (the
+    [FOAx_Ind] schema at variable [0]); the step decides, via the successor
+    case-split [RQ_zero_or_succ] applied to the witness of the inductive
+    remainder bound, whether the bumped remainder [S r] still fits below
+    [S b] (keep the quotient, advance the remainder) or has reached it
+    (advance the quotient, reset the remainder to zero).  Every equational
+    fact in the step arrives as an antecedent (a conjunct of the body or
+    the witness equation), so the chains run through the
+    hypothesis-discharged [FOPr_imp_eq_*] reader.  This is the arithmetic
+    ground floor for gcd / Bezout / CRT and the beta-function existence
+    lemma, hence for provable Sigma_1 completeness. *)
+
+Section Div.
+
+Local Notation SB := (FOSucc (FOVar 1)).
+Local Notation CJ1 :=
+  (FOEq (FOVar 0) (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2)) (FOVar 3))).
+Local Notation CJ1S :=
+  (FOEq (FOSucc (FOVar 0))
+        (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2)) (FOVar 3))).
+Local Notation LTR := (FOLtF (FOVar 3) (FOSucc (FOVar 1))).
+Local Notation P4 :=
+  (FOEq (FOPlus (FOVar 3) (FOSucc (FOVar 4))) (FOSucc (FOVar 1))).
+Local Notation BODY := (FOAnd CJ1 LTR).
+Local Notation BODYS := (FOAnd CJ1S LTR).
+Local Notation MAT := (FOExists 2 (FOExists 3 BODY)).
+Local Notation CONCL := (FOExists 2 (FOExists 3 BODYS)).
+Local Notation BODY0 :=
+  (FOAnd (FOEq FOZero (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2)) (FOVar 3)))
+         LTR).
+Local Notation Z4 := (FOEq (FOVar 4) FOZero).
+
+Lemma FOPr_div_exists : forall n,
+  FOProvesTn n (FOForall 1 (FOForall 0 MAT)).
+Proof.
+  intro n.
+  apply FOProvesTn_Gen.
+  pose proof (FOProvesTn_ax n _ (FOAx_Ind n 0 MAT)) as Hind.
+  unfold FOInduction in Hind.
+  (* ---- base case: a = 0, witnesses q = 0, r = 0 ---- *)
+  assert (BASE : FOProvesTn n (FOExists 2 (FOExists 3 BODY0))).
+  { assert (bc1 : FOProvesTn n
+      (FOEq FOZero (FOPlus (FOMult (FOSucc (FOVar 1)) FOZero) FOZero))).
+    { apply FOPr_eq_sym.
+      exact (FOPr_eq_trans n
+        (FOPlus (FOMult (FOSucc (FOVar 1)) FOZero) FOZero)
+        (FOMult (FOSucc (FOVar 1)) FOZero) FOZero
+        (FOPr_q_plus_zero n (FOMult (FOSucc (FOVar 1)) FOZero))
+        (FOPr_q_mult_zero n (FOSucc (FOVar 1)))). }
+    assert (bc2 : FOProvesTn n
+      (FOExists 4 (FOEq (FOPlus FOZero (FOSucc (FOVar 4))) (FOSucc (FOVar 1))))).
+    { apply (FOProvesTn_MP n _ _
+        (FOProvesTn_ExIntroT n 4 (FOVar 1)
+           (FOEq (FOPlus FOZero (FOSucc (FOVar 4))) (FOSucc (FOVar 1))) eq_refl)).
+      exact (FOPr_eq_trans n
+        (FOPlus FOZero (FOSucc (FOVar 1)))
+        (FOSucc (FOPlus FOZero (FOVar 1)))
+        (FOSucc (FOVar 1))
+        (FOPr_q_plus_succ n FOZero (FOVar 1))
+        (FOPr_eq_congS n (FOPlus FOZero (FOVar 1)) (FOVar 1)
+          (FOProvesTn_MP n _ _
+            (FOProvesTn_AllElimT n 0 (FOVar 1)
+               (FOEq (FOPlus FOZero (FOVar 0)) (FOVar 0)) eq_refl)
+            (FOPr_zero_plus n)))). }
+    assert (bbody : FOProvesTn n
+      (FOAnd (FOEq FOZero (FOPlus (FOMult (FOSucc (FOVar 1)) FOZero) FOZero))
+             (FOExists 4
+                (FOEq (FOPlus FOZero (FOSucc (FOVar 4))) (FOSucc (FOVar 1)))))).
+    { exact (FOPr_and_intro n _ _ bc1 bc2). }
+    apply (FOProvesTn_MP n _ _
+      (FOProvesTn_ExIntroT n 2 FOZero (FOExists 3 BODY0) eq_refl)).
+    apply (FOProvesTn_MP n _ _
+      (FOProvesTn_ExIntroT n 3 FOZero
+         (FOAnd (FOEq FOZero (FOPlus (FOMult (FOSucc (FOVar 1)) FOZero) (FOVar 3)))
+                LTR) eq_refl)).
+    exact bbody. }
+  (* ---- step case ---- *)
+  assert (STEP : FOProvesTn n (FOForall 0 (FOImplF MAT CONCL))).
+  { apply FOProvesTn_Gen.
+    (* core : BODY -> CONCL *)
+    assert (core : FOProvesTn n (FOImplF BODY CONCL)).
+    { (* Core2 : CJ1 -> (LTR -> CONCL) *)
+      assert (Core3 : FOProvesTn n (FOImplF CJ1 (FOImplF P4 CONCL))).
+      { (* armZ : Z4 -> (CJ1 -> (P4 -> CONCL)) ; witnesses q=Sv2, r=0 *)
+        assert (armZ : FOProvesTn n
+          (FOImplF Z4 (FOImplF CJ1 (FOImplF P4 CONCL)))).
+        { assert (hz : FOProvesTn n (FOImplF (FOAnd Z4 (FOAnd CJ1 P4)) Z4)).
+          { exact (FOPr_and_elim_l n Z4 (FOAnd CJ1 P4)). }
+          assert (hr : FOProvesTn n
+            (FOImplF (FOAnd Z4 (FOAnd CJ1 P4)) (FOAnd CJ1 P4))).
+          { exact (FOPr_and_elim_r n Z4 (FOAnd CJ1 P4)). }
+          assert (hc1 : FOProvesTn n (FOImplF (FOAnd Z4 (FOAnd CJ1 P4)) CJ1)).
+          { exact (FOPr_compose n _ _ _ hr (FOPr_and_elim_l n CJ1 P4)). }
+          assert (hp : FOProvesTn n (FOImplF (FOAnd Z4 (FOAnd CJ1 P4)) P4)).
+          { exact (FOPr_compose n _ _ _ hr (FOPr_and_elim_r n CJ1 P4)). }
+          (* t5 : H -> (S r = S b) *)
+          assert (t5 : FOProvesTn n
+            (FOImplF (FOAnd Z4 (FOAnd CJ1 P4))
+               (FOEq (FOSucc (FOVar 3)) (FOSucc (FOVar 1))))).
+          { assert (t1 : FOProvesTn n
+              (FOImplF (FOAnd Z4 (FOAnd CJ1 P4))
+                 (FOEq (FOSucc (FOVar 4)) (FOSucc FOZero)))).
+            { exact (FOPr_imp_eq_congS n _ (FOVar 4) FOZero hz). }
+            assert (t2 : FOProvesTn n
+              (FOImplF (FOAnd Z4 (FOAnd CJ1 P4))
+                 (FOEq (FOPlus (FOVar 3) (FOSucc (FOVar 4)))
+                       (FOPlus (FOVar 3) (FOSucc FOZero))))).
+            { exact (FOPr_imp_eq_congPlus_r n _ (FOVar 3)
+                       (FOSucc (FOVar 4)) (FOSucc FOZero) t1). }
+            assert (t3 : FOProvesTn n
+              (FOEq (FOPlus (FOVar 3) (FOSucc FOZero)) (FOSucc (FOVar 3)))).
+            { exact (FOPr_eq_trans n
+                (FOPlus (FOVar 3) (FOSucc FOZero))
+                (FOSucc (FOPlus (FOVar 3) FOZero))
+                (FOSucc (FOVar 3))
+                (FOPr_q_plus_succ n (FOVar 3) FOZero)
+                (FOPr_eq_congS n (FOPlus (FOVar 3) FOZero) (FOVar 3)
+                   (FOPr_q_plus_zero n (FOVar 3)))). }
+            assert (t4 : FOProvesTn n
+              (FOImplF (FOAnd Z4 (FOAnd CJ1 P4))
+                 (FOEq (FOPlus (FOVar 3) (FOSucc (FOVar 4))) (FOSucc (FOVar 3))))).
+            { exact (FOPr_imp_eq_trans_r n _ _ _ _ t2 t3). }
+            exact (FOPr_imp_eq_trans n _ _ _ _ (FOPr_imp_eq_sym n _ _ _ t4) hp). }
+          (* H1 : H -> (S a = (S b)*(S q) + 0) *)
+          assert (H1 : FOProvesTn n
+            (FOImplF (FOAnd Z4 (FOAnd CJ1 P4))
+               (FOEq (FOSucc (FOVar 0))
+                  (FOPlus (FOMult (FOSucc (FOVar 1)) (FOSucc (FOVar 2)))
+                          FOZero)))).
+          { assert (s1 : FOProvesTn n
+              (FOImplF (FOAnd Z4 (FOAnd CJ1 P4))
+                 (FOEq (FOSucc (FOVar 0))
+                    (FOSucc (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2))
+                                    (FOVar 3)))))).
+            { exact (FOPr_imp_eq_congS n _ (FOVar 0)
+                       (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2)) (FOVar 3))
+                       hc1). }
+            assert (s2 : FOProvesTn n
+              (FOImplF (FOAnd Z4 (FOAnd CJ1 P4))
+                 (FOEq (FOSucc (FOVar 0))
+                    (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2))
+                            (FOSucc (FOVar 3)))))).
+            { exact (FOPr_imp_eq_trans_r n _ _ _ _ s1
+                       (FOPr_eq_sym n _ _
+                          (FOPr_q_plus_succ n
+                             (FOMult (FOSucc (FOVar 1)) (FOVar 2)) (FOVar 3)))). }
+            assert (s3 : FOProvesTn n
+              (FOImplF (FOAnd Z4 (FOAnd CJ1 P4))
+                 (FOEq (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2))
+                               (FOSucc (FOVar 3)))
+                       (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2))
+                               (FOSucc (FOVar 1)))))).
+            { exact (FOPr_imp_eq_congPlus_r n _
+                       (FOMult (FOSucc (FOVar 1)) (FOVar 2))
+                       (FOSucc (FOVar 3)) (FOSucc (FOVar 1)) t5). }
+            assert (s4 : FOProvesTn n
+              (FOImplF (FOAnd Z4 (FOAnd CJ1 P4))
+                 (FOEq (FOSucc (FOVar 0))
+                    (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2))
+                            (FOSucc (FOVar 1)))))).
+            { exact (FOPr_imp_eq_trans n _ _ _ _ s2 s3). }
+            assert (ms : FOProvesTn n
+              (FOEq (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2))
+                            (FOSucc (FOVar 1)))
+                    (FOPlus (FOMult (FOSucc (FOVar 1)) (FOSucc (FOVar 2)))
+                            FOZero))).
+            { exact (FOPr_eq_trans n
+                (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2)) (FOSucc (FOVar 1)))
+                (FOMult (FOSucc (FOVar 1)) (FOSucc (FOVar 2)))
+                (FOPlus (FOMult (FOSucc (FOVar 1)) (FOSucc (FOVar 2))) FOZero)
+                (FOPr_eq_sym n _ _
+                   (FOPr_q_mult_succ n (FOSucc (FOVar 1)) (FOVar 2)))
+                (FOPr_eq_sym n _ _
+                   (FOPr_q_plus_zero n
+                      (FOMult (FOSucc (FOVar 1)) (FOSucc (FOVar 2)))))). }
+            exact (FOPr_imp_eq_trans_r n _ _ _ _ s4 ms). }
+          (* H2 : H -> 0 < S b  (binder 4) *)
+          assert (H2 : FOProvesTn n
+            (FOImplF (FOAnd Z4 (FOAnd CJ1 P4))
+               (FOExists 4
+                  (FOEq (FOPlus FOZero (FOSucc (FOVar 4))) (FOSucc (FOVar 1)))))).
+          { apply (FOPr_weaken n _ (FOAnd Z4 (FOAnd CJ1 P4))).
+            apply (FOProvesTn_MP n _ _
+              (FOProvesTn_ExIntroT n 4 (FOVar 1)
+                 (FOEq (FOPlus FOZero (FOSucc (FOVar 4))) (FOSucc (FOVar 1)))
+                 eq_refl)).
+            exact (FOPr_eq_trans n
+              (FOPlus FOZero (FOSucc (FOVar 1)))
+              (FOSucc (FOPlus FOZero (FOVar 1)))
+              (FOSucc (FOVar 1))
+              (FOPr_q_plus_succ n FOZero (FOVar 1))
+              (FOPr_eq_congS n (FOPlus FOZero (FOVar 1)) (FOVar 1)
+                (FOProvesTn_MP n _ _
+                  (FOProvesTn_AllElimT n 0 (FOVar 1)
+                     (FOEq (FOPlus FOZero (FOVar 0)) (FOVar 0)) eq_refl)
+                  (FOPr_zero_plus n)))). }
+          assert (asm : FOProvesTn n
+            (FOImplF (FOAnd Z4 (FOAnd CJ1 P4))
+               (FOAnd
+                  (FOEq (FOSucc (FOVar 0))
+                     (FOPlus (FOMult (FOSucc (FOVar 1)) (FOSucc (FOVar 2)))
+                             FOZero))
+                  (FOExists 4
+                     (FOEq (FOPlus FOZero (FOSucc (FOVar 4)))
+                           (FOSucc (FOVar 1))))))).
+          { exact (FOPr_imp_and n _ _ _ H1 H2). }
+          (* existentially introduce r:=0 then q:=S q *)
+          assert (hcc : FOProvesTn n (FOImplF (FOAnd Z4 (FOAnd CJ1 P4)) CONCL)).
+          { apply (FOPr_compose n _ _ _ asm).
+            apply (FOPr_compose n _
+              (FOExists 3
+                 (FOAnd (FOEq (FOSucc (FOVar 0))
+                           (FOPlus (FOMult (FOSucc (FOVar 1)) (FOSucc (FOVar 2)))
+                                   (FOVar 3))) LTR))
+              CONCL).
+            - exact (FOProvesTn_ExIntroT n 3 FOZero
+                       (FOAnd (FOEq (FOSucc (FOVar 0))
+                                 (FOPlus (FOMult (FOSucc (FOVar 1))
+                                            (FOSucc (FOVar 2))) (FOVar 3))) LTR)
+                       eq_refl).
+            - exact (FOProvesTn_ExIntroT n 2 (FOSucc (FOVar 2))
+                       (FOExists 3 BODYS) eq_refl). }
+          (* curry the bundle into Z4 -> CJ1 -> P4 -> CONCL *)
+          apply (FOProvesTn_MP n _ _
+            (FOPr_taut n (FOm4 Z4 CJ1 P4 CONCL)
+               (Impl (Impl (And (Var 0) (And (Var 1) (Var 2))) (Var 3))
+                     (Impl (Var 0) (Impl (Var 1) (Impl (Var 2) (Var 3)))))
+               ltac:(cbn; tauto) eq_refl)).
+          exact hcc. }
+        (* armS : (exists w. v4 = S w) -> (CJ1 -> (P4 -> CONCL)) ; q=v2, r=S r *)
+        assert (armS : FOProvesTn n
+          (FOImplF (FOExists 5 (FOEq (FOVar 4) (FOSucc (FOVar 5))))
+                   (FOImplF CJ1 (FOImplF P4 CONCL)))).
+        { apply (FOProvesTn_MP n _ _
+            (FOProvesTn_ExElim n 5 (FOEq (FOVar 4) (FOSucc (FOVar 5)))
+               (FOImplF CJ1 (FOImplF P4 CONCL)) eq_refl)).
+          apply FOProvesTn_Gen.
+          (* inner: (v4 = S v5) -> (CJ1 -> (P4 -> CONCL)) *)
+          pose (HS := FOAnd (FOEq (FOVar 4) (FOSucc (FOVar 5))) (FOAnd CJ1 P4)).
+          assert (hv : FOProvesTn n
+            (FOImplF HS (FOEq (FOVar 4) (FOSucc (FOVar 5))))).
+          { exact (FOPr_and_elim_l n _ (FOAnd CJ1 P4)). }
+          assert (hr : FOProvesTn n (FOImplF HS (FOAnd CJ1 P4))).
+          { exact (FOPr_and_elim_r n (FOEq (FOVar 4) (FOSucc (FOVar 5)))
+                     (FOAnd CJ1 P4)). }
+          assert (hc1 : FOProvesTn n (FOImplF HS CJ1)).
+          { exact (FOPr_compose n _ _ _ hr (FOPr_and_elim_l n CJ1 P4)). }
+          assert (hp : FOProvesTn n (FOImplF HS P4)).
+          { exact (FOPr_compose n _ _ _ hr (FOPr_and_elim_r n CJ1 P4)). }
+          (* H1' : HS -> (S a = (S b)*v2 + S r) *)
+          assert (H1' : FOProvesTn n
+            (FOImplF HS
+               (FOEq (FOSucc (FOVar 0))
+                  (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2))
+                          (FOSucc (FOVar 3)))))).
+          { assert (s1 : FOProvesTn n
+              (FOImplF HS
+                 (FOEq (FOSucc (FOVar 0))
+                    (FOSucc (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2))
+                                    (FOVar 3)))))).
+            { exact (FOPr_imp_eq_congS n _ (FOVar 0)
+                       (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2)) (FOVar 3))
+                       hc1). }
+            exact (FOPr_imp_eq_trans_r n _ _ _ _ s1
+                     (FOPr_eq_sym n _ _
+                        (FOPr_q_plus_succ n
+                           (FOMult (FOSucc (FOVar 1)) (FOVar 2)) (FOVar 3)))). }
+          (* H2eq : HS -> (S r + S v5 = S b) *)
+          assert (H2eq : FOProvesTn n
+            (FOImplF HS
+               (FOEq (FOPlus (FOSucc (FOVar 3)) (FOSucc (FOVar 5)))
+                     (FOSucc (FOVar 1))))).
+          { (* u1 : HS -> (S b = v3 + S (S v5)) *)
+            assert (u1 : FOProvesTn n
+              (FOImplF HS
+                 (FOEq (FOSucc (FOVar 1))
+                    (FOPlus (FOVar 3) (FOSucc (FOSucc (FOVar 5))))))).
+            { assert (a1 : FOProvesTn n
+                (FOImplF HS
+                   (FOEq (FOSucc (FOVar 1))
+                         (FOPlus (FOVar 3) (FOSucc (FOVar 4)))))).
+              { exact (FOPr_imp_eq_sym n _ _ _ hp). }
+              assert (a2 : FOProvesTn n
+                (FOImplF HS
+                   (FOEq (FOSucc (FOVar 4)) (FOSucc (FOSucc (FOVar 5)))))).
+              { exact (FOPr_imp_eq_congS n _ (FOVar 4) (FOSucc (FOVar 5)) hv). }
+              assert (a3 : FOProvesTn n
+                (FOImplF HS
+                   (FOEq (FOPlus (FOVar 3) (FOSucc (FOVar 4)))
+                         (FOPlus (FOVar 3) (FOSucc (FOSucc (FOVar 5))))))).
+              { exact (FOPr_imp_eq_congPlus_r n _ (FOVar 3)
+                         (FOSucc (FOVar 4)) (FOSucc (FOSucc (FOVar 5))) a2). }
+              exact (FOPr_imp_eq_trans n _ _ _ _ a1 a3). }
+            (* u2 : HS -> (S b = S (S (v3 + v5))) *)
+            assert (u2 : FOProvesTn n
+              (FOImplF HS
+                 (FOEq (FOSucc (FOVar 1))
+                       (FOSucc (FOSucc (FOPlus (FOVar 3) (FOVar 5))))))).
+            { assert (f1 : FOProvesTn n
+                (FOEq (FOPlus (FOVar 3) (FOSucc (FOSucc (FOVar 5))))
+                      (FOSucc (FOSucc (FOPlus (FOVar 3) (FOVar 5)))))).
+              { exact (FOPr_eq_trans n
+                  (FOPlus (FOVar 3) (FOSucc (FOSucc (FOVar 5))))
+                  (FOSucc (FOPlus (FOVar 3) (FOSucc (FOVar 5))))
+                  (FOSucc (FOSucc (FOPlus (FOVar 3) (FOVar 5))))
+                  (FOPr_q_plus_succ n (FOVar 3) (FOSucc (FOVar 5)))
+                  (FOPr_eq_congS n (FOPlus (FOVar 3) (FOSucc (FOVar 5)))
+                     (FOSucc (FOPlus (FOVar 3) (FOVar 5)))
+                     (FOPr_q_plus_succ n (FOVar 3) (FOVar 5)))). }
+              exact (FOPr_imp_eq_trans_r n _ _ _ _ u1 f1). }
+            (* u4 : S r + S v5 = S (S (v3 + v5))   (fact) *)
+            assert (u4 : FOProvesTn n
+              (FOEq (FOPlus (FOSucc (FOVar 3)) (FOSucc (FOVar 5)))
+                    (FOSucc (FOSucc (FOPlus (FOVar 3) (FOVar 5)))))).
+            { exact (FOPr_eq_trans n
+                (FOPlus (FOSucc (FOVar 3)) (FOSucc (FOVar 5)))
+                (FOSucc (FOPlus (FOVar 3) (FOSucc (FOVar 5))))
+                (FOSucc (FOSucc (FOPlus (FOVar 3) (FOVar 5))))
+                (FOProvesTn_MP n _ _
+                   (FOProvesTn_AllElimT n 1 (FOSucc (FOVar 5))
+                      (FOEq (FOPlus (FOSucc (FOVar 3)) (FOVar 1))
+                            (FOSucc (FOPlus (FOVar 3) (FOVar 1)))) eq_refl)
+                   (FOProvesTn_MP n _ _
+                      (FOProvesTn_AllElimT n 0 (FOVar 3)
+                         (FOForall 1
+                            (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+                                  (FOSucc (FOPlus (FOVar 0) (FOVar 1))))) eq_refl)
+                      (FOPr_succ_plus n)))
+                (FOPr_eq_congS n (FOPlus (FOVar 3) (FOSucc (FOVar 5)))
+                   (FOSucc (FOPlus (FOVar 3) (FOVar 5)))
+                   (FOPr_q_plus_succ n (FOVar 3) (FOVar 5)))). }
+            exact (FOPr_imp_eq_trans_l n _ _ _ _ u4
+                     (FOPr_imp_eq_sym n _ _ _ u2)). }
+          (* H2' : HS -> exists w. S r + S w = S b   (binder 4) *)
+          assert (H2' : FOProvesTn n
+            (FOImplF HS
+               (FOExists 4
+                  (FOEq (FOPlus (FOSucc (FOVar 3)) (FOSucc (FOVar 4)))
+                        (FOSucc (FOVar 1)))))).
+          { exact (FOPr_compose n _ _ _ H2eq
+                     (FOProvesTn_ExIntroT n 4 (FOVar 5)
+                        (FOEq (FOPlus (FOSucc (FOVar 3)) (FOSucc (FOVar 4)))
+                              (FOSucc (FOVar 1))) eq_refl)). }
+          assert (asm : FOProvesTn n
+            (FOImplF HS
+               (FOAnd
+                  (FOEq (FOSucc (FOVar 0))
+                     (FOPlus (FOMult (FOSucc (FOVar 1)) (FOVar 2))
+                             (FOSucc (FOVar 3))))
+                  (FOExists 4
+                     (FOEq (FOPlus (FOSucc (FOVar 3)) (FOSucc (FOVar 4)))
+                           (FOSucc (FOVar 1))))))).
+          { exact (FOPr_imp_and n _ _ _ H1' H2'). }
+          assert (hcc : FOProvesTn n (FOImplF HS CONCL)).
+          { apply (FOPr_compose n _ _ _ asm).
+            apply (FOPr_compose n _ (FOExists 3 BODYS) CONCL).
+            - exact (FOProvesTn_ExIntroT n 3 (FOSucc (FOVar 3))
+                       (FOAnd CJ1S LTR) eq_refl).
+            - exact (FOProvesTn_ExIntroT n 2 (FOVar 2)
+                       (FOExists 3 BODYS) eq_refl). }
+          apply (FOProvesTn_MP n _ _
+            (FOPr_taut n (FOm4 (FOEq (FOVar 4) (FOSucc (FOVar 5))) CJ1 P4 CONCL)
+               (Impl (Impl (And (Var 0) (And (Var 1) (Var 2))) (Var 3))
+                     (Impl (Var 0) (Impl (Var 1) (Impl (Var 2) (Var 3)))))
+               ltac:(cbn; tauto) eq_refl)).
+          exact hcc. }
+        (* combine the two arms via RQ zero-or-succ on the witness v4 *)
+        exact (FOPr_case n Z4
+                 (FOExists 5 (FOEq (FOVar 4) (FOSucc (FOVar 5))))
+                 (FOImplF CJ1 (FOImplF P4 CONCL))
+                 (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_zero_or_succ 4)))
+                 armZ armS). }
+      (* lift Core3 over the existential bound in CJ2 = exists w. P4 *)
+      assert (Core2 : FOProvesTn n (FOImplF CJ1 (FOImplF LTR CONCL))).
+      { apply (FOPr_compose n CJ1
+                 (FOForall 4 (FOImplF P4 CONCL))
+                 (FOImplF LTR CONCL)).
+        - exact (FOProvesTn_MP n _ _
+                   (FOProvesTn_AllExport n 4 CJ1 (FOImplF P4 CONCL) eq_refl)
+                   (FOProvesTn_Gen n 4 _ Core3)).
+        - exact (FOProvesTn_ExElim n 4 P4 CONCL eq_refl). }
+      exact (FOPr_under_mp n BODY LTR CONCL
+               (FOPr_compose n BODY CJ1 (FOImplF LTR CONCL)
+                  (FOPr_and_elim_l n CJ1 LTR) Core2)
+               (FOPr_and_elim_r n CJ1 LTR)). }
+    (* assemble step: generalise over the two existential layers *)
+    apply (FOProvesTn_MP n _ _
+      (FOProvesTn_ExElim n 2 (FOExists 3 BODY) CONCL eq_refl)).
+    apply FOProvesTn_Gen.
+    apply (FOProvesTn_MP n _ _
+      (FOProvesTn_ExElim n 3 BODY CONCL eq_refl)).
+    apply FOProvesTn_Gen.
+    exact core. }
+  exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Hind BASE) STEP).
+Qed.
+
+End Div.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
