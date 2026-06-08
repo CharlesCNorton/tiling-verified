@@ -33599,6 +33599,51 @@ Proof.
     [cbn; tauto | reflexivity].
 Qed.
 
+(** ** Applied equational toolkit.
+
+    The equality axioms in their [exact]-applied (proof-to-proof) form:
+    these turn object-level equational chains into ordinary function
+    composition instead of nested [MP]-on-[EqTrans] terms. *)
+
+Lemma FOPr_eq_sym : forall n a b,
+  FOProvesTn n (FOEq a b) -> FOProvesTn n (FOEq b a).
+Proof.
+  intros n a b H. exact (FOProvesTn_MP n _ _ (FOProvesTn_EqSym n a b) H).
+Qed.
+
+Lemma FOPr_eq_trans : forall n a b c,
+  FOProvesTn n (FOEq a b) -> FOProvesTn n (FOEq b c) ->
+  FOProvesTn n (FOEq a c).
+Proof.
+  intros n a b c H1 H2.
+  exact (FOProvesTn_MP n _ _
+           (FOProvesTn_MP n _ _ (FOProvesTn_EqTrans n a b c) H1) H2).
+Qed.
+
+Lemma FOPr_eq_congS : forall n a b,
+  FOProvesTn n (FOEq a b) -> FOProvesTn n (FOEq (FOSucc a) (FOSucc b)).
+Proof.
+  intros n a b H. exact (FOProvesTn_MP n _ _ (FOProvesTn_CongS n a b) H).
+Qed.
+
+Lemma FOPr_eq_congPlus : forall n a b c d,
+  FOProvesTn n (FOEq a b) -> FOProvesTn n (FOEq c d) ->
+  FOProvesTn n (FOEq (FOPlus a c) (FOPlus b d)).
+Proof.
+  intros n a b c d H1 H2.
+  exact (FOProvesTn_MP n _ _
+           (FOProvesTn_MP n _ _ (FOProvesTn_CongPlus n a b c d) H1) H2).
+Qed.
+
+Lemma FOPr_eq_congMult : forall n a b c d,
+  FOProvesTn n (FOEq a b) -> FOProvesTn n (FOEq c d) ->
+  FOProvesTn n (FOEq (FOMult a c) (FOMult b d)).
+Proof.
+  intros n a b c d H1 H2.
+  exact (FOProvesTn_MP n _ _
+           (FOProvesTn_MP n _ _ (FOProvesTn_CongMult n a b c d) H1) H2).
+Qed.
+
 (** ** Object-level induction at work.
 
     Robinson [Q] proves [a + 0 = a] and [a + S b = S (a + b)] but not
