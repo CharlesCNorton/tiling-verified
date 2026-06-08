@@ -34255,6 +34255,115 @@ Proof.
   exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Hind Hbase) Hstep).
 Qed.
 
+(** Left distributivity [x*(y+z) = x*y + x*z] by induction on [z].  The
+    step turns [x*(y+S z)] into [x*(y+z) + x] (via [Q]'s [plus_succ],
+    [mult_succ] and [congMult]), applies the hypothesis under [+x], then
+    reassociates [(x*y + x*z) + x] to [x*y + x*S z] with [assoc_fv] at
+    [(x*y, x*z, x)] and [Q]'s [mult_succ]. *)
+
+Lemma FOPr_mult_distrib_l : forall n,
+  FOProvesTn n (FOForall 0 (FOForall 1 (FOForall 2
+    (FOEq (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOVar 2)))
+          (FOPlus (FOMult (FOVar 0) (FOVar 1))
+                  (FOMult (FOVar 0) (FOVar 2))))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  pose proof (FOProvesTn_ax n _ (FOAx_Ind n 2
+    (FOEq (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOVar 2)))
+          (FOPlus (FOMult (FOVar 0) (FOVar 1))
+                  (FOMult (FOVar 0) (FOVar 2)))))) as Hind.
+  unfold FOInduction in Hind.
+  assert (Hassoc : FOProvesTn n
+    (FOEq (FOPlus (FOPlus (FOMult (FOVar 0) (FOVar 1))
+                     (FOMult (FOVar 0) (FOVar 2))) (FOVar 0))
+          (FOPlus (FOMult (FOVar 0) (FOVar 1))
+             (FOPlus (FOMult (FOVar 0) (FOVar 2)) (FOVar 0))))).
+  { pose proof (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 7 (FOMult (FOVar 0) (FOVar 1))
+         (FOForall 8 (FOForall 9
+            (FOEq (FOPlus (FOPlus (FOVar 7) (FOVar 8)) (FOVar 9))
+                  (FOPlus (FOVar 7) (FOPlus (FOVar 8) (FOVar 9)))))) eq_refl)
+      (FOPr_plus_assoc_fv n)) as A1.
+    pose proof (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 8 (FOMult (FOVar 0) (FOVar 2))
+         (FOForall 9
+            (FOEq (FOPlus (FOPlus (FOMult (FOVar 0) (FOVar 1)) (FOVar 8))
+                     (FOVar 9))
+                  (FOPlus (FOMult (FOVar 0) (FOVar 1))
+                     (FOPlus (FOVar 8) (FOVar 9))))) eq_refl)
+      A1) as A2.
+    exact (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 9 (FOVar 0)
+         (FOEq (FOPlus (FOPlus (FOMult (FOVar 0) (FOVar 1))
+                  (FOMult (FOVar 0) (FOVar 2))) (FOVar 9))
+               (FOPlus (FOMult (FOVar 0) (FOVar 1))
+                  (FOPlus (FOMult (FOVar 0) (FOVar 2)) (FOVar 9)))) eq_refl)
+      A2). }
+  assert (Hbase : FOProvesTn n
+    (FOEq (FOMult (FOVar 0) (FOPlus (FOVar 1) FOZero))
+          (FOPlus (FOMult (FOVar 0) (FOVar 1)) (FOMult (FOVar 0) FOZero)))).
+  { apply (FOPr_eq_trans n _ (FOMult (FOVar 0) (FOVar 1)) _).
+    - exact (FOPr_eq_congMult n (FOVar 0) (FOVar 0)
+               (FOPlus (FOVar 1) FOZero) (FOVar 1)
+               (FOProvesTn_EqRefl n (FOVar 0)) (FOPr_q_plus_zero n (FOVar 1))).
+    - apply FOPr_eq_sym.
+      apply (FOPr_eq_trans n _ (FOPlus (FOMult (FOVar 0) (FOVar 1)) FOZero) _).
+      + exact (FOPr_eq_congPlus n (FOMult (FOVar 0) (FOVar 1))
+                 (FOMult (FOVar 0) (FOVar 1)) (FOMult (FOVar 0) FOZero) FOZero
+                 (FOProvesTn_EqRefl n (FOMult (FOVar 0) (FOVar 1)))
+                 (FOPr_q_mult_zero n (FOVar 0))).
+      + exact (FOPr_q_plus_zero n (FOMult (FOVar 0) (FOVar 1))). }
+  assert (Hstep : FOProvesTn n (FOForall 2 (FOImplF
+    (FOEq (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOVar 2)))
+          (FOPlus (FOMult (FOVar 0) (FOVar 1)) (FOMult (FOVar 0) (FOVar 2))))
+    (FOEq (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOSucc (FOVar 2))))
+          (FOPlus (FOMult (FOVar 0) (FOVar 1))
+                  (FOMult (FOVar 0) (FOSucc (FOVar 2)))))))).
+  { apply FOProvesTn_Gen.
+    apply (FOPr_imp_eq_trans_l n
+      (FOEq (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOVar 2)))
+            (FOPlus (FOMult (FOVar 0) (FOVar 1)) (FOMult (FOVar 0) (FOVar 2))))
+      (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOSucc (FOVar 2))))
+      (FOPlus (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOVar 2))) (FOVar 0))
+      (FOPlus (FOMult (FOVar 0) (FOVar 1)) (FOMult (FOVar 0) (FOSucc (FOVar 2))))).
+    - apply (FOPr_eq_trans n _
+        (FOMult (FOVar 0) (FOSucc (FOPlus (FOVar 1) (FOVar 2)))) _).
+      + exact (FOPr_eq_congMult n (FOVar 0) (FOVar 0)
+                 (FOPlus (FOVar 1) (FOSucc (FOVar 2)))
+                 (FOSucc (FOPlus (FOVar 1) (FOVar 2)))
+                 (FOProvesTn_EqRefl n (FOVar 0))
+                 (FOPr_q_plus_succ n (FOVar 1) (FOVar 2))).
+      + exact (FOPr_q_mult_succ n (FOVar 0) (FOPlus (FOVar 1) (FOVar 2))).
+    - apply (FOPr_imp_eq_trans_r n
+        (FOEq (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOVar 2)))
+              (FOPlus (FOMult (FOVar 0) (FOVar 1)) (FOMult (FOVar 0) (FOVar 2))))
+        (FOPlus (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOVar 2))) (FOVar 0))
+        (FOPlus (FOPlus (FOMult (FOVar 0) (FOVar 1))
+                   (FOMult (FOVar 0) (FOVar 2))) (FOVar 0))
+        (FOPlus (FOMult (FOVar 0) (FOVar 1)) (FOMult (FOVar 0) (FOSucc (FOVar 2))))).
+      + apply (FOPr_imp_eq_congPlus_l n
+          (FOEq (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOVar 2)))
+                (FOPlus (FOMult (FOVar 0) (FOVar 1)) (FOMult (FOVar 0) (FOVar 2))))
+          (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOVar 2)))
+          (FOPlus (FOMult (FOVar 0) (FOVar 1)) (FOMult (FOVar 0) (FOVar 2)))
+          (FOVar 0)).
+        exact (FOPr_idf n (FOEq (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOVar 2)))
+                  (FOPlus (FOMult (FOVar 0) (FOVar 1)) (FOMult (FOVar 0) (FOVar 2))))).
+      + apply (FOPr_eq_trans n _
+          (FOPlus (FOMult (FOVar 0) (FOVar 1))
+             (FOPlus (FOMult (FOVar 0) (FOVar 2)) (FOVar 0))) _).
+        * exact Hassoc.
+        * exact (FOPr_eq_congPlus n (FOMult (FOVar 0) (FOVar 1))
+                   (FOMult (FOVar 0) (FOVar 1))
+                   (FOPlus (FOMult (FOVar 0) (FOVar 2)) (FOVar 0))
+                   (FOMult (FOVar 0) (FOSucc (FOVar 2)))
+                   (FOProvesTn_EqRefl n (FOMult (FOVar 0) (FOVar 1)))
+                   (FOPr_eq_sym n _ _
+                      (FOPr_q_mult_succ n (FOVar 0) (FOVar 2)))). }
+  exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Hind Hbase) Hstep).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
