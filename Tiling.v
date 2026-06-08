@@ -33599,6 +33599,34 @@ Proof.
     [cbn; tauto | reflexivity].
 Qed.
 
+(** ** Object-level induction at work.
+
+    Robinson [Q] proves [a + 0 = a] and [a + S b = S (a + b)] but not
+    the left unit law [0 + x = x], which needs induction on [x].  With
+    [FOAx_Ind] in the tower the law is an object-level theorem: apply
+    the induction instance, discharge the base by [Q]'s [plus_zero], and
+    the step by congruence through [Q]'s [plus_succ].  This is the first
+    brick of the [PA]-over-[Q] arithmetic the numeral and substitution
+    functions are built from. *)
+
+Lemma FOPr_zero_plus : forall n,
+  FOProvesTn n (FOForall 0 (FOEq (FOPlus FOZero (FOVar 0)) (FOVar 0))).
+Proof.
+  intros n.
+  pose proof (FOProvesTn_ax n _
+    (FOAx_Ind n 0 (FOEq (FOPlus FOZero (FOVar 0)) (FOVar 0)))) as Hind.
+  unfold FOInduction in Hind.
+  apply (FOProvesTn_MP n _ _
+           (FOProvesTn_MP n _ _ Hind (FOPr_q_plus_zero n FOZero))).
+  apply FOProvesTn_Gen.
+  pose proof (FOProvesTn_CongS n (FOPlus FOZero (FOVar 0)) (FOVar 0)) as Hcong.
+  pose proof (FOProvesTn_MP n _ _
+    (FOProvesTn_EqTrans n (FOPlus FOZero (FOSucc (FOVar 0)))
+       (FOSucc (FOPlus FOZero (FOVar 0))) (FOSucc (FOVar 0)))
+    (FOPr_q_plus_succ n FOZero (FOVar 0))) as Htr.
+  exact (FOPr_compose n _ _ _ Hcong Htr).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
