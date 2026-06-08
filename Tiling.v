@@ -34709,6 +34709,45 @@ Proof.
     (FOPr_zero_plus n)).
 Qed.
 
+(** Monotonicity [a < b -> a < S b]: eliminate the witness [w] of
+    [a < b], then re-introduce [S w] as the witness of [a < S b] since
+    [a + S (S w) = S (a + S w) = S b].  Validates the [ExElim]/[ExIntroT]
+    pattern for the strict order. *)
+
+Lemma FOPr_lt_succ : forall n,
+  FOProvesTn n (FOForall 0 (FOForall 1
+    (FOImplF (FOLtF (FOVar 0) (FOVar 1))
+             (FOLtF (FOVar 0) (FOSucc (FOVar 1)))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  unfold FOLtF. cbn [FOmax_var_tm Nat.max].
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_ExElim n 2
+       (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOVar 1))
+       (FOExists 2 (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2)))
+                         (FOSucc (FOVar 1))))
+       eq_refl)).
+  apply FOProvesTn_Gen.
+  apply (FOPr_compose n
+    (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOVar 1))
+    (FOEq (FOPlus (FOVar 0) (FOSucc (FOSucc (FOVar 2)))) (FOSucc (FOVar 1)))
+    (FOExists 2 (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2)))
+                      (FOSucc (FOVar 1))))).
+  - apply (FOPr_imp_eq_trans_l n
+      (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOVar 1))
+      (FOPlus (FOVar 0) (FOSucc (FOSucc (FOVar 2))))
+      (FOSucc (FOPlus (FOVar 0) (FOSucc (FOVar 2))))
+      (FOSucc (FOVar 1))).
+    + exact (FOPr_q_plus_succ n (FOVar 0) (FOSucc (FOVar 2))).
+    + apply FOPr_imp_eq_congS.
+      exact (FOPr_idf n (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2)))
+                              (FOVar 1))).
+  - exact (FOProvesTn_ExIntroT n 2 (FOSucc (FOVar 2))
+      (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOSucc (FOVar 1)))
+      eq_refl).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
