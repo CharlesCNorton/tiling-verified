@@ -13206,22 +13206,6 @@ Definition FOTopFm : FOFormula := FOImplF FOFalseF FOFalseF.
 Definition FOConSentence (n : nat) : FOFormula :=
   FONeg (FOProvSentence n (FONeg FOTopFm)).
 
-Inductive FOAxiomTn : nat -> FOFormula -> Prop :=
-  | FOAx_RQ : forall n phi, FORobinsonQ phi -> FOAxiomTn n phi
-  | FOAx_Refl : forall n k A, k < n ->
-      FOAxiomTn n (FOImplF (FOProvSentence k A) A)
-  | FOAx_D2 : forall n k A B, k < n ->
-      FOAxiomTn n
-        (FOImplF (FOProvSentence k (FOImplF A B))
-           (FOImplF (FOProvSentence k A) (FOProvSentence k B)))
-  | FOAx_D3 : forall n k A, k < n ->
-      FOAxiomTn n
-        (FOImplF (FOProvSentence k A)
-           (FOProvSentence k (FOProvSentence k A)))
-  | FOAx_DMon : forall n k k' A, k <= k' -> k' < n ->
-      FOAxiomTn n
-        (FOImplF (FOProvSentence k A) (FOProvSentence k' A)).
-
 (** Term-level substitution with its capture test.  [FOin_tm v t]:
     [v] occurs in [t].  [FOfree_in v A]: [v] occurs free in [A].
     [FOsubst_f x s A] replaces free [x] by [s], stopping under a binder
@@ -13282,6 +13266,57 @@ Fixpoint FOsubst_ok (x : nat) (s : FOTerm) (A : FOFormula) : bool :=
            then negb (FOin_tm y s) && FOsubst_ok x s B
            else true
   end.
+
+(** ** The first-order induction schema (PA base).
+
+    [FOInduction x A] is the curried base/step/conclusion form
+
+      A[x:=0] -> (forall x, A -> A[x:=S x]) -> forall x, A,
+
+    placed here, after the substitution toolkit and before [FOAxiomTn],
+    so the tower's induction axiom can refer to it.  Its standard-model
+    soundness [FOInduction_sat] is proved later, once [FOsat] and the
+    substitution lemma are available. *)
+
+Definition FOInduction (x : nat) (A : FOFormula) : FOFormula :=
+  FOImplF (FOsubst_f x FOZero A)
+    (FOImplF (FOForall x (FOImplF A (FOsubst_f x (FOSucc (FOVar x)) A)))
+       (FOForall x A)).
+
+Lemma FOsubst_ok_succ_var_self : forall A x,
+  FOsubst_ok x (FOSucc (FOVar x)) A = true.
+Proof.
+  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB]; intros x; cbn.
+  - reflexivity.
+  - reflexivity.
+  - rewrite IHB, IHC. reflexivity.
+  - destruct (Nat.eqb_spec y x) as [E|E]; [reflexivity|].
+    destruct (FOfree_in x B); [|reflexivity].
+    cbn. destruct (Nat.eqb_spec x y) as [E2|E2].
+    + exfalso. apply E. symmetry. exact E2.
+    + cbn. exact (IHB x).
+  - destruct (Nat.eqb_spec y x) as [E|E]; [reflexivity|].
+    destruct (FOfree_in x B); [|reflexivity].
+    cbn. destruct (Nat.eqb_spec x y) as [E2|E2].
+    + exfalso. apply E. symmetry. exact E2.
+    + cbn. exact (IHB x).
+Qed.
+
+Inductive FOAxiomTn : nat -> FOFormula -> Prop :=
+  | FOAx_RQ : forall n phi, FORobinsonQ phi -> FOAxiomTn n phi
+  | FOAx_Refl : forall n k A, k < n ->
+      FOAxiomTn n (FOImplF (FOProvSentence k A) A)
+  | FOAx_D2 : forall n k A B, k < n ->
+      FOAxiomTn n
+        (FOImplF (FOProvSentence k (FOImplF A B))
+           (FOImplF (FOProvSentence k A) (FOProvSentence k B)))
+  | FOAx_D3 : forall n k A, k < n ->
+      FOAxiomTn n
+        (FOImplF (FOProvSentence k A)
+           (FOProvSentence k (FOProvSentence k A)))
+  | FOAx_DMon : forall n k k' A, k <= k' -> k' < n ->
+      FOAxiomTn n
+        (FOImplF (FOProvSentence k A) (FOProvSentence k' A)).
 
 (** ** Boolean equality and Goedel codes for the first-order syntax. *)
 
@@ -15837,44 +15872,12 @@ Proof.
         -- rewrite (FOsat_agree_free B _ _ (Hpt v0)). exact Hv0.
 Qed.
 
-(** ** The first-order induction schema and its standard-model soundness.
+(** ** Standard-model soundness of the induction schema.
 
-    Robinson Q proves no nontrivial instance of its own Sigma_1-
-    completeness, so the tower base is strengthened to PA by the full
-    induction schema.  [FOInduction x A] is the curried base/step/
-    conclusion form
-
-      A[x:=0] -> (forall x, A -> A[x:=S x]) -> forall x, A,
-
-    avoiding the [FOAnd] packaging so it applies directly inside
-    derivations and arithmetizes through two ordinary substitution
-    traces.  The schema is true in the standard model by natural-number
-    induction on the bound; [FOInduction_sat] is the soundness
-    obligation discharged when the schema is admitted as a tower axiom. *)
-
-Definition FOInduction (x : nat) (A : FOFormula) : FOFormula :=
-  FOImplF (FOsubst_f x FOZero A)
-    (FOImplF (FOForall x (FOImplF A (FOsubst_f x (FOSucc (FOVar x)) A)))
-       (FOForall x A)).
-
-Lemma FOsubst_ok_succ_var_self : forall A x,
-  FOsubst_ok x (FOSucc (FOVar x)) A = true.
-Proof.
-  induction A as [a b | | B IHB C IHC | y B IHB | y B IHB]; intros x; cbn.
-  - reflexivity.
-  - reflexivity.
-  - rewrite IHB, IHC. reflexivity.
-  - destruct (Nat.eqb_spec y x) as [E|E]; [reflexivity|].
-    destruct (FOfree_in x B); [|reflexivity].
-    cbn. destruct (Nat.eqb_spec x y) as [E2|E2].
-    + exfalso. apply E. symmetry. exact E2.
-    + cbn. exact (IHB x).
-  - destruct (Nat.eqb_spec y x) as [E|E]; [reflexivity|].
-    destruct (FOfree_in x B); [|reflexivity].
-    cbn. destruct (Nat.eqb_spec x y) as [E2|E2].
-    + exfalso. apply E. symmetry. exact E2.
-    + cbn. exact (IHB x).
-Qed.
+    [FOInduction] (defined with the substitution toolkit above) is true
+    in the standard model by natural-number induction on the bound; this
+    is the soundness obligation discharged when the schema is admitted as
+    a tower axiom. *)
 
 Lemma FOInduction_sat : forall e x A, FOsat e (FOInduction x A).
 Proof.
