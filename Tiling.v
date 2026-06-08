@@ -33511,6 +33511,17 @@ Proof.
            (FOProvesTn_ExIntroT k x t delta Hok)).
 Qed.
 
+Lemma FOprov_box_ex_intro_num : forall n k x m delta,
+  k < n ->
+  FOProvesTn n (FOImplF (FOProvSentence k (FOsubst_num x m delta))
+                        (FOProvSentence k (FOExists x delta))).
+Proof.
+  intros n k x m delta Hk.
+  rewrite <- (FOsubst_f_num delta x m).
+  exact (FOprov_box_ex_intro n k x (FOnumeral m) delta Hk
+           (FOsubst_ok_numeral delta x m)).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
