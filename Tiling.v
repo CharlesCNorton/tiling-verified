@@ -33467,6 +33467,50 @@ Proof.
              (Hfalse Hns) (FOPr_efq n (FOProvSentence n A))).
 Qed.
 
+(** ** Cross-level box combinators.
+
+    These internalize, at level [n], the distribution of a level-[k]
+    derivation over the level-[k] provability box (for [k < n]).  They
+    are the reusable steps of the open-[Delta_0] and [Sigma_1]
+    constructions: [FOprov_box_nec_imp] necessitates an object-level
+    implication provable at level [k] and distributes it across the box
+    using the second Hilbert-Bernays axiom; the binary and existential
+    forms specialize it.  No truth-splitting and no appeal to
+    [FOAx_D3]. *)
+
+Lemma FOprov_box_nec_imp : forall n k A B,
+  k < n -> FOProvesTn k (FOImplF A B) ->
+  FOProvesTn n (FOImplF (FOProvSentence k A) (FOProvSentence k B)).
+Proof.
+  intros n k A B Hk Hab.
+  exact (FOProvesTn_MP n _ _
+           (FOProvesTn_ax n _ (FOAx_D2 n k A B Hk))
+           (FOHBL3_provable k n _ Hab)).
+Qed.
+
+Lemma FOprov_box_nec_imp2 : forall n k A B C,
+  k < n -> FOProvesTn k (FOImplF A (FOImplF B C)) ->
+  FOProvesTn n (FOImplF (FOProvSentence k A)
+                  (FOImplF (FOProvSentence k B) (FOProvSentence k C))).
+Proof.
+  intros n k A B C Hk Habc.
+  pose proof (FOprov_box_nec_imp n k A (FOImplF B C) Hk Habc) as H1.
+  pose proof (FOProvesTn_ax n _ (FOAx_D2 n k B C Hk)) as Hd2.
+  exact (FOPr_compose n (FOProvSentence k A)
+           (FOProvSentence k (FOImplF B C))
+           (FOImplF (FOProvSentence k B) (FOProvSentence k C)) H1 Hd2).
+Qed.
+
+Lemma FOprov_box_ex_intro : forall n k x t delta,
+  k < n -> FOsubst_ok x t delta = true ->
+  FOProvesTn n (FOImplF (FOProvSentence k (FOsubst_f x t delta))
+                        (FOProvSentence k (FOExists x delta))).
+Proof.
+  intros n k x t delta Hk Hok.
+  exact (FOprov_box_nec_imp n k _ _ Hk
+           (FOProvesTn_ExIntroT k x t delta Hok)).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
