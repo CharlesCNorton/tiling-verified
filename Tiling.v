@@ -34748,6 +34748,43 @@ Proof.
       eq_refl).
 Qed.
 
+(** Successor monotonicity [a < b -> S a < S b]: the witness is
+    unchanged, since [S a + S w = S (a + S w) = S b], so [FOPr_ex_mono]
+    suffices (no witness re-introduction). *)
+
+Lemma FOPr_lt_succ_mono : forall n,
+  FOProvesTn n (FOForall 0 (FOForall 1
+    (FOImplF (FOLtF (FOVar 0) (FOVar 1))
+             (FOLtF (FOSucc (FOVar 0)) (FOSucc (FOVar 1)))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  unfold FOLtF. cbn [FOmax_var_tm Nat.max].
+  apply FOPr_ex_mono.
+  apply FOProvesTn_Gen.
+  assert (Hsp : FOProvesTn n
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2)))
+          (FOSucc (FOPlus (FOVar 0) (FOSucc (FOVar 2)))))).
+  { pose proof (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 0 (FOVar 0)
+         (FOForall 1 (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+               (FOSucc (FOPlus (FOVar 0) (FOVar 1))))) eq_refl)
+      (FOPr_succ_plus n)) as H1.
+    exact (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 1 (FOSucc (FOVar 2))
+         (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 1))
+               (FOSucc (FOPlus (FOVar 0) (FOVar 1)))) eq_refl)
+      H1). }
+  apply (FOPr_imp_eq_trans_l n
+    (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOVar 1))
+    (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2)))
+    (FOSucc (FOPlus (FOVar 0) (FOSucc (FOVar 2))))
+    (FOSucc (FOVar 1))).
+  - exact Hsp.
+  - apply FOPr_imp_eq_congS.
+    exact (FOPr_idf n (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOVar 1))).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
