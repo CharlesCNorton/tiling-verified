@@ -34676,6 +34676,22 @@ Proof.
     Hneq).
 Qed.
 
+(** [a < S a]: witness [w = 0], since [a + S 0 = S (a + 0) = S a]. *)
+
+Lemma FOPr_lt_succ_self : forall n,
+  FOProvesTn n (FOForall 0 (FOLtF (FOVar 0) (FOSucc (FOVar 0)))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen.
+  unfold FOLtF. cbn [FOmax_var_tm Nat.max].
+  apply (FOProvesTn_MP n _ _ (FOProvesTn_ExIntroNum n 1 0
+    (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 1))) (FOSucc (FOVar 0))))).
+  cbn [FOsubst_num FOsubst_tm FOnumeral].
+  apply (FOPr_eq_trans n _ (FOSucc (FOPlus (FOVar 0) FOZero)) _).
+  - exact (FOPr_q_plus_succ n (FOVar 0) FOZero).
+  - exact (FOPr_eq_congS n _ _ (FOPr_q_plus_zero n (FOVar 0))).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
