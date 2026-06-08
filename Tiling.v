@@ -34636,6 +34636,46 @@ Proof.
   exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Hind Hbase) Hstep).
 Qed.
 
+(** Irreflexivity of the strict order: [~ (a < a)].  Unfolds [FOLtF] to
+    [exists w, a + S w = a], pushes the negation inside ([AllNegToNegEx]),
+    and refutes [a + S w = a] by [Q]'s [plus_succ] composed with
+    [neq_succ_add]. *)
+
+Lemma FOPr_lt_irrefl : forall n,
+  FOProvesTn n (FOForall 0 (FONeg (FOLtF (FOVar 0) (FOVar 0)))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen.
+  unfold FOLtF. cbn [FOmax_var_tm Nat.max].
+  apply (FOProvesTn_MP n _ _ (FOProvesTn_AllNegToNegEx n 1
+    (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 1))) (FOVar 0)))).
+  apply FOProvesTn_Gen.
+  assert (Hneq : FOProvesTn n
+    (FONeg (FOEq (FOSucc (FOPlus (FOVar 0) (FOVar 1))) (FOVar 0)))).
+  { pose proof (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 1 (FOVar 1)
+         (FOForall 0 (FONeg (FOEq (FOSucc (FOPlus (FOVar 0) (FOVar 1)))
+                                  (FOVar 0)))) eq_refl)
+      (FOPr_neq_succ_add n)) as H1.
+    exact (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 0 (FOVar 0)
+         (FONeg (FOEq (FOSucc (FOPlus (FOVar 0) (FOVar 1))) (FOVar 0)))
+         eq_refl)
+      H1). }
+  exact (FOPr_compose n
+    (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 1))) (FOVar 0))
+    (FOEq (FOSucc (FOPlus (FOVar 0) (FOVar 1))) (FOVar 0))
+    FOFalseF
+    (FOPr_imp_eq_trans_l n
+       (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 1))) (FOVar 0))
+       (FOSucc (FOPlus (FOVar 0) (FOVar 1)))
+       (FOPlus (FOVar 0) (FOSucc (FOVar 1)))
+       (FOVar 0)
+       (FOPr_eq_sym n _ _ (FOPr_q_plus_succ n (FOVar 0) (FOVar 1)))
+       (FOPr_idf n (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 1))) (FOVar 0))))
+    Hneq).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
