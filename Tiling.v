@@ -34987,6 +34987,147 @@ Proof.
     (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2))) (FOVar 1)) eq_refl).
 Qed.
 
+(** Successor-trichotomy [x < b -> S x < b \/ S x = b], the Euclidean
+    division gateway.  Eliminate the witness [w] of [x < b], shift it to
+    [S x + w = b], then case on [w] ([Q] zero-or-succ): [w = 0] gives
+    [S x = b] ([eq_of_add_zero]); [w = S y] gives [S x < b]
+    ([lt_of_add_succ]). *)
+
+Lemma FOPr_lt_succ_trichotomy : forall n,
+  FOProvesTn n (FOForall 0 (FOForall 1
+    (FOImplF (FOLtF (FOVar 0) (FOVar 1))
+       (FOOr (FOLtF (FOSucc (FOVar 0)) (FOVar 1))
+             (FOEq (FOSucc (FOVar 0)) (FOVar 1)))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  unfold FOLtF. cbn [FOmax_var_tm Nat.max].
+  pose (PSI := FOOr (FOExists 2 (FOEq (FOPlus (FOSucc (FOVar 0))
+                                        (FOSucc (FOVar 2))) (FOVar 1)))
+                    (FOEq (FOSucc (FOVar 0)) (FOVar 1))).
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_ExElim n 2
+       (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOVar 1)) PSI eq_refl)).
+  apply FOProvesTn_Gen.
+  (* goal: (x + S w = b) -> PSI   [w = v2] *)
+  assert (U2 : FOProvesTn n
+    (FOImplF (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOVar 1))
+             (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1)))).
+  { pose proof (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 0 (FOVar 0)
+         (FOForall 1 (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 1)))
+               (FOPlus (FOSucc (FOVar 0)) (FOVar 1)))) eq_refl)
+      (FOPr_x_succ_eq_succ_x n)) as Hxe1.
+    pose proof (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 1 (FOVar 2)
+         (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 1)))
+               (FOPlus (FOSucc (FOVar 0)) (FOVar 1))) eq_refl)
+      Hxe1) as Hxe.
+    apply (FOPr_imp_eq_trans_l n
+      (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOVar 1))
+      (FOPlus (FOSucc (FOVar 0)) (FOVar 2))
+      (FOPlus (FOVar 0) (FOSucc (FOVar 2)))
+      (FOVar 1)).
+    - exact (FOPr_eq_sym n _ _ Hxe).
+    - exact (FOPr_idf n (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2)))
+                              (FOVar 1))). }
+  assert (Hz : FOProvesTn n
+    (FOImplF (FOEq (FOVar 2) FOZero)
+       (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1)) PSI))).
+  { pose proof (FOProvesTn_MP n _ _
+      (FOProvesTn_MP n _ _
+        (FOProvesTn_AllElimT n 1 (FOVar 1)
+           (FOForall 2 (FOImplF (FOEq (FOVar 2) FOZero)
+              (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1))
+                       (FOEq (FOSucc (FOVar 0)) (FOVar 1))))) eq_refl)
+        (FOProvesTn_MP n _ _
+          (FOProvesTn_AllElimT n 0 (FOSucc (FOVar 0))
+             (FOForall 1 (FOForall 2 (FOImplF (FOEq (FOVar 2) FOZero)
+                (FOImplF (FOEq (FOPlus (FOVar 0) (FOVar 2)) (FOVar 1))
+                         (FOEq (FOVar 0) (FOVar 1)))))) eq_refl)
+          (FOPr_eq_of_add_zero n))) as Hz0.
+    pose proof (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 2 (FOVar 2)
+         (FOImplF (FOEq (FOVar 2) FOZero)
+            (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1))
+                     (FOEq (FOSucc (FOVar 0)) (FOVar 1)))) eq_refl)
+      Hz0) as Hz1.
+    exact (FOPr_mp2 n _ _ _
+      (FOPr_compose2 n (FOEq (FOVar 2) FOZero)
+         (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1))
+         (FOEq (FOSucc (FOVar 0)) (FOVar 1)) PSI)
+      Hz1
+      (FOPr_or_intro_r n
+         (FOExists 2 (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2)))
+                           (FOVar 1)))
+         (FOEq (FOSucc (FOVar 0)) (FOVar 1)))). }
+  assert (Hs : FOProvesTn n
+    (FOImplF (FOExists 3 (FOEq (FOVar 2) (FOSucc (FOVar 3))))
+       (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1)) PSI))).
+  { apply (FOProvesTn_MP n _ _
+      (FOProvesTn_ExElim n 3 (FOEq (FOVar 2) (FOSucc (FOVar 3)))
+         (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1)) PSI)
+         eq_refl)).
+    apply FOProvesTn_Gen.
+    pose proof (FOPr_compose n
+      (FOEq (FOVar 2) (FOSucc (FOVar 3)))
+      (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2))
+            (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 3))))
+      (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1))
+               (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 3))) (FOVar 1)))
+      (FOPr_imp_eq_congPlus_r n (FOEq (FOVar 2) (FOSucc (FOVar 3)))
+         (FOSucc (FOVar 0)) (FOVar 2) (FOSucc (FOVar 3))
+         (FOPr_idf n (FOEq (FOVar 2) (FOSucc (FOVar 3)))))
+      (FOPr_compose n
+         (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2))
+               (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 3))))
+         (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 3)))
+               (FOPlus (FOSucc (FOVar 0)) (FOVar 2)))
+         (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1))
+                  (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 3))) (FOVar 1)))
+         (FOProvesTn_EqSym n (FOPlus (FOSucc (FOVar 0)) (FOVar 2))
+            (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 3))))
+         (FOProvesTn_EqTrans n
+            (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 3)))
+            (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1)))) as Leib.
+    pose proof (FOPr_compose n
+      (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 3))) (FOVar 1))
+      (FOLtF (FOSucc (FOVar 0)) (FOVar 1)) PSI
+      (FOProvesTn_MP n _ _
+        (FOProvesTn_MP n _ _
+          (FOProvesTn_AllElimT n 1 (FOVar 1)
+             (FOForall 2 (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0))
+                  (FOSucc (FOVar 2))) (FOVar 1))
+                (FOLtF (FOSucc (FOVar 0)) (FOVar 1)))) eq_refl)
+          (FOProvesTn_MP n _ _
+            (FOProvesTn_AllElimT n 0 (FOVar 0)
+               (FOForall 1 (FOForall 2 (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0))
+                    (FOSucc (FOVar 2))) (FOVar 1))
+                  (FOLtF (FOSucc (FOVar 0)) (FOVar 1))))) eq_refl)
+            (FOPr_lt_of_add_succ n)))
+        (FOProvesTn_AllElimT n 2 (FOVar 3)
+           (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2)))
+                          (FOVar 1))
+              (FOLtF (FOSucc (FOVar 0)) (FOVar 1))) eq_refl))
+      (FOPr_or_intro_l n
+         (FOExists 2 (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2)))
+                           (FOVar 1)))
+         (FOEq (FOSucc (FOVar 0)) (FOVar 1)))) as P1.
+    exact (FOPr_mp2 n _ _ _
+      (FOPr_compose2 n (FOEq (FOVar 2) (FOSucc (FOVar 3)))
+         (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1))
+         (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 3))) (FOVar 1)) PSI)
+      Leib P1). }
+  apply (FOPr_compose n
+    (FOEq (FOPlus (FOVar 0) (FOSucc (FOVar 2))) (FOVar 1))
+    (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1)) PSI U2).
+  exact (FOPr_case n (FOEq (FOVar 2) FOZero)
+    (FOExists 3 (FOEq (FOVar 2) (FOSucc (FOVar 3))))
+    (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1)) PSI)
+    (FOProvesTn_ax n _ (FOAx_RQ n _ (RQ_zero_or_succ 2)))
+    Hz Hs).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
