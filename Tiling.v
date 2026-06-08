@@ -35035,17 +35035,16 @@ Proof.
     (FOImplF (FOEq (FOVar 2) FOZero)
        (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1)) PSI))).
   { pose proof (FOProvesTn_MP n _ _
+      (FOProvesTn_AllElimT n 1 (FOVar 1)
+         (FOForall 2 (FOImplF (FOEq (FOVar 2) FOZero)
+            (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1))
+                     (FOEq (FOSucc (FOVar 0)) (FOVar 1))))) eq_refl)
       (FOProvesTn_MP n _ _
-        (FOProvesTn_AllElimT n 1 (FOVar 1)
-           (FOForall 2 (FOImplF (FOEq (FOVar 2) FOZero)
-              (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOVar 2)) (FOVar 1))
-                       (FOEq (FOSucc (FOVar 0)) (FOVar 1))))) eq_refl)
-        (FOProvesTn_MP n _ _
-          (FOProvesTn_AllElimT n 0 (FOSucc (FOVar 0))
-             (FOForall 1 (FOForall 2 (FOImplF (FOEq (FOVar 2) FOZero)
-                (FOImplF (FOEq (FOPlus (FOVar 0) (FOVar 2)) (FOVar 1))
-                         (FOEq (FOVar 0) (FOVar 1)))))) eq_refl)
-          (FOPr_eq_of_add_zero n))) as Hz0.
+        (FOProvesTn_AllElimT n 0 (FOSucc (FOVar 0))
+           (FOForall 1 (FOForall 2 (FOImplF (FOEq (FOVar 2) FOZero)
+              (FOImplF (FOEq (FOPlus (FOVar 0) (FOVar 2)) (FOVar 1))
+                       (FOEq (FOVar 0) (FOVar 1)))))) eq_refl)
+        (FOPr_eq_of_add_zero n))) as Hz0.
     pose proof (FOProvesTn_MP n _ _
       (FOProvesTn_AllElimT n 2 (FOVar 2)
          (FOImplF (FOEq (FOVar 2) FOZero)
@@ -35094,6 +35093,10 @@ Proof.
       (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 3))) (FOVar 1))
       (FOLtF (FOSucc (FOVar 0)) (FOVar 1)) PSI
       (FOProvesTn_MP n _ _
+        (FOProvesTn_AllElimT n 2 (FOVar 3)
+           (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2)))
+                          (FOVar 1))
+              (FOLtF (FOSucc (FOVar 0)) (FOVar 1))) eq_refl)
         (FOProvesTn_MP n _ _
           (FOProvesTn_AllElimT n 1 (FOVar 1)
              (FOForall 2 (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0))
@@ -35104,11 +35107,7 @@ Proof.
                (FOForall 1 (FOForall 2 (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0))
                     (FOSucc (FOVar 2))) (FOVar 1))
                   (FOLtF (FOSucc (FOVar 0)) (FOVar 1))))) eq_refl)
-            (FOPr_lt_of_add_succ n)))
-        (FOProvesTn_AllElimT n 2 (FOVar 3)
-           (FOImplF (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2)))
-                          (FOVar 1))
-              (FOLtF (FOSucc (FOVar 0)) (FOVar 1))) eq_refl))
+            (FOPr_lt_of_add_succ n))))
       (FOPr_or_intro_l n
          (FOExists 2 (FOEq (FOPlus (FOSucc (FOVar 0)) (FOSucc (FOVar 2)))
                            (FOVar 1)))
