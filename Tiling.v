@@ -34364,6 +34364,36 @@ Proof.
   exact (FOProvesTn_MP n _ _ (FOProvesTn_MP n _ _ Hind Hbase) Hstep).
 Qed.
 
+(** Fresh-variable distributivity (indices 7,8,9), for capture-free
+    instantiation (e.g. [mult_assoc] needs [x*(y*z + y)]). *)
+
+Lemma FOPr_mult_distrib_l_fv : forall n,
+  FOProvesTn n (FOForall 7 (FOForall 8 (FOForall 9
+    (FOEq (FOMult (FOVar 7) (FOPlus (FOVar 8) (FOVar 9)))
+          (FOPlus (FOMult (FOVar 7) (FOVar 8))
+                  (FOMult (FOVar 7) (FOVar 9))))))).
+Proof.
+  intros n.
+  apply FOProvesTn_Gen. apply FOProvesTn_Gen. apply FOProvesTn_Gen.
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 2 (FOVar 9)
+       (FOEq (FOMult (FOVar 7) (FOPlus (FOVar 8) (FOVar 2)))
+             (FOPlus (FOMult (FOVar 7) (FOVar 8))
+                     (FOMult (FOVar 7) (FOVar 2)))) eq_refl)).
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 1 (FOVar 8)
+       (FOForall 2 (FOEq (FOMult (FOVar 7) (FOPlus (FOVar 1) (FOVar 2)))
+             (FOPlus (FOMult (FOVar 7) (FOVar 1))
+                     (FOMult (FOVar 7) (FOVar 2))))) eq_refl)).
+  apply (FOProvesTn_MP n _ _
+    (FOProvesTn_AllElimT n 0 (FOVar 7)
+       (FOForall 1 (FOForall 2
+          (FOEq (FOMult (FOVar 0) (FOPlus (FOVar 1) (FOVar 2)))
+                (FOPlus (FOMult (FOVar 0) (FOVar 1))
+                        (FOMult (FOVar 0) (FOVar 2)))))) eq_refl)).
+  exact (FOPr_mult_distrib_l n).
+Qed.
+
 (** ** Stratified soundness of the tower.
 
     Robinson axioms hold in the standard model outright.  Soundness
