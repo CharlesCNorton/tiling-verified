@@ -33684,6 +33684,31 @@ Proof.
            H1 (FOProvesTn_CongS n a b)).
 Qed.
 
+(** Left-argument congruence for [+] (the right argument fixed), in
+    plain and implication-conditional form: the [mult] step cases apply
+    the induction hypothesis under a [+ c]. *)
+
+Lemma FOPr_congPlus_l : forall n a b c,
+  FOProvesTn n (FOImplF (FOEq a b) (FOEq (FOPlus a c) (FOPlus b c))).
+Proof.
+  intros n a b c.
+  exact (FOProvesTn_MP n _ _
+    (FOProvesTn_MP n _ _
+      (FOPr_imp_swap n (FOEq a b) (FOEq c c)
+         (FOEq (FOPlus a c) (FOPlus b c)))
+      (FOProvesTn_CongPlus n a b c c))
+    (FOProvesTn_EqRefl n c)).
+Qed.
+
+Lemma FOPr_imp_eq_congPlus_l : forall n H a b c,
+  FOProvesTn n (FOImplF H (FOEq a b)) ->
+  FOProvesTn n (FOImplF H (FOEq (FOPlus a c) (FOPlus b c))).
+Proof.
+  intros n H a b c H1.
+  exact (FOPr_compose n H (FOEq a b) (FOEq (FOPlus a c) (FOPlus b c))
+           H1 (FOPr_congPlus_l n a b c)).
+Qed.
+
 (** ** Object-level induction at work.
 
     Robinson [Q] proves [a + 0 = a] and [a + S b = S (a + b)] but not
