@@ -1,201 +1,172 @@
 # tiling-verified todo
 
-Open research programs for the GLP* formalization, ordered by logical
-completion: each item's prerequisites appear earlier. Every entry names a
-specific construction or computational artifact and lists the forbidden
-trivializations (which deliberately rule out the present schematic
-implementations, so an item is not closed by re-aliasing what exists).
+1. Prove the general Japaridze scheme ⟨n⟩φ → [n+1]⟨n⟩φ
+   (`forall n phi, |- Impl (Diamond n phi) (Box (S n) (Diamond n phi))`)
+   in the calculus, extending the axiom base to full GLP where the
+   current axioms fall short, so the development runs at genuine GLP
+   strength; prove `glp_faithfulness_general_introspection`.
 
-Completed work is not tracked here. It is documented in each definition's
-section comment, the `*_summary` bundle theorem near it, the README, and the
-git history.
+2. Unify `Provable` and `Provable_GLP` into a single calculus in which
+   the Japaridze scheme is derivable, and carry every downstream theorem
+   through the unification.
 
----
+3. Replace the surrogate predicates `Bew_PA`, `Bew_n`, and `Bew_arith`
+   with definitions grounded in the `FOProvSentence`/`FOsat` layer, so
+   "arithmetic" and "Σ₁" describe actual arithmetic objects.
 
-1. **Provable Sigma_1-completeness as a derived HBL condition.** Prove
-   `provable_sigma1_completeness : forall sigma, is_sigma1 sigma ->
-   Prov_T (Impl sigma (prov_sentence sigma))` derived inside `T`, with
-   internal necessitation reduced to it. Prove `third_HBL_derived_summary`.
-   Forbidden: a calculus rule (`Nec`, `TAx_Box4`) standing in for the
-   condition; the condition imported rather than proved against `sat`.
+4. Derive the Hilbert-Bernays-Löb conditions as theorems of `FOProvesTn`
+   about its own `FOProvSentence`, eliminating `FOAx_D2`, `FOAx_D3`, and
+   `FOAx_DMon` as axioms; prove `third_HBL_derived_summary`.
 
-2. **Reflection / consistency-strength bridge.** Prove
-   `reflection_tower_correspondence : Prov_{T_{n+1}} <-> Prov_{T_n + RFN(T_n)}`
-   (Beklemishev's Con/uniform-reflection tower). Prove
-   `reflection_strength_summary`. Forbidden: a `Box n` correspondence
-   stated without the RFN/Con content; the bridge posited as an axiom.
-   (Depends on item 1.)
+5. Prove internal Σ₁-completeness against `FOsat` and provable
+   Σ₁-completeness (`provable_sigma1_completeness : forall sigma,
+   is_sigma1 sigma -> Prov_T (Impl sigma (prov_sentence sigma))`) derived
+   inside `T`, proved against satisfaction rather than imported or
+   discharged by a calculus rule, and reduce the primitive
+   `FOProvesTn_Loeb` rule and internal necessitation to derived theorems.
 
-3. **Single-level reflective trust.** Prove `single_level_self_trust :
-   exists T, Prov_T (Con T) -> Prov_T (trusts T T)` against the
-   arithmetic layer, or the machine-checked obstruction
-   `single_level_trust_blocked` showing no consistent `T` trusts itself,
-   with the Critch parametric/bounded variant as the strongest true form.
-   Prove `reflective_trust_resolution_summary`. Forbidden: trust
-   quantified over the tower; the obstruction asserted rather than
-   derived from Loeb. (Depends on item 1.)
+6. Restate and prove the Solovay completeness theorems with
+   interpretations into the first-order arithmetic layer, replacing the
+   `Form -> Form` level-collapse notion of "arithmetic interpretation."
 
-4. **Faithfulness to canonical Japaridze GLP.** `NextCon` is only the
-   `phi := Top` instance `Box (S n) (Diamond n Top)` of GLP's general
-   negative-introspection scheme. Either prove the general scheme
-   `forall n phi, |- Impl (Diamond n phi) (Box (S n) (Diamond n phi))`
-   from the present axioms (establishing this calculus IS GLP), or exhibit
-   a sound model in which it fails (establishing a proper subsystem) and
-   document the divergence. Prove either
-   `glp_faithfulness_general_introspection` or
-   `glp_proper_subsystem_witness`. Forbidden: leaving the question open;
-   proving only the `phi := Top` instance.
+7. Establish the reflection/consistency-strength bridge
+   `Prov_{T_{n+1}} <-> Prov_{T_n + RFN(T_n)}` so the tower matches
+   Beklemishev's characterization, derived rather than posited and
+   carrying the RFN/Con content; prove `reflection_strength_summary`.
 
-5. **Sequent presentation and cut-elimination.** Give a sequent calculus
-   for GLP, prove equivalence to the Hilbert system, prove cut-elimination,
-   derive the subformula property where it holds. Prove
-   `sequent_cut_elim_summary`. Forbidden: cut admissibility asserted;
-   equivalence stated in one direction only.
+8. Reprove every downstream consumer (Π₂ conservativity, the Japaridze
+   tree, the tiling chain, the agent modules) against
+   `FOProvesTn`/`FOsat`, witnessed by per-module `Print Assumptions`;
+   prove `arithmetic_layer_coherence_summary`.
 
-6. **Topological completeness for full GLP\*.** Only the box-free fragment
-   has a completeness theorem; GLP* is relationally Kripke-incomplete and
-   the neighborhood layer is a lone existence witness. Define
-   neighborhood/scattered-topological (Ignatiev-style) semantics
-   `forces_topo` with frame conditions, prove `soundness_topo` and the
-   converse `topo_completeness : topo_valid phi -> |- phi` for ALL `phi`.
-   Prove `topo_completeness_summary`. Forbidden: restricting to `box_free`;
-   `topo_valid` via a single fixed frame; an existence statement standing
-   in for completeness; routing through `prop_completeness`.
-   (Sequent calculus from item 5 may assist.)
+9. Add a sequent presentation with cut elimination, prove equivalence
+   with the Hilbert system in both directions, and derive the subformula
+   property where it holds; prove `sequent_cut_elim_summary`.
 
-7. **Full decidability of GLP\*.** `glp_dec_b` only decides the
-   box-tower-over-box-free fragment; provability is non-compositional, so a
-   total decider needs a real finite/topological model property. Construct
-   `glp_decide_total : forall phi, sumbool (|- phi) (~ |- phi)` total on
-   every formula, with a computable model bound (Ignatiev model) or a
-   terminating cut-free search, and prove `glp_decide_total_correct`.
-   Forbidden: `excluded_middle_informative (|- phi)`; restricting to
-   `is_iter_box_of_box_free`; falling back to `decide_tautology` on the
-   box-free part only; deferring to a hypothetical normaliser.
-   (Depends on item 6.)
+10. Develop neighborhood or scattered-topological (Ignatiev-style)
+    semantics `forces_topo` with frame conditions, and prove
+    `soundness_topo` and full completeness
+    (`topo_completeness : topo_valid phi -> |- phi`) for the whole
+    language beyond the box-free fragment, with validity over the frame
+    class rather than a single fixed frame; prove
+    `topo_completeness_summary`.
 
-8. **Constructed Feferman-Schuette Gamma_0.** `V_gamma0` is a declared
-   nullary atom above the `V_phi` tower with well-foundedness asserted by
-   fiat, and the height bound is non-tight. Define the two-argument Veblen
-   function `veblen : ord -> ord -> ord` with the standard clauses, and
-   `Gamma_0` as the least `a` with `veblen a OZero = a` (first strongly
-   critical ordinal), proved the supremum of the iterated `veblen`-tower.
-   Re-establish `GLP_proof_height_below_Gamma_0` against it and prove
-   `veblen_Gamma_0_summary`. Forbidden: a nullary atom above the carrier by
-   fiat; `Gamma_0 := veps0` or `V_phi 0 OZero`; asserting well-foundedness
-   of the top point without deriving it from the Veblen construction.
+11. Construct the total decision procedure
+    `glp_decide_total : forall phi, sumbool (|- phi) (~ |- phi)` with a
+    computable Ignatiev-model bound or a terminating cut-free search and
+    a full correctness proof `glp_decide_total_correct`, without
+    `excluded_middle_informative` and without restriction to the
+    box-tower-over-box-free fragment.
 
-9. **Ordinal proof-height directly on derivations.** Large elimination
-   from `Prop` blocks `forall phi, |- phi -> vord`, so the rank lives on
-   the Type-level `Provable_term`. Introduce a `Provable`-in-Type relation
-   `ProvableT` with `proof_height : forall phi, ProvableT phi -> vord` and
-   `ProvableT_iff : ProvableT phi <-> inhabited (Provable_term phi)`, or
-   prove the `Provable_term` rank invariant across derivations of a given
-   theorem. Prove `proof_height_on_derivations_summary`. Forbidden:
-   keeping the rank only on `Provable_term` while stating it ranks `|-`;
-   a constant rank; `proof_height _ _ := OZero`.
+12. Give QGLP real constant-domain Kripke semantics and inference rules,
+    eliminating the `Q_forall := True` and `Q_exists := True` clauses;
+    prove `QGLP_soundness`, target completeness, and
+    `qglp_genuine_summary`.
 
-10. **Tight ordinal characterization.** Prove the worm/closed-fragment
-    order type is exactly epsilon_0 (`worm_order_type_eps0`) and connect
-    the proof-height bound to it (`proof_height_tight`). Prove
-    `ordinal_analysis_tight_summary`. Forbidden: a non-tight bound
-    relabeled as the order type; `V_gamma0` standing in for the epsilon_0
-    result. (Depends on items 8, 9.)
+13. Formalize and prove Vardanyan's theorem that the quantified
+    provability logic of PA is Π⁰₂-complete, stated over `FOProvesTn`
+    and `FOFormula`; prove `quantified_boundary_summary`.
 
-11. **Stone equivalence with proof-relevant hom-setoids.** The current
-    `StoneEquivalence` sets `ec_hom_eq := fun _ _ => True`, so naturality
-    and the triangle identities hold only because all parallel morphisms
-    are identified (preorder collapse). Replace the hom-equality with a
-    genuine equivalence on morphisms (derivations modulo conversion/cut)
-    and reprove `Stone_eta_natural`, `Stone_epsilon_natural`,
-    `Stone_triangle_F`, `Stone_triangle_G` up to it. Prove
-    `stone_proof_relevant_summary`. Forbidden: `ec_hom_eq := fun _ _ => True`;
-    `hom_eq f g := |- Top`; any hom-equality identifying all parallel
-    morphisms.
+14. Construct the two-argument Veblen function
+    `veblen : ord -> ord -> ord` with its standard fixed-point clauses,
+    define Γ₀ as the least strongly critical ordinal, prove it the
+    supremum of the iterated Veblen tower, derive its well-foundedness
+    from the construction, and re-establish
+    `GLP_proof_height_below_Gamma_0` against it; prove
+    `veblen_Gamma_0_summary`.
 
-12. **Strict (non-setoid) Magari freeness.** `MagariFree` proves
-    uniqueness only pointwise because intensional equality of morphism
-    records is funext-strength. Build a setoid-enriched category whose
-    hom-equality is pointwise by definition, and state `LT_GLP_free` as a
-    genuinely unique morphism (a contractible space of homomorphisms
-    extending the valuation). Prove `magari_strict_free_summary`.
-    Forbidden: pointwise uniqueness stated outside a category whose homs
-    are quotiented; appeal to `proof_irrelevance`/`functional_extensionality`.
+15. Replace `Veblen_eps0_ordinal` and the two-case `Veblen_phi_function`
+    with objects satisfying the defining equations of the ordinals they
+    are named after.
 
-13. **Lambda-box strong normalisation with live combinators.** The
-    `LambdaBox` calculus keeps `tS`, `tBoxK`, `tLoeb`, `tBox4`, `tMon`,
-    `tNextCon`, `tLoebFix` inert to keep the size measure decreasing, so
-    realizers using them are stuck-normal. Give each its contraction rule
-    (S duplication; a guarded `tLoebFix` unfolding) and prove strong
-    normalisation by reducibility candidates (Tait-Girard), then reprove
-    `extract_realizer_reduces` against the full reduction. Prove
-    `lambda_box_SN_summary`. Forbidden: inert combinators with no reduction
-    rule; `tLoebFix` as a value; a reduction relation containing only the
-    K/pair/box-beta redexes; a size measure excluding the duplicating rules.
+16. State and prove a strict bound (`ord_compare ... = Lt`) in
+    `proof_theoretic_ordinal_summary`, replacing trichotomy disjunctions
+    that hold for any comparison value.
 
-14. **Realizer extraction wired to agent decisions.** Extract executable
-    decision procedures for FairBot/PrudentBot from their fixed-point
-    proofs; prove `extracted_fairbot_correct : run (extract fairbot_proof)
-    opp = fairbot_action opp`. Prove `agent_extraction_summary`. Forbidden:
-    realizers left disconnected from `AgentRecord`; the extracted program's
-    agreement asserted rather than proved. (Depends on item 13.)
+17. Prove the proof-height rank invariant across all derivations of a
+    given theorem, or introduce a Type-level `ProvableT` with
+    `proof_height : forall phi, ProvableT phi -> vord` and
+    `ProvableT_iff : ProvableT phi <-> inhabited (Provable_term phi)`,
+    so the ordinal assignment genuinely ranks `|-` itself rather than
+    individual `Provable_term` witnesses; prove
+    `proof_height_on_derivations_summary`.
 
-15. **Finite agent, not a tower.** Define one finite agent with a bounded
-    proof budget; prove `bounded_agent_tiling : forall budget,
-    goal_preserved (rewrite_step agent budget)`. Prove
-    `bounded_agent_summary`. Forbidden: indexing the successor at level
-    `n+1`; unbounded proof search; goal preservation quantifying over the
-    tower rather than over rewrite steps of one agent.
+18. Prove the worm/closed-fragment order type is exactly ε₀
+    (`worm_order_type_eps0`) and connect the proof-height bound to it
+    tightly (`proof_height_tight`); prove
+    `ordinal_analysis_tight_summary`.
 
-16. **Open-source / adversarial agent semantics.** Give the general
-    modal-fixed-point treatment of opponents reading each other's source
-    (the bot-vs-bot provability matrix); prove cooperation/defection
-    outcomes across the standard opponent classes. Prove
-    `program_equilibrium_summary`. Forbidden: results restricted to
-    `opp = Cooperate_action`; outcomes proved only for the cooperate
-    instance.
+19. Replace `ec_hom_eq := fun _ _ => True` in the Stone equivalence with
+    a genuine equivalence on derivations modulo conversion and cut, and
+    reprove `Stone_eta_natural`, `Stone_epsilon_natural`,
+    `Stone_triangle_F`, and `Stone_triangle_G` against it; prove
+    `stone_proof_relevant_summary`.
 
-17. **Genuine QGLP quantifier semantics.** `QGLP_provable` sets
-    `Q_forall _ _ := True` and `Q_exists _ _ := True`, making every
-    quantified formula trivially provable. Give `QGLP_form` constant-domain
-    Kripke semantics and an inductive derivability relation with real
-    quantifier rules, prove `QGLP_soundness`, and (target) completeness.
-    Prove `qglp_genuine_summary`. Forbidden:
-    `QGLP_provable (Q_forall _ _) := True`;
-    `QGLP_provable (Q_exists _ _) := True`; any clause whose truth is
-    independent of the quantified body.
+20. Quotient the Magari-freeness category's hom-sets so `LT_GLP_free`
+    uniqueness is a contractibility statement inside the category,
+    without functional extensionality or proof irrelevance; prove
+    `magari_strict_free_summary`.
 
-18. **Quantified provability logic of PA.** Formalize and prove
-    Vardanyan's theorem that the quantified provability logic of PA is
-    Pi^0_2-complete, stated over the arithmetic layer's `FOProvesTn` and
-    `FOFormula`. Prove `quantified_boundary_summary`. Forbidden: the
-    result stated without the Pi^0_2-completeness content; QGLP Kripke
-    completeness (item 17) presented as the arithmetic completeness of
-    the quantified logic. (Depends on item 17.)
+21. Equip the inert `LambdaBox` combinators (`tS`, `tBoxK`, `tLoeb`,
+    `tBox4`, `tMon`, `tNextCon`, `tLoebFix`) with contraction rules,
+    including S duplication and a guarded `tLoebFix` unfolding, prove
+    strong normalization by reducibility candidates against the full
+    reduction relation, and reprove `extract_realizer_reduces`; prove
+    `lambda_box_SN_summary`.
 
-19. **Constructive core.** The development is wholly classical (`classic`,
-    `constructive_indefinite_description`). Carve the syntactic/decidable
-    results — box-free decidability, the Hilbert toolkit, proof-term
-    reductions, `glp_dec_b` — into modules importing neither `Classical`
-    nor `ClassicalEpsilon`, verified by `Print Assumptions`, and confine
-    the classical axioms to the Lindenbaum/completeness parts. Prove (or
-    `Print Assumptions`-witness) `constructive_core_summary`. Forbidden:
-    importing `Classical`/`ClassicalEpsilon` into the constructive modules;
-    `NNPP`/`classic`/`excluded_middle_informative` in any result claimed
-    constructive.
+22. Define `Vingean_reflection_at` as a genuine reflection principle
+    whose statement quantifies over the successor level's proofs rather
+    than aliasing `Box (S n)`, and reprove the reflection summary
+    against it.
 
-20. **Cross-module coherence of the arithmetic layer.** Reprove every
-    downstream consumer (Pi_2 conservativity, JaparidzeTree, TilingChain,
-    the agent modules) against the arithmetic layer's
-    `FOProvesTn`/`FOsat` definitions. Prove
-    `arithmetic_layer_coherence_summary`. Forbidden: a consumer left on the
-    surrogate `Bew_n`/`classical_valid`/`arith_embed_*`; coherence claimed
-    without per-module `Print Assumptions`. (Depends on item 1.)
+23. Formalize and prove Critch's parametric bounded Löb theorem itself,
+    with proof-length accounting and the polynomial-overhead argument.
 
-21. **Per-theorem logic identification.** For every completeness, duality,
-    and conservativity headline, fix the exact logic it concerns and prove
-    it against that named system. Prove `logic_identification_summary`
-    pairing each result with the system (GL, GLP, the proven subsystem, or
-    GLS) it holds for. Forbidden: GLP attached to a theorem about a proper
-    subsystem; identification recorded in prose only; a headline naming a
-    stronger logic than the cited theorem proves. (Depends on item 4.)
+24. Prove single-level reflective trust
+    (`single_level_self_trust : exists T, Prov_T (Con T) ->
+    Prov_T (trusts T T)`) against the arithmetic layer, or the
+    machine-checked obstruction `single_level_trust_blocked` derived
+    from Löb, with the Critch parametric bounded variant as the
+    strongest true form; prove `reflective_trust_resolution_summary`.
+
+25. Reformulate `goal_preservation_tiling` so `default_action` and the
+    successor condition carry content, making the statement falsifiable
+    rather than tautological.
+
+26. Prove the Löbian handshake proper: derive mutual cooperation for the
+    diagonal fixed points of FairBot vs. FairBot via Löb and Sambin
+    uniqueness, quantifying over all solutions.
+
+27. Extend the bot-vs-bot results beyond `opp = Cooperate_action` to the
+    standard opponent matrix, and repair
+    `FairBot_two_bots_mutual_cooperation` so its conclusion uses its
+    hypotheses; prove `program_equilibrium_summary`.
+
+28. Build the single finite bounded-budget agent and prove
+    `bounded_agent_tiling : forall budget,
+    goal_preserved (rewrite_step agent budget)` across its rewrite
+    steps, replacing tower-indexed trust; prove `bounded_agent_summary`.
+
+29. Wire the extracted lambda-box realizers to `AgentRecord` decisions
+    and prove `extracted_fairbot_correct :
+    run (extract fairbot_proof) opp = fairbot_action opp`; prove
+    `agent_extraction_summary`.
+
+30. Remove padding conjuncts such as `solovay_function size R 0 = 0`
+    from summary bundles, keeping only conjuncts with independent
+    mathematical content.
+
+31. Carve the decidable and syntactic results (box-free decidability,
+    the Hilbert toolkit, proof-term reductions, `glp_dec_b`) into
+    modules importing neither `Classical` nor `ClassicalEpsilon`,
+    verified by `Print Assumptions`, confining the classical axioms to
+    the Lindenbaum/completeness parts; prove
+    `constructive_core_summary`.
+
+32. Attach every completeness, conservativity, and duality headline to
+    the exact named logic it holds for (GL, GLP, the proven subsystem,
+    or GLS), with a machine-checked `logic_identification_summary`.
+
+33. Prove, at full strength, the genuine theorems whose names invoke
+    Solovay, Feferman-Schütte, Tarski, Friedman, Critch, and Vingean
+    reflection, so every named result's body matches its claim.
