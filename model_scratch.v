@@ -1883,3 +1883,457 @@ Proof.
         refine (Hdup k g Hin Hks).
 Qed.
 
+(** ** The computed reach cell. *)
+
+Definition mleb (a b : mord) : bool :=
+  match mcmp a b with Gt => false | _ => true end.
+
+Lemma mleb_iff : forall a b, mleb a b = true <-> mle a b.
+Proof.
+  intros a b. unfold mleb, mle.
+  destruct (mcmp a b); intuition congruence.
+Qed.
+
+Definition dup_okb (n : nat) (c : cell) : bool :=
+  forallb (fun p =>
+    let '(k, b, g) := p in
+    if andb (negb b) (Nat.leb (S n) k)
+    then mleb (mellk (k - S n) (Tcell c (S n))) g
+    else true) c.
+
+Lemma dup_okb_iff : forall n c,
+  dup_okb n c = true <->
+  (forall k g, In (k, false, g) c -> S n <= k ->
+     mle (mellk (k - S n) (Tcell c (S n))) g).
+Proof.
+  intros n c. unfold dup_okb. rewrite forallb_forall.
+  split.
+  - intros H k g Hin Hk.
+    pose proof (H _ Hin) as Hp.
+    apply Nat.leb_le in Hk.
+    cbn [negb andb] in Hp.
+    rewrite Hk in Hp.
+    apply mleb_iff. exact Hp.
+  - intros H [[k b] g] Hin.
+    destruct b.
+    + reflexivity.
+    + cbn [negb andb].
+      destruct (Nat.leb (S n) k) eqn:Hk.
+      * apply Nat.leb_le in Hk.
+        apply mleb_iff. exact (H k g Hin Hk).
+      * reflexivity.
+Qed.
+
+Definition shallow_part (n : nat) (c : cell) : cell :=
+  filter (fun p => Nat.leb (fst (fst p)) n) c.
+
+Definition reachcell (n : nat) (c : cell) : cunion :=
+  if dup_okb n c
+  then [ shallow_part n c ++ [(S n, true, Tcell c (S n))] ]
+  else [].
+
+Lemma reachcell_wf : forall n c, cwf c -> uwf (reachcell n c).
+Proof.
+  intros n c Hc d Hd. unfold reachcell in Hd.
+  destruct (dup_okb n c); [|destruct Hd].
+  destruct Hd as [<- | []].
+  intros p Hp. apply in_app_or in Hp.
+  destruct Hp as [Hp | Hp].
+  - apply filter_In in Hp. exact (Hc _ (proj1 Hp)).
+  - destruct Hp as [<- | []]. cbn.
+    apply Tcell_wf. exact Hc.
+Qed.
+
+Lemma reachcell_correct : forall n x c,
+  mwf x -> cwf c ->
+  (usem x (reachcell n c) <-> icreach n x (fun y => cellsem y c)).
+Proof.
+  intros n x c Hwf Hcwf.
+  rewrite (reach_cell_char n x c Hwf Hcwf).
+  unfold reachcell.
+  destruct (dup_okb n c) eqn:Hok.
+  - pose proof (proj1 (dup_okb_iff n c) Hok) as Hokp.
+    split.
+    + intros [d [Hd Hsem]].
+      destruct Hd as [<- | []].
+      split; [|split].
+      * intros k b g Hin Hk.
+        apply (Hsem (k, b, g)).
+        apply in_or_app. left.
+        apply filter_In. split; [exact Hin|].
+        cbn. apply Nat.leb_le. exact Hk.
+      * exact Hokp.
+      * pose proof (Hsem (S n, true, Tcell c (S n))) as Ht.
+        cbn in Ht. apply Ht.
+        apply in_or_app. right. now left.
+    + intros (Hsh & _ & HT).
+      exists (shallow_part n c ++ [(S n, true, Tcell c (S n))]).
+      split; [now left|].
+      intros [[k b] g] Hp.
+      apply in_app_or in Hp.
+      destruct Hp as [Hp | Hp].
+      * apply filter_In in Hp.
+        destruct Hp as [Hin Hk]. cbn in Hk.
+        apply Nat.leb_le in Hk.
+        exact (Hsh k b g Hin Hk).
+      * destruct Hp as [Heq | []].
+        injection Heq as <- <- <-. cbn.
+        exact HT.
+  - split.
+    + intros [d [[] _]].
+    + intros (_ & Hdup & _).
+      exfalso.
+      assert (Hok2 : dup_okb n c = true)
+        by exact (proj2 (dup_okb_iff n c) Hdup).
+      congruence.
+Qed.
+
+(** ** Reachability of a union: directedness. *)
+
+Lemma icreach_ext : forall n x (A B : mord -> Prop),
+  (forall y, mwf y -> (A y <-> B y)) ->
+  icreach n x A -> icreach n x B.
+Proof.
+  intros n x A B HAB HA gs Hleg.
+  destruct (HA gs Hleg) as [y [Hy HAy]].
+  exists y. split; [exact Hy|].
+  apply (HAB y (proj1 Hy)). exact HAy.
+Qed.
+
+Lemma icreach_union : forall n x U,
+  icreach n x (fun y => usem y U) ->
+  exists c, In c U /\ icreach n x (fun y => cellsem y c).
+Proof.
+  intros n x U. induction U as [|c U IH]; intro H.
+  - destruct (H [] (fun p Hp => match Hp with end))
+      as [y [_ [d [[] _]]]].
+  - destruct (classic (icreach n x (fun y => cellsem y c))) as [Hc | Hc].
+    + exists c. split; [now left | exact Hc].
+    + apply not_all_ex_not in Hc.
+      destruct Hc as [gsc Hc].
+      apply imply_to_and in Hc.
+      destruct Hc as [Hlegc Hnoc].
+      assert (HU : icreach n x (fun y => usem y U)).
+      { intros gs Hleg.
+        destruct (H (gs ++ gsc) (iclegit_app _ _ _ _ Hleg Hlegc))
+          as [y [Hy [d [Hd Hsd]]]].
+        destruct Hd as [<- | Hd].
+        - exfalso. apply Hnoc.
+          exists y.
+          split; [exact (icmember_app_r _ _ _ _ _ Hy) | exact Hsd].
+        - exists y.
+          split; [exact (icmember_app_l _ _ _ _ _ Hy)|].
+          exists d. split; assumption. }
+      destruct (IH HU) as [d [Hd Hrd]].
+      exists d. split; [now right | exact Hrd].
+Qed.
+
+Definition reachU (n : nat) (U : cunion) : cunion :=
+  flat_map (reachcell n) U.
+
+Lemma reachU_wf : forall n U, uwf U -> uwf (reachU n U).
+Proof.
+  intros n U HU d Hd.
+  unfold reachU in Hd. apply in_flat_map in Hd.
+  destruct Hd as [c [Hc Hd]].
+  exact (reachcell_wf n c (HU c Hc) d Hd).
+Qed.
+
+Lemma reachU_correct : forall n x U,
+  mwf x -> uwf U ->
+  (usem x (reachU n U) <-> icreach n x (fun y => usem y U)).
+Proof.
+  intros n x U Hwf HU.
+  split.
+  - intros [d [Hd Hsd]].
+    unfold reachU in Hd. apply in_flat_map in Hd.
+    destruct Hd as [c [Hc Hd]].
+    assert (Hr : icreach n x (fun y => cellsem y c)).
+    { apply (reachcell_correct n x c Hwf (HU c Hc)).
+      exists d. split; assumption. }
+    intros gs Hleg.
+    destruct (Hr gs Hleg) as [y [Hy Hcy]].
+    exists y. split; [exact Hy|].
+    exists c. split; assumption.
+  - intro H.
+    destruct (icreach_union n x U H) as [c [Hc Hrc]].
+    apply (reachcell_correct n x c Hwf (HU c Hc)) in Hrc.
+    destruct Hrc as [d [Hd Hsd]].
+    exists d. split; [|exact Hsd].
+    unfold reachU. apply in_flat_map.
+    exists c. split; assumption.
+Qed.
+
+(** ** Extensions of formulas as cell unions. *)
+
+Fixpoint cells_of (phi : Form) : cunion :=
+  match phi with
+  | Var _ => [[]]
+  | Bot => []
+  | Impl a b => compl (cells_of a) ++ cells_of b
+  | Box m psi => compl (reachU m (compl (cells_of psi)))
+  end.
+
+Lemma cells_of_wf : forall phi, uwf (cells_of phi).
+Proof.
+  induction phi as [p | | a IHa b IHb | m psi IH]; cbn [cells_of].
+  - intros c Hc. destruct Hc as [<- | []].
+    intros p' Hp'. destruct Hp'.
+  - intros c Hc. destruct Hc.
+  - apply uwf_app; [apply compl_wf; exact IHa | exact IHb].
+  - apply compl_wf. apply reachU_wf. apply compl_wf. exact IH.
+Qed.
+
+Lemma box_reach : forall m psi x,
+  mwf x ->
+  (icforces x (Box m psi)
+   <-> ~ icreach m x (fun y => ~ icforces y psi)).
+Proof.
+  intros m psi x Hwf.
+  split.
+  - intros [gs [Hleg Hmem]] Hr.
+    destruct (Hr gs Hleg) as [y [Hy Hny]].
+    exact (Hny (Hmem y Hy)).
+  - intro Hnr.
+    apply not_all_ex_not in Hnr.
+    destruct Hnr as [gs Hgs].
+    apply imply_to_and in Hgs.
+    destruct Hgs as [Hleg Hno].
+    exists gs. split; [exact Hleg|].
+    intros y Hy.
+    apply NNPP. intro Hny.
+    apply Hno. exists y. split; assumption.
+Qed.
+
+Theorem cells_of_correct : forall phi x,
+  mwf x -> (icforces x phi <-> usem x (cells_of phi)).
+Proof.
+  induction phi as [p | | a IHa b IHb | m psi IH]; intros x Hwf.
+  - cbn. split.
+    + intros _. exists []. split; [now left|].
+      intros p' Hp'. destruct Hp'.
+    + intros _. exact I.
+  - cbn. split.
+    + intros [].
+    + intros [c [[] _]].
+  - cbn [cells_of icforces].
+    rewrite usem_app.
+    rewrite (compl_correct (cells_of a) x).
+    split.
+    + intro Hab.
+      destruct (classic (icforces x a)) as [Ha | Ha].
+      * right. apply (IHb x Hwf). exact (Hab Ha).
+      * left. intro Hu. apply Ha. apply (IHa x Hwf). exact Hu.
+    + intros [Hna | Hb] Ha.
+      * exfalso. apply Hna. apply (IHa x Hwf). exact Ha.
+      * apply (IHb x Hwf). exact Hb.
+  - cbn [cells_of].
+    rewrite (box_reach m psi x Hwf).
+    rewrite (compl_correct (reachU m (compl (cells_of psi))) x).
+    assert (Hu : uwf (compl (cells_of psi))).
+    { apply compl_wf. apply cells_of_wf. }
+    rewrite (reachU_correct m x (compl (cells_of psi)) Hwf Hu).
+    split.
+    + intros Hn Hr. apply Hn.
+      refine (icreach_ext m x _ _ _ Hr).
+      intros y Hyw.
+      rewrite (compl_correct (cells_of psi) y).
+      split.
+      * intros Hc Hf. apply Hc. apply (IH y Hyw). exact Hf.
+      * intros Hnf Hc. apply Hnf. apply (IH y Hyw). exact Hc.
+    + intros Hn Hr. apply Hn.
+      refine (icreach_ext m x _ _ _ Hr).
+      intros y Hyw.
+      rewrite (compl_correct (cells_of psi) y).
+      split.
+      * intros Hnf Hc. apply Hnf. apply (IH y Hyw). exact Hc.
+      * intros Hc Hf. apply Hc. apply (IH y Hyw). exact Hf.
+Qed.
+
+(** ** Validity of the Japaridze scheme. *)
+
+Definition lowers_of (c : cell) : list (nat * mord) :=
+  map (fun p => (fst (fst p), snd p))
+      (filter (fun p => snd (fst p)) c).
+
+Lemma lowers_of_in : forall c k g,
+  In (k, g) (lowers_of c) <-> In (k, true, g) c.
+Proof.
+  intros c k g. unfold lowers_of.
+  rewrite in_map_iff.
+  split.
+  - intros [[[k' b'] g'] [Heq Hin]].
+    cbn in Heq. injection Heq as -> ->.
+    apply filter_In in Hin.
+    destruct Hin as [Hin Hb]. cbn in Hb. subst b'.
+    exact Hin.
+  - intro Hin.
+    exists (k, true, g). split; [reflexivity|].
+    apply filter_In. split; [exact Hin | reflexivity].
+Qed.
+
+Lemma diamond_reach : forall n phi x,
+  mwf x ->
+  (icforces x (Diamond n phi)
+   <-> icreach n x (fun y => icforces y phi)).
+Proof.
+  intros n phi x Hwf.
+  unfold Diamond, Neg.
+  cbn [icforces].
+  split.
+  - intro Hd.
+    intros gs Hleg.
+    apply NNPP. intro Hno.
+    apply Hd.
+    exists gs. split; [exact Hleg|].
+    intros y Hy Hfy.
+    apply Hno. exists y.
+    split; [exact Hy | exact Hfy].
+  - intros Hr [gs [Hleg Hmem]].
+    destruct (Hr gs Hleg) as [y [Hy Hfy]].
+    exact (Hmem y Hy Hfy).
+Qed.
+
+Lemma ic_j : forall n phi x,
+  mwf x ->
+  icforces x (Impl (Diamond n phi) (Box (S n) (Diamond n phi))).
+Proof.
+  intros n phi x Hwf.
+  cbn [icforces]. intro Hd.
+  apply (diamond_reach n phi x Hwf) in Hd.
+  (* translate to the computed cell union *)
+  assert (Hru : usem x (reachU n (cells_of phi))).
+  { apply (reachU_correct n x (cells_of phi) Hwf (cells_of_wf phi)).
+    refine (icreach_ext n x _ _ _ Hd).
+    intros y Hyw. exact (cells_of_correct phi y Hyw). }
+  destruct Hru as [d [Hd' Hsd]].
+  unfold reachU in Hd'. apply in_flat_map in Hd'.
+  destruct Hd' as [c [Hc Hrc]].
+  assert (Hcwf' : cwf d).
+  { exact (reachcell_wf n c (cells_of_wf phi c Hc) d Hrc). }
+  (* the witness: the lower constraints of the satisfied reach cell *)
+  exists (lowers_of d).
+  split.
+  { intros [k g] Hp.
+    apply lowers_of_in in Hp.
+    cbn. split; [|split].
+    - (* level bound: all constraints of a reach cell are at levels <= S n *)
+      unfold reachcell in Hrc.
+      destruct (dup_okb n c); [|destruct Hrc].
+      destruct Hrc as [<- | []].
+      apply in_app_or in Hp.
+      destruct Hp as [Hp | Hp].
+      + apply filter_In in Hp.
+        destruct Hp as [_ Hk]. cbn in Hk.
+        apply Nat.leb_le in Hk. lia.
+      + destruct Hp as [Heq | []].
+        injection Heq as Hk1 Hg1. lia.
+    - exact (Hcwf' _ Hp).
+    - pose proof (Hsd _ Hp) as Hs. cbn in Hs. exact Hs. }
+  intros y Hy.
+  pose proof Hy as [Hyw [Hylt [Hyup Hygs]]].
+  apply (diamond_reach n phi y Hyw).
+  assert (Hsdy : cellsem y d).
+  { intros [[k b] g] Hp.
+    destruct b.
+    - (* lower: from the neighborhood constraints *)
+      pose proof (Hygs (k, g)) as Hl.
+      cbn [fst snd] in Hl.
+      apply Hl. apply lowers_of_in. exact Hp.
+    - (* upper: only at shallow levels; transfer through x *)
+      unfold reachcell in Hrc.
+      destruct (dup_okb n c); [|destruct Hrc].
+      destruct Hrc as [<- | []].
+      pose proof (Hsd _ Hp) as Hsx. cbn in Hsx.
+      apply in_app_or in Hp.
+      destruct Hp as [Hp | Hp].
+      + apply filter_In in Hp.
+        destruct Hp as [_ Hk]. cbn in Hk.
+        apply Nat.leb_le in Hk.
+        cbn.
+        eapply mle_trans; [apply Hyup; lia | exact Hsx].
+      + destruct Hp as [Heq | []]. discriminate Heq. }
+  assert (Hry : usem y (reachU n (cells_of phi))).
+  { exists d. split; [|exact Hsdy].
+    unfold reachU. apply in_flat_map.
+    exists c. split; assumption. }
+  apply (reachU_correct n y (cells_of phi) Hyw (cells_of_wf phi)) in Hry.
+  refine (icreach_ext n y _ _ _ Hry).
+  intros z Hzw.
+  split.
+  - intro Hu. apply (cells_of_correct phi z Hzw). exact Hu.
+  - intro Hf. apply (cells_of_correct phi z Hzw). exact Hf.
+Qed.
+
+(** ** Soundness of the extended calculus over the model. *)
+
+Theorem icsound : forall phi, Provable phi ->
+  forall x, mwf x -> icforces x phi.
+Proof.
+  intros phi H.
+  induction H; intros x Hwf.
+  - cbn. intros Ha _. exact Ha.
+  - cbn. intros H1 H2 Ha. exact (H1 Ha (H2 Ha)).
+  - cbn. intro Hnn. apply NNPP. exact Hnn.
+  - apply ic_boxk.
+  - apply ic_loeb.
+  - apply ic_box4.
+  - apply ic_mon.
+  - apply ic_nextcon. exact Hwf.
+  - apply ic_j. exact Hwf.
+  - exact (IHProvable1 x Hwf (IHProvable2 x Hwf)).
+  - cbn. exists [].
+    split.
+    + intros p Hp. destruct Hp.
+    + intros y Hy. exact (IHProvable y (proj1 Hy)).
+Qed.
+
+(** ** Tower points and per-level consistency. *)
+
+Fixpoint mtower (k : nat) : mord :=
+  match k with
+  | 0 => MC MZ MZ
+  | S k' => MC (mtower k') MZ
+  end.
+
+Lemma mtower_wf : forall k, mwf (mtower k).
+Proof.
+  induction k as [|k IH]; cbn.
+  - repeat split. apply mZ_le.
+  - repeat split; [exact IH | apply mZ_le].
+Qed.
+
+Lemma mtower_nz : forall k, mtower k <> MZ.
+Proof. intros [|k]; cbn; congruence. Qed.
+
+Lemma mellk_mtower : forall j m, j <= m ->
+  mellk j (mtower m) = mtower (m - j).
+Proof.
+  induction j as [|j IH]; intros m Hj.
+  - cbn. f_equal. lia.
+  - destruct m as [|m]; [lia|].
+    rewrite mellk_S. cbn [mtower mell].
+    rewrite (IH m ltac:(lia)).
+    reflexivity.
+Qed.
+
+Theorem icmodel_box_consistency : forall n, ~ Provable (Box n Bot).
+Proof.
+  intros n H.
+  pose proof (icsound _ H (mtower (S (S n))) (mtower_wf _)) as Hf.
+  cbn in Hf.
+  destruct Hf as [gs [Hleg Hmem]].
+  assert (Hnz : mellk (S n) (mtower (S (S n))) <> MZ).
+  { rewrite (mellk_mtower (S n) (S (S n)) ltac:(lia)).
+    apply mtower_nz. }
+  destruct (member_exists n (mtower (S (S n))) gs
+              (mtower_wf _) Hnz Hleg) as [z Hz].
+  exact (Hmem z Hz).
+Qed.
+
+Theorem icmodel_consistency : ~ Provable Bot.
+Proof.
+  intro H.
+  exact (icsound _ H MZ I).
+Qed.
+
