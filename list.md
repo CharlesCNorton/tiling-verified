@@ -5,11 +5,11 @@ development, by file, with the line number of its statement.
 | File | Statements | Lines |
 |------|-----------:|------:|
 | [`Calculus.v`](#calculusv) | 925 | 12,391 |
-| [`ArithSyntax.v`](#arithsyntaxv) | 353 | 11,285 |
+| [`ArithSyntax.v`](#arithsyntaxv) | 355 | 11,300 |
 | [`ArithSemantics.v`](#arithsemanticsv) | 234 | 12,478 |
 | [`Completeness.v`](#completenessv) | 815 | 9,943 |
 | [`Decidability.v`](#decidabilityv) | 598 | 8,989 |
-| **Total** | **2,925** | **55,086** |
+| **Total** | **2,927** | **55,101** |
 
 
 ## Calculus.v
@@ -950,7 +950,7 @@ Modal language, `Provable` and its independence variants, Kripke and neighbourho
 
 First-order terms and formulas, Robinson Q, the Godel coding of the syntax, the reflection tower `FOProvesTn`, and the Delta_0/Sigma_1 classification.
 
-353 statements over 11,285 lines.
+355 statements over 11,300 lines.
 
 | Line | Kind | Name |
 |-----:|------|------|
@@ -1247,66 +1247,68 @@ First-order terms and formulas, Robinson Q, the Godel coding of the syntax, the 
 | 7484 | Lemma | `FOGUARDC_free` |
 | 7499 | Lemma | `FOTBLVALID_free` |
 | 7533 | Lemma | `FOPRDER_free` |
-| 7540 | Lemma | `FOPRMAT_free` |
-| 7557 | Lemma | `FOProvSentence_closed` |
-| 7586 | Lemma | `FOdelta0_FOlookup` |
-| 7608 | Lemma | `FOsat_FOlookup` |
-| 7757 | Lemma | `FOeval_upd_above` |
-| 7768 | Lemma | `FOsat_FOLOG10c` |
-| 7949 | Lemma | `FOsat_FOLOG12c` |
-| 8131 | Lemma | `FOsat_FOLOGc` |
-| 8174 | Lemma | `FOdelta0_FOLOG10c` |
-| 8205 | Lemma | `FOdelta0_FOLOG12c` |
-| 8236 | Lemma | `FOdelta0_FOLOGc` |
-| 8341 | Lemma | `FOsat_FOAXREFLc` |
-| 8570 | Lemma | `FOsat_FOPROVAT` |
-| 8707 | Lemma | `FOdelta0_FOPROVAT` |
-| 8734 | Lemma | `FOsat_FOGENF` |
-| 8824 | Lemma | `FOdelta0_FOGENF` |
-| 8845 | Lemma | `FOdelta0_FOD2c` |
-| 8882 | Lemma | `FOdelta0_FOD3c` |
-| 8910 | Lemma | `FOdelta0_FODMONc` |
-| 8938 | Lemma | `FOsat_FOREFLSc` |
-| 8964 | Lemma | `FOsat_FOTHAXc` |
-| 8987 | Lemma | `FOdelta0_FOAXREFLc` |
-| 9023 | Lemma | `FOdelta0_FOREFLSc` |
-| 9039 | Lemma | `FOdelta0_FOD2Sc` |
-| 9054 | Lemma | `FOdelta0_FOD3Sc` |
-| 9069 | Lemma | `FOdelta0_FODMONS1` |
-| 9084 | Lemma | `FOdelta0_FODMONSc` |
-| 9099 | Lemma | `FOdelta0_FOTHAXc` |
-| 9115 | Lemma | `logax_sem_ext` |
-| 9156 | Lemma | `refl_sem_ext` |
-| 9167 | Lemma | `refls_sem_ext` |
-| 9179 | Lemma | `thax_sem_ext` |
-| 9227 | Lemma | `provat_sem_ext` |
-| 9236 | Lemma | `genuine_sem_ext` |
-| 9244 | Lemma | `d2one_sem_ext` |
-| 9260 | Lemma | `d3one_sem_ext` |
-| 9273 | Lemma | `dmonone_sem_ext` |
-| 9286 | Lemma | `d2s_sem_ext` |
-| 9297 | Lemma | `d3s_sem_ext` |
-| 9308 | Lemma | `dmons1_sem_ext` |
-| 9319 | Lemma | `dmons_sem_ext` |
-| 9330 | Lemma | `justck_sem_ext` |
-| 9420 | Lemma | `FOdelta0_FOJSUBST` |
-| 9461 | Lemma | `FOdelta0_FOJIND` |
-| 9506 | Lemma | `FOdelta0_FOJMP` |
-| 9537 | Lemma | `FOdelta0_FOJGEN` |
-| 9563 | Lemma | `FOdelta0_FOJLOEB` |
-| 9625 | Lemma | `FOupdate_eq` |
-| 9630 | Lemma | `FOupdate_neq` |
-| 9636 | Lemma | `provat_arg_le` |
-| 9662 | Lemma | `FOsat_FOD3c` |
-| 9853 | Lemma | `FOsat_FOD2c` |
-| 10250 | Lemma | `FOsat_FODMONc` |
-| 10442 | Lemma | `FOsat_FOD2Sc` |
-| 10467 | Lemma | `FOsat_FOD3Sc` |
-| 10492 | Lemma | `FOsat_FODMONS1` |
-| 10517 | Lemma | `FOsat_FODMONSc` |
-| 10542 | Lemma | `FOsat_FOJSUBST` |
-| 10827 | Lemma | `cpair_le_sq` |
-| 10833 | Lemma | `FOsat_FOJIND` |
+| 7540 | Lemma | `FOfree_in_FOExists_eq` |
+| 7551 | Lemma | `FOfree_in_FOExists_strip` |
+| 7561 | Lemma | `FOPRMAT_free` |
+| 7572 | Lemma | `FOProvSentence_closed` |
+| 7601 | Lemma | `FOdelta0_FOlookup` |
+| 7623 | Lemma | `FOsat_FOlookup` |
+| 7772 | Lemma | `FOeval_upd_above` |
+| 7783 | Lemma | `FOsat_FOLOG10c` |
+| 7964 | Lemma | `FOsat_FOLOG12c` |
+| 8146 | Lemma | `FOsat_FOLOGc` |
+| 8189 | Lemma | `FOdelta0_FOLOG10c` |
+| 8220 | Lemma | `FOdelta0_FOLOG12c` |
+| 8251 | Lemma | `FOdelta0_FOLOGc` |
+| 8356 | Lemma | `FOsat_FOAXREFLc` |
+| 8585 | Lemma | `FOsat_FOPROVAT` |
+| 8722 | Lemma | `FOdelta0_FOPROVAT` |
+| 8749 | Lemma | `FOsat_FOGENF` |
+| 8839 | Lemma | `FOdelta0_FOGENF` |
+| 8860 | Lemma | `FOdelta0_FOD2c` |
+| 8897 | Lemma | `FOdelta0_FOD3c` |
+| 8925 | Lemma | `FOdelta0_FODMONc` |
+| 8953 | Lemma | `FOsat_FOREFLSc` |
+| 8979 | Lemma | `FOsat_FOTHAXc` |
+| 9002 | Lemma | `FOdelta0_FOAXREFLc` |
+| 9038 | Lemma | `FOdelta0_FOREFLSc` |
+| 9054 | Lemma | `FOdelta0_FOD2Sc` |
+| 9069 | Lemma | `FOdelta0_FOD3Sc` |
+| 9084 | Lemma | `FOdelta0_FODMONS1` |
+| 9099 | Lemma | `FOdelta0_FODMONSc` |
+| 9114 | Lemma | `FOdelta0_FOTHAXc` |
+| 9130 | Lemma | `logax_sem_ext` |
+| 9171 | Lemma | `refl_sem_ext` |
+| 9182 | Lemma | `refls_sem_ext` |
+| 9194 | Lemma | `thax_sem_ext` |
+| 9242 | Lemma | `provat_sem_ext` |
+| 9251 | Lemma | `genuine_sem_ext` |
+| 9259 | Lemma | `d2one_sem_ext` |
+| 9275 | Lemma | `d3one_sem_ext` |
+| 9288 | Lemma | `dmonone_sem_ext` |
+| 9301 | Lemma | `d2s_sem_ext` |
+| 9312 | Lemma | `d3s_sem_ext` |
+| 9323 | Lemma | `dmons1_sem_ext` |
+| 9334 | Lemma | `dmons_sem_ext` |
+| 9345 | Lemma | `justck_sem_ext` |
+| 9435 | Lemma | `FOdelta0_FOJSUBST` |
+| 9476 | Lemma | `FOdelta0_FOJIND` |
+| 9521 | Lemma | `FOdelta0_FOJMP` |
+| 9552 | Lemma | `FOdelta0_FOJGEN` |
+| 9578 | Lemma | `FOdelta0_FOJLOEB` |
+| 9640 | Lemma | `FOupdate_eq` |
+| 9645 | Lemma | `FOupdate_neq` |
+| 9651 | Lemma | `provat_arg_le` |
+| 9677 | Lemma | `FOsat_FOD3c` |
+| 9868 | Lemma | `FOsat_FOD2c` |
+| 10265 | Lemma | `FOsat_FODMONc` |
+| 10457 | Lemma | `FOsat_FOD2Sc` |
+| 10482 | Lemma | `FOsat_FOD3Sc` |
+| 10507 | Lemma | `FOsat_FODMONS1` |
+| 10532 | Lemma | `FOsat_FODMONSc` |
+| 10557 | Lemma | `FOsat_FOJSUBST` |
+| 10842 | Lemma | `cpair_le_sq` |
+| 10848 | Lemma | `FOsat_FOJIND` |
 
 ## ArithSemantics.v
 

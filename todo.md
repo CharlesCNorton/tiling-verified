@@ -4,57 +4,57 @@
    the Japaridze scheme is derivable, and carry every downstream theorem
    through the unification.
 
-2. Replace the surrogate predicates `Bew_PA`, `Bew_n`, and `Bew_arith`
-   with definitions grounded in the `FOProvSentence`/`FOsat` layer, so
-   "arithmetic" and "Σ₁" describe actual arithmetic objects.
-
-3. Derive the Hilbert-Bernays-Löb conditions as theorems of `FOProvesTn`
+2. Derive the Hilbert-Bernays-Löb conditions as theorems of `FOProvesTn`
    about its own `FOProvSentence`, eliminating `FOAx_D2`, `FOAx_D3`, and
    `FOAx_DMon` as axioms; prove `third_HBL_derived_summary`.
 
-4. Prove internal Σ₁-completeness against `FOsat` and provable
+3. Prove internal Σ₁-completeness against `FOsat` and provable
    Σ₁-completeness (`provable_sigma1_completeness : forall sigma,
    is_sigma1 sigma -> Prov_T (Impl sigma (prov_sentence sigma))`) derived
    inside `T`, proved against satisfaction rather than imported or
    discharged by a calculus rule, and reduce the primitive
    `FOProvesTn_Loeb` rule and internal necessitation to derived theorems.
 
-5. Restate and prove the Solovay completeness theorems with
-   interpretations into the first-order arithmetic layer, replacing the
-   `Form -> Form` level-collapse notion of "arithmetic interpretation."
-
-6. Establish the reflection/consistency-strength bridge
+4. Establish the reflection/consistency-strength bridge
    `Prov_{T_{n+1}} <-> Prov_{T_n + RFN(T_n)}` so the tower matches
    Beklemishev's characterization, derived rather than posited and
    carrying the RFN/Con content; prove `reflection_strength_summary`.
+
+5. Replace the surrogate predicates `Bew_PA`, `Bew_n`, and `Bew_arith`
+   with definitions grounded in the `FOProvSentence`/`FOsat` layer, so
+   "arithmetic" and "Σ₁" describe actual arithmetic objects.
+
+6. Restate and prove the Solovay completeness theorems with
+   interpretations into the first-order arithmetic layer, replacing the
+   `Form -> Form` level-collapse notion of "arithmetic interpretation."
 
 7. Reprove every downstream consumer (Π₂ conservativity, the Japaridze
    tree, the tiling chain, the agent modules) against
    `FOProvesTn`/`FOsat`, witnessed by per-module `Print Assumptions`;
    prove `arithmetic_layer_coherence_summary`.
 
-8. Add a sequent presentation with cut elimination, prove equivalence
+8. Formalize and prove Vardanyan's theorem that the quantified
+   provability logic of PA is Π⁰₂-complete, stated over `FOProvesTn`
+   and `FOFormula`; prove `quantified_boundary_summary`.
+
+9. Add a sequent presentation with cut elimination, prove equivalence
    with the Hilbert system in both directions, and derive the subformula
    property where it holds; prove `sequent_cut_elim_summary`.
 
-9. Develop neighborhood or scattered-topological (Ignatiev-style)
-   semantics `forces_topo` with frame conditions, and prove
-   `soundness_topo` and full completeness
-   (`topo_completeness : topo_valid phi -> |- phi`) for the whole
-   language beyond the box-free fragment, with validity over the frame
-   class rather than a single fixed frame; prove
-   `topo_completeness_summary`.
+10. Develop neighborhood or scattered-topological (Ignatiev-style)
+    semantics `forces_topo` with frame conditions, and prove
+    `soundness_topo` and full completeness
+    (`topo_completeness : topo_valid phi -> |- phi`) for the whole
+    language beyond the box-free fragment, with validity over the frame
+    class rather than a single fixed frame; prove
+    `topo_completeness_summary`.
 
-10. Construct the total decision procedure
+11. Construct the total decision procedure
     `glp_decide_total : forall phi, sumbool (|- phi) (~ |- phi)` with a
     computable Ignatiev-model bound or a terminating cut-free search and
     a full correctness proof `glp_decide_total_correct`, without
     `excluded_middle_informative` and without restriction to the
     box-tower-over-box-free fragment.
-
-11. Formalize and prove Vardanyan's theorem that the quantified
-    provability logic of PA is Π⁰₂-complete, stated over `FOProvesTn`
-    and `FOFormula`; prove `quantified_boundary_summary`.
 
 12. Construct the two-argument Veblen function
     `veblen : ord -> ord -> ord` with its standard fixed-point clauses,
@@ -68,17 +68,17 @@
     with objects satisfying the defining equations of the ordinals they
     are named after.
 
-14. State and prove a strict bound (`ord_compare ... = Lt`) in
-    `proof_theoretic_ordinal_summary`, replacing trichotomy disjunctions
-    that hold for any comparison value.
-
-15. Prove the proof-height rank invariant across all derivations of a
+14. Prove the proof-height rank invariant across all derivations of a
     given theorem, or introduce a Type-level `ProvableT` with
     `proof_height : forall phi, ProvableT phi -> vord` and
     `ProvableT_iff : ProvableT phi <-> inhabited (Provable_term phi)`,
     so the ordinal assignment genuinely ranks `|-` itself rather than
     individual `Provable_term` witnesses; prove
     `proof_height_on_derivations_summary`.
+
+15. State and prove a strict bound (`ord_compare ... = Lt`) in
+    `proof_theoretic_ordinal_summary`, replacing trichotomy disjunctions
+    that hold for any comparison value.
 
 16. Prove the worm/closed-fragment order type is exactly ε₀
     (`worm_order_type_eps0`) and connect the proof-height bound to it

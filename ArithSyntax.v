@@ -7537,20 +7537,35 @@ Proof.
   repeat first [arm_prder | arm_betaF | ffree_leaf]; ffin.
 Qed.
 
+Lemma FOfree_in_FOExists_eq : forall w B,
+  FOfree_in w (FOExists w B) = false.
+Proof.
+  intros w B. cbn -[Nat.eqb]. rewrite Nat.eqb_refl. reflexivity.
+Qed.
+
+(** Strip one existential binder while leaving its body abstract: the
+    bound variable differs from [w], and freeness passes to the body.
+    Both cases are decided by the two rewriting lemmas above, so the
+    body is never reduced under. *)
+
+Lemma FOfree_in_FOExists_strip : forall w y B,
+  FOfree_in w (FOExists y B) = true -> y <> w /\ FOfree_in w B = true.
+Proof.
+  intros w y B H.
+  destruct (Nat.eqb_spec y w) as [->|Hne].
+  - rewrite FOfree_in_FOExists_eq in H. discriminate H.
+  - split; [exact Hne|].
+    rewrite (FOfree_in_FOExists_neq w y B Hne) in H. exact H.
+Qed.
+
 Lemma FOPRMAT_free : forall cores w,
   2 <= w -> FOfree_in w (FOPRMAT cores) = false.
 Proof.
   intros cores w Hw.
   destruct (FOfree_in w (FOPRMAT cores)) eqn:E; [exfalso|reflexivity].
   unfold FOPRMAT in E.
-  repeat match goal with
-  | Hx : FOfree_in ?w0 (FOExists ?y _) = true |- _ =>
-      let E2 := fresh "E2" in
-      destruct (Nat.eqb y w0) eqn:E2;
-        [cbn -[Nat.eqb] in Hx; rewrite E2 in Hx; discriminate Hx
-        |apply Nat.eqb_neq in E2;
-         rewrite (FOfree_in_FOExists_neq _ _ _ E2) in Hx]
-  end.
+  repeat (apply FOfree_in_FOExists_strip in E;
+          let h := fresh "Hne" in destruct E as [h E]).
   apply FOPRDER_free in E. lia.
 Qed.
 
