@@ -10427,6 +10427,237 @@ Proof.
   - exact QGLP_derives_exists_witness.
 Qed.
 
+(** ** Prop-valued forcing is extensional in the valuation. *)
+
+Lemma forces_p_ext : forall phi (F : Frame) (V1 V2 : fW F -> nat -> Prop) w,
+  (forall x k, V1 x k = V2 x k) ->
+  (forces_p F V1 w phi <-> forces_p F V2 w phi).
+Proof.
+  intro phi. induction phi as [p | | X IHX Y IHY | n psi IHpsi];
+    intros F V1 V2 w Hext; cbn.
+  - rewrite (Hext w p). reflexivity.
+  - reflexivity.
+  - rewrite (IHX F V1 V2 w Hext), (IHY F V1 V2 w Hext). reflexivity.
+  - split; intros H v Hwv.
+    + apply (proj1 (IHpsi F V1 V2 v Hext)). exact (H v Hwv).
+    + apply (proj2 (IHpsi F V1 V2 v Hext)). exact (H v Hwv).
+Qed.
+
+(** ** Soundness for the Prop-valued forcing relation.
+
+    The same argument as [soundness]: the Loeb case is converse
+    well-founded induction on the frame, the [Ax_DN] case is classical. *)
+
+Theorem soundness_p : forall phi, |- phi ->
+  forall (F : Frame) (V : fW F -> nat -> Prop) w, forces_p F V w phi.
+Proof.
+  intros phi H. induction H.
+  - intros F V w. simpl. intros Hphi _. exact Hphi.
+  - intros F V w. simpl. intros Hf Hg Hphi.
+    apply Hf; [exact Hphi | apply Hg; exact Hphi].
+  - intros F V w. simpl. intro Hnnp. apply NNPP. exact Hnnp.
+  - intros F V w. simpl. intros Himp Hphi v Hwv.
+    apply (Himp v Hwv). apply (Hphi v Hwv).
+  - intros F V w. simpl. intros Hbox v Hwv.
+    pose proof (fR_wf F n) as Hwf.
+    set (P := fun u => fR F n w u -> forces_p F V u phi).
+    cut (P v); [intro Hpv; exact (Hpv Hwv) |].
+    apply (well_founded_ind Hwf P).
+    intros u IH. unfold P. intro Hwu.
+    apply (Hbox u Hwu).
+    intros u' Huu'.
+    apply (IH u' Huu' (fR_trans F n w u u' Hwu Huu')).
+  - intros F V w. simpl. intros Hphi v Hwv u Hvu.
+    apply Hphi. apply (fR_trans F n w v u Hwv Hvu).
+  - intros F V w. simpl. intros Hphi v Hwv.
+    apply Hphi. apply (fR_mon F n w v Hwv).
+  - intros F V w. simpl. intros v Hwv Hbox.
+    destruct (fR_nextcon F n w v Hwv) as [u Hvu].
+    exact (Hbox u Hvu).
+  - intros F V w.
+    apply (IHProvable1 F V w). apply (IHProvable2 F V w).
+  - intros F V w. simpl.
+    intros v _. apply (IHProvable F V v).
+Qed.
+
+(** ** Constant-domain Kripke semantics for [QGLP_form].
+
+    A valuation assigns to each propositional variable a proposition
+    over the worlds of a frame.  A quantifier ranges over
+    [fW F -> Prop], the collection of all such propositions.  That
+    collection is fixed by the frame and does not mention the world at
+    which the quantifier is evaluated, so the domain is literally the
+    same at every world and along every accessibility relation: this is
+    the constant-domain reading, not a world-relative one. *)
+
+Definition qval (F : Frame) : Type := fW F -> nat -> Prop.
+
+Definition qval_upd (F : Frame) (V : qval F) (p : nat)
+  (P : fW F -> Prop) : qval F :=
+  fun x k => if Nat.eqb k p then P x else V x k.
+
+Fixpoint qforces (F : Frame) (V : qval F) (w : fW F) (q : QGLP_form) : Prop :=
+  match q with
+  | Q_modal phi => forces_p F V w phi
+  | Q_forall p q' => forall P : fW F -> Prop, qforces F (qval_upd F V p P) w q'
+  | Q_exists p q' => exists P : fW F -> Prop, qforces F (qval_upd F V p P) w q'
+  end.
+
+Definition QGLP_cd_valid (q : QGLP_form) : Prop :=
+  forall (F : Frame) (V : qval F) (w : fW F), qforces F V w q.
+
+Lemma qval_upd_ext : forall F (V1 V2 : qval F) p P,
+  (forall x k, V1 x k = V2 x k) ->
+  forall x k, qval_upd F V1 p P x k = qval_upd F V2 p P x k.
+Proof.
+  intros F V1 V2 p P Hext x k. unfold qval_upd.
+  destruct (Nat.eqb k p); [reflexivity | apply Hext].
+Qed.
+
+Lemma qval_upd_self : forall F (V : qval F) p,
+  forall x k, qval_upd F V p (fun y => V y p) x k = V x k.
+Proof.
+  intros F V p x k. unfold qval_upd.
+  destruct (Nat.eqb k p) eqn:E.
+  - apply Nat.eqb_eq in E. subst k. reflexivity.
+  - reflexivity.
+Qed.
+
+Lemma qforces_ext : forall q (F : Frame) (V1 V2 : qval F) w,
+  (forall x k, V1 x k = V2 x k) ->
+  (qforces F V1 w q <-> qforces F V2 w q).
+Proof.
+  intro q. induction q as [phi | p q' IH | p q' IH];
+    intros F V1 V2 w Hext; cbn.
+  - exact (forces_p_ext phi F V1 V2 w Hext).
+  - split; intros H P.
+    + exact (proj1 (IH F _ _ w (qval_upd_ext F V1 V2 p P Hext)) (H P)).
+    + exact (proj2 (IH F _ _ w (qval_upd_ext F V1 V2 p P Hext)) (H P)).
+  - split; intros [P H]; exists P.
+    + exact (proj1 (IH F _ _ w (qval_upd_ext F V1 V2 p P Hext)) H).
+    + exact (proj2 (IH F _ _ w (qval_upd_ext F V1 V2 p P Hext)) H).
+Qed.
+
+(** ** The calculus for the constant-domain reading.
+
+    Quantifier introduction is generalisation: a body valid under every
+    valuation stays valid when one variable is rebound, which is what
+    the constant domain licenses. *)
+
+Inductive QGLP_cd_derives : QGLP_form -> Prop :=
+  | QCd_modal  : forall phi, |- phi -> QGLP_cd_derives (Q_modal phi)
+  | QCd_forall : forall p q, QGLP_cd_derives q -> QGLP_cd_derives (Q_forall p q)
+  | QCd_exists : forall p q, QGLP_cd_derives q -> QGLP_cd_derives (Q_exists p q).
+
+Theorem QGLP_cd_soundness : forall q,
+  QGLP_cd_derives q -> QGLP_cd_valid q.
+Proof.
+  intros q H. induction H as [phi Hp | p q Hd IH | p q Hd IH];
+    intros F V w; cbn.
+  - exact (soundness_p phi Hp F V w).
+  - intro P. exact (IH F (qval_upd F V p P) w).
+  - exists (fun _ => True). exact (IH F (qval_upd F V p (fun _ => True)) w).
+Qed.
+
+(** ** Bridge to the truth-table semantics on the box-free fragment. *)
+
+Lemma forces_p_box_free_eval : forall phi (F : Frame) (val : nat -> bool) w,
+  box_free phi ->
+  (forces_p F (fun _ k => val k = true) w phi <-> eval val phi = true).
+Proof.
+  intro phi. induction phi as [p | | X IHX Y IHY | n psi IHpsi];
+    intros F val w Hbf; cbn in *.
+  - reflexivity.
+  - split; [intros [] | discriminate].
+  - destruct Hbf as [HX HY].
+    pose proof (IHX F val w HX) as HiX.
+    pose proof (IHY F val w HY) as HiY.
+    split.
+    + intros Himp. destruct (eval val X) eqn:EX; cbn.
+      * apply (proj1 HiY). apply Himp. apply (proj2 HiX). reflexivity.
+      * reflexivity.
+    + intros Heval HfX.
+      pose proof (proj1 HiX HfX) as EX.
+      rewrite EX in Heval. cbn in Heval.
+      apply (proj2 HiY). exact Heval.
+  - exfalso. exact Hbf.
+Qed.
+
+Fixpoint qglp_matrix (q : QGLP_form) : Form :=
+  match q with
+  | Q_modal phi => phi
+  | Q_forall _ q' => qglp_matrix q'
+  | Q_exists _ q' => qglp_matrix q'
+  end.
+
+Fixpoint qglp_universal (q : QGLP_form) : Prop :=
+  match q with
+  | Q_modal _ => True
+  | Q_forall _ q' => qglp_universal q'
+  | Q_exists _ _ => False
+  end.
+
+(** ** Completeness on the universal box-free fragment.
+
+    A valid universally quantified formula with box-free matrix is
+    derivable: instantiating the quantifier at the proposition the
+    valuation already assigns to its variable returns the body, and the
+    matrix is decided by [prop_completeness]. *)
+
+Theorem QGLP_cd_completeness_universal_box_free : forall q,
+  qglp_universal q -> box_free (qglp_matrix q) ->
+  QGLP_cd_valid q -> QGLP_cd_derives q.
+Proof.
+  intro q. induction q as [phi | p q' IH | p q' IH]; intros Hu Hbf Hval.
+  - apply QCd_modal.
+    apply trivial_in_provable. apply prop_completeness; [exact Hbf|].
+    intro val.
+    apply (proj1 (forces_p_box_free_eval phi F0 val true Hbf)).
+    exact (Hval F0 (fun _ k => val k = true) true).
+  - apply QCd_forall. apply IH; [exact Hu | exact Hbf |].
+    intros F V w.
+    exact (proj1 (qforces_ext q' F _ V w (qval_upd_self F V p))
+                 (Hval F V w (fun x => V x p))).
+  - exfalso. exact Hu.
+Qed.
+
+(** ** The boundary of completeness.
+
+    Completeness stops at the existential quantifier, and not for want
+    of a rule: a semantic witness need not be any formula's denotation.
+    [Q_exists 0 (Q_modal (Var 0))] is valid on every frame -- take the
+    constantly true proposition -- while deriving it would require
+    [|- Var 0].  No recursive calculus over [Form] closes this gap,
+    since the quantifier ranges over all of [fW F -> Prop]. *)
+
+Theorem QGLP_cd_exists_valid_not_derivable :
+  QGLP_cd_valid (Q_exists 0 (Q_modal (Var 0))) /\
+  ~ QGLP_cd_derives (Q_exists 0 (Q_modal (Var 0))).
+Proof.
+  split.
+  - intros F V w. cbn. exists (fun _ => True). cbn. exact I.
+  - intro H.
+    inversion H as [| | p q Hd Heq]; subst.
+    inversion Hd as [phi Hp Heq' | |]; subst.
+    exact (var_not_provable Hp).
+Qed.
+
+Theorem qglp_constant_domain_summary :
+  (forall q, QGLP_cd_derives q -> QGLP_cd_valid q) /\
+  (forall q, qglp_universal q -> box_free (qglp_matrix q) ->
+     QGLP_cd_valid q -> QGLP_cd_derives q) /\
+  (forall phi, |- phi ->
+     forall (F : Frame) (V : fW F -> nat -> Prop) w, forces_p F V w phi) /\
+  (QGLP_cd_valid (Q_exists 0 (Q_modal (Var 0))) /\
+   ~ QGLP_cd_derives (Q_exists 0 (Q_modal (Var 0)))).
+Proof.
+  split; [|split; [|split]].
+  - exact QGLP_cd_soundness.
+  - exact QGLP_cd_completeness_universal_box_free.
+  - exact soundness_p.
+  - exact QGLP_cd_exists_valid_not_derivable.
+Qed.
+
 Definition Temporal_Box (t n : nat) (phi : Form) : Form := Box (t + n) phi.
 
 Theorem Temporal_Box_K : forall t n phi psi,

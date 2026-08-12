@@ -52,16 +52,11 @@
     `excluded_middle_informative` and without restriction to the
     box-tower-over-box-free fragment.
 
-11. Give QGLP real constant-domain Kripke semantics and inference rules,
-    eliminating the `Q_forall := True` and `Q_exists := True` clauses;
-    prove `QGLP_soundness`, target completeness, and
-    `qglp_genuine_summary`.
-
-12. Formalize and prove Vardanyan's theorem that the quantified
+11. Formalize and prove Vardanyan's theorem that the quantified
     provability logic of PA is Π⁰₂-complete, stated over `FOProvesTn`
     and `FOFormula`; prove `quantified_boundary_summary`.
 
-13. Construct the two-argument Veblen function
+12. Construct the two-argument Veblen function
     `veblen : ord -> ord -> ord` with its standard fixed-point clauses,
     define Γ₀ as the least strongly critical ordinal, prove it the
     supremum of the iterated Veblen tower, derive its well-foundedness
@@ -69,15 +64,15 @@
     `GLP_proof_height_below_Gamma_0` against it; prove
     `veblen_Gamma_0_summary`.
 
-14. Replace `Veblen_eps0_ordinal` and the two-case `Veblen_phi_function`
+13. Replace `Veblen_eps0_ordinal` and the two-case `Veblen_phi_function`
     with objects satisfying the defining equations of the ordinals they
     are named after.
 
-15. State and prove a strict bound (`ord_compare ... = Lt`) in
+14. State and prove a strict bound (`ord_compare ... = Lt`) in
     `proof_theoretic_ordinal_summary`, replacing trichotomy disjunctions
     that hold for any comparison value.
 
-16. Prove the proof-height rank invariant across all derivations of a
+15. Prove the proof-height rank invariant across all derivations of a
     given theorem, or introduce a Type-level `ProvableT` with
     `proof_height : forall phi, ProvableT phi -> vord` and
     `ProvableT_iff : ProvableT phi <-> inhabited (Provable_term phi)`,
@@ -85,82 +80,82 @@
     individual `Provable_term` witnesses; prove
     `proof_height_on_derivations_summary`.
 
-17. Prove the worm/closed-fragment order type is exactly ε₀
+16. Prove the worm/closed-fragment order type is exactly ε₀
     (`worm_order_type_eps0`) and connect the proof-height bound to it
     tightly (`proof_height_tight`); prove
     `ordinal_analysis_tight_summary`.
 
-18. Replace `ec_hom_eq := fun _ _ => True` in the Stone equivalence with
+17. Replace `ec_hom_eq := fun _ _ => True` in the Stone equivalence with
     a genuine equivalence on derivations modulo conversion and cut, and
     reprove `Stone_eta_natural`, `Stone_epsilon_natural`,
     `Stone_triangle_F`, and `Stone_triangle_G` against it; prove
     `stone_proof_relevant_summary`.
 
-19. Quotient the Magari-freeness category's hom-sets so `LT_GLP_free`
+18. Quotient the Magari-freeness category's hom-sets so `LT_GLP_free`
     uniqueness is a contractibility statement inside the category,
     without functional extensionality or proof irrelevance; prove
     `magari_strict_free_summary`.
 
-20. Equip the inert `LambdaBox` combinators (`tS`, `tBoxK`, `tLoeb`,
+19. Equip the inert `LambdaBox` combinators (`tS`, `tBoxK`, `tLoeb`,
     `tBox4`, `tMon`, `tNextCon`, `tLoebFix`) with contraction rules,
     including S duplication and a guarded `tLoebFix` unfolding, prove
     strong normalization by reducibility candidates against the full
     reduction relation, and reprove `extract_realizer_reduces`; prove
     `lambda_box_SN_summary`.
 
-21. Define `Vingean_reflection_at` as a genuine reflection principle
+20. Define `Vingean_reflection_at` as a genuine reflection principle
     whose statement quantifies over the successor level's proofs rather
     than aliasing `Box (S n)`, and reprove the reflection summary
     against it.
 
-22. Formalize and prove Critch's parametric bounded Löb theorem itself,
+21. Formalize and prove Critch's parametric bounded Löb theorem itself,
     with proof-length accounting and the polynomial-overhead argument.
 
-23. Prove single-level reflective trust
+22. Prove single-level reflective trust
     (`single_level_self_trust : exists T, Prov_T (Con T) ->
     Prov_T (trusts T T)`) against the arithmetic layer, or the
     machine-checked obstruction `single_level_trust_blocked` derived
     from Löb, with the Critch parametric bounded variant as the
     strongest true form; prove `reflective_trust_resolution_summary`.
 
-24. Reformulate `goal_preservation_tiling` so `default_action` and the
+23. Reformulate `goal_preservation_tiling` so `default_action` and the
     successor condition carry content, making the statement falsifiable
     rather than tautological.
 
-25. Prove the Löbian handshake proper: derive mutual cooperation for the
+24. Prove the Löbian handshake proper: derive mutual cooperation for the
     diagonal fixed points of FairBot vs. FairBot via Löb and Sambin
     uniqueness, quantifying over all solutions.
 
-26. Extend the bot-vs-bot results beyond `opp = Cooperate_action` to the
+25. Extend the bot-vs-bot results beyond `opp = Cooperate_action` to the
     standard opponent matrix, and repair
     `FairBot_two_bots_mutual_cooperation` so its conclusion uses its
     hypotheses; prove `program_equilibrium_summary`.
 
-27. Build the single finite bounded-budget agent and prove
+26. Build the single finite bounded-budget agent and prove
     `bounded_agent_tiling : forall budget,
     goal_preserved (rewrite_step agent budget)` across its rewrite
     steps, replacing tower-indexed trust; prove `bounded_agent_summary`.
 
-28. Wire the extracted lambda-box realizers to `AgentRecord` decisions
+27. Wire the extracted lambda-box realizers to `AgentRecord` decisions
     and prove `extracted_fairbot_correct :
     run (extract fairbot_proof) opp = fairbot_action opp`; prove
     `agent_extraction_summary`.
 
-29. Remove padding conjuncts such as `solovay_function size R 0 = 0`
+28. Remove padding conjuncts such as `solovay_function size R 0 = 0`
     from summary bundles, keeping only conjuncts with independent
     mathematical content.
 
-30. Carve the decidable and syntactic results (box-free decidability,
+29. Carve the decidable and syntactic results (box-free decidability,
     the Hilbert toolkit, proof-term reductions, `glp_dec_b`) into
     modules importing neither `Classical` nor `ClassicalEpsilon`,
     verified by `Print Assumptions`, confining the classical axioms to
     the Lindenbaum/completeness parts; prove
     `constructive_core_summary`.
 
-31. Attach every completeness, conservativity, and duality headline to
+30. Attach every completeness, conservativity, and duality headline to
     the exact named logic it holds for (GL, GLP, the proven subsystem,
     or GLS), with a machine-checked `logic_identification_summary`.
 
-32. Prove, at full strength, the genuine theorems whose names invoke
+31. Prove, at full strength, the genuine theorems whose names invoke
     Solovay, Feferman-Schütte, Tarski, Friedman, Critch, and Vingean
     reflection, so every named result's body matches its claim.
