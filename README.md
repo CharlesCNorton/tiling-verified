@@ -11,7 +11,7 @@ Requires Rocq 9 (formerly Coq 9) with the standard library.
 
 ```
 make
-coqchk -silent -Q . Tiling Tiling.Tiling
+rocqchk -silent -Q . Tiling Tiling.Tiling
 ```
 
 The development is five files, each depending only on those before it,
