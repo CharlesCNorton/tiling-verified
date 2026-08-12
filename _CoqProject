@@ -1,3 +1,8 @@
 -Q . Tiling
 
+Calculus.v
+ArithSyntax.v
+ArithSemantics.v
+Completeness.v
+Decidability.v
 Tiling.v

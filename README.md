@@ -14,10 +14,12 @@ make
 coqchk -silent -Q . Tiling Tiling.Tiling
 ```
 
-The development is a single file, `Tiling.v`. `coqchk` reports exactly
-two axioms (`classic` and `constructive_indefinite_description`, both
-from the classical standard library); there are no admits and no
-assumed-positivity or type-in-type escapes.
+The development is five files, each depending only on those before it,
+with `Tiling.v` as the entry point re-exporting all of them. `coqchk`
+reports exactly two axioms (`classic` and
+`constructive_indefinite_description`, both from the classical standard
+library); there are no admits and no assumed-positivity or type-in-type
+escapes.
 
 ## Headline theorems
 
@@ -101,9 +103,25 @@ assumed-positivity or type-in-type escapes.
 
 ## Files
 
-- `Tiling.v` — the whole development: calculus, Hilbert combinators,
-  Kripke semantics, fixed points, the T_n tower, proof terms, worms,
-  agents, and every section listed below.
+- `Tiling.v` — the entry point, re-exporting the five parts below.
+- `Calculus.v` — the modal language, `Provable` and its independence
+  variants, Kripke and neighbourhood semantics, Hilbert combinators,
+  Sambin fixed points, the `Bew`/`T_n` tower, Cantor normal form
+  ordinals, worms, and proof terms.
+- `ArithSyntax.v` — first-order terms and formulas, Robinson Q, the
+  Godel coding of the syntax, the reflection tower `FOProvesTn`, and the
+  Delta_0/Sigma_1 classification.
+- `ArithSemantics.v` — N-satisfaction `FOsat`, the beta-coded proof
+  checker and its arithmetization, the Hilbert-Bernays-Lob conditions,
+  Lob's rule, Godel II at every level, and the embedding `FOembed`.
+- `Completeness.v` — arithmetic realisation, Pi_1 and Pi_2
+  conservativity, the Friedman translation, Solovay, Japaridze, Visser,
+  Critch, the agent modules, reverse math, the lambda-box calculus, and
+  Craig interpolation.
+- `Decidability.v` — the decision procedures, Magari and polymodal
+  Magari algebras, the Veblen carrier and Gamma_0, proof-term rewriting
+  with Newman and Church-Rosser, sequent calculus, and Stone/Esakia
+  duality.
 - `_CoqProject`, `Makefile` — build configuration.
 - `todo.md` — the open research programs, ordered by logical completion.
 
