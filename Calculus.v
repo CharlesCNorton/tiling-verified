@@ -11025,15 +11025,8 @@ Theorem Diamond_n_provable_iff_via_box : forall n phi,
   |- Iff (Diamond n phi) (Neg (Box n (Neg phi))).
 Proof. intros n phi. unfold Diamond. exact (prov_iff_refl _). Qed.
 
-(** [NextCon_under_unused_diamond_hypothesis] (which discarded its
-    only hypothesis and concluded [Ax_NextCon n]),
-    [Henkin_canonical_model_construction_witness] (alias of
-    [lindenbaum_lemma]), and [Henkin_truth_lemma_propositional] (alias
-    of [canonical_truth_propositional_var]) were redundant aliases or
-    hypothesis-discarding placeholders.  Removed: the substantive
-    content is in their referenced sources, and the maximal-consistent
-    Henkin truth lemma over the full canonical model is a still-open
-    item (todo #21 — #25). *)
+(** The maximal-consistent Henkin truth lemma over the full canonical
+    model belongs to the completeness item of [todo.md]. *)
 
 Theorem omega_completeness_indexed_by_naturals : forall phi,
   |- phi -> forall (V : fW Fnat -> nat -> bool) w, forces Fnat V w phi.

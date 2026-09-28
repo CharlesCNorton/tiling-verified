@@ -2,7 +2,7 @@
 (*                                                                            *)
 (*           Parametric Provability: Bypassing the Loebian Obstacle           *)
 (*                                                                            *)
-(*     Part 2 of 5. First-order syntax, Goedel coding, the FOProvesTn tower.  *)
+(*     Part 2 of 6. First-order syntax, Goedel coding, the FOProvesTn tower.  *)
 (*                                                                            *)
 (*     Author: Charles C. Norton                                              *)
 (*     License: MIT                                                           *)

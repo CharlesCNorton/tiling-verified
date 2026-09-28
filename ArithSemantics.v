@@ -2,7 +2,7 @@
 (*                                                                            *)
 (*           Parametric Provability: Bypassing the Loebian Obstacle           *)
 (*                                                                            *)
-(*     Part 3 of 5. N-satisfaction, the arithmetized checker, HBL, FOembed.   *)
+(*     Part 3 of 6. N-satisfaction, the arithmetized checker, HBL, FOembed.   *)
 (*                                                                            *)
 (*     Author: Charles C. Norton                                              *)
 (*     License: MIT                                                           *)

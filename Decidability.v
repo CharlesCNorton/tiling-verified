@@ -2,7 +2,7 @@
 (*                                                                            *)
 (*           Parametric Provability: Bypassing the Loebian Obstacle           *)
 (*                                                                            *)
-(*     Part 5 of 5. Decision procedures, algebra, duality, term rewriting.    *)
+(*     Part 6 of 6. Decision procedures, algebra, duality, term rewriting.    *)
 (*                                                                            *)
 (*     Author: Charles C. Norton                                              *)
 (*     License: MIT                                                           *)
@@ -6722,7 +6722,7 @@ Qed.
 
 
 (******************************************************************************)
-(* Genuine Gamma_0 (todo #9).                                                  *)
+(* The Gamma_0 atom.                                                          *)
 (*                                                                            *)
 (* [Gamma_0_ordinal = V_gamma0] is the new top atom of the Veblen carrier:    *)
 (* strictly above every [V_phi n alpha] (in particular above the whole        *)
@@ -6821,7 +6821,7 @@ Proof.
 Qed.
 
 (******************************************************************************)
-(* Acceptance-literal height measure (todo #9): Loeb leaves at rank omega,    *)
+(* Acceptance-literal height measure: Loeb leaves at rank omega,              *)
 (* all other axiom leaves at rank 1, MP = successor of the sup (ord_max) of   *)
 (* the children, Nec = successor of the child.  Its exact supremum is         *)
 (* omega * 2, computed below: every height is strictly below omega_two and    *)
@@ -7009,8 +7009,7 @@ Proof.
 Qed.
 
 (** Non-degeneracy: the literal measure never returns OZero and is not
-    a constant function of the derivation — discharging the forbidden
-    trivialisations of todo #9. *)
+    a constant function of the derivation. *)
 
 Lemma proof_height_lit_shape : forall phi (pt : Provable_term phi),
   exists e t, proof_height_lit phi pt = OCons e t.
@@ -7044,9 +7043,8 @@ Proof.
   intro H. injection H as H1. discriminate H1.
 Qed.
 
-(** The literal measure also sits strictly below the genuine Gamma_0
-    atom (the todo #9 headline restated for this measure), and the
-    Gamma_0 bound is again not tight: heights are V_cnf images, hence
+(** The literal measure also sits strictly below the Gamma_0 atom, and
+    the Gamma_0 bound is again not tight: heights are V_cnf images, hence
     already strictly below the eps_0 atom. *)
 
 Theorem GLP_proof_height_lit_below_Gamma_0 :

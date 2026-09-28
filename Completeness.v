@@ -2,7 +2,7 @@
 (*                                                                            *)
 (*           Parametric Provability: Bypassing the Loebian Obstacle           *)
 (*                                                                            *)
-(*     Part 4 of 5. Conservativity, Solovay, Japaridze, agents, interpolation. *)
+(*     Part 5 of 6. Conservativity, Solovay, Japaridze, agents, interpolation. *)
 (*                                                                            *)
 (*     Author: Charles C. Norton                                              *)
 (*     License: MIT                                                           *)
@@ -1196,8 +1196,8 @@ Qed.
    walks: from current world w, step to the smallest j < size with
    R w j; if none exists, stay at w.
    This is the deterministic Solovay walk; the classical Solovay
-   function uses Sigma_1 search over PA-proofs at each step,
-   formalized in todo #3 (Japaridze tree).
+   function uses Sigma_1 search over PA-proofs at each step, the
+   subject of the Solovay item of todo.md.
    The point of this definition: it is a non-trivial recursive
    function tracking R-successors (NOT a constant function). *)
 Fixpoint solovay_step_search (R : nat -> nat -> bool)

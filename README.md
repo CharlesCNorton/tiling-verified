@@ -14,7 +14,7 @@ make
 rocqchk -silent -Q . Tiling Tiling.Tiling
 ```
 
-The development is five files, each depending only on those before it,
+The development is six files, each depending only on those before it,
 with `Tiling.v` as the entry point re-exporting all of them. `coqchk`
 reports exactly two axioms (`classic` and
 `constructive_indefinite_description`, both from the classical standard
@@ -103,7 +103,7 @@ escapes.
 
 ## Files
 
-- `Tiling.v` — the entry point, re-exporting the five parts below.
+- `Tiling.v` — the entry point, re-exporting the six parts below.
 - `Calculus.v` — the modal language, `Provable` and its independence
   variants, Kripke and neighbourhood semantics, Hilbert combinators,
   Sambin fixed points, the `Bew`/`T_n` tower, Cantor normal form
@@ -114,6 +114,11 @@ escapes.
 - `ArithSemantics.v` — N-satisfaction `FOsat`, the beta-coded proof
   checker and its arithmetization, the Hilbert-Bernays-Lob conditions,
   Lob's rule, Godel II at every level, and the embedding `FOembed`.
+- `ArithInternal.v` — object-level arithmetic inside the tower:
+  instantiation of derivable open equations at arbitrary terms, the
+  `FOring` setoid semiring with the `fo_ring` tactic for object-level
+  equations, and derivations under hypotheses (`FOPrH`) with rules for
+  the quantifiers, equality and induction.
 - `Completeness.v` — arithmetic realisation, Pi_1 and Pi_2
   conservativity, the Friedman translation, Solovay, Japaridze, Visser,
   Critch, the agent modules, reverse math, the lambda-box calculus, and

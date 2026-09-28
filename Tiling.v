@@ -14,7 +14,7 @@
 (*                                                                            *)
 (******************************************************************************)
 
-(** Entry point.  The development is five parts, each depending only on
+(** Entry point.  The development is six parts, each depending only on
     those before it:
 
       Calculus        modal language, Provable and its variants, Kripke and
@@ -24,15 +24,19 @@
                       FOProvesTn reflection tower, Delta_0/Sigma_1 classes
       ArithSemantics  FOsat, the arithmetized proof checker, the HBL
                       conditions, Loeb, Goedel II, FOembed
+      ArithInternal   object-level arithmetic: instantiation of open
+                      equations, the object-level ring, derivations under
+                      hypotheses
       Completeness    conservativity, Friedman, Solovay, Japaridze, Visser,
                       Critch, agents, reverse math, lambda-box, Craig
       Decidability    decision procedures, Magari algebras, Veblen and
                       Gamma_0, proof-term rewriting, Stone/Esakia duality
 
-    Requiring [Tiling.Tiling] loads and imports all five. *)
+    Requiring [Tiling.Tiling] loads and imports all six. *)
 
 From Tiling Require Export Calculus.
 From Tiling Require Export ArithSyntax.
 From Tiling Require Export ArithSemantics.
+From Tiling Require Export ArithInternal.
 From Tiling Require Export Completeness.
 From Tiling Require Export Decidability.

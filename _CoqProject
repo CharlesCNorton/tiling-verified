@@ -3,6 +3,7 @@
 Calculus.v
 ArithSyntax.v
 ArithSemantics.v
+ArithInternal.v
 Completeness.v
 Decidability.v
 Tiling.v
