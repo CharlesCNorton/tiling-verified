@@ -2,7 +2,7 @@
 (*                                                                            *)
 (*           Parametric Provability: Bypassing the Loebian Obstacle           *)
 (*                                                                            *)
-(*     Part 5 of 6. Conservativity, Solovay, Japaridze, agents, interpolation. *)
+(*     Part 8 of 9. Conservativity, Solovay, Japaridze, agents, interpolation. *)
 (*                                                                            *)
 (*     Author: Charles C. Norton                                              *)
 (*     License: MIT                                                           *)

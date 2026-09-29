@@ -2,7 +2,7 @@
 (*                                                                            *)
 (*           Parametric Provability: Bypassing the Loebian Obstacle           *)
 (*                                                                            *)
-(*     Part 6 of 6. Decision procedures, algebra, duality, term rewriting.    *)
+(*     Part 9 of 9. Decision procedures, algebra, duality, term rewriting.    *)
 (*                                                                            *)
 (*     Author: Charles C. Norton                                              *)
 (*     License: MIT                                                           *)

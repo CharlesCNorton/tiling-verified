@@ -14,7 +14,7 @@ make
 rocqchk -silent -Q . Tiling Tiling.Tiling
 ```
 
-The development is six files, each depending only on those before it,
+The development is nine files, each depending only on those before it,
 with `Tiling.v` as the entry point re-exporting all of them. `coqchk`
 reports exactly two axioms (`classic` and
 `constructive_indefinite_description`, both from the classical standard
@@ -95,6 +95,12 @@ escapes.
   Satisfaction of the level-n Sigma_1 provability sentence coincides
   with derivability in T_n — representability for the reflection tower.
 
+- `FOHBL2_internal : forall k A B, FOProvesTn 0 (FOImplF (FOProvSentence k
+  (FOImplF A B)) (FOImplF (FOProvSentence k A) (FOProvSentence k B)))`
+  The second derivability condition derived inside T_0: every level's
+  provability sentence is closed under modus ponens, by an object-level
+  merge of the two checked derivations and their computation tables.
+
 - `arithmetic_layer_summary`
   The first-order arithmetic layer in one statement: the HBL conditions
   and Loeb's rule against N-satisfaction, tower soundness, Goedel's
@@ -103,7 +109,7 @@ escapes.
 
 ## Files
 
-- `Tiling.v` — the entry point, re-exporting the six parts below.
+- `Tiling.v` — the entry point, re-exporting the nine parts below.
 - `Calculus.v` — the modal language, `Provable` and its independence
   variants, Kripke and neighbourhood semantics, Hilbert combinators,
   Sambin fixed points, the `Bew`/`T_n` tower, Cantor normal form
@@ -117,8 +123,20 @@ escapes.
 - `ArithInternal.v` — object-level arithmetic inside the tower:
   instantiation of derivable open equations at arbitrary terms, the
   `FOring` setoid semiring with the `fo_ring` tactic for object-level
-  equations, and derivations under hypotheses (`FOPrH`) with rules for
-  the quantifiers, equality and induction.
+  equations, derivations under hypotheses (`FOPrH`) with rules for the
+  quantifiers, equality and induction, the Chinese remainder
+  construction, extension and concatenation of beta-coded sequences,
+  and Cantor pairing.
+- `ArithTransfer.v` — substitution and capture conditions through every
+  formula builder of the proof checker, tables as records, and the
+  transfer of each checker clause from a table to a larger one and from
+  a derivation position to a shifted one.
+- `ArithMerge.v` — merging two checked derivations: the shift of
+  justification codes, the merged computation table, and the formula
+  and justification tracks with the new final entry.
+- `ArithDerivability.v` — the checker body and its Sigma_1 matrix as
+  object-level facts, their elimination and introduction, and
+  `FOHBL2_internal`.
 - `Completeness.v` — arithmetic realisation, Pi_1 and Pi_2
   conservativity, the Friedman translation, Solovay, Japaridze, Visser,
   Critch, the agent modules, reverse math, the lambda-box calculus, and
@@ -231,7 +249,9 @@ The development proceeds in the following stages:
     checker and its arithmetization; the Sigma_1 provability sentence
     and the representability bridge; HBL, Loeb, soundness, and Goedel
     II against `FOsat`; the embedding `FOembed` and the transposed
-    headline theorems.
+    headline theorems; and the second derivability condition derived
+    inside `T_0` from object-level number theory, sequence coding and
+    table merging.
 
 ## Cross-references
 

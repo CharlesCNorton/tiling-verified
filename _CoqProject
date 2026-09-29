@@ -4,6 +4,9 @@ Calculus.v
 ArithSyntax.v
 ArithSemantics.v
 ArithInternal.v
+ArithTransfer.v
+ArithMerge.v
+ArithDerivability.v
 Completeness.v
 Decidability.v
 Tiling.v
